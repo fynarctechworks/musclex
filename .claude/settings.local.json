@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install zustand @tanstack/react-query @tanstack/react-table recharts react-hook-form zod lucide-react sonner date-fns @supabase/supabase-js)",
+      "Bash(npx @nestjs/cli@10 new backend --package-manager npm --skip-git --strict)",
+      "Bash(npm install prisma @prisma/client @nestjs/jwt @nestjs/passport passport passport-jwt @nestjs/config @nestjs/schedule @nestjs/bullmq bullmq @nestjs/websockets @nestjs/platform-socket.io socket.io class-validator class-transformer @nestjs/axios)",
+      "Bash(npx shadcn@latest init -d)",
+      "Bash(npx prisma@5 init --datasource-provider postgresql)",
+      "Bash(npx next build)",
+      "Bash(npm install tailwindcss-animate)",
+      "Bash(npm uninstall tw-animate-css @base-ui/react class-variance-authority)",
+      "Bash(npx shadcn@latest add button table dialog input select textarea dropdown-menu separator avatar badge tooltip scroll-area sheet popover -y)"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "supabase"
+  ],
+  "enableAllProjectMcpServers": true
+}

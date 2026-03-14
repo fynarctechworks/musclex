@@ -1,0 +1,127 @@
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { PermissionsMap, UserRoleSummary } from '../decorators/current-user.decorator';
+import { DEFAULT_ROLE_PERMISSIONS } from './default-permissions';
+import { RbacService } from '../../auth/rbac.service';
+
+@Injectable()
+export class JwtAuthGuard implements CanActivate {
+  private supabase: SupabaseClient;
+  private readonly logger = new Logger(JwtAuthGuard.name);
+
+  constructor(
+    private configService: ConfigService,
+    private rbacService: RbacService,
+  ) {
+    this.supabase = createClient(
+      this.configService.get<string>('SUPABASE_URL', ''),
+      this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY', ''),
+    );
+  }
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest();
+    const authHeader = request.headers.authorization;
+
+    if (!authHeader?.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Missing or invalid authorization header');
+    }
+
+    const token = authHeader.substring(7);
+
+    try {
+      const {
+        data: { user },
+        error,
+      } = await this.supabase.auth.getUser(token);
+
+      if (error || !user) {
+        throw new UnauthorizedException('Invalid or expired token');
+      }
+
+      const metadata = user.user_metadata || {};
+      const studioId = metadata.studio_id;
+
+      // ── Resolve from normalized RBAC tables ──
+      let role = metadata.role || 'owner';
+      let roles: UserRoleSummary[] = [];
+      let branchIds: string[] = metadata.branch_ids || [];
+      let permissions: PermissionsMap = {};
+      let permissionCodes: string[] = [];
+
+      if (studioId) {
+        try {
+          // Get all roles for this user in this studio
+          const userRoles = await this.rbacService.getUserRoles(user.id, studioId);
+
+          if (userRoles.length > 0) {
+            roles = userRoles.map((r) => ({
+              role_name: r.role_name,
+              branch_id: r.branch_id,
+              is_primary: r.is_primary,
+            }));
+
+            // Primary role
+            const primaryRole = userRoles.find((r) => r.is_primary) || userRoles[0];
+            role = primaryRole.role_name;
+
+            // Branch access from roles
+            const hasGlobalAccess = userRoles.some((r) => r.branch_id === null);
+            if (!hasGlobalAccess) {
+              branchIds = [...new Set(
+                userRoles.filter((r) => r.branch_id).map((r) => r.branch_id!),
+              )];
+            }
+
+            // Resolve permissions from normalized tables
+            const branchId = request.headers['x-branch-id'] as string | undefined;
+            permissionCodes = await this.rbacService.resolvePermissions(
+              user.id,
+              studioId,
+              branchId,
+            );
+            permissions = this.rbacService.codesToPermissionsMap(permissionCodes);
+          }
+        } catch (error) {
+          this.logger.warn(`RBAC resolution failed for user ${user.id} in studio ${studioId}`, error instanceof Error ? error.message : error);
+          // Fall through to legacy resolution below
+        }
+      }
+
+      // ── Fallback: legacy resolution from metadata/defaults ──
+      if (Object.keys(permissions).length === 0) {
+        permissions = metadata.permissions || DEFAULT_ROLE_PERMISSIONS[role] || {};
+        // Convert to codes for backward compat
+        for (const [mod, actions] of Object.entries(permissions)) {
+          for (const action of actions as string[]) {
+            permissionCodes.push(`${mod}.${action}`);
+          }
+        }
+      }
+
+      request.user = {
+        user_id: user.id,
+        studio_id: studioId,
+        role,
+        roles,
+        branch_ids: branchIds,
+        branch_id: request.headers['x-branch-id'],
+        email: user.email,
+        permissions,
+        permission_codes: permissionCodes,
+      };
+
+      return true;
+    } catch (err) {
+      if (err instanceof UnauthorizedException) throw err;
+      throw new UnauthorizedException('Token validation failed');
+    }
+  }
+}

@@ -1,0 +1,2547 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+  binaryTargets   = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["public", "studio_template"]
+}
+
+// =============================================
+// PUBLIC SCHEMA — Tenant Registry
+// =============================================
+
+model Studio {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                String
+  slug                String    @unique
+  schema_name         String    @unique
+  owner_user_id       String    @db.Uuid
+  logo_url            String?
+  tagline             String?
+  phone               String?
+  email               String?
+  website             String?
+  address             String?
+  city                String?
+  state               String?
+  country             String?
+  postal_code         String?
+  business_name       String?
+  business_type       String?
+  timezone            String    @default("Asia/Kolkata")
+  currency            String    @default("INR")
+  subscription_plan   String    @default("free")
+  subscription_status String    @default("trial")
+  billing_cycle       String    @default("monthly")
+  billing_name        String?
+  billing_email       String?
+  billing_address     String?
+  tax_id              String?
+  subscription_start  DateTime? @db.Timestamptz()
+  next_billing_date   DateTime? @db.Timestamptz()
+  trial_ends_at       DateTime? @db.Timestamptz()
+  last_login_at       DateTime? @db.Timestamptz()
+  two_factor_enabled  Boolean   @default(false)
+  email_verified      Boolean   @default(false)
+  phone_verified      Boolean   @default(false)
+  created_at          DateTime  @default(now()) @db.Timestamptz()
+  updated_at          DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  invoices Invoice[]
+
+  @@map("studios")
+  @@schema("public")
+}
+
+model SubscriptionPlan {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String   @unique
+  display_name     String
+  description      String?
+  monthly_price    Decimal  @db.Decimal(10, 2)
+  annual_price     Decimal  @db.Decimal(10, 2)
+  max_branches     Int      @default(1)
+  max_members      Int      @default(100)
+  max_staff        Int      @default(5)
+  storage_limit_gb Int      @default(1)
+  api_access       Boolean  @default(false)
+  features         Json     @default("{}") // { "multi_branch": true, ... }
+  is_active        Boolean  @default(true)
+  sort_order       Int      @default(0)
+  created_at       DateTime @default(now()) @db.Timestamptz()
+  updated_at       DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  @@map("subscription_plans")
+  @@schema("public")
+}
+
+model Invoice {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studio_id            String    @db.Uuid
+  invoice_number       String    @unique
+  amount               Decimal   @db.Decimal(10, 2)
+  currency             String    @default("INR")
+  status               String    @default("pending") // pending | paid | failed | refunded
+  billing_period_start DateTime  @db.Timestamptz()
+  billing_period_end   DateTime  @db.Timestamptz()
+  paid_at              DateTime? @db.Timestamptz()
+  invoice_url          String?
+  created_at           DateTime  @default(now()) @db.Timestamptz()
+
+  studio Studio @relation(fields: [studio_id], references: [id])
+
+  @@index([studio_id, created_at])
+  @@map("invoices")
+  @@schema("public")
+}
+
+model EmailVerification {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  token      String   @unique
+  expires_at DateTime @db.Timestamptz()
+  used       Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  @@index([user_id])
+  @@index([token])
+  @@map("email_verifications")
+  @@schema("public")
+}
+
+model PendingRegistration {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  full_name          String
+  email              String
+  phone              String?
+  encrypted_password String
+  token              String   @unique
+  expires_at         DateTime @db.Timestamptz()
+  created_at         DateTime @default(now()) @db.Timestamptz()
+
+  @@index([email])
+  @@index([token])
+  @@map("pending_registrations")
+  @@schema("public")
+}
+
+// =============================================
+// PUBLIC SCHEMA — Identity & Session Management
+// =============================================
+
+model UserIdentity {
+  id                  String    @id @db.Uuid // Same as Supabase Auth user ID
+  email               String    @unique
+  full_name           String
+  phone               String?
+  avatar_url          String?
+  status              String    @default("active") // active | suspended | deactivated
+  email_verified      Boolean   @default(false)
+  phone_verified      Boolean   @default(false)
+  last_login_at       DateTime? @db.Timestamptz()
+  login_count         Int       @default(0)
+  failed_login_count  Int       @default(0)
+  locked_until        DateTime? @db.Timestamptz()
+  password_changed_at DateTime? @db.Timestamptz()
+  two_factor_enabled  Boolean   @default(false)
+  two_factor_method   String? // totp | sms | email
+  metadata            Json      @default("{}")
+  created_at          DateTime  @default(now()) @db.Timestamptz()
+  updated_at          DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  devices       UserDevice[]
+  login_history LoginHistory[]
+  sessions      UserSession[]
+  user_roles    UserRole[]
+
+  @@index([email])
+  @@index([status])
+  @@map("user_identities")
+  @@schema("public")
+}
+
+model UserDevice {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id            String   @db.Uuid
+  device_fingerprint String
+  device_name        String?
+  device_type        String   @default("desktop") // mobile | desktop | tablet
+  browser            String?
+  os                 String?
+  ip_address         String?
+  location_city      String?
+  location_country   String?
+  is_trusted         Boolean  @default(false)
+  last_active_at     DateTime @default(now()) @db.Timestamptz()
+  created_at         DateTime @default(now()) @db.Timestamptz()
+
+  user          UserIdentity   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  login_history LoginHistory[]
+  sessions      UserSession[]
+
+  @@unique([user_id, device_fingerprint])
+  @@index([user_id])
+  @@map("user_devices")
+  @@schema("public")
+}
+
+model LoginHistory {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String?  @db.Uuid
+  email          String
+  ip_address     String?
+  user_agent     String?
+  device_id      String?  @db.Uuid
+  login_method   String   @default("password") // password | sso | magic_link | refresh | api_key
+  status         String // success | failed | blocked | locked
+  failure_reason String?
+  studio_id      String?  @db.Uuid
+  metadata       Json?
+  created_at     DateTime @default(now()) @db.Timestamptz()
+
+  user   UserIdentity? @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  device UserDevice?   @relation(fields: [device_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id, created_at])
+  @@index([email, created_at])
+  @@index([ip_address])
+  @@index([status, created_at])
+  @@map("login_history")
+  @@schema("public")
+}
+
+model UserSession {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String    @db.Uuid
+  device_id        String?   @db.Uuid
+  token_hash       String    @unique
+  ip_address       String?
+  studio_id        String?   @db.Uuid
+  is_active        Boolean   @default(true)
+  expires_at       DateTime  @db.Timestamptz()
+  last_activity_at DateTime  @default(now()) @db.Timestamptz()
+  revoked_at       DateTime? @db.Timestamptz()
+  revoked_reason   String?
+  created_at       DateTime  @default(now()) @db.Timestamptz()
+
+  user   UserIdentity @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  device UserDevice?  @relation(fields: [device_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id, is_active])
+  @@index([token_hash])
+  @@index([expires_at])
+  @@map("user_sessions")
+  @@schema("public")
+}
+
+// =============================================
+// PUBLIC SCHEMA — Normalized RBAC
+// =============================================
+
+model Permission {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String   @unique // "members.create", "payments.view", etc.
+  module      String // "members", "payments", "dashboard", etc.
+  action      String // "view", "create", "edit", "delete", "export", "manage"
+  description String?
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  @@index([module])
+  @@map("permissions")
+  @@schema("public")
+}
+
+model UserRole {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String   @db.Uuid
+  studio_id   String   @db.Uuid
+  branch_id   String?  @db.Uuid // null = all branches in this studio
+  role_name   String // denormalized for quick access (e.g. "owner", "trainer")
+  is_primary  Boolean  @default(false)
+  assigned_by String?  @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz()
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  user UserIdentity @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, studio_id, branch_id])
+  @@index([user_id])
+  @@index([studio_id])
+  @@index([user_id, studio_id])
+  @@map("user_roles")
+  @@schema("public")
+}
+
+// =============================================
+// PER-STUDIO SCHEMA — Organization Hierarchy
+// =============================================
+
+model Organization {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  slug          String   @unique
+  logo_url      String?
+  industry_type String   @default("fitness") // fitness | wellness | sports | rehabilitation
+  country       String?
+  timezone      String   @default("Asia/Kolkata")
+  currency      String   @default("INR")
+  status        String   @default("active") // active | suspended | inactive
+  created_at    DateTime @default(now()) @db.Timestamptz()
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  regions              Region[]
+  branches             Branch[]
+  settings             OrganizationSettings?
+  franchise_owners     FranchiseOwner[]
+  staff                Staff[]
+  members              Member[]
+  membership_plans     MembershipPlan[]
+  corporate_accounts   CorporateAccount[]
+  class_templates      ClassTemplate[]
+  member_invoices      MemberInvoice[]
+  product_categories   ProductCategory[]
+  products             Product[]
+  suppliers            Supplier[]
+  message_templates    MessageTemplate[]
+  automation_workflows AutomationWorkflow[]
+  referral_programs    ReferralProgram[]
+  leads                Lead[]
+  daily_gym_metrics    DailyGymMetrics[]
+  membership_analytics MembershipAnalytics[]
+  revenue_analytics    RevenueAnalytics[]
+  webhooks             Webhook[]
+  integrations         Integration[]
+  feature_flags_list   FeatureFlag[]
+  white_label_config   WhiteLabelConfig?
+  system_notifications SystemNotification[]
+
+  @@index([status])
+  @@map("organizations")
+  @@schema("studio_template")
+}
+
+model OrganizationSettings {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id  String   @unique @db.Uuid
+  default_timezone String   @default("Asia/Kolkata")
+  default_currency String   @default("INR")
+  billing_plan     String?
+  feature_flags    Json     @default("{}")
+  branding         Json     @default("{}") // { primary_color, logo_url, ... }
+  created_at       DateTime @default(now()) @db.Timestamptz()
+  updated_at       DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+
+  @@map("organization_settings")
+  @@schema("studio_template")
+}
+
+model Region {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String   @db.Uuid
+  name            String
+  country         String?
+  timezone        String?
+  manager_id      String?  @db.Uuid // references Staff.id or user_id
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now()) @db.Timestamptz()
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  branches     Branch[]
+
+  @@index([organization_id])
+  @@map("regions")
+  @@schema("studio_template")
+}
+
+// =============================================
+// PER-STUDIO SCHEMA — Branch (Physical Location)
+// =============================================
+
+model Branch {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String?  @db.Uuid
+  region_id       String?  @db.Uuid
+  name            String
+  code            String?  @unique // e.g. "NYC-DT", "LA-CENT"
+  address         String?
+  city            String?
+  state           String?
+  country         String?
+  postal_code     String?
+  latitude        Decimal? @db.Decimal(10, 7)
+  longitude       Decimal? @db.Decimal(10, 7)
+  phone           String?
+  email           String?
+  status          String   @default("active") // active | inactive | temporarily_closed | coming_soon
+  is_active       Boolean  @default(true)
+  opening_time    String? // "06:00" (HH:mm)
+  closing_time    String? // "22:00" (HH:mm)
+  created_at      DateTime @default(now()) @db.Timestamptz()
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  organization           Organization?          @relation(fields: [organization_id], references: [id])
+  region                 Region?                @relation(fields: [region_id], references: [id])
+  settings               BranchSettings?
+  branch_franchises      BranchFranchise[]
+  staff_primary          Staff[]                @relation("StaffPrimaryBranch")
+  staff_attendance       StaffAttendance[]
+  trainer_sessions       TrainerSession[]
+  trainer_revenue        TrainerRevenue[]
+  members                Member[]
+  membership_plans       MembershipPlan[]
+  member_memberships     MemberMembership[]
+  check_ins              CheckIn[]
+  classes                Class[]
+  class_templates        ClassTemplate[]
+  class_sessions         ClassSession[]
+  studios                StudioRoom[]
+  payments               Payment[]
+  expenses               Expense[]
+  member_invoices        MemberInvoice[]
+  financial_transactions FinancialTransaction[]
+  staff_shifts           StaffShift[]
+  products               Product[]
+  inventory              Inventory[]
+  inventory_transactions InventoryTransaction[]
+  purchase_orders        PurchaseOrder[]
+  pos_sales              PosSale[]
+  leads                  Lead[]
+  daily_gym_metrics      DailyGymMetrics[]
+  membership_analytics   MembershipAnalytics[]
+  revenue_analytics      RevenueAnalytics[]
+  class_analytics        ClassAnalytics[]
+  trainer_analytics      TrainerAnalytics[]
+
+  @@index([organization_id])
+  @@index([region_id])
+  @@index([status])
+  @@map("branches")
+  @@schema("studio_template")
+}
+
+model BranchSettings {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  branch_id          String   @unique @db.Uuid
+  currency           String   @default("INR")
+  tax_percentage     Decimal  @default(0) @db.Decimal(5, 2)
+  membership_policy  Json     @default("{}") // { grace_period_days, freeze_limit, ... }
+  checkin_policy     Json     @default("{}") // { allow_qr, allow_facial, allow_manual, ... }
+  notification_prefs Json     @default("{}") // { sms_enabled, email_enabled, whatsapp_enabled }
+  created_at         DateTime @default(now()) @db.Timestamptz()
+  updated_at         DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  branch Branch @relation(fields: [branch_id], references: [id], onDelete: Cascade)
+
+  @@map("branch_settings")
+  @@schema("studio_template")
+}
+
+// =============================================
+// PER-STUDIO SCHEMA — Franchise Support
+// =============================================
+
+model FranchiseOwner {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String   @db.Uuid
+  owner_name      String
+  email           String
+  phone           String?
+  user_id         String?  @db.Uuid // linked Identity for dashboard access
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now()) @db.Timestamptz()
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  organization      Organization      @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  branch_franchises BranchFranchise[]
+
+  @@index([organization_id])
+  @@map("franchise_owners")
+  @@schema("studio_template")
+}
+
+model BranchFranchise {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  branch_id          String    @db.Uuid
+  franchise_owner_id String    @db.Uuid
+  revenue_share_pct  Decimal?  @db.Decimal(5, 2)
+  contract_start     DateTime? @db.Date
+  contract_end       DateTime? @db.Date
+  created_at         DateTime  @default(now()) @db.Timestamptz()
+
+  branch          Branch         @relation(fields: [branch_id], references: [id], onDelete: Cascade)
+  franchise_owner FranchiseOwner @relation(fields: [franchise_owner_id], references: [id], onDelete: Cascade)
+
+  @@unique([branch_id, franchise_owner_id])
+  @@index([franchise_owner_id])
+  @@map("branch_franchises")
+  @@schema("studio_template")
+}
+
+model Member {
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_code             String    @unique
+  organization_id         String?   @db.Uuid
+  branch_id               String    @db.Uuid
+  full_name               String
+  phone                   String
+  email                   String?
+  gender                  String? // male | female | other | prefer_not_to_say
+  date_of_birth           DateTime? @db.Date
+  emergency_contact_name  String?
+  emergency_contact_phone String?
+  profile_photo_url       String?
+  face_descriptor         Float[]
+  checkin_method          String    @default("manual")
+  qr_code                 String?   @unique
+  status                  String    @default("active") // lead | trial | active | inactive | cancelled | frozen | expiring_soon | expired
+  engagement_score        Int       @default(0)
+  churn_risk              String    @default("low") // low | medium | high
+  referral_code           String?   @unique
+  referred_by_member_id   String?   @db.Uuid
+  notes                   String?
+  join_date               DateTime? @db.Date
+  last_visit_at           DateTime? @db.Timestamptz()
+  created_at              DateTime  @default(now()) @db.Timestamptz()
+  updated_at              DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  organization       Organization?             @relation(fields: [organization_id], references: [id])
+  branch             Branch                    @relation(fields: [branch_id], references: [id])
+  referred_by        Member?                   @relation("MemberReferral", fields: [referred_by_member_id], references: [id])
+  referrals          Member[]                  @relation("MemberReferral")
+  profile            MemberProfile?
+  body_stats         MemberBodyStats[]
+  member_notes       MemberNote[]
+  tag_assignments    MemberTagAssignment[]
+  documents          MemberDocument[]
+  referrals_given    MemberReferral[]          @relation("Referrer")
+  referrals_received MemberReferral[]          @relation("Referred")
+  memberships        MemberMembership[]
+  check_ins          CheckIn[]
+  payments           Payment[]
+  class_enrollments  ClassEnrollment[]
+  class_bookings     ClassBooking[]
+  class_waitlists    ClassWaitlist[]
+  class_attendance   ClassAttendance[]
+  notifications      NotificationLog[]
+  trainer_clients    TrainerClient[]
+  trainer_sessions   TrainerSession[]
+  family_primary     FamilyMembership[]        @relation("FamilyPrimary")
+  family_links       FamilyMember[]
+  corporate_links    CorporateMember[]
+  global_passes      GlobalAccessPass[]
+  member_invoices    MemberInvoice[]
+  refunds            Refund[]
+  payment_retries    PaymentRetryLog[]
+  pos_purchases      PosSale[]
+  campaign_audience  CampaignAudience[]
+  push_notifications PushNotification[]
+  leads_converted    Lead[]                    @relation("LeadConvertedMember")
+  behavior_analytics MemberBehaviorAnalytics[]
+  consent_logs       ConsentLog[]
+  data_requests      DataRequest[]
+
+  @@index([organization_id])
+  @@index([branch_id])
+  @@index([status])
+  @@index([branch_id, status])
+  @@index([phone])
+  @@index([email])
+  @@map("members")
+  @@schema("studio_template")
+}
+
+// =============================================
+// PER-STUDIO SCHEMA — Member CRM Extension
+// =============================================
+
+model MemberProfile {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id           String   @unique @db.Uuid
+  height              Decimal? @db.Decimal(5, 2) // cm
+  weight              Decimal? @db.Decimal(5, 2) // kg
+  body_fat_percentage Decimal? @db.Decimal(5, 2)
+  fitness_goal        String? // weight_loss | muscle_gain | rehabilitation | endurance | general_fitness
+  medical_conditions  String[]
+  allergies           String[]
+  emergency_contact   String?
+  emergency_phone     String?
+  blood_group         String?
+  created_at          DateTime @default(now()) @db.Timestamptz()
+  updated_at          DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  member Member @relation(fields: [member_id], references: [id], onDelete: Cascade)
+
+  @@map("member_profiles")
+  @@schema("studio_template")
+}
+
+model MemberBodyStats {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id   String   @db.Uuid
+  weight      Decimal? @db.Decimal(5, 2) // kg
+  body_fat    Decimal? @db.Decimal(5, 2) // %
+  muscle_mass Decimal? @db.Decimal(5, 2) // kg
+  bmi         Decimal? @db.Decimal(5, 2)
+  chest       Decimal? @db.Decimal(5, 2) // cm
+  waist       Decimal? @db.Decimal(5, 2) // cm
+  hips        Decimal? @db.Decimal(5, 2) // cm
+  recorded_at DateTime @db.Timestamptz()
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  member Member @relation(fields: [member_id], references: [id], onDelete: Cascade)
+
+  @@index([member_id, recorded_at])
+  @@map("member_body_stats")
+  @@schema("studio_template")
+}
+
+model MemberNote {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id  String   @db.Uuid
+  staff_id   String?  @db.Uuid
+  note       String
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  member Member @relation(fields: [member_id], references: [id], onDelete: Cascade)
+  staff  Staff? @relation(fields: [staff_id], references: [id])
+
+  @@index([member_id, created_at])
+  @@map("member_notes")
+  @@schema("studio_template")
+}
+
+model MemberTag {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @unique
+  color       String? // hex color for UI badge
+  description String?
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  assignments MemberTagAssignment[]
+
+  @@map("member_tags")
+  @@schema("studio_template")
+}
+
+model MemberTagAssignment {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id  String   @db.Uuid
+  tag_id     String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  member Member    @relation(fields: [member_id], references: [id], onDelete: Cascade)
+  tag    MemberTag @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+
+  @@unique([member_id, tag_id])
+  @@index([tag_id])
+  @@map("member_tag_assignments")
+  @@schema("studio_template")
+}
+
+model MemberDocument {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id     String   @db.Uuid
+  document_type String // medical_clearance | waiver | fitness_assessment | id_proof | other
+  file_url      String
+  file_name     String?
+  file_size     Int? // bytes
+  uploaded_at   DateTime @default(now()) @db.Timestamptz()
+
+  member Member @relation(fields: [member_id], references: [id], onDelete: Cascade)
+
+  @@index([member_id])
+  @@map("member_documents")
+  @@schema("studio_template")
+}
+
+model MemberReferral {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referrer_member_id String    @db.Uuid
+  referred_member_id String    @db.Uuid
+  reward_status      String    @default("pending") // pending | awarded | expired
+  reward_type        String? // discount | free_days | cash
+  reward_value       Decimal?  @db.Decimal(10, 2)
+  awarded_at         DateTime? @db.Timestamptz()
+  created_at         DateTime  @default(now()) @db.Timestamptz()
+
+  referrer Member @relation("Referrer", fields: [referrer_member_id], references: [id], onDelete: Cascade)
+  referred Member @relation("Referred", fields: [referred_member_id], references: [id], onDelete: Cascade)
+
+  @@unique([referrer_member_id, referred_member_id])
+  @@index([referrer_member_id])
+  @@index([referred_member_id])
+  @@map("member_referrals")
+  @@schema("studio_template")
+}
+
+model MembershipPlan {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id      String?  @db.Uuid
+  branch_id            String?  @db.Uuid
+  name                 String
+  description          String?
+  plan_type            String // monthly | quarterly | half_yearly | yearly | class_pack | custom | day_pass | corporate | family | global_access
+  duration_days        Int?
+  total_classes        Int?
+  max_classes_per_week Int?
+  max_visits           Int? // for visit-based plans
+  price                Decimal  @db.Decimal(10, 2)
+  currency             String   @default("INR")
+  multi_branch_access  Boolean  @default(false) // can be used across branches
+  grace_period_days    Int      @default(0) // days after expiry before full lockout
+  is_active            Boolean  @default(true)
+  auto_renew_enabled   Boolean  @default(false)
+  created_at           DateTime @default(now()) @db.Timestamptz()
+  updated_at           DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  organization         Organization?         @relation(fields: [organization_id], references: [id])
+  branch               Branch?               @relation(fields: [branch_id], references: [id])
+  memberships          MemberMembership[]
+  family_memberships   FamilyMembership[]
+  global_access_passes GlobalAccessPass[]
+  membership_analytics MembershipAnalytics[]
+
+  @@index([organization_id])
+  @@index([plan_type])
+  @@map("membership_plans")
+  @@schema("studio_template")
+}
+
+model MemberMembership {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id            String    @db.Uuid
+  plan_id              String    @db.Uuid
+  branch_id            String    @db.Uuid
+  start_date           DateTime  @db.Date
+  end_date             DateTime? @db.Date
+  classes_remaining    Int?
+  remaining_visits     Int? // for visit-based plans
+  status               String    @default("active") // pending | active | paused | frozen | expired | cancelled | renewed
+  freeze_start_date    DateTime? @db.Date
+  freeze_end_date      DateTime? @db.Date
+  freeze_reason        String?
+  grace_end_date       DateTime? @db.Date // end of grace period after expiry
+  auto_renew           Boolean   @default(false)
+  payment_method_token String?
+  created_at           DateTime  @default(now()) @db.Timestamptz()
+  updated_at           DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  member            Member             @relation(fields: [member_id], references: [id])
+  plan              MembershipPlan     @relation(fields: [plan_id], references: [id])
+  branch            Branch             @relation(fields: [branch_id], references: [id])
+  check_ins         CheckIn[]
+  payments          Payment[]
+  freezes           MembershipFreeze[]
+  family_membership FamilyMembership?
+  corporate_members CorporateMember[]
+
+  @@index([member_id, status])
+  @@index([status, end_date])
+  @@index([auto_renew, status])
+  @@map("member_memberships")
+  @@schema("studio_template")
+}
+
+// ── Membership Freeze History ─────────────────────────────────
+
+model MembershipFreeze {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  membership_id  String    @db.Uuid
+  start_date     DateTime  @db.Date
+  end_date       DateTime? @db.Date
+  reason         String?
+  approved_by_id String?   @db.Uuid
+  days_frozen    Int       @default(0)
+  status         String    @default("active") // active | completed | cancelled
+  created_at     DateTime  @default(now()) @db.Timestamptz()
+
+  membership  MemberMembership @relation(fields: [membership_id], references: [id], onDelete: Cascade)
+  approved_by Staff?           @relation(fields: [approved_by_id], references: [id])
+
+  @@index([membership_id])
+  @@map("membership_freezes")
+  @@schema("studio_template")
+}
+
+// ── Family Membership ─────────────────────────────────────────
+
+model FamilyMembership {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  primary_member_id String   @db.Uuid
+  membership_id     String   @unique @db.Uuid
+  plan_id           String   @db.Uuid
+  max_members       Int      @default(4)
+  created_at        DateTime @default(now()) @db.Timestamptz()
+
+  primary_member Member           @relation("FamilyPrimary", fields: [primary_member_id], references: [id])
+  membership     MemberMembership @relation(fields: [membership_id], references: [id], onDelete: Cascade)
+  plan           MembershipPlan   @relation(fields: [plan_id], references: [id])
+  members        FamilyMember[]
+
+  @@index([primary_member_id])
+  @@map("family_memberships")
+  @@schema("studio_template")
+}
+
+model FamilyMember {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  family_membership_id String   @db.Uuid
+  member_id            String   @db.Uuid
+  relation             String // spouse | child | parent | sibling | other
+  created_at           DateTime @default(now()) @db.Timestamptz()
+
+  family_membership FamilyMembership @relation(fields: [family_membership_id], references: [id], onDelete: Cascade)
+  member            Member           @relation(fields: [member_id], references: [id])
+
+  @@unique([family_membership_id, member_id])
+  @@index([member_id])
+  @@map("family_members")
+  @@schema("studio_template")
+}
+
+// ── Corporate Membership ──────────────────────────────────────
+
+model CorporateAccount {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id  String?  @db.Uuid
+  company_name     String
+  contact_person   String
+  contact_email    String
+  contact_phone    String?
+  billing_cycle    String   @default("monthly") // monthly | quarterly | yearly
+  discount_percent Decimal  @default(0) @db.Decimal(5, 2)
+  max_members      Int?
+  status           String   @default("active") // active | suspended | cancelled
+  created_at       DateTime @default(now()) @db.Timestamptz()
+  updated_at       DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  organization Organization?     @relation(fields: [organization_id], references: [id])
+  members      CorporateMember[]
+
+  @@index([organization_id])
+  @@index([status])
+  @@map("corporate_accounts")
+  @@schema("studio_template")
+}
+
+model CorporateMember {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  corporate_account_id String   @db.Uuid
+  member_id            String   @db.Uuid
+  membership_id        String?  @db.Uuid
+  employee_id          String? // company employee ID
+  created_at           DateTime @default(now()) @db.Timestamptz()
+
+  corporate_account CorporateAccount  @relation(fields: [corporate_account_id], references: [id], onDelete: Cascade)
+  member            Member            @relation(fields: [member_id], references: [id])
+  membership        MemberMembership? @relation(fields: [membership_id], references: [id])
+
+  @@unique([corporate_account_id, member_id])
+  @@index([member_id])
+  @@map("corporate_members")
+  @@schema("studio_template")
+}
+
+// ── Global Access Pass ────────────────────────────────────────
+
+model GlobalAccessPass {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id          String   @db.Uuid
+  plan_id            String   @db.Uuid
+  allowed_branch_ids String[] @db.Uuid
+  expiry_date        DateTime @db.Date
+  status             String   @default("active") // active | expired | revoked
+  created_at         DateTime @default(now()) @db.Timestamptz()
+
+  member Member         @relation(fields: [member_id], references: [id])
+  plan   MembershipPlan @relation(fields: [plan_id], references: [id])
+
+  @@index([member_id])
+  @@index([status, expiry_date])
+  @@map("global_access_passes")
+  @@schema("studio_template")
+}
+
+model CheckIn {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id      String    @db.Uuid
+  membership_id  String    @db.Uuid
+  branch_id      String    @db.Uuid
+  class_id       String?   @db.Uuid
+  checkin_method String
+  checked_in_at  DateTime  @default(now()) @db.Timestamptz()
+  status         String    @default("success")
+  failure_reason String?
+  synced_at      DateTime? @db.Timestamptz()
+  created_at     DateTime  @default(now()) @db.Timestamptz()
+
+  member     Member           @relation(fields: [member_id], references: [id])
+  membership MemberMembership @relation(fields: [membership_id], references: [id])
+  branch     Branch           @relation(fields: [branch_id], references: [id])
+  class      Class?           @relation(fields: [class_id], references: [id])
+
+  @@index([member_id, checked_in_at])
+  @@index([branch_id, checked_in_at])
+  @@map("check_ins")
+  @@schema("studio_template")
+}
+
+// =============================================
+// PER-STUDIO SCHEMA — Class & Facility Scheduling
+// =============================================
+
+model ClassTemplate {
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id          String?  @db.Uuid
+  branch_id                String?  @db.Uuid
+  name                     String
+  description              String?
+  category                 String // cardio | strength | flexibility | mind_body | dance | martial_arts | rehabilitation | other
+  default_duration_minutes Int      @default(60)
+  default_capacity         Int      @default(20)
+  created_by_id            String?  @db.Uuid
+  is_active                Boolean  @default(true)
+  created_at               DateTime @default(now()) @db.Timestamptz()
+  updated_at               DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  organization    Organization?        @relation(fields: [organization_id], references: [id])
+  branch          Branch?              @relation(fields: [branch_id], references: [id])
+  created_by      Staff?               @relation("TemplateCreator", fields: [created_by_id], references: [id])
+  sessions        ClassSession[]
+  recurring_rules ClassRecurringRule[]
+  class_analytics ClassAnalytics[]
+
+  @@index([branch_id])
+  @@index([category])
+  @@map("class_templates")
+  @@schema("studio_template")
+}
+
+model StudioRoom {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  branch_id           String   @db.Uuid
+  name                String
+  capacity            Int      @default(30)
+  equipment_available String[]
+  is_active           Boolean  @default(true)
+  created_at          DateTime @default(now()) @db.Timestamptz()
+
+  branch   Branch         @relation(fields: [branch_id], references: [id])
+  sessions ClassSession[]
+
+  @@index([branch_id])
+  @@map("studio_rooms")
+  @@schema("studio_template")
+}
+
+model ClassSession {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  template_id         String?  @db.Uuid
+  branch_id           String   @db.Uuid
+  trainer_id          String   @db.Uuid
+  studio_id           String?  @db.Uuid
+  name                String // denormalized from template for quick display
+  category            String   @default("other")
+  start_time          DateTime @db.Timestamptz()
+  end_time            DateTime @db.Timestamptz()
+  capacity            Int
+  enrolled_count      Int      @default(0)
+  waitlist_count      Int      @default(0)
+  status              String   @default("scheduled") // scheduled | in_progress | completed | cancelled
+  cancellation_reason String?
+  created_at          DateTime @default(now()) @db.Timestamptz()
+  updated_at          DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  template    ClassTemplate?      @relation(fields: [template_id], references: [id])
+  branch      Branch              @relation(fields: [branch_id], references: [id])
+  trainer     Staff               @relation("SessionTrainer", fields: [trainer_id], references: [id])
+  studio      StudioRoom?         @relation(fields: [studio_id], references: [id])
+  bookings    ClassBooking[]
+  waitlist    ClassWaitlist[]
+  attendance  ClassAttendance[]
+  assignments TrainerAssignment[]
+
+  @@index([branch_id, start_time])
+  @@index([trainer_id, start_time])
+  @@index([studio_id, start_time])
+  @@index([template_id])
+  @@index([status])
+  @@map("class_sessions")
+  @@schema("studio_template")
+}
+
+model ClassBooking {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id          String    @db.Uuid
+  member_id           String    @db.Uuid
+  booking_status      String    @default("booked") // booked | cancelled | checked_in | no_show
+  booked_at           DateTime  @default(now()) @db.Timestamptz()
+  cancelled_at        DateTime? @db.Timestamptz()
+  cancellation_reason String?
+  attended            Boolean   @default(false)
+
+  session ClassSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  member  Member       @relation(fields: [member_id], references: [id])
+
+  @@unique([session_id, member_id])
+  @@index([member_id])
+  @@index([session_id, booking_status])
+  @@map("class_bookings")
+  @@schema("studio_template")
+}
+
+model ClassWaitlist {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id String   @db.Uuid
+  member_id  String   @db.Uuid
+  position   Int
+  joined_at  DateTime @default(now()) @db.Timestamptz()
+
+  session ClassSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  member  Member       @relation(fields: [member_id], references: [id])
+
+  @@unique([session_id, member_id])
+  @@index([session_id, position])
+  @@map("class_waitlists")
+  @@schema("studio_template")
+}
+
+model TrainerAssignment {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trainer_id  String   @db.Uuid
+  session_id  String   @db.Uuid
+  role        String   @default("primary") // primary | substitute | assistant
+  assigned_at DateTime @default(now()) @db.Timestamptz()
+
+  trainer Staff        @relation(fields: [trainer_id], references: [id])
+  session ClassSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+
+  @@unique([trainer_id, session_id])
+  @@index([trainer_id])
+  @@map("trainer_assignments")
+  @@schema("studio_template")
+}
+
+model ClassAttendance {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id        String    @db.Uuid
+  member_id         String    @db.Uuid
+  check_in_time     DateTime? @db.Timestamptz()
+  attendance_status String    @default("registered") // registered | present | late | no_show | cancelled
+  created_at        DateTime  @default(now()) @db.Timestamptz()
+
+  session ClassSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  member  Member       @relation(fields: [member_id], references: [id])
+
+  @@unique([session_id, member_id])
+  @@index([member_id])
+  @@map("class_attendance")
+  @@schema("studio_template")
+}
+
+model ClassRecurringRule {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  template_id      String    @db.Uuid
+  days_of_week     Int[] // 0=Sun, 1=Mon ... 6=Sat
+  start_time       String // "07:00" HH:mm
+  duration_minutes Int       @default(60)
+  trainer_id       String?   @db.Uuid
+  studio_id        String?   @db.Uuid
+  branch_id        String    @db.Uuid
+  capacity         Int?
+  repeat_until     DateTime? @db.Date
+  is_active        Boolean   @default(true)
+  created_at       DateTime  @default(now()) @db.Timestamptz()
+
+  template ClassTemplate @relation(fields: [template_id], references: [id], onDelete: Cascade)
+
+  @@index([template_id])
+  @@map("class_recurring_rules")
+  @@schema("studio_template")
+}
+
+// ── Legacy Class model (kept for backward compat with check-ins) ──
+
+model Class {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  branch_id             String    @db.Uuid
+  trainer_id            String    @db.Uuid
+  substitute_trainer_id String?   @db.Uuid
+  name                  String
+  category              String
+  room                  String?
+  capacity              Int
+  duration_minutes      Int
+  starts_at             DateTime  @db.Timestamptz()
+  recurrence_rule       String?
+  recurrence_end_date   DateTime? @db.Date
+  status                String    @default("scheduled")
+  created_at            DateTime  @default(now()) @db.Timestamptz()
+
+  branch             Branch            @relation(fields: [branch_id], references: [id])
+  trainer            Staff             @relation("ClassTrainer", fields: [trainer_id], references: [id])
+  substitute_trainer Staff?            @relation("ClassSubstitute", fields: [substitute_trainer_id], references: [id])
+  check_ins          CheckIn[]
+  enrollments        ClassEnrollment[]
+
+  @@index([branch_id, starts_at])
+  @@map("classes")
+  @@schema("studio_template")
+}
+
+model ClassEnrollment {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  class_id          String   @db.Uuid
+  member_id         String   @db.Uuid
+  status            String   @default("enrolled")
+  waitlist_position Int?
+  enrolled_at       DateTime @default(now()) @db.Timestamptz()
+
+  class  Class  @relation(fields: [class_id], references: [id])
+  member Member @relation(fields: [member_id], references: [id])
+
+  @@map("class_enrollments")
+  @@schema("studio_template")
+}
+
+model Role {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  description String?
+  permissions Json     @default("{}") // Legacy: kept for backward compat during migration
+  is_system   Boolean  @default(false)
+  created_at  DateTime @default(now()) @db.Timestamptz()
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  staff            Staff[]
+  role_permissions RolePermission[]
+
+  @@unique([name])
+  @@map("roles")
+  @@schema("studio_template")
+}
+
+model RolePermission {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role_id         String   @db.Uuid
+  permission_code String // references Permission.code (cross-schema, no FK)
+  created_at      DateTime @default(now()) @db.Timestamptz()
+
+  role Role @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  @@unique([role_id, permission_code])
+  @@index([role_id])
+  @@map("role_permissions")
+  @@schema("studio_template")
+}
+
+model Staff {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           String?   @db.Uuid
+  organization_id   String?   @db.Uuid
+  branch_id         String?   @db.Uuid
+  branch_ids        String[]  @db.Uuid
+  employee_code     String?   @unique
+  full_name         String
+  role              String
+  role_id           String?   @db.Uuid
+  job_title         String?
+  employment_type   String    @default("full_time")
+  phone             String
+  email             String?
+  specializations   String[]
+  salary            Decimal?  @db.Decimal(10, 2)
+  performance_score Int       @default(0)
+  status            String    @default("active")
+  is_active         Boolean   @default(true)
+  joined_at         DateTime? @db.Date
+  created_at        DateTime  @default(now()) @db.Timestamptz()
+  updated_at        DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  organization          Organization?              @relation(fields: [organization_id], references: [id])
+  primary_branch        Branch?                    @relation("StaffPrimaryBranch", fields: [branch_id], references: [id])
+  custom_role           Role?                      @relation(fields: [role_id], references: [id])
+  profile               StaffProfile?
+  availability          StaffAvailability[]
+  attendance            StaffAttendance[]
+  trainer_clients       TrainerClient[]            @relation("TrainerToClients")
+  trainer_sessions      TrainerSession[]           @relation("TrainerSessions")
+  payroll_config        PayrollConfig?
+  trainer_revenue       TrainerRevenue[]
+  member_notes          MemberNote[]
+  classes_as_trainer    Class[]                    @relation("ClassTrainer")
+  classes_as_substitute Class[]                    @relation("ClassSubstitute")
+  expenses_recorded     Expense[]
+  campaigns_created     Campaign[]
+  ai_conversations      AiConversation[]
+  freeze_approvals      MembershipFreeze[]
+  templates_created     ClassTemplate[]            @relation("TemplateCreator")
+  session_trainer       ClassSession[]             @relation("SessionTrainer")
+  trainer_assignments   TrainerAssignment[]
+  refunds_processed     Refund[]                   @relation("RefundProcessor")
+  shifts                StaffShift[]
+  leave_requests        LeaveRequest[]
+  leave_reviews         LeaveRequest[]             @relation("LeaveReviewer")
+  payroll_records       PayrollRecord[]
+  performance_records   TrainerPerformanceRecord[]
+  pos_sales             PosSale[]
+  returns_processed     ProductReturn[]            @relation("ReturnProcessor")
+  leads_assigned        Lead[]                     @relation("LeadAssignedStaff")
+  lead_activities       LeadActivity[]             @relation("LeadActivityStaff")
+  trainer_analytics     TrainerAnalytics[]
+
+  @@index([organization_id])
+  @@index([branch_id])
+  @@index([role_id])
+  @@index([status])
+  @@map("staff")
+  @@schema("studio_template")
+}
+
+// =============================================
+// PER-STUDIO SCHEMA — Staff Profiles & Availability
+// =============================================
+
+model StaffProfile {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staff_id         String   @unique @db.Uuid
+  bio              String?
+  certifications   String[]
+  specializations  String[]
+  experience_years Int      @default(0)
+  profile_photo    String?
+  rating           Decimal  @default(0) @db.Decimal(3, 2)
+  total_ratings    Int      @default(0)
+  created_at       DateTime @default(now()) @db.Timestamptz()
+  updated_at       DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  staff Staff @relation(fields: [staff_id], references: [id], onDelete: Cascade)
+
+  @@map("staff_profiles")
+  @@schema("studio_template")
+}
+
+model StaffAvailability {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staff_id          String   @db.Uuid
+  day_of_week       Int // 0=Sunday, 1=Monday, ..., 6=Saturday
+  start_time        String // "06:00" HH:mm
+  end_time          String // "12:00" HH:mm
+  availability_type String   @default("available") // available | unavailable | tentative
+  created_at        DateTime @default(now()) @db.Timestamptz()
+  updated_at        DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  staff Staff @relation(fields: [staff_id], references: [id], onDelete: Cascade)
+
+  @@index([staff_id, day_of_week])
+  @@map("staff_availability")
+  @@schema("studio_template")
+}
+
+model StaffAttendance {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staff_id       String    @db.Uuid
+  branch_id      String    @db.Uuid
+  check_in_time  DateTime  @db.Timestamptz()
+  check_out_time DateTime? @db.Timestamptz()
+  method         String    @default("manual") // biometric | qr | manual | mobile
+  notes          String?
+  created_at     DateTime  @default(now()) @db.Timestamptz()
+
+  staff  Staff  @relation(fields: [staff_id], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branch_id], references: [id])
+
+  @@index([staff_id, check_in_time])
+  @@index([branch_id, check_in_time])
+  @@map("staff_attendance")
+  @@schema("studio_template")
+}
+
+// =============================================
+// PER-STUDIO SCHEMA — Trainer Management
+// =============================================
+
+model TrainerClient {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trainer_id    String   @db.Uuid
+  member_id     String   @db.Uuid
+  assigned_date DateTime @default(now()) @db.Date
+  status        String   @default("active") // active | completed | paused | cancelled
+  notes         String?
+  created_at    DateTime @default(now()) @db.Timestamptz()
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  trainer Staff  @relation("TrainerToClients", fields: [trainer_id], references: [id], onDelete: Cascade)
+  member  Member @relation(fields: [member_id], references: [id], onDelete: Cascade)
+
+  @@unique([trainer_id, member_id])
+  @@index([trainer_id, status])
+  @@index([member_id])
+  @@map("trainer_clients")
+  @@schema("studio_template")
+}
+
+model TrainerSession {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trainer_id       String   @db.Uuid
+  member_id        String   @db.Uuid
+  branch_id        String   @db.Uuid
+  session_date     DateTime @db.Timestamptz()
+  session_duration Int // minutes
+  session_type     String   @default("personal_training") // personal_training | group_training | rehab_session | assessment
+  status           String   @default("scheduled") // scheduled | completed | cancelled | no_show
+  notes            String?
+  created_at       DateTime @default(now()) @db.Timestamptz()
+  updated_at       DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  trainer Staff           @relation("TrainerSessions", fields: [trainer_id], references: [id], onDelete: Cascade)
+  member  Member          @relation(fields: [member_id], references: [id], onDelete: Cascade)
+  branch  Branch          @relation(fields: [branch_id], references: [id])
+  revenue TrainerRevenue?
+
+  @@index([trainer_id, session_date])
+  @@index([member_id, session_date])
+  @@index([branch_id, session_date])
+  @@map("trainer_sessions")
+  @@schema("studio_template")
+}
+
+// =============================================
+// PER-STUDIO SCHEMA — Payroll & Revenue
+// =============================================
+
+model PayrollConfig {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staff_id              String   @unique @db.Uuid
+  salary_type           String   @default("fixed") // fixed | commission | hybrid
+  base_salary           Decimal  @default(0) @db.Decimal(10, 2)
+  commission_percentage Decimal  @default(0) @db.Decimal(5, 2)
+  bonus_structure       Json     @default("{}") // { monthly_target, bonus_per_session, etc. }
+  created_at            DateTime @default(now()) @db.Timestamptz()
+  updated_at            DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  staff Staff @relation(fields: [staff_id], references: [id], onDelete: Cascade)
+
+  @@map("payroll_configs")
+  @@schema("studio_template")
+}
+
+model TrainerRevenue {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trainer_id        String   @db.Uuid
+  branch_id         String   @db.Uuid
+  session_id        String?  @unique @db.Uuid
+  revenue_amount    Decimal  @db.Decimal(10, 2)
+  commission_amount Decimal  @db.Decimal(10, 2)
+  created_at        DateTime @default(now()) @db.Timestamptz()
+
+  trainer Staff           @relation(fields: [trainer_id], references: [id], onDelete: Cascade)
+  branch  Branch          @relation(fields: [branch_id], references: [id])
+  session TrainerSession? @relation(fields: [session_id], references: [id])
+
+  @@index([trainer_id, created_at])
+  @@index([branch_id, created_at])
+  @@map("trainer_revenue")
+  @@schema("studio_template")
+}
+
+// =============================================
+// PER-STUDIO SCHEMA — Staff Shifts & Leave
+// =============================================
+
+model StaffShift {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staff_id   String   @db.Uuid
+  branch_id  String   @db.Uuid
+  shift_date DateTime @db.Date
+  start_time String // "HH:mm"
+  end_time   String // "HH:mm"
+  shift_type String   @default("regular") // regular | overtime | split
+  notes      String?
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  staff  Staff  @relation(fields: [staff_id], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branch_id], references: [id])
+
+  @@index([staff_id, shift_date])
+  @@index([branch_id, shift_date])
+  @@map("staff_shifts")
+  @@schema("studio_template")
+}
+
+model LeaveRequest {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staff_id       String    @db.Uuid
+  leave_type     String // sick | vacation | personal | unpaid
+  start_date     DateTime  @db.Date
+  end_date       DateTime  @db.Date
+  reason         String?
+  status         String    @default("pending") // pending | approved | rejected | cancelled
+  reviewed_by    String?   @db.Uuid
+  reviewed_at    DateTime? @db.Timestamptz()
+  reviewer_notes String?
+  created_at     DateTime  @default(now()) @db.Timestamptz()
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  staff    Staff  @relation(fields: [staff_id], references: [id], onDelete: Cascade)
+  reviewer Staff? @relation("LeaveReviewer", fields: [reviewed_by], references: [id])
+
+  @@index([staff_id, status])
+  @@index([start_date, end_date])
+  @@map("leave_requests")
+  @@schema("studio_template")
+}
+
+// =============================================
+// PER-STUDIO SCHEMA — Payroll Records & Performance
+// =============================================
+
+model PayrollRecord {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staff_id            String    @db.Uuid
+  salary_period_start DateTime  @db.Date
+  salary_period_end   DateTime  @db.Date
+  base_salary         Decimal   @default(0) @db.Decimal(10, 2)
+  bonus               Decimal   @default(0) @db.Decimal(10, 2)
+  commission          Decimal   @default(0) @db.Decimal(10, 2)
+  deductions          Decimal   @default(0) @db.Decimal(10, 2)
+  total_paid          Decimal   @db.Decimal(10, 2)
+  status              String    @default("pending") // pending | processed | paid
+  paid_at             DateTime? @db.Timestamptz()
+  notes               String?
+  created_at          DateTime  @default(now()) @db.Timestamptz()
+
+  staff Staff @relation(fields: [staff_id], references: [id], onDelete: Cascade)
+
+  @@index([staff_id, salary_period_start])
+  @@index([status])
+  @@map("payroll_records")
+  @@schema("studio_template")
+}
+
+model TrainerPerformanceRecord {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trainer_id         String   @db.Uuid
+  total_sessions     Int      @default(0)
+  completed_sessions Int      @default(0)
+  cancelled_sessions Int      @default(0)
+  active_clients     Int      @default(0)
+  member_ratings     Decimal  @default(0) @db.Decimal(3, 2)
+  revenue_generated  Decimal  @default(0) @db.Decimal(10, 2)
+  commission_earned  Decimal  @default(0) @db.Decimal(10, 2)
+  utilization_rate   Int      @default(0) // percentage
+  period_start       DateTime @db.Date
+  period_end         DateTime @db.Date
+  created_at         DateTime @default(now()) @db.Timestamptz()
+
+  trainer Staff @relation(fields: [trainer_id], references: [id], onDelete: Cascade)
+
+  @@index([trainer_id, period_start])
+  @@map("trainer_performance_records")
+  @@schema("studio_template")
+}
+
+model AuditLog {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id     String   @db.Uuid
+  action      String
+  module      String
+  entity_id   String?  @db.Uuid
+  entity_type String?
+  details     Json?
+  ip_address  String?
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  @@index([user_id])
+  @@index([module, action])
+  @@index([created_at])
+  @@map("audit_logs")
+  @@schema("studio_template")
+}
+
+model Payment {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id          String    @db.Uuid
+  membership_id      String?   @db.Uuid
+  branch_id          String    @db.Uuid
+  invoice_id         String?   @db.Uuid
+  amount             Decimal   @db.Decimal(10, 2)
+  currency           String    @default("INR")
+  payment_method     String
+  status             String    @default("pending")
+  gateway_payment_id String?
+  gateway_order_id   String?
+  receipt_number     String    @unique
+  invoice_url        String?
+  notes              String?
+  paid_at            DateTime? @db.Timestamptz()
+  created_at         DateTime  @default(now()) @db.Timestamptz()
+
+  member     Member            @relation(fields: [member_id], references: [id])
+  membership MemberMembership? @relation(fields: [membership_id], references: [id])
+  branch     Branch            @relation(fields: [branch_id], references: [id])
+  invoice    MemberInvoice?    @relation(fields: [invoice_id], references: [id])
+  refunds    Refund[]
+  retry_logs PaymentRetryLog[]
+
+  @@index([member_id])
+  @@index([branch_id, created_at])
+  @@index([invoice_id])
+  @@map("payments")
+  @@schema("studio_template")
+}
+
+model Expense {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  branch_id            String   @db.Uuid
+  category             String
+  description          String
+  amount               Decimal  @db.Decimal(10, 2)
+  currency             String   @default("INR")
+  expense_date         DateTime @db.Date
+  receipt_url          String?
+  recorded_by_staff_id String   @db.Uuid
+  created_at           DateTime @default(now()) @db.Timestamptz()
+
+  branch      Branch @relation(fields: [branch_id], references: [id])
+  recorded_by Staff  @relation(fields: [recorded_by_staff_id], references: [id])
+
+  @@map("expenses")
+  @@schema("studio_template")
+}
+
+model NotificationLog {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id           String?  @db.Uuid
+  channel             String
+  trigger_type        String
+  message_body        String
+  status              String   @default("sent")
+  external_message_id String?
+  sent_at             DateTime @default(now()) @db.Timestamptz()
+
+  member Member? @relation(fields: [member_id], references: [id])
+
+  @@map("notifications_log")
+  @@schema("studio_template")
+}
+
+model Campaign {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                String
+  segment             String
+  segment_filters     Json?
+  channels            String[]
+  message_template    String
+  status              String    @default("draft")
+  scheduled_at        DateTime? @db.Timestamptz()
+  sent_count          Int       @default(0)
+  delivered_count     Int       @default(0)
+  created_by_staff_id String    @db.Uuid
+  created_at          DateTime  @default(now()) @db.Timestamptz()
+
+  created_by         Staff                     @relation(fields: [created_by_staff_id], references: [id])
+  audience           CampaignAudience[]
+  campaign_analytics CampaignAnalyticsRecord[]
+
+  @@map("campaigns")
+  @@schema("studio_template")
+}
+
+// =============================================
+// PER-STUDIO SCHEMA — Marketing & Automation Engine
+// =============================================
+
+model Lead {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id     String?  @db.Uuid
+  branch_id           String?  @db.Uuid
+  full_name           String
+  email               String?
+  phone               String?
+  lead_source         String // website | instagram | facebook_ads | walk_in | referral | google_ads
+  status              String   @default("new") // new | contacted | trial_scheduled | converted | lost
+  assigned_staff_id   String?  @db.Uuid
+  notes               String?
+  converted_member_id String?  @db.Uuid
+  created_at          DateTime @default(now()) @db.Timestamptz()
+  updated_at          DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  organization     Organization?  @relation(fields: [organization_id], references: [id])
+  branch           Branch?        @relation(fields: [branch_id], references: [id])
+  assigned_staff   Staff?         @relation("LeadAssignedStaff", fields: [assigned_staff_id], references: [id])
+  converted_member Member?        @relation("LeadConvertedMember", fields: [converted_member_id], references: [id])
+  activities       LeadActivity[]
+
+  @@index([organization_id])
+  @@index([branch_id])
+  @@index([status])
+  @@index([lead_source])
+  @@index([assigned_staff_id])
+  @@index([created_at])
+  @@map("leads")
+  @@schema("studio_template")
+}
+
+model LeadActivity {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  lead_id       String   @db.Uuid
+  staff_id      String?  @db.Uuid
+  activity_type String // call | email | visit | trial_booking | note | status_change
+  notes         String?
+  created_at    DateTime @default(now()) @db.Timestamptz()
+
+  lead  Lead   @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  staff Staff? @relation("LeadActivityStaff", fields: [staff_id], references: [id])
+
+  @@index([lead_id])
+  @@index([staff_id])
+  @@index([created_at])
+  @@map("lead_activities")
+  @@schema("studio_template")
+}
+
+model CampaignAudience {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id String    @db.Uuid
+  member_id   String    @db.Uuid
+  status      String    @default("pending") // pending | sent | delivered | opened | clicked | bounced
+  sent_at     DateTime? @db.Timestamptz()
+  opened_at   DateTime? @db.Timestamptz()
+  clicked_at  DateTime? @db.Timestamptz()
+
+  campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  member   Member   @relation(fields: [member_id], references: [id])
+
+  @@unique([campaign_id, member_id])
+  @@index([campaign_id])
+  @@index([member_id])
+  @@index([status])
+  @@map("campaign_audience")
+  @@schema("studio_template")
+}
+
+model MessageTemplate {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String?  @db.Uuid
+  template_name   String
+  channel         String // email | sms | whatsapp | push_notification
+  subject         String?
+  content         String
+  variables       String[] // e.g., ["member_name", "expiry_date", "plan_name"]
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now()) @db.Timestamptz()
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  organization     Organization?    @relation(fields: [organization_id], references: [id])
+  workflow_actions WorkflowAction[]
+
+  @@index([organization_id])
+  @@index([channel])
+  @@map("message_templates")
+  @@schema("studio_template")
+}
+
+model AutomationWorkflow {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String?  @db.Uuid
+  workflow_name   String
+  trigger_event   String // membership_expiring | member_inactive | lead_created | class_missed | birthday | payment_failed
+  trigger_config  Json? // e.g., {"days_before_expiry": 7}
+  status          String   @default("active") // active | paused | archived
+  created_at      DateTime @default(now()) @db.Timestamptz()
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  organization Organization?    @relation(fields: [organization_id], references: [id])
+  actions      WorkflowAction[]
+
+  @@index([organization_id])
+  @@index([trigger_event])
+  @@index([status])
+  @@map("automation_workflows")
+  @@schema("studio_template")
+}
+
+model WorkflowAction {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflow_id   String   @db.Uuid
+  action_order  Int      @default(1)
+  action_type   String // send_email | send_sms | send_whatsapp | send_push | assign_task | update_status
+  delay_minutes Int      @default(0)
+  template_id   String?  @db.Uuid
+  action_config Json? // extra config per action type
+  created_at    DateTime @default(now()) @db.Timestamptz()
+
+  workflow AutomationWorkflow @relation(fields: [workflow_id], references: [id], onDelete: Cascade)
+  template MessageTemplate?   @relation(fields: [template_id], references: [id])
+
+  @@index([workflow_id])
+  @@index([template_id])
+  @@map("workflow_actions")
+  @@schema("studio_template")
+}
+
+model ReferralProgram {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String?   @db.Uuid
+  program_name    String
+  reward_type     String // discount | free_days | cash | free_class
+  reward_value    Decimal   @db.Decimal(10, 2)
+  min_referrals   Int       @default(1)
+  max_rewards     Int?
+  status          String    @default("active") // active | paused | ended
+  start_date      DateTime? @db.Timestamptz()
+  end_date        DateTime? @db.Timestamptz()
+  created_at      DateTime  @default(now()) @db.Timestamptz()
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  organization Organization? @relation(fields: [organization_id], references: [id])
+
+  @@index([organization_id])
+  @@index([status])
+  @@map("referral_programs")
+  @@schema("studio_template")
+}
+
+model PushNotification {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id  String    @db.Uuid
+  title      String
+  message    String
+  data       Json?
+  status     String    @default("pending") // pending | sent | delivered | failed
+  sent_at    DateTime? @db.Timestamptz()
+  read_at    DateTime? @db.Timestamptz()
+  created_at DateTime  @default(now()) @db.Timestamptz()
+
+  member Member @relation(fields: [member_id], references: [id])
+
+  @@index([member_id])
+  @@index([status])
+  @@index([created_at])
+  @@map("push_notifications")
+  @@schema("studio_template")
+}
+
+// =============================================
+// PER-STUDIO SCHEMA — Inventory & POS
+// =============================================
+
+model ProductCategory {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String?  @db.Uuid
+  name            String
+  description     String?
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now()) @db.Timestamptz()
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  organization Organization? @relation(fields: [organization_id], references: [id])
+  products     Product[]
+
+  @@map("product_categories")
+  @@schema("studio_template")
+}
+
+model Product {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String?  @db.Uuid
+  branch_id       String?  @db.Uuid
+  category_id     String?  @db.Uuid
+  product_name    String
+  description     String?
+  sku             String?  @unique
+  barcode         String?  @unique
+  price           Decimal  @db.Decimal(10, 2)
+  cost_price      Decimal  @default(0) @db.Decimal(10, 2)
+  tax_rate        Decimal  @default(0) @db.Decimal(5, 2)
+  image_url       String?
+  status          String   @default("active") // active | inactive | discontinued
+  created_at      DateTime @default(now()) @db.Timestamptz()
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  organization           Organization?          @relation(fields: [organization_id], references: [id])
+  branch                 Branch?                @relation(fields: [branch_id], references: [id])
+  category               ProductCategory?       @relation(fields: [category_id], references: [id])
+  inventory              Inventory?
+  inventory_transactions InventoryTransaction[]
+  pos_sale_items         PosSaleItem[]
+  purchase_order_items   PurchaseOrderItem[]
+  product_returns        ProductReturn[]
+
+  @@index([organization_id])
+  @@index([branch_id])
+  @@index([category_id])
+  @@index([sku])
+  @@index([barcode])
+  @@index([status])
+  @@map("products")
+  @@schema("studio_template")
+}
+
+model Inventory {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id        String   @unique @db.Uuid
+  branch_id         String   @db.Uuid
+  stock_quantity    Int      @default(0)
+  reserved_quantity Int      @default(0)
+  reorder_level     Int      @default(5)
+  last_updated      DateTime @default(now()) @db.Timestamptz()
+
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  branch  Branch  @relation(fields: [branch_id], references: [id])
+
+  @@index([branch_id])
+  @@index([product_id])
+  @@map("inventory")
+  @@schema("studio_template")
+}
+
+model InventoryTransaction {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  product_id       String   @db.Uuid
+  branch_id        String   @db.Uuid
+  transaction_type String // purchase | sale | adjustment | return | damage
+  quantity         Int
+  reference_id     String?  @db.Uuid
+  notes            String?
+  created_at       DateTime @default(now()) @db.Timestamptz()
+
+  product Product @relation(fields: [product_id], references: [id])
+  branch  Branch  @relation(fields: [branch_id], references: [id])
+
+  @@index([product_id])
+  @@index([branch_id])
+  @@index([transaction_type])
+  @@index([created_at])
+  @@map("inventory_transactions")
+  @@schema("studio_template")
+}
+
+model Supplier {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String?  @db.Uuid
+  supplier_name   String
+  contact_person  String?
+  email           String?
+  phone           String?
+  address         String?
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now()) @db.Timestamptz()
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  organization    Organization?   @relation(fields: [organization_id], references: [id])
+  purchase_orders PurchaseOrder[]
+
+  @@index([organization_id])
+  @@map("suppliers")
+  @@schema("studio_template")
+}
+
+model PurchaseOrder {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  supplier_id  String    @db.Uuid
+  branch_id    String    @db.Uuid
+  order_number String    @unique
+  total_amount Decimal   @default(0) @db.Decimal(10, 2)
+  status       String    @default("pending") // pending | ordered | partial | received | cancelled
+  ordered_at   DateTime? @db.Timestamptz()
+  received_at  DateTime? @db.Timestamptz()
+  notes        String?
+  created_at   DateTime  @default(now()) @db.Timestamptz()
+  updated_at   DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  supplier Supplier            @relation(fields: [supplier_id], references: [id])
+  branch   Branch              @relation(fields: [branch_id], references: [id])
+  items    PurchaseOrderItem[]
+
+  @@index([supplier_id])
+  @@index([branch_id])
+  @@index([status])
+  @@index([order_number])
+  @@map("purchase_orders")
+  @@schema("studio_template")
+}
+
+model PurchaseOrderItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  purchase_order_id String   @db.Uuid
+  product_id        String   @db.Uuid
+  quantity          Int
+  unit_price        Decimal  @db.Decimal(10, 2)
+  total_price       Decimal  @db.Decimal(10, 2)
+  received_quantity Int      @default(0)
+  created_at        DateTime @default(now()) @db.Timestamptz()
+
+  purchase_order PurchaseOrder @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade)
+  product        Product       @relation(fields: [product_id], references: [id])
+
+  @@index([purchase_order_id])
+  @@index([product_id])
+  @@map("purchase_order_items")
+  @@schema("studio_template")
+}
+
+model PosSale {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  branch_id       String   @db.Uuid
+  member_id       String?  @db.Uuid
+  staff_id        String   @db.Uuid
+  invoice_number  String   @unique
+  subtotal        Decimal  @db.Decimal(10, 2)
+  tax_amount      Decimal  @default(0) @db.Decimal(10, 2)
+  discount_amount Decimal  @default(0) @db.Decimal(10, 2)
+  total_amount    Decimal  @db.Decimal(10, 2)
+  payment_method  String // cash | card | upi | wallet
+  status          String   @default("completed") // completed | refunded | partial_refund
+  created_at      DateTime @default(now()) @db.Timestamptz()
+
+  branch  Branch          @relation(fields: [branch_id], references: [id])
+  member  Member?         @relation(fields: [member_id], references: [id])
+  staff   Staff           @relation(fields: [staff_id], references: [id])
+  items   PosSaleItem[]
+  returns ProductReturn[]
+
+  @@index([branch_id, created_at])
+  @@index([member_id])
+  @@index([staff_id])
+  @@index([invoice_number])
+  @@map("pos_sales")
+  @@schema("studio_template")
+}
+
+model PosSaleItem {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sale_id     String   @db.Uuid
+  product_id  String   @db.Uuid
+  quantity    Int
+  unit_price  Decimal  @db.Decimal(10, 2)
+  tax_amount  Decimal  @default(0) @db.Decimal(10, 2)
+  total_price Decimal  @db.Decimal(10, 2)
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  sale    PosSale @relation(fields: [sale_id], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [product_id], references: [id])
+
+  @@index([sale_id])
+  @@index([product_id])
+  @@map("pos_sale_items")
+  @@schema("studio_template")
+}
+
+model ProductReturn {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sale_id       String   @db.Uuid
+  product_id    String   @db.Uuid
+  quantity      Int
+  refund_amount Decimal  @db.Decimal(10, 2)
+  reason        String?
+  status        String   @default("pending") // pending | approved | completed
+  processed_by  String?  @db.Uuid
+  created_at    DateTime @default(now()) @db.Timestamptz()
+
+  sale      PosSale @relation(fields: [sale_id], references: [id])
+  product   Product @relation(fields: [product_id], references: [id])
+  processor Staff?  @relation("ReturnProcessor", fields: [processed_by], references: [id])
+
+  @@index([sale_id])
+  @@index([product_id])
+  @@map("product_returns")
+  @@schema("studio_template")
+}
+
+model AiConversation {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  staff_id         String   @db.Uuid
+  messages         Json
+  context_snapshot Json?
+  created_at       DateTime @default(now()) @db.Timestamptz()
+  updated_at       DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  staff Staff @relation(fields: [staff_id], references: [id])
+
+  @@map("ai_conversations")
+  @@schema("studio_template")
+}
+
+model SsoProvider {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider_type           String // google | microsoft | saml | oidc
+  display_name            String
+  client_id               String?
+  encrypted_client_secret String?
+  issuer_url              String?
+  authorization_url       String?
+  token_url               String?
+  userinfo_url            String?
+  scopes                  String[]
+  attribute_mapping       Json     @default("{}")
+  is_active               Boolean  @default(false)
+  auto_provision_users    Boolean  @default(false)
+  allowed_domains         String[]
+  created_by              String?  @db.Uuid
+  created_at              DateTime @default(now()) @db.Timestamptz()
+  updated_at              DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  @@map("sso_providers")
+  @@schema("studio_template")
+}
+
+model ApiKey {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                  String
+  key_hash              String    @unique
+  key_prefix            String // first 8 chars for display identification
+  scopes                Json      @default("{}") // permission map like role permissions
+  rate_limit_per_minute Int       @default(60)
+  expires_at            DateTime? @db.Timestamptz()
+  last_used_at          DateTime? @db.Timestamptz()
+  last_used_ip          String?
+  is_active             Boolean   @default(true)
+  created_by_user_id    String    @db.Uuid
+  created_at            DateTime  @default(now()) @db.Timestamptz()
+  updated_at            DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  @@index([key_hash])
+  @@index([key_prefix])
+  @@map("api_keys")
+  @@schema("studio_template")
+}
+
+// =============================================
+// PER-STUDIO SCHEMA — Billing & Financial Engine
+// =============================================
+
+model MemberInvoice {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String?   @db.Uuid
+  branch_id       String    @db.Uuid
+  member_id       String    @db.Uuid
+  invoice_number  String    @unique // INV-YYYYMMDD-XXXX
+  subtotal        Decimal   @db.Decimal(10, 2)
+  tax_amount      Decimal   @default(0) @db.Decimal(10, 2)
+  discount_amount Decimal   @default(0) @db.Decimal(10, 2)
+  total_amount    Decimal   @db.Decimal(10, 2)
+  currency        String    @default("INR")
+  status          String    @default("pending") // pending | paid | partial | cancelled | refunded
+  due_date        DateTime? @db.Date
+  issued_at       DateTime  @default(now()) @db.Timestamptz()
+  paid_at         DateTime? @db.Timestamptz()
+  notes           String?
+  discount_id     String?   @db.Uuid
+  tax_rate_id     String?   @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz()
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  organization Organization? @relation(fields: [organization_id], references: [id])
+  branch       Branch        @relation(fields: [branch_id], references: [id])
+  member       Member        @relation(fields: [member_id], references: [id])
+  discount     Discount?     @relation(fields: [discount_id], references: [id])
+  tax_rate     TaxRate?      @relation(fields: [tax_rate_id], references: [id])
+  items        InvoiceItem[]
+  payments     Payment[]
+
+  @@index([member_id])
+  @@index([branch_id, created_at])
+  @@index([status])
+  @@index([invoice_number])
+  @@map("member_invoices")
+  @@schema("studio_template")
+}
+
+model InvoiceItem {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoice_id  String   @db.Uuid
+  item_type   String // membership | class | personal_training | product
+  item_id     String?  @db.Uuid // FK to the relevant entity (plan, class, etc.)
+  description String
+  quantity    Int      @default(1)
+  unit_price  Decimal  @db.Decimal(10, 2)
+  total_price Decimal  @db.Decimal(10, 2)
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  invoice MemberInvoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+
+  @@index([invoice_id])
+  @@map("invoice_items")
+  @@schema("studio_template")
+}
+
+model PaymentGatewayConfig {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gateway_name   String // razorpay | stripe
+  api_key        String // encrypted in production
+  secret_key     String // encrypted in production
+  webhook_secret String? // for HMAC verification
+  is_active      Boolean  @default(true)
+  is_test_mode   Boolean  @default(true)
+  created_at     DateTime @default(now()) @db.Timestamptz()
+  updated_at     DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  @@unique([gateway_name])
+  @@map("payment_gateway_configs")
+  @@schema("studio_template")
+}
+
+model Refund {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_id        String    @db.Uuid
+  member_id         String    @db.Uuid
+  refund_amount     Decimal   @db.Decimal(10, 2)
+  reason            String?
+  status            String    @default("pending") // pending | processed | failed
+  gateway_refund_id String? // Razorpay/Stripe refund ID
+  processed_at      DateTime? @db.Timestamptz()
+  processed_by      String?   @db.Uuid // staff who processed
+  created_at        DateTime  @default(now()) @db.Timestamptz()
+
+  payment            Payment @relation(fields: [payment_id], references: [id])
+  member             Member  @relation(fields: [member_id], references: [id])
+  processed_by_staff Staff?  @relation("RefundProcessor", fields: [processed_by], references: [id])
+
+  @@index([payment_id])
+  @@index([member_id])
+  @@index([status])
+  @@map("refunds")
+  @@schema("studio_template")
+}
+
+model Discount {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  code          String?   @unique // coupon code e.g. NEWYEAR20
+  discount_type String // percentage | fixed
+  value         Decimal   @db.Decimal(10, 2) // 20 for 20%, or 500 for $500
+  min_purchase  Decimal?  @db.Decimal(10, 2) // minimum order value
+  max_discount  Decimal?  @db.Decimal(10, 2) // cap for percentage discounts
+  valid_from    DateTime  @db.Timestamptz()
+  valid_until   DateTime? @db.Timestamptz()
+  max_uses      Int? // null = unlimited
+  used_count    Int       @default(0)
+  applicable_to String? // membership | class | personal_training | all
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now()) @db.Timestamptz()
+  updated_at    DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  invoices MemberInvoice[]
+
+  @@index([code])
+  @@index([is_active, valid_from, valid_until])
+  @@map("discounts")
+  @@schema("studio_template")
+}
+
+model TaxRate {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  country    String
+  state      String?
+  tax_name   String // GST | VAT | Sales Tax
+  rate       Decimal  @db.Decimal(5, 2) // 18.00 = 18%
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  invoices MemberInvoice[]
+
+  @@index([country])
+  @@map("tax_rates")
+  @@schema("studio_template")
+}
+
+model FinancialTransaction {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  branch_id        String   @db.Uuid
+  reference_type   String // payment | refund | adjustment | chargeback
+  reference_id     String   @db.Uuid // FK to Payment.id or Refund.id
+  transaction_type String // credit | debit
+  amount           Decimal  @db.Decimal(10, 2)
+  currency         String   @default("INR")
+  description      String?
+  created_at       DateTime @default(now()) @db.Timestamptz()
+
+  branch Branch @relation(fields: [branch_id], references: [id])
+
+  @@index([branch_id, created_at])
+  @@index([reference_type, reference_id])
+  @@map("financial_transactions")
+  @@schema("studio_template")
+}
+
+model PaymentRetryLog {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  payment_id    String    @db.Uuid
+  member_id     String    @db.Uuid
+  attempt       Int       @default(1) // 1, 2, 3
+  status        String    @default("failed") // failed | succeeded
+  error_message String?
+  next_retry_at DateTime? @db.Timestamptz()
+  created_at    DateTime  @default(now()) @db.Timestamptz()
+
+  payment Payment @relation(fields: [payment_id], references: [id])
+  member  Member  @relation(fields: [member_id], references: [id])
+
+  @@index([payment_id])
+  @@index([member_id])
+  @@index([next_retry_at, status])
+  @@map("payment_retry_logs")
+  @@schema("studio_template")
+}
+
+// =============================================
+// PER-STUDIO SCHEMA — Analytics & Business Intelligence
+// =============================================
+
+model DailyGymMetrics {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String?  @db.Uuid
+  branch_id       String?  @db.Uuid
+  date            DateTime @db.Date
+  total_revenue   Decimal  @default(0) @db.Decimal(12, 2)
+  new_members     Int      @default(0)
+  active_members  Int      @default(0)
+  total_visits    Int      @default(0)
+  classes_held    Int      @default(0)
+  products_sold   Int      @default(0)
+  created_at      DateTime @default(now()) @db.Timestamptz()
+
+  organization Organization? @relation(fields: [organization_id], references: [id])
+  branch       Branch?       @relation(fields: [branch_id], references: [id])
+
+  @@unique([organization_id, branch_id, date])
+  @@index([organization_id])
+  @@index([branch_id])
+  @@index([date])
+  @@map("daily_gym_metrics")
+  @@schema("studio_template")
+}
+
+model MembershipAnalytics {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String?  @db.Uuid
+  branch_id       String?  @db.Uuid
+  plan_id         String?  @db.Uuid
+  total_active    Int      @default(0)
+  renewals        Int      @default(0)
+  cancellations   Int      @default(0)
+  new_signups     Int      @default(0)
+  churn_rate      Decimal  @default(0) @db.Decimal(5, 2)
+  period_start    DateTime @db.Date
+  period_end      DateTime @db.Date
+  created_at      DateTime @default(now()) @db.Timestamptz()
+
+  organization Organization?   @relation(fields: [organization_id], references: [id])
+  branch       Branch?         @relation(fields: [branch_id], references: [id])
+  plan         MembershipPlan? @relation(fields: [plan_id], references: [id])
+
+  @@unique([organization_id, branch_id, plan_id, period_start, period_end])
+  @@index([organization_id])
+  @@index([branch_id])
+  @@index([period_start, period_end])
+  @@map("membership_analytics")
+  @@schema("studio_template")
+}
+
+model RevenueAnalytics {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id   String?  @db.Uuid
+  branch_id         String?  @db.Uuid
+  revenue_type      String // membership | personal_training | classes | retail | other
+  amount            Decimal  @default(0) @db.Decimal(12, 2)
+  transaction_count Int      @default(0)
+  period_start      DateTime @db.Date
+  period_end        DateTime @db.Date
+  created_at        DateTime @default(now()) @db.Timestamptz()
+
+  organization Organization? @relation(fields: [organization_id], references: [id])
+  branch       Branch?       @relation(fields: [branch_id], references: [id])
+
+  @@unique([organization_id, branch_id, revenue_type, period_start, period_end])
+  @@index([organization_id])
+  @@index([branch_id])
+  @@index([revenue_type])
+  @@index([period_start, period_end])
+  @@map("revenue_analytics")
+  @@schema("studio_template")
+}
+
+model ClassAnalytics {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  class_template_id  String?  @db.Uuid
+  branch_id          String?  @db.Uuid
+  total_sessions     Int      @default(0)
+  total_bookings     Int      @default(0)
+  average_attendance Decimal  @default(0) @db.Decimal(5, 2)
+  no_show_rate       Decimal  @default(0) @db.Decimal(5, 2)
+  occupancy_rate     Decimal  @default(0) @db.Decimal(5, 2)
+  period_start       DateTime @db.Date
+  period_end         DateTime @db.Date
+  created_at         DateTime @default(now()) @db.Timestamptz()
+
+  class_template ClassTemplate? @relation(fields: [class_template_id], references: [id])
+  branch         Branch?        @relation(fields: [branch_id], references: [id])
+
+  @@unique([class_template_id, branch_id, period_start, period_end])
+  @@index([class_template_id])
+  @@index([branch_id])
+  @@index([period_start, period_end])
+  @@map("class_analytics")
+  @@schema("studio_template")
+}
+
+model MemberBehaviorAnalytics {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id        String    @db.Uuid
+  branch_id        String?   @db.Uuid
+  visit_frequency  Decimal   @default(0) @db.Decimal(5, 2) // visits per week
+  classes_attended Int       @default(0)
+  pt_sessions      Int       @default(0)
+  last_visit_date  DateTime? @db.Date
+  days_since_visit Int       @default(0)
+  engagement_score Int       @default(0) // 0-100
+  churn_risk       String    @default("low") // low | medium | high | critical
+  computed_at      DateTime  @default(now()) @db.Timestamptz()
+  created_at       DateTime  @default(now()) @db.Timestamptz()
+
+  member Member @relation(fields: [member_id], references: [id])
+
+  @@unique([member_id, computed_at])
+  @@index([member_id])
+  @@index([engagement_score])
+  @@index([churn_risk])
+  @@map("member_behavior_analytics")
+  @@schema("studio_template")
+}
+
+model TrainerAnalytics {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trainer_id         String   @db.Uuid
+  branch_id          String?  @db.Uuid
+  sessions_conducted Int      @default(0)
+  members_trained    Int      @default(0)
+  average_rating     Decimal  @default(0) @db.Decimal(3, 2)
+  revenue_generated  Decimal  @default(0) @db.Decimal(12, 2)
+  no_show_rate       Decimal  @default(0) @db.Decimal(5, 2)
+  period_start       DateTime @db.Date
+  period_end         DateTime @db.Date
+  created_at         DateTime @default(now()) @db.Timestamptz()
+
+  trainer Staff   @relation(fields: [trainer_id], references: [id])
+  branch  Branch? @relation(fields: [branch_id], references: [id])
+
+  @@unique([trainer_id, branch_id, period_start, period_end])
+  @@index([trainer_id])
+  @@index([branch_id])
+  @@index([period_start, period_end])
+  @@map("trainer_analytics")
+  @@schema("studio_template")
+}
+
+model CampaignAnalyticsRecord {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id       String   @db.Uuid
+  sent              Int      @default(0)
+  opened            Int      @default(0)
+  clicked           Int      @default(0)
+  converted         Int      @default(0)
+  bounced           Int      @default(0)
+  revenue_generated Decimal  @default(0) @db.Decimal(12, 2)
+  computed_at       DateTime @default(now()) @db.Timestamptz()
+  created_at        DateTime @default(now()) @db.Timestamptz()
+
+  campaign Campaign @relation(fields: [campaign_id], references: [id])
+
+  @@index([campaign_id])
+  @@index([computed_at])
+  @@map("campaign_analytics")
+  @@schema("studio_template")
+}
+
+// =============================================
+// PER-STUDIO SCHEMA — Platform Settings & Integrations
+// =============================================
+
+model Webhook {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id   String    @db.Uuid
+  name              String
+  url               String
+  secret            String // HMAC signing secret
+  events            String[] // member.created, payment.received, checkin.completed, etc.
+  is_active         Boolean   @default(true)
+  retry_count       Int       @default(3)
+  timeout_ms        Int       @default(5000)
+  failure_count     Int       @default(0)
+  last_triggered_at DateTime? @db.Timestamptz()
+  created_by        String?   @db.Uuid
+  created_at        DateTime  @default(now()) @db.Timestamptz()
+  updated_at        DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  organization Organization      @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  deliveries   WebhookDelivery[]
+
+  @@index([organization_id])
+  @@index([is_active])
+  @@map("webhooks")
+  @@schema("studio_template")
+}
+
+model WebhookDelivery {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  webhook_id      String    @db.Uuid
+  event           String
+  payload         Json
+  response_status Int?
+  response_body   String?
+  attempt         Int       @default(1)
+  status          String    @default("pending") // pending | delivered | failed
+  delivered_at    DateTime? @db.Timestamptz()
+  created_at      DateTime  @default(now()) @db.Timestamptz()
+
+  webhook Webhook @relation(fields: [webhook_id], references: [id], onDelete: Cascade)
+
+  @@index([webhook_id])
+  @@index([status])
+  @@index([created_at])
+  @@map("webhook_deliveries")
+  @@schema("studio_template")
+}
+
+model Integration {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String    @db.Uuid
+  provider        String // twilio | whatsapp | razorpay | stripe | resend | google_calendar | zapier
+  display_name    String
+  config          Json      @default("{}") // encrypted credentials & settings
+  status          String    @default("inactive") // active | inactive | error | pending_setup
+  is_enabled      Boolean   @default(false)
+  last_synced_at  DateTime? @db.Timestamptz()
+  error_message   String?
+  metadata        Json      @default("{}") // provider-specific metadata
+  created_by      String?   @db.Uuid
+  created_at      DateTime  @default(now()) @db.Timestamptz()
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+
+  @@unique([organization_id, provider])
+  @@index([organization_id])
+  @@index([provider])
+  @@map("integrations")
+  @@schema("studio_template")
+}
+
+model FeatureFlag {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String   @db.Uuid
+  key             String // e.g. "facial_recognition", "ai_advisor", "pos_module"
+  is_enabled      Boolean  @default(false)
+  description     String?
+  metadata        Json     @default("{}") // conditions, rollout %, etc.
+  created_at      DateTime @default(now()) @db.Timestamptz()
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+
+  @@unique([organization_id, key])
+  @@index([organization_id])
+  @@map("feature_flags")
+  @@schema("studio_template")
+}
+
+model WhiteLabelConfig {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id    String   @unique @db.Uuid
+  custom_domain      String?  @unique
+  logo_url           String?
+  favicon_url        String?
+  primary_color      String   @default("#4A9FD4")
+  secondary_color    String   @default("#1A2F45")
+  accent_color       String   @default("#6BBFE8")
+  font_family        String   @default("Inter")
+  email_from_name    String?
+  email_from_address String?
+  support_email      String?
+  support_url        String?
+  terms_url          String?
+  privacy_url        String?
+  is_active          Boolean  @default(false)
+  created_at         DateTime @default(now()) @db.Timestamptz()
+  updated_at         DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+
+  @@map("white_label_configs")
+  @@schema("studio_template")
+}
+
+model SystemNotification {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organization_id String    @db.Uuid
+  type            String // info | warning | critical | maintenance
+  title           String
+  message         String
+  action_url      String?
+  is_read         Boolean   @default(false)
+  read_at         DateTime? @db.Timestamptz()
+  expires_at      DateTime? @db.Timestamptz()
+  created_at      DateTime  @default(now()) @db.Timestamptz()
+
+  organization Organization @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+
+  @@index([organization_id, is_read])
+  @@index([created_at])
+  @@map("system_notifications")
+  @@schema("studio_template")
+}
+
+// ─── GDPR / Compliance ──────────────────────────────────────
+
+model ConsentLog {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id      String   @db.Uuid
+  consent_type   String // marketing_email | marketing_sms | marketing_whatsapp | data_processing | facial_recognition | analytics | third_party_sharing
+  granted        Boolean
+  previous_value Boolean?
+  ip_address     String?
+  recorded_by    String?  @db.Uuid
+  created_at     DateTime @default(now()) @db.Timestamptz()
+
+  member Member @relation(fields: [member_id], references: [id], onDelete: Cascade)
+
+  @@index([member_id, consent_type])
+  @@index([created_at])
+  @@map("consent_logs")
+  @@schema("studio_template")
+}
+
+model DataRequest {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id     String    @db.Uuid
+  type          String // export | deletion
+  format        String?   @default("json") // json | csv
+  status        String    @default("pending") // pending | processing | completed | rejected
+  reason        String?
+  requested_by  String?   @db.Uuid
+  processed_by  String?   @db.Uuid
+  data_snapshot Json?
+  completed_at  DateTime? @db.Timestamptz()
+  created_at    DateTime  @default(now()) @db.Timestamptz()
+  updated_at    DateTime  @updatedAt @db.Timestamptz()
+
+  member Member @relation(fields: [member_id], references: [id], onDelete: Cascade)
+
+  @@index([member_id])
+  @@index([type, status])
+  @@index([created_at])
+  @@map("data_requests")
+  @@schema("studio_template")
+}
