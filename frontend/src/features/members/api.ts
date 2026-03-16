@@ -10,6 +10,10 @@ export interface CreateMemberDto {
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
   checkin_method?: string;
+  profile_photo_url?: string;
+  plan_id?: string;
+  membership_start_date?: string;
+  notes?: string;
 }
 
 export interface MemberFilters {
@@ -18,6 +22,7 @@ export interface MemberFilters {
   search?: string;
   status?: string;
   branch_id?: string;
+  tag_id?: string;
   sort_by?: string;
   sort_order?: 'asc' | 'desc';
 }
@@ -32,7 +37,7 @@ export const membersApi = {
   create: (data: CreateMemberDto) =>
     apiClient.post<Member>('/members', data),
 
-  update: (id: string, data: Partial<CreateMemberDto>) =>
+  update: (id: string, data: Partial<CreateMemberDto> & Record<string, unknown>) =>
     apiClient.patch<Member>(`/members/${id}`, data),
 
   delete: (id: string) =>
@@ -59,13 +64,13 @@ export const membersApi = {
   getDocuments: (id: string) =>
     apiClient.get(`/members/${id}/documents`),
 
-  freeze: (id: string, data: { reason: string; end_date?: string }) =>
+  freeze: (id: string, data: { reason: string; end_date: string }) =>
     apiClient.post(`/members/${id}/freeze`, data),
 
   unfreeze: (id: string) =>
     apiClient.post(`/members/${id}/unfreeze`),
 
-  renew: (id: string, data: { plan_id: string }) =>
+  renew: (id: string, data: { plan_id: string; payment_method?: string }) =>
     apiClient.post(`/members/${id}/renew`, data),
 
   getChurnRisk: () =>

@@ -22,6 +22,10 @@ import {
   ResendVerificationDto,
   SelectPlanDto,
   SetupStudioDto,
+  OnboardingBranchesDto,
+  OnboardingMembershipsDto,
+  OnboardingStaffListDto,
+  OnboardingSkipStepDto,
 } from './dto';
 import { PLAN_CONFIGS, fetchAvailablePlans } from '../common/plan-configs';
 import { AuthIdentityService } from './auth-identity.service';
@@ -30,6 +34,7 @@ import { AuthLoginHistoryService } from './auth-login-history.service';
 import { AuthSessionService } from './auth-session.service';
 import { RbacService } from './rbac.service';
 import { RbacSeedService } from './rbac-seed.service';
+import { TwoFactorService } from './two-factor.service';
 
 /** Request context passed from the controller for tracking. */
 export interface LoginContext {
@@ -52,6 +57,7 @@ export class AuthService {
     private sessionService: AuthSessionService,
     private rbacService: RbacService,
     private rbacSeedService: RbacSeedService,
+    private twoFactorService: TwoFactorService,
   ) {
     this.supabase = createClient(
       this.configService.get<string>('SUPABASE_URL', ''),
@@ -171,6 +177,39 @@ export class AuthService {
       ip_address: ip,
     });
     if (device.id) deviceId = device.id;
+
+    // ── 2FA challenge interception ──
+    const identity2fa = await this.prisma.userIdentity.findUnique({
+      where: { id: data.user.id },
+      select: { two_factor_enabled: true },
+    });
+    if (identity2fa?.two_factor_enabled) {
+      // Keep the Supabase session alive — pass encrypted tokens to temp JWT
+      // They'll be returned after successful OTP verification
+      const tempToken = this.twoFactorService.generateTempToken(
+        data.user.id,
+        data.user.email!,
+        data.session ? {
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        } : undefined,
+      );
+
+      await this.loginHistoryService.record({
+        user_id: data.user.id,
+        email: dto.email,
+        ip_address: ip,
+        user_agent: ua,
+        device_id: deviceId,
+        status: 'success',
+        metadata: { step: '2fa_challenge_issued' },
+      });
+
+      return {
+        requires_2fa: true,
+        temp_token: tempToken,
+      };
+    }
 
     // Create session record
     let sessionId: string | undefined;
@@ -538,12 +577,17 @@ export class AuthService {
       .get('CORS_ORIGINS', 'http://localhost:3000')
       .split(',')[0]
       .trim();
-    const verificationUrl = `${frontendUrl}/onboarding/verify?token=${token}`;
+    const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
     this.logger.log(`📧 Verification link for ${dto.email}: ${verificationUrl}`);
     await this.sendVerificationEmail(dto.email, dto.full_name, verificationUrl);
 
     // No tokens returned — user must verify email before account exists
-    return { success: true, email: dto.email };
+    // In dev mode (no RESEND_API_KEY), include the verification URL so the frontend can show it
+    const result: Record<string, unknown> = { success: true, email: dto.email };
+    if (!this.resend) {
+      result.verification_url = verificationUrl;
+    }
+    return result;
   }
 
   // ── Email Verification (creates Supabase account after token validated) ──────
@@ -569,6 +613,9 @@ export class AuthService {
     // Decrypt password and create the real Supabase account
     const password = this.decryptPassword(pending.encrypted_password);
 
+    let userId: string;
+    let isExistingUser = false;
+
     const { data: authData, error: authError } =
       await this.supabase.auth.admin.createUser({
         email: pending.email,
@@ -578,19 +625,58 @@ export class AuthService {
           full_name: pending.full_name,
           phone: pending.phone,
           role: 'owner',
-          onboarding_step: 'select_plan',
+          onboarding_step: 'studio_info',
         },
       });
 
     if (authError || !authData.user) {
+      // If account already exists (e.g. re-registration after DB truncation),
+      // update password and sign in instead of failing
       if (authError?.message?.toLowerCase().includes('already')) {
-        throw new ConflictException(
-          'An account with this email already exists. Please sign in.',
+        // Look up existing user by email in auth.users
+        const { data: existingRows } = await this.supabase
+          .from('users')  // uses auth schema via service role
+          .select('id')
+          .eq('email', pending.email)
+          .limit(1);
+
+        // Fallback: query auth.users via raw RPC if above fails (different Supabase versions)
+        let existingId: string | null = (existingRows as { id: string }[])?.[0]?.id ?? null;
+
+        if (!existingId) {
+          // Try the admin API with a broader search
+          const { data: listData } = await this.supabase.auth.admin.listUsers({ perPage: 1000 });
+          const found = (listData?.users as unknown as Array<{ id: string; email?: string }>)
+            ?.find((u) => u.email === pending.email);
+          existingId = found?.id ?? null;
+        }
+
+        if (!existingId) {
+          throw new ConflictException('An account with this email already exists. Please sign in.');
+        }
+
+        // Fetch the existing user's metadata
+        const { data: existingUser } = await this.supabase.auth.admin.getUserById(existingId);
+        const existingMeta = existingUser?.user?.user_metadata || {};
+        // Update password to the newly registered one and reset metadata
+        await this.supabase.auth.admin.updateUserById(existingId, {
+          password,
+          user_metadata: {
+            ...existingMeta,
+            full_name: pending.full_name,
+            phone: pending.phone,
+            onboarding_step: existingMeta?.onboarding_step || 'studio_info',
+          },
+        });
+        userId = existingId;
+        isExistingUser = true;
+      } else {
+        throw new InternalServerErrorException(
+          authError?.message || 'Failed to create account',
         );
       }
-      throw new InternalServerErrorException(
-        authError?.message || 'Failed to create account',
-      );
+    } else {
+      userId = authData.user.id;
     }
 
     // Delete the pending record — account is now real
@@ -602,17 +688,23 @@ export class AuthService {
       password,
     });
 
+    // Determine current onboarding step
+    const metadata = isExistingUser
+      ? (await this.supabase.auth.admin.getUserById(userId)).data?.user?.user_metadata
+      : authData!.user!.user_metadata;
+    const onboardingStep = metadata?.onboarding_step || 'studio_info';
+
     return {
       access_token: signInData?.session?.access_token,
       refresh_token: signInData?.session?.refresh_token,
       user: {
-        id: authData.user.id,
+        id: userId,
         email: pending.email,
         full_name: pending.full_name,
         role: 'owner',
         studio_id: undefined as string | undefined,
         branch_ids: [] as string[],
-        onboarding_step: 'select_plan',
+        onboarding_step: onboardingStep,
       },
       studio: null,
     };
@@ -643,11 +735,15 @@ export class AuthService {
       .get('CORS_ORIGINS', 'http://localhost:3000')
       .split(',')[0]
       .trim();
-    const verificationUrl = `${frontendUrl}/onboarding/verify?token=${token}`;
+    const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
     this.logger.log(`📧 Resent verification for ${email}: ${verificationUrl}`);
     await this.sendVerificationEmail(email, pending.full_name, verificationUrl);
 
-    return { sent: true };
+    const result: Record<string, unknown> = { sent: true };
+    if (!this.resend) {
+      result.verification_url = verificationUrl;
+    }
+    return result;
   }
 
   // ── Send Verification Email ──────────────────────────────
@@ -737,32 +833,13 @@ export class AuthService {
     return fetchAvailablePlans(this.prisma);
   }
 
-  // ── Plan Selection ───────────────────────────────────────
+  // ── Plan Selection (delegates to onboarding step 7) ───────────────────
 
   async selectPlan(userId: string, planId: string) {
-    if (!PLAN_CONFIGS[planId]) {
-      throw new BadRequestException(`Invalid plan: ${planId}`);
-    }
-
-    const { data: userData } =
-      await this.supabase.auth.admin.getUserById(userId);
-    const existingMeta = userData?.user?.user_metadata || {};
-
-    await this.supabase.auth.admin.updateUserById(userId, {
-      user_metadata: {
-        ...existingMeta,
-        selected_plan: planId,
-        onboarding_step: 'setup_studio',
-      },
-    });
-
-    return {
-      plan: planId,
-      onboarding_step: 'setup_studio',
-    };
+    return this.onboardingSelectSubscription(userId, planId);
   }
 
-  // ── Studio Setup (final onboarding step) ─────────────────
+  // ── Studio Setup (Step 3 — creates studio + schema) ─────────────────
 
   async setupStudio(userId: string, dto: SetupStudioDto) {
     const { data: userData, error: userError } =
@@ -771,7 +848,6 @@ export class AuthService {
       throw new Error(`Failed to fetch user: ${userError.message}`);
     }
     const metadata = userData?.user?.user_metadata || {};
-    const selectedPlan = metadata.selected_plan || 'free';
     const email = userData?.user?.email;
 
     const slug = dto.studio_name
@@ -779,69 +855,121 @@ export class AuthService {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
 
+    const existingStudio = metadata.studio_id
+      ? await this.prisma.studio.findUnique({ where: { id: metadata.studio_id } })
+      : await this.prisma.studio.findFirst({ where: { owner_user_id: userId } });
+
     const existing = await this.prisma.studio.findUnique({
       where: { slug },
     });
-    if (existing) {
+    if (existing && existing.id !== existingStudio?.id) {
       throw new ConflictException(
         'A studio with this name already exists. Please choose a different name.',
       );
     }
 
-    // Create studio with selected plan activated
     const now = new Date();
-    const nextBilling = new Date(now);
-    nextBilling.setDate(nextBilling.getDate() + 30);
+    const schemaName = `studio_${userId.replace(/-/g, '_')}`;
 
-    const studio = await this.prisma.studio.create({
-      data: {
-        name: dto.studio_name,
-        slug,
-        schema_name: `studio_${userId.replace(/-/g, '_')}`,
-        owner_user_id: userId,
-        phone: dto.phone,
-        email: dto.email || email,
-        address: dto.address,
-        timezone: dto.timezone || 'Asia/Kolkata',
-        currency: dto.currency || 'INR',
-        subscription_plan: selectedPlan,
-        subscription_status: 'active',
-        subscription_start: now,
-        next_billing_date: selectedPlan !== 'free' ? nextBilling : null,
-        email_verified: true,
-      },
-    });
+    let studio;
+    let branch = metadata.branch_ids?.[0]
+      ? await this.prisma.branch.findUnique({ where: { id: metadata.branch_ids[0] } })
+      : null;
 
-    // Create first branch
-    const branch = await this.prisma.branch.create({
-      data: {
-        name: dto.branch_name || 'Main Branch',
-        address: dto.address,
-        city: dto.city,
-        phone: dto.phone,
-      },
-    });
+    if (existingStudio) {
+      studio = await this.prisma.studio.update({
+        where: { id: existingStudio.id },
+        data: {
+          name: dto.studio_name,
+          slug,
+          business_type: dto.business_type,
+          phone: dto.phone,
+          email: dto.email || email,
+          country: dto.country,
+          website: dto.website,
+          logo_url: dto.logo_url,
+          timezone: dto.timezone || existingStudio.timezone || 'Asia/Kolkata',
+          currency: dto.currency || existingStudio.currency || 'INR',
+          email_verified: true,
+        },
+      });
+    } else {
+      studio = await this.prisma.studio.create({
+        data: {
+          name: dto.studio_name,
+          slug,
+          schema_name: schemaName,
+          owner_user_id: userId,
+          business_type: dto.business_type,
+          phone: dto.phone,
+          email: dto.email || email,
+          country: dto.country,
+          website: dto.website,
+          logo_url: dto.logo_url,
+          timezone: dto.timezone || 'Asia/Kolkata',
+          currency: dto.currency || 'INR',
+          subscription_plan: 'free',
+          subscription_status: 'trial',
+          subscription_start: now,
+          email_verified: true,
+        },
+      });
 
-    // Complete onboarding in user metadata
+      try {
+        await this.prisma.$executeRawUnsafe(
+          `CREATE SCHEMA IF NOT EXISTS "${schemaName}"`,
+        );
+      } catch (error) {
+        this.logger.error(`Failed to create schema ${schemaName}`, error);
+        throw new InternalServerErrorException('Failed to initialize studio environment');
+      }
+
+      branch = await this.prisma.branch.create({
+        data: {
+          name: 'Main Branch',
+          country: dto.country,
+          phone: dto.phone,
+        },
+      });
+    }
+
+    if (!branch) {
+      branch = await this.prisma.branch.create({
+        data: {
+          name: 'Main Branch',
+          country: dto.country,
+          phone: dto.phone,
+        },
+      });
+    }
+
+    // Set up user metadata — advance to next onboarding step
     await this.supabase.auth.admin.updateUserById(userId, {
       user_metadata: {
-        full_name: metadata.full_name,
-        phone: metadata.phone,
+        ...metadata,
         role: 'owner',
         studio_id: studio.id,
         branch_ids: [branch.id],
-        onboarding_step: 'complete',
+        onboarding_step: 'setup_branches',
       },
     });
 
-    // Create studio schema
+    // Seed RBAC roles for the studio
     try {
-      await this.prisma.$executeRawUnsafe(
-        `CREATE SCHEMA IF NOT EXISTS "${studio.schema_name}"`,
-      );
-    } catch (error) {
-      this.logger.error(`Failed to create schema ${studio.schema_name}`, error);
-      throw new InternalServerErrorException('Failed to initialize studio environment');
+      await this.rbacSeedService.seedStudioRoles();
+    } catch (e) {
+      this.logger.warn(`RBAC seed partially failed: ${e}`);
+    }
+
+    // Assign owner role
+    try {
+      await this.prisma.userRole.upsert({
+        where: { user_id_studio_id_branch_id: { user_id: userId, studio_id: studio.id, branch_id: null as any } },
+        create: { user_id: userId, studio_id: studio.id, role_name: 'owner', is_primary: true },
+        update: { role_name: 'owner' },
+      });
+    } catch (e) {
+      this.logger.warn(`Owner role assignment: ${e}`);
     }
 
     return {
@@ -852,9 +980,190 @@ export class AuthService {
         role: 'owner',
         studio_id: studio.id,
         branch_ids: [branch.id],
-        onboarding_step: 'complete',
+        onboarding_step: 'setup_branches',
       },
-      studio,
+      studio: {
+        id: studio.id,
+        name: studio.name,
+        slug: studio.slug,
+        timezone: studio.timezone,
+        currency: studio.currency,
+        logo_url: studio.logo_url,
+      },
     };
+  }
+
+  // ── Onboarding Step 4: Branches ──────────────────────────────────────
+
+  async onboardingBranches(userId: string, dto: OnboardingBranchesDto) {
+    const { data: userData } = await this.supabase.auth.admin.getUserById(userId);
+    const metadata = userData?.user?.user_metadata || {};
+    const studioId = metadata.studio_id;
+
+    if (!studioId) {
+      throw new BadRequestException('Studio not yet created. Complete studio setup first.');
+    }
+
+    const createdBranches: string[] = [...(metadata.branch_ids || [])];
+
+    for (const b of dto.branches) {
+      const branch = await this.prisma.branch.create({
+        data: {
+          name: b.name,
+          address: b.address,
+          city: b.city,
+          state: b.state,
+          country: b.country,
+          postal_code: b.postal_code,
+          phone: b.phone,
+        },
+      });
+      createdBranches.push(branch.id);
+    }
+
+    await this.supabase.auth.admin.updateUserById(userId, {
+      user_metadata: {
+        ...metadata,
+        branch_ids: createdBranches,
+        onboarding_step: 'setup_plans',
+      },
+    });
+
+    return { branch_ids: createdBranches, onboarding_step: 'setup_plans' };
+  }
+
+  // ── Onboarding Step 5: Membership Plans ──────────────────────────────
+
+  async onboardingMemberships(userId: string, dto: OnboardingMembershipsDto) {
+    const { data: userData } = await this.supabase.auth.admin.getUserById(userId);
+    const metadata = userData?.user?.user_metadata || {};
+    const studioId = metadata.studio_id;
+    const branchIds: string[] = metadata.branch_ids || [];
+
+    if (!studioId) {
+      throw new BadRequestException('Studio not yet created.');
+    }
+
+    const createdPlans: string[] = [];
+
+    for (const p of dto.plans) {
+      const plan = await this.prisma.membershipPlan.create({
+        data: {
+          name: p.name,
+          description: p.description,
+          plan_type: p.plan_type,
+          duration_days: p.duration_days,
+          price: p.price,
+          currency: p.currency || 'INR',
+          branch_id: branchIds[0] || undefined,
+          is_active: true,
+        },
+      });
+      createdPlans.push(plan.id);
+    }
+
+    await this.supabase.auth.admin.updateUserById(userId, {
+      user_metadata: { ...metadata, onboarding_step: 'setup_staff' },
+    });
+
+    return { plan_ids: createdPlans, onboarding_step: 'setup_staff' };
+  }
+
+  // ── Onboarding Step 6: Staff (Optional) ──────────────────────────────
+
+  async onboardingStaff(userId: string, dto: OnboardingStaffListDto) {
+    const { data: userData } = await this.supabase.auth.admin.getUserById(userId);
+    const metadata = userData?.user?.user_metadata || {};
+    const studioId = metadata.studio_id;
+    const branchIds: string[] = metadata.branch_ids || [];
+
+    if (!studioId) {
+      throw new BadRequestException('Studio not yet created.');
+    }
+
+    const createdStaff: string[] = [];
+
+    for (const s of dto.staff) {
+      const staff = await this.prisma.staff.create({
+        data: {
+          full_name: s.full_name,
+          role: s.role,
+          email: s.email || undefined,
+          phone: s.phone || '',
+          branch_id: branchIds[0] || undefined,
+          status: 'active',
+        },
+      });
+      createdStaff.push(staff.id);
+    }
+
+    await this.supabase.auth.admin.updateUserById(userId, {
+      user_metadata: { ...metadata, onboarding_step: 'select_subscription' },
+    });
+
+    return { staff_ids: createdStaff, onboarding_step: 'select_subscription' };
+  }
+
+  // ── Onboarding Step 7: Select Subscription ───────────────────────────
+
+  async onboardingSelectSubscription(userId: string, planId: string) {
+    if (!PLAN_CONFIGS[planId]) {
+      throw new BadRequestException(`Invalid plan: ${planId}`);
+    }
+
+    const { data: userData } = await this.supabase.auth.admin.getUserById(userId);
+    const metadata = userData?.user?.user_metadata || {};
+    const studioId = metadata.studio_id;
+
+    if (!studioId) {
+      throw new BadRequestException('Studio not yet created.');
+    }
+
+    // Update studio subscription
+    const now = new Date();
+    const nextBilling = new Date(now);
+    nextBilling.setDate(nextBilling.getDate() + 30);
+
+    await this.prisma.studio.update({
+      where: { id: studioId },
+      data: {
+        subscription_plan: planId,
+        subscription_status: planId === 'free' ? 'active' : 'trial',
+        subscription_start: now,
+        trial_ends_at: planId !== 'free' ? new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000) : null,
+        next_billing_date: planId !== 'free' ? nextBilling : null,
+      },
+    });
+
+    await this.supabase.auth.admin.updateUserById(userId, {
+      user_metadata: { ...metadata, selected_plan: planId, onboarding_step: 'complete' },
+    });
+
+    return { plan: planId, onboarding_step: 'complete' };
+  }
+
+  // ── Skip Onboarding Step ─────────────────────────────────────────────
+
+  async onboardingSkipStep(userId: string, dto: OnboardingSkipStepDto) {
+    const STEP_ORDER: Record<string, string> = {
+      setup_branches: 'setup_plans',
+      setup_plans: 'setup_staff',
+      setup_staff: 'select_subscription',
+      select_subscription: 'complete',
+    };
+
+    const nextStep = STEP_ORDER[dto.current_step];
+    if (!nextStep) {
+      throw new BadRequestException(`Cannot skip step: ${dto.current_step}`);
+    }
+
+    const { data: userData } = await this.supabase.auth.admin.getUserById(userId);
+    const metadata = userData?.user?.user_metadata || {};
+
+    await this.supabase.auth.admin.updateUserById(userId, {
+      user_metadata: { ...metadata, onboarding_step: nextStep },
+    });
+
+    return { onboarding_step: nextStep };
   }
 }

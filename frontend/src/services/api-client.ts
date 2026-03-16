@@ -127,8 +127,9 @@ async function request<T = unknown>(
     signal,
   });
 
-  // Token refresh on 401
-  if (res.status === 401 && typeof window !== 'undefined') {
+  // Token refresh on 401 — skip for auth endpoints (401 = bad credentials, not expired session)
+  const isAuthEndpoint = endpoint.startsWith('/auth/');
+  if (res.status === 401 && typeof window !== 'undefined' && !isAuthEndpoint) {
     if (!refreshPromise) {
       refreshPromise = refreshAccessToken().finally(() => { refreshPromise = null; });
     }

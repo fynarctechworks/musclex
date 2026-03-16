@@ -7,18 +7,18 @@ import {
   FormTextarea,
   FormDatePicker,
 } from "@/components/shared";
-import { apiClient } from "@/lib/api";
-import { useMutation } from "@tanstack/react-query";
+import { useCreateCampaign } from "@/features/marketing/hooks";
+import type { CampaignSegment } from "@/features/marketing/types";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
+import { useAuthStore } from "@/stores/auth-store";
 
 interface CreateCampaignForm {
   name: string;
-  segment: string;
+  segment: CampaignSegment;
   channels: string[];
   message_template: string;
   scheduled_at: string;
@@ -27,26 +27,32 @@ interface CreateCampaignForm {
 export default function NewCampaignPage() {
   const { gymPath } = useGymSlug();
   const router = useRouter();
-  const { register, handleSubmit } = useForm<CreateCampaignForm>();
+  const user = useAuthStore((s) => s.user);
+  const { register, handleSubmit, formState: { errors } } = useForm<CreateCampaignForm>();
 
-  const mutation = useMutation({
-    mutationFn: (data: CreateCampaignForm) =>
-      apiClient.post("/campaigns", data),
-    onSuccess: () => {
-      toast.success("Campaign created");
-      router.push(gymPath("/marketing"));
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
+  const mutation = useCreateCampaign();
+
+  const onSubmit = (data: CreateCampaignForm) => {
+    mutation.mutate(
+      {
+        name: data.name,
+        segment: data.segment,
+        channels: data.channels,
+        message_template: data.message_template,
+        created_by_staff_id: user?.id ?? "",
+        scheduled_at: data.scheduled_at || undefined,
+      },
+      { onSuccess: () => router.push(gymPath("/marketing")) }
+    );
+  };
 
   const segments = [
     { label: "All Members", value: "all" },
     { label: "Active Members", value: "active" },
-    { label: "Expiring Soon", value: "expiring_soon" },
+    { label: "Expiring Soon", value: "expiring" },
     { label: "Expired Members", value: "expired" },
+    { label: "New Members", value: "new" },
     { label: "Inactive Members", value: "inactive" },
-    { label: "New Members (30 days)", value: "new_members" },
-    { label: "High Churn Risk", value: "high_churn_risk" },
   ];
 
   return (
@@ -63,7 +69,7 @@ export default function NewCampaignPage() {
         </h1>
 
         <form
-          onSubmit={handleSubmit((data) => mutation.mutate(data))}
+          onSubmit={handleSubmit(onSubmit)}
           className="space-y-4"
         >
           <div className="bg-card border border-border rounded-xl p-6 space-y-4">
@@ -71,12 +77,14 @@ export default function NewCampaignPage() {
               label="Campaign Name"
               {...register("name", { required: "Name is required" })}
               placeholder="e.g. Summer Renewal Drive"
+              error={errors.name?.message}
             />
 
             <FormSelect
               label="Target Segment"
               {...register("segment", { required: "Segment is required" })}
               options={segments}
+              error={errors.segment?.message}
             />
 
             <div>
@@ -100,6 +108,9 @@ export default function NewCampaignPage() {
                   </label>
                 ))}
               </div>
+              {errors.channels && (
+                <p className="text-xs text-destructive mt-1">{errors.channels.message}</p>
+              )}
             </div>
 
             <FormTextarea
@@ -109,6 +120,7 @@ export default function NewCampaignPage() {
               })}
               placeholder="Hi {{name}}, your membership is expiring on {{expiry_date}}..."
               rows={4}
+              error={errors.message_template?.message}
             />
 
             <FormDatePicker

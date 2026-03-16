@@ -68,13 +68,17 @@ export class RbacService {
       studioMap.set(r.studio_id, existing);
     }
 
+    // Batch fetch all studios at once (single query instead of N sequential lookups)
+    const studioIds = [...studioMap.keys()];
+    const studios = await this.prisma.studio.findMany({
+      where: { id: { in: studioIds } },
+      select: { id: true, name: true },
+    });
+    const studioLookup = new Map(studios.map((s) => [s.id, s]));
+
     const workspaces: UserWorkspace[] = [];
     for (const [studioId, roles] of studioMap) {
-      // Fetch studio name
-      const studio = await this.prisma.studio.findUnique({
-        where: { id: studioId },
-        select: { id: true, name: true },
-      });
+      const studio = studioLookup.get(studioId);
       if (!studio) continue;
 
       // Collect branch IDs from roles (null branch_id = all branches)
@@ -82,12 +86,8 @@ export class RbacService {
       let branches: { id: string; name: string }[] = [];
 
       if (hasGlobalAccess) {
-        // User has studio-wide access, fetch all branches
-        // Note: branches are in studio_template schema, need tenant context
-        // For now, return empty — the caller sets search_path first
         branches = [];
       } else {
-        // Only specific branches
         const branchIds = [...new Set(roles.filter((r) => r.branch_id).map((r) => r.branch_id!))];
         branches = branchIds.map((id) => ({ id, name: '' }));
       }

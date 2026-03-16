@@ -19,6 +19,13 @@ export function useAuth() {
     setLoading(true);
     try {
       const data = await authApi.login(email, password);
+
+      // 2FA challenge: redirect to verification page
+      if (data.requires_2fa && data.temp_token) {
+        router.push(`/verify-2fa?token=${encodeURIComponent(data.temp_token)}`);
+        return data;
+      }
+
       setAuth({
         user: data.user,
         studio: data.studio,
@@ -44,10 +51,16 @@ export function useAuth() {
       if (step && step !== 'complete') {
         const stepRoutes: Record<string, string> = {
           verify_email: '/verify-email',
-          select_plan: '/onboarding/plans',
-          setup_studio: '/onboarding/setup',
+          studio_info: '/onboarding/studio-info',
+          setup_branches: '/onboarding/branches',
+          setup_plans: '/onboarding/memberships',
+          setup_staff: '/onboarding/staff',
+          select_subscription: '/onboarding/subscription',
+          // Legacy support
+          select_plan: '/onboarding/subscription',
+          setup_studio: '/onboarding/studio-info',
         };
-        router.push(stepRoutes[step] || '/register');
+        router.push(stepRoutes[step] || '/onboarding/studio-info');
         return data;
       }
 
@@ -56,7 +69,7 @@ export function useAuth() {
         setActiveSlug(data.studio.slug);
         router.push(`/${data.studio.slug}/dashboard`);
       } else {
-        router.push('/onboarding/setup');
+        router.push('/onboarding/studio-info');
       }
       return data;
     } finally {

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsIn, IsDateString } from 'class-validator';
 
 export class CreateMemberDocumentDto {
   @IsString()
@@ -15,4 +15,12 @@ export class CreateMemberDocumentDto {
   @IsNumber()
   @IsOptional()
   file_size?: number;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsDateString()
+  @IsOptional()
+  expires_at?: string;
 }

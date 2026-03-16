@@ -51,10 +51,14 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.members.all, 'detail', id] as const,
     profile: (id: string) => [...queryKeys.members.all, 'profile', id] as const,
     bodyStats: (id: string) => [...queryKeys.members.all, 'body-stats', id] as const,
+    progressSummary: (id: string) => [...queryKeys.members.all, 'progress-summary', id] as const,
+    progressPhotos: (id: string) => [...queryKeys.members.all, 'progress-photos', id] as const,
     visits: (id: string) => [...queryKeys.members.all, 'visits', id] as const,
     notes: (id: string) => [...queryKeys.members.all, 'notes', id] as const,
     tags: (id: string) => [...queryKeys.members.all, 'tags', id] as const,
+    allTags: () => [...queryKeys.members.all, 'all-tags'] as const,
     documents: (id: string) => [...queryKeys.members.all, 'documents', id] as const,
+    referrals: (id: string) => [...queryKeys.members.all, 'referrals', id] as const,
     churnRisk: () => [...queryKeys.members.all, 'churn-risk'] as const,
   },
 
@@ -185,6 +189,45 @@ export const queryKeys = {
     plans: () => [...queryKeys.settings.all, 'plans'] as const,
     roles: () => [...queryKeys.settings.all, 'roles'] as const,
     integrations: () => [...queryKeys.settings.all, 'integrations'] as const,
+  },
+
+  // Inventory
+  inventory: {
+    all: ['inventory'] as const,
+    products: (filters?: unknown) => [...queryKeys.inventory.all, 'products', filters] as const,
+    product: (id: string) => [...queryKeys.inventory.all, 'product', id] as const,
+    categories: () => [...queryKeys.inventory.all, 'categories'] as const,
+    stock: (filters?: unknown) => [...queryKeys.inventory.all, 'stock', filters] as const,
+    lowStock: () => [...queryKeys.inventory.all, 'low-stock'] as const,
+    transactions: (filters?: unknown) => [...queryKeys.inventory.all, 'transactions', filters] as const,
+    suppliers: (filters?: unknown) => [...queryKeys.inventory.all, 'suppliers', filters] as const,
+    supplier: (id: string) => [...queryKeys.inventory.all, 'supplier', id] as const,
+  },
+
+  // POS
+  pos: {
+    all: ['pos'] as const,
+    sales: (filters?: unknown) => [...queryKeys.pos.all, 'sales', filters] as const,
+    sale: (id: string) => [...queryKeys.pos.all, 'sale', id] as const,
+    dailyReport: (branchId: string, date?: string) => [...queryKeys.pos.all, 'daily-report', branchId, date] as const,
+    topProducts: (filters?: unknown) => [...queryKeys.pos.all, 'top-products', filters] as const,
+  },
+
+  // Analytics / Reports
+  analytics: {
+    all: ['analytics'] as const,
+    dashboard: (filters?: unknown) => [...queryKeys.analytics.all, 'dashboard', filters] as const,
+    dailyMetrics: (filters?: unknown) => [...queryKeys.analytics.all, 'daily-metrics', filters] as const,
+    trend: (filters?: unknown) => [...queryKeys.analytics.all, 'trend', filters] as const,
+    revenue: (filters?: unknown) => [...queryKeys.analytics.all, 'revenue', filters] as const,
+    memberships: (filters?: unknown) => [...queryKeys.analytics.all, 'memberships', filters] as const,
+    classes: (filters?: unknown) => [...queryKeys.analytics.all, 'classes', filters] as const,
+    memberBehavior: (filters?: unknown) => [...queryKeys.analytics.all, 'member-behavior', filters] as const,
+    churnRisk: (filters?: unknown) => [...queryKeys.analytics.all, 'churn-risk', filters] as const,
+    trainers: (filters?: unknown) => [...queryKeys.analytics.all, 'trainers', filters] as const,
+    trainerLeaderboard: (filters?: unknown) => [...queryKeys.analytics.all, 'trainer-leaderboard', filters] as const,
+    campaigns: (filters?: unknown) => [...queryKeys.analytics.all, 'campaigns', filters] as const,
+    branchComparison: (filters?: unknown) => [...queryKeys.analytics.all, 'branch-comparison', filters] as const,
   },
 
   // Search

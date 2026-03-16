@@ -7,3 +7,10 @@ export type {
   WorkspaceSelectResponse,
   PlanItem,
 } from './api';
+export { twoFactorApi } from './two-factor-api';
+export type {
+  TwoFactorSetupResponse,
+  TwoFactorVerifyResponse,
+  TwoFactorStatusResponse,
+  TwoFactorLoginResponse,
+} from './two-factor-api';

@@ -3,19 +3,43 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { randomUUID } from 'crypto';
+import Anthropic from '@anthropic-ai/sdk';
+
+const SYSTEM_PROMPT = `You are FitSync Pro AI Advisor — an expert gym management consultant embedded in a fitness studio SaaS platform. Your role is to help gym owners and managers optimize operations, increase revenue, improve member retention, and manage staff effectively.
+
+Guidelines:
+- Be concise, actionable, and data-driven in your responses.
+- When discussing metrics, reference industry benchmarks for fitness studios.
+- Suggest specific, implementable actions — not generic advice.
+- Format responses with clear structure (bullet points, sections) when appropriate.
+- If you don't have enough context, ask clarifying questions.
+- Never fabricate specific numbers — only provide ranges or benchmarks.
+- Focus on: revenue growth, member retention, class optimization, staff performance, and operational efficiency.`;
 
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
+  private anthropic: Anthropic | null = null;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {
+    const apiKey = this.configService.get<string>('ANTHROPIC_API_KEY');
+    if (apiKey) {
+      this.anthropic = new Anthropic({ apiKey });
+      this.logger.log('Anthropic AI client initialized');
+    } else {
+      this.logger.warn('ANTHROPIC_API_KEY not set — AI advisor will use fallback responses');
+    }
+  }
 
   /**
    * Send a chat message to AI advisor.
-   * For now, returns a mock response since Anthropic API key is required.
-   * Stores the conversation in ai_conversations table.
+   * Uses Claude API when configured, falls back to contextual mock responses.
    */
   async chat(data: {
     message: string;
@@ -46,15 +70,25 @@ export class AiService {
     }
 
     // Build messages array
-    const existingMessages = (conversation.messages as any[]) || [];
+    const existingMessages = (conversation.messages as { role: string; content: string; timestamp: string }[]) || [];
     const userMessage = {
       role: 'user',
       content: data.message,
       timestamp: new Date().toISOString(),
     };
 
-    // Mock AI response — replace with Anthropic SDK call when API key is configured
-    const aiResponseContent = this.generateMockResponse(data.message);
+    // Generate AI response
+    let aiResponseContent: string;
+    try {
+      aiResponseContent = await this.generateResponse(
+        data.message,
+        existingMessages,
+      );
+    } catch (err) {
+      this.logger.error(`AI response failed: ${err instanceof Error ? err.message : err}`);
+      aiResponseContent = this.generateFallbackResponse(data.message);
+    }
+
     const assistantMessage = {
       role: 'assistant',
       content: aiResponseContent,
@@ -80,8 +114,42 @@ export class AiService {
   }
 
   /**
-   * Get daily briefing data.
-   * Returns mock briefing — will be replaced with real analytics + Claude summary.
+   * Generate AI response using Anthropic Claude, with fallback.
+   */
+  private async generateResponse(
+    message: string,
+    history: { role: string; content: string }[],
+  ): Promise<string> {
+    if (!this.anthropic) {
+      return this.generateFallbackResponse(message);
+    }
+
+    // Build conversation history for Claude (last 20 messages for context window)
+    const recentHistory = history.slice(-20);
+    const claudeMessages: { role: 'user' | 'assistant'; content: string }[] =
+      recentHistory
+        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .map((m) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        }));
+
+    // Add current message
+    claudeMessages.push({ role: 'user', content: message });
+
+    const response = await this.anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      system: SYSTEM_PROMPT,
+      messages: claudeMessages,
+    });
+
+    const textBlock = response.content.find((block) => block.type === 'text');
+    return textBlock ? textBlock.text : 'I was unable to generate a response. Please try again.';
+  }
+
+  /**
+   * Get daily briefing data with real metrics.
    */
   async getDailyBriefing() {
     const today = new Date();
@@ -127,9 +195,24 @@ export class AiService {
       this.logger.warn('Failed to fetch briefing metrics', error instanceof Error ? error.message : error);
     }
 
+    // Build AI-powered summary if available
+    let summary: string;
+    try {
+      summary = await this.generateBriefingSummary({
+        totalMembers,
+        activeMembers,
+        todayCheckIns,
+        expiringThisWeek,
+        revenueToday,
+        pendingPayments,
+      });
+    } catch {
+      summary = `Good morning! Here's your daily briefing for ${today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}.`;
+    }
+
     return {
       date: today.toISOString().slice(0, 10),
-      summary: `Good morning! Here's your daily briefing for ${today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}.`,
+      summary,
       metrics: {
         total_members: totalMembers,
         active_members: activeMembers,
@@ -146,11 +229,13 @@ export class AiService {
               message: `${expiringThisWeek} memberships are expiring this week. Consider sending renewal reminders.`,
             }]
           : []),
-        {
-          type: 'info',
-          title: 'Peak Hours Today',
-          message: 'Expected peak between 6-8 PM based on historical data.',
-        },
+        ...(pendingPayments > 0
+          ? [{
+              type: 'warning',
+              title: 'Pending Payments',
+              message: `${pendingPayments} payments are still pending. Follow up to ensure timely collection.`,
+            }]
+          : []),
       ],
       recommendations: [
         ...(expiringThisWeek > 0
@@ -161,6 +246,36 @@ export class AiService {
           : []),
       ],
     };
+  }
+
+  /**
+   * Generate a briefing summary using Claude if available.
+   */
+  private async generateBriefingSummary(metrics: {
+    totalMembers: number;
+    activeMembers: number;
+    todayCheckIns: number;
+    expiringThisWeek: number;
+    revenueToday: number;
+    pendingPayments: number;
+  }): Promise<string> {
+    if (!this.anthropic) {
+      const today = new Date();
+      return `Good morning! Here's your daily briefing for ${today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}.`;
+    }
+
+    const response = await this.anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 300,
+      system: 'You are a gym management AI. Generate a brief, friendly daily briefing summary (2-3 sentences) based on the metrics provided. Be specific and actionable.',
+      messages: [{
+        role: 'user',
+        content: `Today's metrics: ${metrics.totalMembers} total members, ${metrics.activeMembers} active, ${metrics.todayCheckIns} check-ins so far today, ${metrics.expiringThisWeek} memberships expiring this week, revenue today: ₹${metrics.revenueToday}, ${metrics.pendingPayments} pending payments. Generate a concise morning briefing.`,
+      }],
+    });
+
+    const textBlock = response.content.find((block) => block.type === 'text');
+    return textBlock?.text || `Good morning! You have ${metrics.activeMembers} active members and ${metrics.todayCheckIns} check-ins today.`;
   }
 
   /**
@@ -181,28 +296,27 @@ export class AiService {
   }
 
   /**
-   * Generate a contextual mock response based on the user's message.
-   * This will be replaced with actual Anthropic Claude API calls.
+   * Generate a contextual fallback response when Claude API is unavailable.
    */
-  private generateMockResponse(message: string): string {
+  private generateFallbackResponse(message: string): string {
     const lowerMsg = message.toLowerCase();
 
     if (lowerMsg.includes('revenue') || lowerMsg.includes('income')) {
-      return 'Based on current data, your monthly revenue is trending 8% higher than last month. The biggest contributors are new membership sign-ups (45%) and plan renewals (35%). I recommend focusing on retention campaigns for members whose plans expire in the next 30 days to maintain this growth trajectory.';
+      return 'I can help analyze your revenue trends once connected. To get real-time AI insights, ensure your ANTHROPIC_API_KEY environment variable is configured. In the meantime, check your Finance dashboard for revenue charts and trends.';
     }
 
     if (lowerMsg.includes('member') && (lowerMsg.includes('churn') || lowerMsg.includes('retention'))) {
-      return 'Your current churn rate is approximately 12%. I\'ve identified 15 members at high risk of churning based on declining visit frequency. Sending personalized check-in messages and offering a complimentary personal training session could help retain these members.';
+      return 'Member retention analysis requires AI to be fully connected. Check your Members > Churn Risk page for members at risk of leaving. Common retention strategies include: personalized check-in messages, offering complimentary sessions, and renewal reminder campaigns.';
     }
 
     if (lowerMsg.includes('class') || lowerMsg.includes('schedule')) {
-      return 'Your most popular classes this week are Yoga (92% occupancy), HIIT (88%), and Spin (85%). I notice the 7 AM Yoga slot is consistently full — consider adding a second morning session. The Tuesday 3 PM Pilates class has low attendance (35%); you might want to reschedule it to a peak hour.';
+      return 'For class optimization insights, please configure your ANTHROPIC_API_KEY. Meanwhile, review your Classes page for occupancy rates and consider adjusting low-attendance classes to peak hours.';
     }
 
     if (lowerMsg.includes('staff') || lowerMsg.includes('trainer')) {
-      return 'Your top-performing trainer this month is Sarah with a 95% attendance rate and 4.8/5 member rating. Two trainers have upcoming certification renewals in the next 30 days. I recommend scheduling their recertification sessions soon to avoid any gaps in service.';
+      return 'Staff performance analysis is available when AI is fully connected. Check your Staff > Analytics page for attendance rates and trainer ratings. Consider scheduling regular performance reviews.';
     }
 
-    return 'I\'m your AI gym advisor. I can help you analyze revenue trends, member retention, class scheduling, staff performance, and more. What would you like to know about your gym operations? (Note: This is a mock response — connect your Anthropic API key for real AI-powered insights.)';
+    return 'I\'m your AI gym advisor. To unlock full AI-powered insights (revenue analysis, churn prediction, class optimization), please configure the ANTHROPIC_API_KEY environment variable. Meanwhile, I can help with general gym management questions.';
   }
 }

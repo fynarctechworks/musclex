@@ -247,13 +247,6 @@ export default function SubscriptionPage() {
     <AppLayout>
       {/* ── Page Header ───────────────────────────────────── */}
       <div className="mb-8">
-        <Link
-          href={gymPath("/settings")}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-4"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Settings
-        </Link>
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2.5">
           <CreditCard className="w-7 h-7 text-primary" /> Subscription & Plan
         </h1>

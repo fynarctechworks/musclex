@@ -22,9 +22,11 @@ function VerifyEmailContent() {
   const [resending, setResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [email, setEmail] = useState('');
+  const [devVerifyUrl, setDevVerifyUrl] = useState('');
 
   useEffect(() => {
     setEmail(sessionStorage.getItem('pendingEmail') || '');
+    setDevVerifyUrl(sessionStorage.getItem('devVerificationUrl') || '');
   }, []);
 
   // Cooldown timer
@@ -59,13 +61,22 @@ function VerifyEmailContent() {
 
         // Redirect based on onboarding step
         const step = data.user.onboarding_step;
+        const stepRoutes: Record<string, string> = {
+          studio_info: '/onboarding/studio-info',
+          setup_branches: '/onboarding/branches',
+          setup_plans: '/onboarding/memberships',
+          setup_staff: '/onboarding/staff',
+          select_subscription: '/onboarding/subscription',
+          select_plan: '/onboarding/subscription',
+          setup_studio: '/onboarding/studio-info',
+        };
         setTimeout(() => {
-          if (step === 'setup_studio') {
-            router.push('/onboarding/setup');
-          } else if (step === 'complete' && data.studio?.slug) {
+          if (step === 'complete' && data.studio?.slug) {
             router.push(`/${data.studio.slug}/dashboard`);
+          } else if (step && stepRoutes[step]) {
+            router.push(stepRoutes[step]);
           } else {
-            router.push('/onboarding/plans');
+            router.push('/onboarding/studio-info');
           }
         }, 1500);
       } catch (err) {
@@ -89,9 +100,13 @@ function VerifyEmailContent() {
 
     setResending(true);
     try {
-      await authApi.resendVerification(pendingEmail);
+      const res = await authApi.resendVerification(pendingEmail);
       toast.success('Verification email sent! Check your inbox.');
       setCooldown(60);
+      if (res.verification_url) {
+        sessionStorage.setItem('devVerificationUrl', res.verification_url);
+        setDevVerifyUrl(res.verification_url);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to resend email');
     } finally {
@@ -163,7 +178,7 @@ function VerifyEmailContent() {
       <div className="mb-7">
         <span className="text-primary text-4xl font-black leading-none">*</span>
         <h1 className="mt-2 text-[22px] font-bold text-foreground tracking-tight">Check your email</h1>
-        <p className="mt-1 text-[13px] text-muted-foreground">Step 2 of 4 — Verify Email</p>
+        <p className="mt-1 text-[13px] text-muted-foreground">Step 2 of 7 — Verify Email</p>
       </div>
 
       <div className="text-center space-y-5">
@@ -179,6 +194,20 @@ function VerifyEmailContent() {
         <p className="text-[13px] text-muted-foreground leading-relaxed max-w-[300px] mx-auto">
           Click the link in the email to verify your account and continue setting up your studio. The link expires in 24 hours.
         </p>
+
+        {/* Dev mode: show clickable verification link when no email service is configured */}
+        {devVerifyUrl && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-left">
+            <p className="text-[11px] font-semibold text-amber-500 mb-1">Development Mode</p>
+            <p className="text-[11px] text-muted-foreground mb-2">No email service configured. Use this link to verify:</p>
+            <a
+              href={devVerifyUrl}
+              className="text-[12px] text-primary hover:underline break-all"
+            >
+              Click here to verify your email →
+            </a>
+          </div>
+        )}
 
         <div className="pt-2 space-y-3">
           <Button

@@ -1,12 +1,16 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { createHash } from 'crypto';
+import { ConfigService } from '@nestjs/config';
+import { createHmac } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AuthSessionService {
   private readonly logger = new Logger(AuthSessionService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {}
 
   /**
    * Create a session record for a successful login.
@@ -188,6 +192,11 @@ export class AuthSessionService {
   }
 
   private hashToken(token: string): string {
-    return createHash('sha256').update(token).digest('hex');
+    const secret = this.configService.get<string>('HASH_SECRET', '');
+    if (!secret) {
+      this.logger.warn('HASH_SECRET not set — using fallback. Set HASH_SECRET in production.');
+    }
+    const hmacKey = secret || 'fitsync-pro-default-key';
+    return createHmac('sha256', hmacKey).update(token).digest('hex');
   }
 }

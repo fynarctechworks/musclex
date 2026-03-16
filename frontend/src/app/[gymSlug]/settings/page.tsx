@@ -1,11 +1,14 @@
 "use client";
 
 import { AppLayout } from "@/components/layout/app-layout";
-import { FormInput, FormTextarea } from "@/components/shared";
-import { LoadingSkeleton } from "@/components/shared";
+import Image from "next/image";
+import { FormInput, FormSelect, FormTextarea } from "@/components/shared";
+import { LoadingSkeleton, PageHeader } from "@/components/shared";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth-store";
 import {
@@ -13,6 +16,7 @@ import {
   CreditCard,
   Link as LinkIcon,
   Shield,
+  ShieldCheck,
   Building2,
   Crown,
   ArrowRight,
@@ -25,8 +29,17 @@ import {
   BarChart3,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
+import {
+  getCityOptions,
+  getCountryCodeByName,
+  getCountryName,
+  getCountryOptions,
+  getStateCodeByName,
+  getStateName,
+  getStateOptions,
+} from "@/lib/location";
 
 
 // ── Types ──────────────────────────────────────────────────────
@@ -83,26 +96,28 @@ interface AccountOverview {
   };
 }
 
-interface StudioSettingsForm {
-  studio_name: string;
-  tagline: string;
-  phone: string;
-  email: string;
-  website: string;
-  address: string;
-  city: string;
-  state: string;
-  country: string;
-  postal_code: string;
-  business_name: string;
-  business_type: string;
-  timezone: string;
-  currency: string;
-  billing_name: string;
-  billing_email: string;
-  billing_address: string;
-  tax_id: string;
-}
+const settingsSchema = z.object({
+  studio_name: z.string().min(1, "Studio name is required").max(100),
+  tagline: z.string().max(200),
+  phone: z.string().max(20),
+  email: z.string().refine((v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "Invalid email"),
+  website: z.string().refine((v) => !v || /^https?:\/\//.test(v), "Must start with http:// or https://"),
+  address: z.string().max(500),
+  city: z.string().max(100),
+  state: z.string().max(100),
+  country: z.string().max(100),
+  postal_code: z.string().max(20),
+  business_name: z.string().max(200),
+  business_type: z.string().max(100),
+  timezone: z.string().min(1, "Timezone is required"),
+  currency: z.string().min(1, "Currency is required").max(3),
+  billing_name: z.string().max(200),
+  billing_email: z.string().refine((v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "Invalid billing email"),
+  billing_address: z.string().max(500),
+  tax_id: z.string().max(50),
+});
+
+type StudioSettingsForm = z.infer<typeof settingsSchema>;
 
 interface StudioResponse {
   id: string;
@@ -176,7 +191,21 @@ export default function SettingsPage() {
     queryFn: () => apiClient.get("/settings/studio"),
   });
 
-  const { register, handleSubmit, reset } = useForm<StudioSettingsForm>();
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<StudioSettingsForm>({
+    resolver: zodResolver(settingsSchema),
+  });
+
+  const selectedCountry = watch("country");
+  const selectedState = watch("state");
+  const countryOptions = useMemo(() => getCountryOptions().map((country) => ({ label: country.name, value: country.code })), []);
+  const stateOptions = useMemo(
+    () => getStateOptions(selectedCountry).map((state) => ({ label: state.name, value: state.code })),
+    [selectedCountry],
+  );
+  const cityOptions = useMemo(
+    () => getCityOptions(selectedCountry, selectedState).map((city) => ({ label: city.name, value: city.name })),
+    [selectedCountry, selectedState],
+  );
 
   useEffect(() => {
     if (studio) {
@@ -188,8 +217,8 @@ export default function SettingsPage() {
         website: studio.website || "",
         address: studio.address || "",
         city: studio.city || "",
-        state: studio.state || "",
-        country: studio.country || "",
+        state: getStateCodeByName(getCountryCodeByName(studio.country || ""), studio.state || "") || "",
+        country: getCountryCodeByName(studio.country || "") || "",
         postal_code: studio.postal_code || "",
         business_name: studio.business_name || "",
         business_type: studio.business_type || "",
@@ -205,7 +234,11 @@ export default function SettingsPage() {
 
   const mutation = useMutation({
     mutationFn: (data: StudioSettingsForm) =>
-      apiClient.patch<StudioResponse>("/settings/studio", data),
+      apiClient.patch<StudioResponse>("/settings/studio", {
+        ...data,
+        country: getCountryName(data.country) || data.country,
+        state: getStateName(data.country, data.state) || data.state,
+      }),
     onSuccess: (updated) => {
       toast.success("Settings saved");
       queryClient.invalidateQueries({ queryKey: ["studio-settings"] });
@@ -230,14 +263,11 @@ export default function SettingsPage() {
   return (
     <AppLayout>
       {/* ── Page Header ───────────────────────────────────── */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2.5">
-          <Settings className="w-7 h-7 text-primary" /> Settings
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1.5">
-          Manage your studio configuration, subscription, and account preferences
-        </p>
-      </div>
+      <PageHeader
+        title="Settings"
+        description="Manage your studio configuration, subscription, and account preferences"
+        className="mb-8"
+      />
 
       {/* ── Account Overview ──────────────────────────────── */}
       {accountLoading ? (
@@ -272,9 +302,11 @@ export default function SettingsPage() {
               <div className="bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-8 flex flex-col justify-between">
                 <div className="flex items-center gap-5">
                   {account.studio.logo_url ? (
-                    <img
+                    <Image
                       src={account.studio.logo_url}
                       alt=""
+                      width={72}
+                      height={72}
                       className="w-[72px] h-[72px] rounded-2xl object-cover border-2 border-primary/20"
                     />
                   ) : (
@@ -427,6 +459,22 @@ export default function SettingsPage() {
               </Link>
 
               <Link
+                href={gymPath("/settings/security")}
+                className="group bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
+              >
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
+                  <ShieldCheck className="w-5 h-5 text-primary" />
+                </div>
+                <h4 className="text-sm font-semibold text-foreground mb-1">
+                  Security
+                </h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Two-factor authentication and account security
+                </p>
+                <ArrowRight className="w-4 h-4 text-muted-foreground mt-3 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+              </Link>
+
+              <Link
                 href={gymPath("/branches")}
                 className="group bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
               >
@@ -465,7 +513,8 @@ export default function SettingsPage() {
 
           <FormInput
             label="Studio Name"
-            {...register("studio_name", { required: "Required" })}
+            error={errors.studio_name?.message}
+            {...register("studio_name")}
           />
 
           <FormInput label="Tagline" {...register("tagline")} />
@@ -475,6 +524,7 @@ export default function SettingsPage() {
             <FormInput
               label="Email"
               type="email"
+              error={errors.email?.message}
               {...register("email")}
             />
           </div>
@@ -484,12 +534,37 @@ export default function SettingsPage() {
           <FormTextarea label="Address" {...register("address")} rows={2} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormInput label="City" {...register("city")} />
-            <FormInput label="State" {...register("state")} />
+            <FormSelect
+              label="City"
+              value={watch("city")}
+              onValueChange={(value) => setValue("city", value, { shouldDirty: true })}
+              options={cityOptions}
+              placeholder="Select city"
+            />
+            <FormSelect
+              label="State"
+              value={selectedState}
+              onValueChange={(value) => {
+                setValue("state", value, { shouldDirty: true });
+                setValue("city", "", { shouldDirty: true });
+              }}
+              options={stateOptions}
+              placeholder="Select state"
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormInput label="Country" {...register("country")} />
+            <FormSelect
+              label="Country"
+              value={selectedCountry}
+              onValueChange={(value) => {
+                setValue("country", value, { shouldDirty: true });
+                setValue("state", "", { shouldDirty: true });
+                setValue("city", "", { shouldDirty: true });
+              }}
+              options={countryOptions}
+              placeholder="Select country"
+            />
             <FormInput label="Postal Code" {...register("postal_code")} />
           </div>
 
@@ -532,6 +607,7 @@ export default function SettingsPage() {
             <FormInput
               label="Billing Email"
               type="email"
+              error={errors.billing_email?.message}
               {...register("billing_email")}
             />
           </div>

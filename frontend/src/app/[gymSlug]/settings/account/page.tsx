@@ -1,16 +1,16 @@
 "use client";
 
 import { AppLayout } from "@/components/layout/app-layout";
+import Image from "next/image";
 import { LoadingSkeleton, StatusBadge } from "@/components/shared";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useForm } from "react-hook-form";
-import { FormInput, FormTextarea } from "@/components/shared";
+import { FormInput, FormSelect, FormTextarea } from "@/components/shared";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/auth-store";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
-  ArrowLeft,
   Building2,
   Users,
   UserCog,
@@ -27,8 +27,15 @@ import {
   Smartphone,
   MonitorSmartphone,
 } from "lucide-react";
-import Link from "next/link";
-import { useGymSlug } from "@/lib/hooks/use-gym-slug";
+import {
+  getCityOptions,
+  getCountryCodeByName,
+  getCountryName,
+  getCountryOptions,
+  getStateCodeByName,
+  getStateName,
+  getStateOptions,
+} from "@/lib/location";
 
 // ── Types ──────────────────────────────────────────────────────
 interface AccountOverview {
@@ -340,7 +347,6 @@ function fmtCurrency(amount: number, currency: string) {
 
 // ── Page Component ─────────────────────────────────────────────
 export default function AccountDetailsPage() {
-  const { gymPath } = useGymSlug();
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
 
@@ -367,6 +373,20 @@ export default function AccountDetailsPage() {
 
   // ── Org form ──
   const orgForm = useForm<OrgForm>();
+  const orgCountry = orgForm.watch("country");
+  const orgState = orgForm.watch("state");
+  const countryOptions = useMemo(
+    () => getCountryOptions().map((country) => ({ label: country.name, value: country.code })),
+    [],
+  );
+  const stateOptions = useMemo(
+    () => getStateOptions(orgCountry).map((state) => ({ label: state.name, value: state.code })),
+    [orgCountry],
+  );
+  const cityOptions = useMemo(
+    () => getCityOptions(orgCountry, orgState).map((city) => ({ label: city.name, value: city.name })),
+    [orgCountry, orgState],
+  );
   useEffect(() => {
     if (account) {
       orgForm.reset({
@@ -379,8 +399,12 @@ export default function AccountDetailsPage() {
         website: account.studio.website || "",
         address: account.studio.address || "",
         city: account.studio.city || "",
-        state: account.studio.state || "",
-        country: account.studio.country || "",
+        state:
+          getStateCodeByName(
+            getCountryCodeByName(account.studio.country || ""),
+            account.studio.state || "",
+          ) || "",
+        country: getCountryCodeByName(account.studio.country || "") || "",
         postal_code: account.studio.postal_code || "",
         timezone: account.studio.timezone || "Asia/Kolkata",
         currency: account.studio.currency || "INR",
@@ -389,7 +413,12 @@ export default function AccountDetailsPage() {
   }, [account, orgForm]);
 
   const orgMutation = useMutation({
-    mutationFn: (data: OrgForm) => apiClient.patch("/settings/studio", data),
+    mutationFn: (data: OrgForm) =>
+      apiClient.patch("/settings/studio", {
+        ...data,
+        country: getCountryName(data.country) || data.country,
+        state: getStateName(data.country, data.state) || data.state,
+      }),
     onSuccess: () => {
       toast.success("Organization details saved");
       queryClient.invalidateQueries({ queryKey: ["account-overview"] });
@@ -443,18 +472,13 @@ export default function AccountDetailsPage() {
     <AppLayout>
       {/* Header */}
       <div className="mb-6">
-        <Link
-          href={gymPath("/settings")}
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-3"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Back to Settings
-        </Link>
         <div className="flex items-center gap-3">
           {s.logo_url ? (
-            <img
+            <Image
               src={s.logo_url}
               alt=""
+              width={48}
+              height={48}
               className="w-12 h-12 rounded-lg object-cover"
             />
           ) : (
@@ -520,14 +544,35 @@ export default function AccountDetailsPage() {
                   rows={2}
                 />
               </div>
-              <FormInput label="City" {...orgForm.register("city")} />
-              <FormInput
-                label="State / Region"
-                {...orgForm.register("state")}
+              <FormSelect
+                label="City"
+                value={orgForm.watch("city")}
+                onValueChange={(value) =>
+                  orgForm.setValue("city", value, { shouldDirty: true })
+                }
+                options={cityOptions}
+                placeholder="Select city"
               />
-              <FormInput
+              <FormSelect
+                label="State / Region"
+                value={orgState}
+                onValueChange={(value) => {
+                  orgForm.setValue("state", value, { shouldDirty: true });
+                  orgForm.setValue("city", "", { shouldDirty: true });
+                }}
+                options={stateOptions}
+                placeholder="Select state"
+              />
+              <FormSelect
                 label="Country"
-                {...orgForm.register("country")}
+                value={orgCountry}
+                onValueChange={(value) => {
+                  orgForm.setValue("country", value, { shouldDirty: true });
+                  orgForm.setValue("state", "", { shouldDirty: true });
+                  orgForm.setValue("city", "", { shouldDirty: true });
+                }}
+                options={countryOptions}
+                placeholder="Select country"
               />
               <FormInput
                 label="Postal Code"

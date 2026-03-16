@@ -13,6 +13,10 @@ import {
   ResendVerificationDto,
   SelectPlanDto,
   SetupStudioDto,
+  OnboardingBranchesDto,
+  OnboardingMembershipsDto,
+  OnboardingStaffListDto,
+  OnboardingSkipStepDto,
 } from './dto';
 import { SelectWorkspaceDto } from './dto/select-workspace.dto';
 import { JwtAuthGuard, CurrentUser, JwtPayload } from '../common';
@@ -55,6 +59,36 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   setupStudio(@CurrentUser() user: JwtPayload, @Body() dto: SetupStudioDto) {
     return this.authService.setupStudio(user.user_id, dto);
+  }
+
+  @Post('onboarding/branches')
+  @UseGuards(JwtAuthGuard)
+  onboardingBranches(@CurrentUser() user: JwtPayload, @Body() dto: OnboardingBranchesDto) {
+    return this.authService.onboardingBranches(user.user_id, dto);
+  }
+
+  @Post('onboarding/memberships')
+  @UseGuards(JwtAuthGuard)
+  onboardingMemberships(@CurrentUser() user: JwtPayload, @Body() dto: OnboardingMembershipsDto) {
+    return this.authService.onboardingMemberships(user.user_id, dto);
+  }
+
+  @Post('onboarding/staff')
+  @UseGuards(JwtAuthGuard)
+  onboardingStaff(@CurrentUser() user: JwtPayload, @Body() dto: OnboardingStaffListDto) {
+    return this.authService.onboardingStaff(user.user_id, dto);
+  }
+
+  @Post('onboarding/subscription')
+  @UseGuards(JwtAuthGuard)
+  onboardingSubscription(@CurrentUser() user: JwtPayload, @Body() dto: SelectPlanDto) {
+    return this.authService.onboardingSelectSubscription(user.user_id, dto.plan_id);
+  }
+
+  @Post('onboarding/skip')
+  @UseGuards(JwtAuthGuard)
+  onboardingSkip(@CurrentUser() user: JwtPayload, @Body() dto: OnboardingSkipStepDto) {
+    return this.authService.onboardingSkipStep(user.user_id, dto);
   }
 
   // ── Existing Endpoints ─────────────────────────────────

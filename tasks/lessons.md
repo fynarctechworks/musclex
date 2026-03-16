@@ -12,3 +12,8 @@ Track patterns and mistakes here so they don't repeat.
 - **2026-03-09:** CSS variables for shadcn + Tailwind 3 must use HSL format without `hsl()` wrapper in :root (e.g., `--primary: 202 61% 56%`) and reference as `hsl(var(--primary))` in tailwind.config.ts
 - **2026-03-09:** Prisma 7.x requires Node 20+. Use `prisma@5` on Node 18 environments
 - **2026-03-09:** Node 18 is the current environment — some latest packages may require Node 20+
+- **2026-03-15:** Jest `rootDir: "src"` prevents discovering tests in a separate `test/` directory → Use `roots: ["<rootDir>/src", "<rootDir>/test"]` instead
+- **2026-03-15:** Prisma mock services must include ALL models the tested code calls (e.g. `subscriptionPlan`, `memberMembership`, `financialTransaction`) — not just the main model
+- **2026-03-15:** Prisma `$transaction` with interactive callbacks needs to be mocked to pass the mock prisma instance itself: `$transaction: jest.fn(fn => typeof fn === 'function' ? fn(mockPrisma) : Promise.all(fn))`
+- **2026-03-15:** ApiKeyGuard uses `$queryRawUnsafe` (not `$queryRaw`) and `apiKey.findUnique` (not `findFirst`) — always read source before writing mocks
+- **2026-03-15:** `@sentry/profiling-node` is optional and may not have types — use base `@sentry/nestjs` without profiling integration unless explicitly needed

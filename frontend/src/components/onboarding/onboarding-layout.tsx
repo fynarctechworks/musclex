@@ -1,48 +1,45 @@
 'use client';
 
-import { Check, User, Mail, Zap, Building2, Dumbbell } from 'lucide-react';
+import { Check, User, Mail, Building2, MapPin, CreditCard, Users, Zap, Dumbbell } from 'lucide-react';
 
 const STEPS = [
   { label: 'Create Account', icon: User },
   { label: 'Verify Email', icon: Mail },
+  { label: 'Studio Info', icon: Building2 },
+  { label: 'Branches', icon: MapPin },
+  { label: 'Membership Plans', icon: CreditCard },
+  { label: 'Staff', icon: Users },
   { label: 'Choose Plan', icon: Zap },
-  { label: 'Set Up Studio', icon: Building2 },
 ];
 
 interface OnboardingLayoutProps {
   currentStep: number;
   children: React.ReactNode;
   maxWidth?: string;
+  hideSidebar?: boolean;
 }
 
 export function OnboardingLayout({
   currentStep,
   children,
   maxWidth = '380px',
+  hideSidebar = false,
 }: OnboardingLayoutProps) {
   return (
-    <div className="flex min-h-screen">
-      {/* ── Left gradient panel ── */}
-      <div
-        className="hidden lg:flex lg:w-[44%] flex-col justify-between p-10 relative overflow-hidden"
-        style={{
-          background:
-            'radial-gradient(ellipse at 20% 10%, hsl(155 60% 53%) 0%, transparent 55%), radial-gradient(ellipse at 85% 85%, hsl(155 70% 63%) 0%, transparent 55%), radial-gradient(ellipse at 5% 90%, hsl(155 60% 43%) 0%, transparent 40%), hsl(211 53% 11%)',
-        }}
-      >
-        {/* subtle noise overlay */}
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* ── Left dark panel ── */}
+      {!hideSidebar && (
         <div
-          className="absolute inset-0 opacity-[0.03]"
+          className="hidden lg:flex lg:h-screen lg:w-[44%] lg:shrink-0 flex-col justify-between p-10 relative overflow-hidden"
           style={{
-            backgroundImage:
-              'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\'/%3E%3C/svg%3E")',
+            background:
+              'radial-gradient(ellipse at 20% 10%, hsl(153 60% 53% / 0.15) 0%, transparent 55%), radial-gradient(ellipse at 85% 85%, hsl(153 60% 53% / 0.10) 0%, transparent 55%), hsl(0 0% 7%)',
           }}
-        />
-
+        >
         {/* Logo */}
         <div className="relative flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/25 backdrop-blur-sm">
-            <Dumbbell className="h-4 w-4 text-white" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#3ECF8E]/20">
+            <Dumbbell className="h-4 w-4 text-[#3ECF8E]" />
           </div>
           <span className="text-[15px] font-semibold text-white tracking-tight">
             FitSync Pro
@@ -60,10 +57,10 @@ export function OnboardingLayout({
                 <div
                   className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-all ${
                     isComplete
-                      ? 'bg-white text-[#0D1B2A]'
+                      ? 'bg-[#3ECF8E] text-white'
                       : isCurrent
-                        ? 'bg-white/90 text-[#0D1B2A] ring-2 ring-white ring-offset-2 ring-offset-transparent'
-                        : 'bg-white/20 text-white'
+                        ? 'bg-white/90 text-[#111] ring-2 ring-white ring-offset-2 ring-offset-transparent'
+                        : 'bg-white/15 text-white/60'
                   }`}
                 >
                   {isComplete ? (
@@ -74,7 +71,7 @@ export function OnboardingLayout({
                 </div>
                 <span
                   className={`text-[13px] font-medium ${
-                    i <= currentStep ? 'text-white' : 'text-white/50'
+                    i <= currentStep ? 'text-white' : 'text-white/40'
                   }`}
                 >
                   {s.label}
@@ -86,21 +83,23 @@ export function OnboardingLayout({
 
         {/* Bottom copy */}
         <div className="relative">
-          <p className="text-white/60 text-xs mb-3 font-medium tracking-wide uppercase">
+          <p className="text-white/40 text-xs mb-3 font-medium tracking-wide uppercase">
             Get started free.
           </p>
           <h2 className="text-white text-[26px] font-bold leading-snug">
             Your studio is minutes away from going digital.
           </h2>
-          <p className="mt-4 text-white/60 text-[13px] leading-relaxed">
+          <p className="mt-4 text-white/50 text-[13px] leading-relaxed">
             Set up once, manage everything — members, payments, classes, and
             team.
           </p>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* ── Right form panel ── */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 bg-background">
+      <div className="flex h-screen flex-1 overflow-y-auto bg-background">
+        <div className="flex min-h-full w-full flex-col items-center justify-start px-6 py-12 sm:px-8 lg:px-10 lg:py-16 lg:justify-center">
         {/* Mobile logo */}
         <div className="lg:hidden mb-8 flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
@@ -125,6 +124,7 @@ export function OnboardingLayout({
 
         <div className="w-full" style={{ maxWidth }}>
           {children}
+        </div>
         </div>
       </div>
     </div>

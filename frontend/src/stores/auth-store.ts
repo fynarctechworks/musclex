@@ -40,6 +40,7 @@ interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   loading: boolean;
+  _hasHydrated: boolean;
   setAuth: (data: {
     user: User;
     studio: Studio | null;
@@ -73,6 +74,7 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       isAuthenticated: false,
       loading: false,
+      _hasHydrated: false,
       setAuth: (data) => {
         setAuthCookie(data.access_token);
         set({
@@ -133,6 +135,9 @@ export const useAuthStore = create<AuthState>()(
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => () => {
+        useAuthStore.setState({ _hasHydrated: true });
+      },
     },
   ),
 );

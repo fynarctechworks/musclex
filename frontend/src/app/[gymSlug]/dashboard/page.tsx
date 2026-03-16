@@ -1,12 +1,13 @@
 "use client";
 
 import { AppLayout } from "@/components/layout/app-layout";
-import { KPICard } from "@/components/shared";
+import { KPICard, PageHeader } from "@/components/shared";
 import { LoadingSkeleton } from "@/components/shared";
 import { apiClient } from "@/lib/api";
 import { DashboardKPIs, Branch } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth-store";
+import { queryKeys } from "@/services/query-client";
 import {
   Users,
   IndianRupee,
@@ -14,6 +15,9 @@ import {
   AlertTriangle,
   Activity,
   ArrowRight,
+  CreditCard,
+  UserMinus,
+  BarChart3,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -27,6 +31,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
+import { useSubscriptionMetrics } from "@/features/memberships";
+import { SetupChecklist } from "@/components/dashboard/setup-checklist";
 
 interface RevenueDataPoint {
   month: string;
@@ -58,66 +64,71 @@ export default function DashboardPage() {
       : "";
 
   const { data: branches } = useQuery<Branch[]>({
-    queryKey: ["branches"],
+    queryKey: queryKeys.branches.all,
     queryFn: () => apiClient.get("/branches"),
     enabled: isOwner,
   });
 
   const { data: kpis, isLoading: kpisLoading } = useQuery<DashboardKPIs>({
-    queryKey: ["dashboard-kpis", selectedBranch],
+    queryKey: queryKeys.dashboard.kpis(selectedBranch !== "all" ? selectedBranch : undefined),
     queryFn: () => apiClient.get(`/dashboard/kpis${branchParam}`),
   });
 
   const { data: revenueData } = useQuery<RevenueDataPoint[]>({
-    queryKey: ["dashboard-revenue", selectedBranch],
+    queryKey: queryKeys.dashboard.revenueChart(6, selectedBranch !== "all" ? selectedBranch : undefined),
     queryFn: () =>
       apiClient.get(`/dashboard/revenue-chart?months=6${isOwner && selectedBranch !== "all" ? `&branch_id=${selectedBranch}` : ""}`),
   });
 
   const { data: activity } = useQuery<ActivityItem[]>({
-    queryKey: ["dashboard-activity"],
+    queryKey: queryKeys.dashboard.activityFeed(10),
     queryFn: () => apiClient.get("/dashboard/activity-feed?limit=10"),
   });
 
   const { data: alerts } = useQuery<AlertItem[]>({
-    queryKey: ["dashboard-alerts"],
+    queryKey: queryKeys.dashboard.alerts(),
     queryFn: () => apiClient.get("/dashboard/alerts"),
   });
 
+  const { data: subMetrics } = useSubscriptionMetrics(
+    selectedBranch !== "all" ? selectedBranch : undefined,
+  );
+
   return (
     <AppLayout>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
-          <p className="text-[13px] text-muted-foreground mt-1">
-            {isOwner && selectedBranch !== "all"
-              ? `Showing data for ${branches?.find((b) => b.id === selectedBranch)?.name ?? "selected branch"}`
-              : "Here\u0027s what\u0027s happening at your studio today."}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {isOwner && branches && branches.length > 1 && (
-            <select
-              value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
-              className="text-[13px] bg-card border border-border rounded-lg px-3 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+      <PageHeader
+        title="Dashboard"
+        description={
+          isOwner && selectedBranch !== "all"
+            ? `Showing data for ${branches?.find((b) => b.id === selectedBranch)?.name ?? "selected branch"}`
+            : "Here\u0027s what\u0027s happening at your studio today."
+        }
+        actions={
+          <div className="flex items-center gap-3">
+            {isOwner && branches && branches.length > 1 && (
+              <select
+                value={selectedBranch}
+                onChange={(e) => setSelectedBranch(e.target.value)}
+                className="text-[13px] bg-card border border-border rounded-lg px-3 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="all">All Branches</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            <Link
+              href={gymPath("/dashboard/branches")}
+              className="text-[13px] text-primary hover:text-primary/80 flex items-center gap-1"
             >
-              <option value="all">All Branches</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          )}
-          <Link
-            href={gymPath("/dashboard/branches")}
-            className="text-[13px] text-primary hover:text-primary/80 flex items-center gap-1"
-          >
-            Branch Comparison <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-      </div>
+              Branch Comparison <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        }
+        className="mb-6"
+      />
 
       {kpisLoading ? (
         <LoadingSkeleton className="h-32" />
@@ -142,6 +153,45 @@ export default function DashboardPage() {
             label="Expiring Soon"
             value={kpis?.expiring_soon_count ?? 0}
             icon={AlertTriangle}
+          />
+        </div>
+      )}
+
+      {/* Setup Checklist — shown until all steps done */}
+      {isOwner && (
+        <SetupChecklist
+          gymPath={gymPath}
+          hasBranches={(branches?.length ?? 0) > 0}
+          hasMembers={(kpis?.active_members ?? 0) > 0}
+          hasPlans={(kpis?.active_plans ?? 0) > 0}
+          hasStaff={false}
+          hasCheckIns={(kpis?.check_ins_today ?? 0) > 0}
+          hasClasses={false}
+        />
+      )}
+
+      {/* Subscription Metrics */}
+      {subMetrics && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <KPICard
+            label="Active Subscriptions"
+            value={subMetrics.active_subscriptions ?? 0}
+            icon={CreditCard}
+          />
+          <KPICard
+            label="Monthly Recurring Revenue"
+            value={`₹${(subMetrics.mrr ?? 0).toLocaleString()}`}
+            icon={BarChart3}
+          />
+          <KPICard
+            label="Cancelled This Month"
+            value={subMetrics.cancelled_this_month ?? 0}
+            icon={UserMinus}
+          />
+          <KPICard
+            label="Churn Rate"
+            value={`${(subMetrics.churn_rate ?? 0).toFixed(1)}%`}
+            icon={TrendingUp}
           />
         </div>
       )}

@@ -64,7 +64,7 @@ export function useCreateMember() {
 export function useUpdateMember(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<CreateMemberDto>) => membersApi.update(id, data),
+    mutationFn: (data: Partial<CreateMemberDto> & Record<string, unknown>) => membersApi.update(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.members.detail(id) });
       qc.invalidateQueries({ queryKey: queryKeys.members.all });
@@ -89,9 +89,10 @@ export function useDeleteMember() {
 export function useFreezeMember(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { reason: string; end_date?: string }) => membersApi.freeze(id, data),
+    mutationFn: (data: { reason: string; end_date: string }) => membersApi.freeze(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.members.detail(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.members.all });
       toast.success('Membership frozen');
     },
     onError: (err: Error) => toast.error(err.message),
@@ -104,7 +105,60 @@ export function useUnfreezeMember(id: string) {
     mutationFn: () => membersApi.unfreeze(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.members.detail(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.members.all });
       toast.success('Membership unfrozen');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useRenewMember(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { plan_id: string; payment_method?: string }) => membersApi.renew(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.members.detail(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.members.all });
+      toast.success('Membership renewed');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDeactivateMember(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => membersApi.update(id, { status: 'inactive' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.members.detail(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.members.all });
+      toast.success('Member deactivated');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useActivateMember(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => membersApi.update(id, { status: 'active' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.members.detail(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.members.all });
+      toast.success('Member activated');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useSaveMemberNotes(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (content: string) => membersApi.addNote(id, content),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.members.detail(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.members.notes(id) });
+      toast.success('Notes saved');
     },
     onError: (err: Error) => toast.error(err.message),
   });

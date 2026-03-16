@@ -3,8 +3,6 @@
 import React, { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { ArrowLeft, Save } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import {
@@ -15,10 +13,9 @@ import {
 } from "@/components/shared/form-fields";
 import { Button } from "@/components/ui/button";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
-import { apiClient } from "@/lib/api";
-import type { Member } from "@/lib/types";
 import Link from "next/link";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
+import { useMember, useUpdateMember } from "@/features/members";
 
 interface EditMemberFormData {
   full_name: string;
@@ -36,7 +33,6 @@ export default function EditMemberPage() {
   const { gymPath } = useGymSlug();
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const queryClient = useQueryClient();
   const memberId = params.id;
 
   const {
@@ -47,15 +43,8 @@ export default function EditMemberPage() {
     formState: { errors, isSubmitting, isDirty },
   } = useForm<EditMemberFormData>();
 
-  const {
-    data: member,
-    isLoading,
-    isError,
-  } = useQuery({
-    queryKey: ["member", memberId],
-    queryFn: () => apiClient.get<Member>(`/members/${memberId}`),
-    enabled: !!memberId,
-  });
+  const { data: member, isLoading, isError } = useMember(memberId);
+  const updateMutation = useUpdateMember(memberId);
 
   // Pre-populate form when member data loads
   useEffect(() => {
@@ -74,20 +63,6 @@ export default function EditMemberPage() {
     }
   }, [member, reset]);
 
-  const updateMutation = useMutation({
-    mutationFn: (data: EditMemberFormData) =>
-      apiClient.patch<Member>(`/members/${memberId}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["member", memberId] });
-      queryClient.invalidateQueries({ queryKey: ["members"] });
-      toast.success("Member updated successfully");
-      router.push(gymPath(`/members/${memberId}`));
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || "Failed to update member");
-    },
-  });
-
   const onSubmit = (data: EditMemberFormData) => {
     // Strip empty strings to avoid overwriting with blanks
     const payload: Partial<EditMemberFormData> = {};
@@ -96,7 +71,9 @@ export default function EditMemberPage() {
         (payload as Record<string, string>)[key] = value;
       }
     }
-    updateMutation.mutate(payload as EditMemberFormData);
+    updateMutation.mutate(payload as Record<string, unknown>, {
+      onSuccess: () => router.push(gymPath(`/members/${memberId}`)),
+    });
   };
 
   const checkinMethodOptions = [
@@ -137,7 +114,7 @@ export default function EditMemberPage() {
       <div className="mx-auto max-w-2xl space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Link href={`/members/${memberId}`}>
+          <Link href={gymPath(`/members/${memberId}`)}>
             <Button
               variant="ghost"
               size="icon"
@@ -270,7 +247,7 @@ export default function EditMemberPage() {
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3">
-            <Link href={`/members/${memberId}`}>
+            <Link href={gymPath(`/members/${memberId}`)}>
               <Button
                 type="button"
                 variant="ghost"

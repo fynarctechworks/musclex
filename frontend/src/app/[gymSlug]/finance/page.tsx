@@ -7,20 +7,22 @@ import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
 import { KPICard } from "@/components/shared/kpi-card";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api";
 import type { Payment, Expense, PaginatedResponse } from "@/lib/types";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
+import { queryKeys } from "@/services/query-client";
 
 export default function FinancePage() {
   const { gymPath } = useGymSlug();
   const { data: payments } = useQuery({
-    queryKey: ["recent-payments"],
+    queryKey: queryKeys.payments.list({ limit: 50 }),
     queryFn: () => apiClient.get<PaginatedResponse<Payment>>("/payments?limit=50"),
   });
 
   const { data: expenses } = useQuery({
-    queryKey: ["expenses"],
+    queryKey: queryKeys.expenses.list(),
     queryFn: () => apiClient.get<Expense[]>("/expenses"),
   });
 
@@ -47,16 +49,17 @@ export default function FinancePage() {
 
   return (
     <AppLayout>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Finance</h1>
-          <p className="text-sm text-muted-foreground mt-1">Financial overview and transactions</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href={gymPath("/finance/payments/new")}><Button className="bg-primary text-primary-foreground">+ Record Payment</Button></Link>
-          <Link href={gymPath("/finance/expenses/new")}><Button variant="outline" className="border-border text-muted-foreground">+ Add Expense</Button></Link>
-        </div>
-      </div>
+      <PageHeader
+        title="Finance"
+        description="Financial overview and transactions"
+        actions={
+          <div className="flex gap-2">
+            <Link href={gymPath("/finance/payments/new")}><Button className="bg-primary text-primary-foreground">+ Record Payment</Button></Link>
+            <Link href={gymPath("/finance/expenses/new")}><Button variant="outline" className="border-border text-muted-foreground">+ Add Expense</Button></Link>
+          </div>
+        }
+        className="mb-6"
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KPICard icon={DollarSign} label="Monthly Revenue" value={`₹${kpis.monthlyRevenue.toLocaleString("en-IN")}`} trend={{ value: 0, isPositive: true }} />

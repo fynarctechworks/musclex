@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Building2, ChevronRight, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
@@ -63,9 +64,11 @@ export default function WorkspaceSelectPage() {
             >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                 {ws.logo_url ? (
-                  <img
+                  <Image
                     src={ws.logo_url}
                     alt={ws.name}
+                    width={40}
+                    height={40}
                     className="h-10 w-10 rounded-lg object-cover"
                   />
                 ) : (

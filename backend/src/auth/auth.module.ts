@@ -1,4 +1,6 @@
 import { Global, Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthIdentityService } from './auth-identity.service';
@@ -12,17 +14,30 @@ import { RbacSeedService } from './rbac-seed.service';
 import { AuthSessionController, AuthAdminController } from './auth-session.controller';
 import { AuthSsoController } from './auth-sso.controller';
 import { AuthApiKeyController } from './auth-api-key.controller';
+import { TwoFactorService } from './two-factor.service';
+import { TwoFactorController } from './two-factor.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Global()
 @Module({
-  imports: [PrismaModule],
+  imports: [
+    PrismaModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get<string>('JWT_SECRET', 'fitsync-jwt-secret'),
+        signOptions: { expiresIn: '1h' },
+      }),
+    }),
+  ],
   controllers: [
     AuthController,
     AuthSessionController,
     AuthAdminController,
     AuthSsoController,
     AuthApiKeyController,
+    TwoFactorController,
   ],
   providers: [
     AuthService,
@@ -34,6 +49,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     AuthApiKeyService,
     RbacService,
     RbacSeedService,
+    TwoFactorService,
   ],
   exports: [
     AuthService,
@@ -43,6 +59,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     AuthSessionService,
     RbacService,
     RbacSeedService,
+    TwoFactorService,
   ],
 })
 export class AuthModule {}

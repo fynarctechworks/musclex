@@ -2,30 +2,45 @@
 
 import { AppLayout } from "@/components/layout/app-layout";
 import { LoadingSkeleton } from "@/components/shared";
-import { apiClient } from "@/lib/api";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Sparkles, TrendingUp, Users, AlertTriangle, Calendar } from "lucide-react";
+import { useDailyBriefing } from "@/features/ai";
+import type { DailyBriefing, BriefingAlert } from "@/features/ai";
+import {
+  ArrowLeft,
+  Sparkles,
+  TrendingUp,
+  Users,
+  AlertTriangle,
+  Calendar,
+  CalendarCheck,
+  DollarSign,
+  Clock,
+  CreditCard,
+} from "lucide-react";
 import Link from "next/link";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 
-interface DailyBriefing {
-  date: string;
-  summary: string;
-  metrics: {
-    label: string;
-    value: string;
-    change?: string;
-  }[];
-  alerts: string[];
-  recommendations: string[];
-}
+// ── Metric display config ─────────────────────────────────
+
+const METRIC_CONFIG = [
+  { key: "total_members" as const, label: "Total Members", icon: Users, format: (v: number) => String(v) },
+  { key: "active_members" as const, label: "Active Members", icon: Users, format: (v: number) => String(v) },
+  { key: "today_check_ins" as const, label: "Today's Check-ins", icon: CalendarCheck, format: (v: number) => String(v) },
+  { key: "expiring_this_week" as const, label: "Expiring This Week", icon: Clock, format: (v: number) => String(v) },
+  { key: "revenue_today" as const, label: "Revenue Today", icon: DollarSign, format: (v: number) => `₹${v.toLocaleString()}` },
+  { key: "pending_payments" as const, label: "Pending Payments", icon: CreditCard, format: (v: number) => String(v) },
+];
+
+const ALERT_STYLES: Record<string, string> = {
+  warning: "bg-amber-500",
+  danger: "bg-destructive",
+  info: "bg-primary",
+};
 
 export default function DailyBriefingPage() {
   const { gymPath } = useGymSlug();
-  const { data: briefing, isLoading } = useQuery<DailyBriefing>({
-    queryKey: ["daily-briefing"],
-    queryFn: () => apiClient.get("/ai/daily-briefing"),
-  });
+  const { data: briefing, isLoading } = useDailyBriefing();
+
+  const b = briefing as DailyBriefing | undefined;
 
   return (
     <AppLayout>
@@ -41,8 +56,8 @@ export default function DailyBriefingPage() {
           <Sparkles className="w-6 h-6 text-amber-500" /> Daily Briefing
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {briefing?.date
-            ? new Date(briefing.date).toLocaleDateString("en-US", {
+          {b?.date
+            ? new Date(b.date).toLocaleDateString("en-US", {
                 weekday: "long",
                 year: "numeric",
                 month: "long",
@@ -54,7 +69,7 @@ export default function DailyBriefingPage() {
 
       {isLoading ? (
         <LoadingSkeleton className="h-96" />
-      ) : briefing ? (
+      ) : b ? (
         <div className="space-y-6">
           {/* Summary */}
           <div className="bg-card border border-border rounded-xl p-6">
@@ -62,52 +77,54 @@ export default function DailyBriefingPage() {
               <TrendingUp className="w-5 h-5 text-primary" /> Summary
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              {briefing.summary}
+              {b.summary}
             </p>
           </div>
 
-          {/* Key Metrics */}
+          {/* Key Metrics — mapped from named object */}
           <div className="bg-card border border-border rounded-xl p-6">
             <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" /> Key Metrics
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {briefing.metrics.map((metric, i) => (
-                <div key={i} className="bg-muted rounded-lg p-4">
-                  <p className="text-xs text-muted-foreground">{metric.label}</p>
-                  <p className="text-xl font-bold text-foreground mt-1">
-                    {metric.value}
-                  </p>
-                  {metric.change && (
-                    <p
-                      className={`text-xs mt-1 ${
-                        metric.change.startsWith("+")
-                          ? "text-primary"
-                          : "text-destructive"
-                      }`}
-                    >
-                      {metric.change} from yesterday
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {METRIC_CONFIG.map((m) => {
+                const val = b.metrics?.[m.key];
+                if (val == null) return null;
+                const Icon = m.icon;
+                return (
+                  <div key={m.key} className="bg-muted rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Icon className="w-4 h-4 text-muted-foreground" />
+                      <p className="text-xs text-muted-foreground">{m.label}</p>
+                    </div>
+                    <p className="text-xl font-bold text-foreground">
+                      {m.format(val)}
                     </p>
-                  )}
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* Alerts */}
-          {briefing.alerts.length > 0 && (
+          {/* Alerts — objects with type, title, message */}
+          {b.alerts && b.alerts.length > 0 && (
             <div className="bg-card border border-border rounded-xl p-6">
               <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-amber-500" /> Alerts
               </h2>
-              <ul className="space-y-2">
-                {briefing.alerts.map((alert, i) => (
+              <ul className="space-y-3">
+                {b.alerts.map((alert: BriefingAlert, i: number) => (
                   <li
                     key={i}
-                    className="flex items-start gap-2 text-sm text-muted-foreground"
+                    className="flex items-start gap-3 text-sm"
                   >
-                    <span className="w-1.5 h-1.5 bg-amber-500 rounded-full mt-1.5 flex-shrink-0" />
-                    {alert}
+                    <span
+                      className={`w-2 h-2 ${ALERT_STYLES[alert.type] ?? "bg-primary"} rounded-full mt-1.5 flex-shrink-0`}
+                    />
+                    <div>
+                      <p className="font-medium text-foreground">{alert.title}</p>
+                      <p className="text-muted-foreground text-xs mt-0.5">{alert.message}</p>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -115,14 +132,14 @@ export default function DailyBriefingPage() {
           )}
 
           {/* Recommendations */}
-          {briefing.recommendations.length > 0 && (
+          {b.recommendations && b.recommendations.length > 0 && (
             <div className="bg-card border border-border rounded-xl p-6">
               <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-primary" />{" "}
                 Recommendations
               </h2>
               <ul className="space-y-2">
-                {briefing.recommendations.map((rec, i) => (
+                {b.recommendations.map((rec: string, i: number) => (
                   <li
                     key={i}
                     className="flex items-start gap-2 text-sm text-muted-foreground"

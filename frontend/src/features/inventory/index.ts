@@ -1,0 +1,30 @@
+export { inventoryApi } from './api';
+export {
+  useProducts,
+  useProduct,
+  useCreateProduct,
+  useUpdateProduct,
+  useCategories,
+  useCreateCategory,
+  useUpdateCategory,
+  useInventory,
+  useLowStock,
+  useAdjustStock,
+  useSetReorderLevel,
+  useInventoryTransactions,
+} from './hooks';
+export type {
+  Product,
+  ProductCategory,
+  InventoryRecord,
+  InventoryTransaction,
+  CreateProductPayload,
+  UpdateProductPayload,
+  AdjustInventoryPayload,
+  CreateCategoryPayload,
+  UpdateCategoryPayload,
+  ProductFilters,
+  InventoryFilters,
+  TransactionFilters,
+  PaginatedResponse,
+} from './types';

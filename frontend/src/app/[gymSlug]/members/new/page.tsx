@@ -3,9 +3,7 @@
 import React, { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
-// Using react-hook-form built-in validation
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import {
@@ -15,11 +13,13 @@ import {
   FormSelect,
 } from "@/components/shared/form-fields";
 import { Button } from "@/components/ui/button";
-import { apiClient } from "@/lib/api";
-import type { MembershipPlan, Member, Branch } from "@/lib/types";
+import { apiClient } from "@/services/api-client";
+import type { MembershipPlan, Branch } from "@/types";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
+import { useCreateMember, type CreateMemberDto } from "@/features/members";
+import { queryKeys } from "@/services/query-client";
 
 interface MemberFormData {
   full_name: string;
@@ -61,12 +61,12 @@ export default function AddMemberPage() {
   });
 
   const { data: plans } = useQuery({
-    queryKey: ["membership-plans"],
+    queryKey: queryKeys.memberships.plans(),
     queryFn: () => apiClient.get<MembershipPlan[]>("/membership-plans"),
   });
 
   const { data: branches } = useQuery({
-    queryKey: ["branches"],
+    queryKey: queryKeys.branches.list(),
     queryFn: () => apiClient.get<Branch[]>("/branches"),
   });
 
@@ -76,17 +76,7 @@ export default function AddMemberPage() {
     return `FS-${dateStr}-${random}`;
   }, []);
 
-  const createMutation = useMutation({
-    mutationFn: (data: MemberFormData) =>
-      apiClient.post<Member>("/members", data),
-    onSuccess: (member) => {
-      toast.success("Member created successfully");
-      router.push(gymPath(`/members/${member.id}`));
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || "Failed to create member");
-    },
-  });
+  const createMutation = useCreateMember();
 
   const onSubmit = (data: MemberFormData) => {
     const cleanedData = {
@@ -96,7 +86,9 @@ export default function AddMemberPage() {
       plan_id: data.plan_id || undefined,
       membership_start_date: data.membership_start_date || undefined,
     };
-    createMutation.mutate(cleanedData);
+    createMutation.mutate(cleanedData as CreateMemberDto, {
+      onSuccess: (member) => router.push(gymPath(`/members/${member.id}`)),
+    });
   };
 
   const branchOptions = (branches ?? []).map((b) => ({

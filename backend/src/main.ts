@@ -1,14 +1,19 @@
+import './instrument';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Logger as PinoLogger } from 'nestjs-pino';
+import * as Sentry from '@sentry/nestjs';
 import helmet from 'helmet';
+import * as compression from 'compression';
 import { AppModule } from './app.module';
 import { ApiMetadataInterceptor } from './common/interceptors/api-metadata.interceptor';
 import { ApiVersionInterceptor } from './common/interceptors/api-version.interceptor';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(PinoLogger));
   const configService = app.get(ConfigService);
   const reflector = app.get(Reflector);
 
@@ -18,6 +23,12 @@ async function bootstrap() {
     'SUPABASE_SERVICE_ROLE_KEY',
     'DATABASE_URL',
   ];
+
+  const isProduction = configService.get<string>('NODE_ENV') === 'production';
+  if (isProduction) {
+    requiredEnvVars.push('CORS_ORIGINS', 'HASH_SECRET');
+  }
+
   for (const envVar of requiredEnvVars) {
     if (!configService.get<string>(envVar)) {
       logger.error(`FATAL: Missing required environment variable: ${envVar}`);
@@ -27,6 +38,9 @@ async function bootstrap() {
 
   // Security headers
   app.use(helmet());
+
+  // gzip compression
+  app.use(compression());
 
   // Request body size limit (1MB)
   app.use(
@@ -48,11 +62,20 @@ async function bootstrap() {
     new ApiVersionInterceptor(reflector),
   );
 
+  // Sentry error tracking (only when DSN is configured)
+  if (configService.get<string>('SENTRY_DSN')) {
+    const { SentryGlobalFilter } = await import('@sentry/nestjs/setup');
+    app.useGlobalFilters(new SentryGlobalFilter());
+  }
+
   app.enableCors({
     origin: configService
       .get<string>('CORS_ORIGINS', 'http://localhost:3000')
       .split(','),
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'x-studio-id'],
+    maxAge: 86400,
   });
 
   const port = configService.get<number>('PORT', 4000);

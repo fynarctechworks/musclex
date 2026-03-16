@@ -71,15 +71,21 @@ export interface MembershipPlan {
   id: string;
   name: string;
   description?: string;
-  plan_type: 'monthly' | 'quarterly' | 'half_yearly' | 'yearly' | 'class_pack' | 'custom';
+  plan_type: 'monthly' | 'quarterly' | 'half_yearly' | 'yearly' | 'class_pack' | 'custom' | 'day_pass' | 'corporate' | 'family' | 'global_access';
   duration_days?: number;
   total_classes?: number;
   max_classes_per_week?: number;
+  max_visits?: number;
   price: number;
+  currency?: string;
   is_active: boolean;
   auto_renew_enabled: boolean;
+  multi_branch_access?: boolean;
+  grace_period_days?: number;
+  organization_id?: string;
   branch_id?: string;
   branch?: { id: string; name: string };
+  _count?: { memberships: number };
 }
 
 export interface MemberMembership {
@@ -90,11 +96,16 @@ export interface MemberMembership {
   start_date: string;
   end_date?: string;
   classes_remaining?: number;
-  status: 'active' | 'frozen' | 'expired' | 'cancelled';
+  remaining_visits?: number;
+  status: 'pending' | 'active' | 'paused' | 'frozen' | 'expired' | 'cancelled' | 'renewed';
   freeze_start_date?: string;
   freeze_end_date?: string;
   freeze_reason?: string;
+  auto_renew?: boolean;
+  created_at?: string;
+  updated_at?: string;
   plan: MembershipPlan;
+  branch?: { id: string; name: string };
 }
 
 // ─── Members ─────────────────────────────────────────────────
@@ -136,7 +147,8 @@ export interface CheckIn {
   checked_in_at: string;
   status: 'success' | 'failed' | 'pending';
   failure_reason?: string;
-  member?: { full_name: string; member_code: string };
+  member?: { full_name: string; member_code: string; profile_photo_url?: string };
+  synced_at?: string;
 }
 
 // ─── Payments ────────────────────────────────────────────────
@@ -166,6 +178,7 @@ export interface Expense {
   amount: number;
   currency: string;
   paid_at: string;
+  expense_date: string;
   receipt_url?: string;
   vendor?: string;
   payment_method?: string;
@@ -273,6 +286,9 @@ export interface DashboardKPIs {
   check_ins_today: number;
   active_plans: number;
   expiring_soon: number;
+  monthly_revenue: number;
+  avg_attendance_rate: number;
+  expiring_soon_count: number;
 }
 
 export interface RevenueDataPoint {

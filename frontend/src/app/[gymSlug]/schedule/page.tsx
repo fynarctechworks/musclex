@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
+import { PageHeader } from "@/components/shared/page-header";
 import { apiClient } from "@/lib/api";
 import { ClassItem } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
@@ -41,20 +42,19 @@ export default function SchedulePage() {
 
   return (
     <AppLayout>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Class Schedule</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Weekly view of all classes
-          </p>
-        </div>
-        <Link
-          href={gymPath("/classes/new")}
-          className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" /> Add Class
-        </Link>
-      </div>
+      <PageHeader
+        title="Class Schedule"
+        description="Weekly view of all classes"
+        actions={
+          <Link
+            href={gymPath("/classes/new")}
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" /> Add Class
+          </Link>
+        }
+        className="mb-6"
+      />
 
       {/* Week Navigation */}
       <div className="flex items-center justify-between mb-4">

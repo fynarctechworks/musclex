@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { StatusBadge, LoadingSkeleton } from "@/components/shared";
+import { StatusBadge, LoadingSkeleton, PageHeader } from "@/components/shared";
 import { apiClient } from "@/lib/api";
+import { useDebounce } from "@/lib/hooks/use-debounce";
 import { Staff, Branch, PaginatedResponse } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth-store";
@@ -14,6 +15,7 @@ import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 export default function StaffPage() {
   const { gymPath } = useGymSlug();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [roleFilter, setRoleFilter] = useState("");
   const [branchFilter, setBranchFilter] = useState("");
   const [page, setPage] = useState(1);
@@ -28,10 +30,10 @@ export default function StaffPage() {
   });
 
   const { data, isLoading } = useQuery<PaginatedResponse<Staff>>({
-    queryKey: ["staff", search, roleFilter, branchFilter, page],
+    queryKey: ["staff", debouncedSearch, roleFilter, branchFilter, page],
     queryFn: () => {
       const params = new URLSearchParams();
-      if (search) params.set("search", search);
+      if (debouncedSearch) params.set("search", debouncedSearch);
       if (roleFilter) params.set("role", roleFilter);
       if (branchFilter) params.set("branch_id", branchFilter);
       params.set("page", String(page));
@@ -44,30 +46,29 @@ export default function StaffPage() {
 
   return (
     <AppLayout>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Staff Directory</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage your team members
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href={gymPath("/staff/analytics")}
-            className="border border-border text-muted-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
-          >
-            <BarChart3 className="w-4 h-4" /> Analytics
-          </Link>
-          {canCreate && (
+      <PageHeader
+        title="Staff Directory"
+        description="Manage your team members"
+        actions={
+          <div className="flex gap-2">
             <Link
-              href={gymPath("/staff/new")}
-              className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+              href={gymPath("/staff/analytics")}
+              className="border border-border text-muted-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
             >
-              <Plus className="w-4 h-4" /> Add Staff
+              <BarChart3 className="w-4 h-4" /> Analytics
             </Link>
-          )}
-        </div>
-      </div>
+            {canCreate && (
+              <Link
+                href={gymPath("/staff/new")}
+                className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" /> Add Staff
+              </Link>
+            )}
+          </div>
+        }
+        className="mb-6"
+      />
 
       <div className="flex gap-3 mb-4">
         <input

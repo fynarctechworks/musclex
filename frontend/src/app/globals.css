@@ -4,84 +4,93 @@
 
 @layer base {
   :root {
-    /* FitSync Pro — Light Theme */
-    --background: 0 0% 100%;           /* #FFFFFF */
-    --foreground: 211 53% 11%;         /* #0D1B2A */
-    --card: 0 0% 100%;
-    --card-foreground: 211 53% 11%;
+    /*
+     * FitSync Pro — Supabase-Style Light Design System
+     * Clean, minimal, white-first. Inspired by Supabase Studio.
+     * Aesthetic–Usability: clean = perceived fast + reliable
+     */
+    --background: 0 0% 99%;            /* #FCFCFC — subtle off-white */
+    --foreground: 0 0% 7%;             /* #111111 — crisp dark text */
+    --card: 0 0% 100%;                 /* #FFFFFF — pure white cards */
+    --card-foreground: 0 0% 7%;
     --popover: 0 0% 100%;
-    --popover-foreground: 211 53% 11%;
-    --primary: 155 60% 53%;            /* #3ECF8E — Supabase green */
-    --primary-foreground: 0 0% 9%;     /* #171717 */
-    --secondary: 210 20% 96%;
-    --secondary-foreground: 211 53% 11%;
-    --muted: 210 20% 96%;
-    --muted-foreground: 210 26% 48%;   /* #5A7A9A */
-    --accent: 210 20% 96%;
-    --accent-foreground: 211 53% 11%;
-    --destructive: 0 84% 60%;          /* #EF4444 */
+    --popover-foreground: 0 0% 7%;
+    --primary: 153 60% 53%;            /* #3ECF8E — Supabase green */
+    --primary-foreground: 0 0% 100%;   /* white on green */
+    --secondary: 0 0% 96%;             /* #F5F5F5 — neutral surface */
+    --secondary-foreground: 0 0% 7%;
+    --muted: 0 0% 96%;                 /* same as secondary */
+    --muted-foreground: 0 0% 45%;      /* #737373 — deemphasized text */
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 7%;
+    --destructive: 0 72% 51%;          /* #E5484D — Radix red */
     --destructive-foreground: 0 0% 100%;
-    --success: 150 59% 49%;            /* #34C77A */
-    --warning: 38 92% 50%;             /* #F59E0B */
-    --border: 210 20% 90%;
-    --input: 210 20% 90%;
-    --ring: 155 60% 53%;
+    --success: 153 60% 53%;            /* matches primary */
+    --warning: 40 96% 53%;             /* #F5A623 — warm amber */
+    --border: 0 0% 90%;                /* #E5E5E5 — subtle dividers */
+    --input: 0 0% 90%;
+    --ring: 153 60% 53%;
     --radius: 0.5rem;
 
+    /* Sidebar — Supabase-style near-white */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 211 53% 11%;
-    --sidebar-primary: 155 60% 53%;
-    --sidebar-primary-foreground: 0 0% 9%;
-    --sidebar-accent: 210 20% 96%;
-    --sidebar-accent-foreground: 211 53% 11%;
-    --sidebar-border: 210 20% 90%;
-    --sidebar-ring: 155 60% 53%;
+    --sidebar-foreground: 0 0% 7%;
+    --sidebar-primary: 153 60% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 7%;
+    --sidebar-border: 0 0% 92%;
+    --sidebar-ring: 153 60% 53%;
 
-    --chart-1: 155 60% 53%;
-    --chart-2: 150 59% 49%;
-    --chart-3: 38 92% 50%;
-    --chart-4: 0 84% 60%;
-    --chart-5: 210 26% 48%;
+    /* Charts — accessible 5-color scheme */
+    --chart-1: 153 60% 53%;            /* green */
+    --chart-2: 199 89% 48%;            /* blue */
+    --chart-3: 40 96% 53%;             /* amber */
+    --chart-4: 0 72% 51%;              /* red */
+    --chart-5: 262 83% 58%;            /* purple */
   }
 
   .dark {
-    /* FitSync Pro — Dark Theme (PRD Design System) */
-    --background: 211 53% 11%;         /* #0D1B2A */
-    --foreground: 0 0% 100%;           /* #FFFFFF */
-    --card: 211 45% 22%;               /* #1E3450 */
-    --card-foreground: 0 0% 100%;
-    --popover: 211 45% 22%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 155 60% 53%;            /* #3ECF8E — Supabase green */
-    --primary-foreground: 0 0% 9%;     /* #171717 */
-    --secondary: 211 43% 19%;          /* #1A2F45 */
-    --secondary-foreground: 210 43% 78%;
-    --muted: 211 43% 19%;              /* #1A2F45 */
-    --muted-foreground: 210 43% 78%;   /* #B0C8E0 */
-    --accent: 211 43% 19%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;          /* #EF4444 */
+    /*
+     * FitSync Pro — Dark Theme
+     * True dark (not navy), Supabase Studio dark palette
+     */
+    --background: 0 0% 7%;             /* #111111 */
+    --foreground: 0 0% 95%;            /* #F2F2F2 */
+    --card: 0 0% 10%;                  /* #1A1A1A */
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 153 60% 53%;            /* #3ECF8E — same green */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 13%;             /* #222222 */
+    --secondary-foreground: 0 0% 95%;
+    --muted: 0 0% 13%;
+    --muted-foreground: 0 0% 55%;      /* #8C8C8C */
+    --accent: 0 0% 13%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --success: 150 59% 49%;            /* #34C77A */
-    --warning: 38 92% 50%;             /* #F59E0B */
-    --border: 210 43% 29%;             /* #2A4A6A */
-    --input: 211 53% 11%;              /* #0D1B2A */
-    --ring: 155 60% 53%;
+    --success: 153 60% 53%;
+    --warning: 40 96% 53%;
+    --border: 0 0% 17%;                /* #2C2C2C — subtle dark borders */
+    --input: 0 0% 13%;
+    --ring: 153 60% 53%;
 
-    --sidebar-background: 211 53% 11%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 155 60% 53%;
-    --sidebar-primary-foreground: 0 0% 9%;
-    --sidebar-accent: 211 43% 19%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 210 43% 29%;
-    --sidebar-ring: 155 60% 53%;
+    --sidebar-background: 0 0% 7%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 153 60% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 13%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 0 0% 17%;
+    --sidebar-ring: 153 60% 53%;
 
-    --chart-1: 155 60% 53%;
-    --chart-2: 150 59% 49%;
-    --chart-3: 38 92% 50%;
-    --chart-4: 0 84% 60%;
-    --chart-5: 210 43% 78%;
+    --chart-1: 153 60% 53%;
+    --chart-2: 199 89% 48%;
+    --chart-3: 40 96% 53%;
+    --chart-4: 0 72% 51%;
+    --chart-5: 262 83% 58%;
   }
 
   * {
@@ -90,5 +99,39 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  /* Smooth transitions for theme switching — Doherty Threshold */
+  * {
+    transition-property: color, background-color, border-color;
+    transition-timing-function: ease;
+    transition-duration: 75ms;
+  }
+
+  /* Disable transitions on page load to prevent flash */
+  html.no-transitions * {
+    transition: none !important;
+  }
+
+  /* Focus-visible for keyboard accessibility (WCAG 2.1) */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Scrollbar — minimal & unobtrusive */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.3);
   }
 }

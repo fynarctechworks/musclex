@@ -1,7 +1,8 @@
-import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerStorage } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
+import { LoggerModule } from 'nestjs-pino';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { PrismaModule } from './prisma/prisma.module';
@@ -31,6 +32,19 @@ import { EnhancedThrottlerGuard } from './common/throttler/enhanced-throttler.gu
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        pinoHttp: {
+          level: config.get('LOG_LEVEL', 'info'),
+          transport: config.get('NODE_ENV') !== 'production'
+            ? { target: 'pino-pretty', options: { colorize: true } }
+            : undefined,
+          redact: ['req.headers.authorization', 'req.headers.cookie'],
+          autoLogging: { ignore: (req: any) => req.url === '/health' },
+        },
+      }),
+    }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {

@@ -29,6 +29,8 @@ export function useRecordCashPayment() {
     mutationFn: paymentsApi.recordCash,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.payments.all });
+      qc.invalidateQueries({ queryKey: queryKeys.finance.all });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Cash payment recorded');
     },
     onError: (err: Error) => toast.error(err.message),
@@ -48,6 +50,8 @@ export function useVerifyPayment() {
     mutationFn: paymentsApi.verifyPayment,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.payments.all });
+      qc.invalidateQueries({ queryKey: queryKeys.finance.all });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Payment verified');
     },
     onError: (err: Error) => toast.error(err.message),
@@ -69,6 +73,8 @@ export function useCreateExpense() {
     mutationFn: expensesApi.create,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.expenses.all });
+      qc.invalidateQueries({ queryKey: queryKeys.finance.all });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Expense recorded');
     },
     onError: (err: Error) => toast.error(err.message),
@@ -82,6 +88,8 @@ export function useUpdateExpense() {
       expensesApi.update(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.expenses.all });
+      qc.invalidateQueries({ queryKey: queryKeys.finance.all });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Expense updated');
     },
     onError: (err: Error) => toast.error(err.message),
@@ -94,6 +102,8 @@ export function useDeleteExpense() {
     mutationFn: expensesApi.delete,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.expenses.all });
+      qc.invalidateQueries({ queryKey: queryKeys.finance.all });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Expense deleted');
     },
     onError: (err: Error) => toast.error(err.message),

@@ -9,8 +9,9 @@ export {
   type LeadFilters,
   type MessageTemplateFilters,
   type WorkflowFilters,
-  type WorkflowAction,
 } from './api';
+
+export * from './types';
 
 export {
   useCampaigns,

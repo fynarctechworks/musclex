@@ -64,6 +64,10 @@
 - [x] Login page (S01) — email/password form, forgot password link, logo
 - [ ] Forgot Password page (S03) — email → OTP → new password
 - [x] Onboarding page (S02) — studio name, first branch, admin profile
+- [x] Studio onboarding auto-location prefill (country/currency/timezone) with manual override
+- [x] Onboarding wizard draft persistence across back navigation
+- [x] Onboarding layout fixed-height split panes with right-panel scrolling only
+- [x] Country/state/city address autofill for onboarding and studio settings forms
 - [x] Auth state management (Zustand store)
 - [x] Protected route wrapper (redirect to login if no JWT)
 - [x] Role-based route guard (redirect if insufficient permissions)

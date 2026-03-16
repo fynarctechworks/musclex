@@ -10,6 +10,14 @@ export function useCheckIns(filters?: CheckInFilters) {
   });
 }
 
+export function useRecentCheckIns(branchId?: string, limit = 20) {
+  return useQuery({
+    queryKey: [...queryKeys.checkIns.all, 'recent', branchId, limit],
+    queryFn: () => checkInsApi.list({ branch_id: branchId, limit }),
+    refetchInterval: 5000,
+  });
+}
+
 export function useCheckInHeatmap(branchId?: string) {
   return useQuery({
     queryKey: queryKeys.checkIns.heatmap(branchId),
@@ -20,11 +28,10 @@ export function useCheckInHeatmap(branchId?: string) {
 export function useCreateCheckIn() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { member_id: string; branch_id: string; method: string; membership_id?: string }) =>
-      checkInsApi.create(data),
+    mutationFn: checkInsApi.create,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.checkIns.all });
-      toast.success('Check-in recorded');
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -33,11 +40,23 @@ export function useCreateCheckIn() {
 export function useFacialCheckIn() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { branch_id: string; face_descriptor: number[] }) =>
-      checkInsApi.facial(data),
+    mutationFn: checkInsApi.facial,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.checkIns.all });
-      toast.success('Facial check-in successful');
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useSyncCheckIns() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: checkInsApi.sync,
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: queryKeys.checkIns.all });
+      toast.success(`Synced ${data.synced} check-ins`);
+      if (data.failed > 0) toast.warning(`${data.failed} check-ins failed to sync`);
     },
     onError: (err: Error) => toast.error(err.message),
   });

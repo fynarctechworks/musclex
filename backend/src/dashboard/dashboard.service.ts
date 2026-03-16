@@ -88,33 +88,49 @@ export class DashboardService {
 
   async getRevenueChart(user?: JwtPayload) {
     const now = new Date();
-    const months: { month: string; revenue: number }[] = [];
+    const elevenMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
     const branchFilter = this.getBranchFilter(user);
 
+    // Single query: aggregate 12 months of revenue using Prisma groupBy
+    const branchWhere = branchFilter.branch_id
+      ? { branch_id: branchFilter.branch_id }
+      : {};
+
+    const results = await this.prisma.payment.groupBy({
+      by: ['paid_at'],
+      where: {
+        status: 'paid',
+        paid_at: { gte: elevenMonthsAgo },
+        ...branchWhere,
+      },
+      _sum: { amount: true },
+    });
+
+    // Build month map for the last 12 months
+    const monthMap = new Map<string, number>();
+    const monthLabels: { key: string; label: string }[] = [];
     for (let i = 11; i >= 0; i--) {
-      const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-      const label = start.toLocaleString('en-US', {
-        month: 'short',
-        year: 'numeric',
-      });
-
-      const result = await this.prisma.payment.aggregate({
-        where: {
-          status: 'paid',
-          paid_at: { gte: start, lt: end },
-          ...branchFilter,
-        },
-        _sum: { amount: true },
-      });
-
-      months.push({
-        month: label,
-        revenue: Number(result._sum.amount || 0),
-      });
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+      monthMap.set(key, 0);
+      monthLabels.push({ key, label });
     }
 
-    return months;
+    // Aggregate results into month buckets
+    for (const row of results) {
+      if (row.paid_at) {
+        const d = new Date(row.paid_at);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const current = monthMap.get(key) || 0;
+        monthMap.set(key, current + Number(row._sum.amount || 0));
+      }
+    }
+
+    return monthLabels.map(({ key, label }) => ({
+      month: label,
+      revenue: monthMap.get(key) || 0,
+    }));
   }
 
   async getActivityFeed() {

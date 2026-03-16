@@ -1,5 +1,4 @@
 import {
-  IsString,
   IsOptional,
   IsNumber,
   IsDateString,
@@ -33,6 +32,18 @@ export class CreateBodyStatsDto {
   @IsNumber()
   @IsOptional()
   hips?: number;
+
+  @IsNumber()
+  @IsOptional()
+  arms?: number;
+
+  @IsNumber()
+  @IsOptional()
+  thighs?: number;
+
+  @IsNumber()
+  @IsOptional()
+  calves?: number;
 
   @IsDateString()
   @IsOptional()

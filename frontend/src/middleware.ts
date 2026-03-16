@@ -5,6 +5,7 @@ const publicPaths = [
   "/login",
   "/register",
   "/verify-email",
+  "/verify-2fa",
   "/forgot-password",
   "/reset-password",
   "/workspace-select",
@@ -24,7 +25,9 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/api") ||
     pathname === "/favicon.ico"
   ) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    setSecurityHeaders(response);
+    return response;
   }
 
   // All other paths are /{gymSlug}/... and require auth
@@ -37,7 +40,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  setSecurityHeaders(response);
+  return response;
+}
+
+function setSecurityHeaders(response: NextResponse) {
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
 }
 
 export const config = {

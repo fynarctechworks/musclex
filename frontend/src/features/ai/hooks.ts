@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/services/query-client';
 import { aiApi } from './api';
+import { toast } from 'sonner';
 
 export function useAiConversations() {
   return useQuery({
@@ -23,5 +24,6 @@ export function useAiChat() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.ai.conversations() });
     },
+    onError: (err: Error) => toast.error(err.message),
   });
 }

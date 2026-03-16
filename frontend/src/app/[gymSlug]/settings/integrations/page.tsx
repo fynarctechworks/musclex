@@ -182,13 +182,6 @@ export default function IntegrationsPage() {
 
   return (
     <AppLayout>
-      <Link
-        href={gymPath("/settings")}
-        className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 mb-4"
-      >
-        <ArrowLeft className="w-4 h-4" /> Back to Settings
-      </Link>
-
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-foreground">Integrations</h1>
         <p className="text-sm text-muted-foreground mt-1">

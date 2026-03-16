@@ -12,4 +12,8 @@ export {
   useDeleteMember,
   useFreezeMember,
   useUnfreezeMember,
+  useRenewMember,
+  useDeactivateMember,
+  useActivateMember,
+  useSaveMemberNotes,
 } from './hooks';

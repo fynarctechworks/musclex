@@ -297,6 +297,8 @@ export function useProcessPayroll() {
     mutationFn: payrollApi.process,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.staff.all });
+      qc.invalidateQueries({ queryKey: queryKeys.finance.all });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Payroll processed');
     },
     onError: (err: Error) => toast.error(err.message),

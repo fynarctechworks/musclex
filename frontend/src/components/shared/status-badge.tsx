@@ -38,6 +38,8 @@ const statusToVariant: Record<string, StatusVariant> = {
   sent: "active",
   scheduled: "pending",
   cancelled: "expired",
+  paused: "frozen",
+  renewed: "active",
 };
 
 export interface StatusBadgeProps {

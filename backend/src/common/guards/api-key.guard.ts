@@ -3,24 +3,62 @@ import {
   ExecutionContext,
   Injectable,
   UnauthorizedException,
+  ForbiddenException,
+  Logger,
 } from '@nestjs/common';
-import { createHash } from 'crypto';
+import { ConfigService } from '@nestjs/config';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DEFAULT_ROLE_PERMISSIONS } from './default-permissions';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(ApiKeyGuard.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const apiKey = request.headers['x-api-key'] as string;
+    const studioId = request.headers['x-studio-id'] as string;
 
     if (!apiKey) {
       throw new UnauthorizedException('Missing API key');
     }
 
-    const keyHash = createHash('sha256').update(apiKey).digest('hex');
+    if (!studioId || !UUID_REGEX.test(studioId)) {
+      throw new UnauthorizedException('Missing or invalid x-studio-id header');
+    }
+
+    // Set tenant search_path so the API key lookup runs in the correct schema
+    const schemaName = `studio_${studioId.replace(/-/g, '_')}`;
+    if (!/^studio_[0-9a-f_]+$/i.test(schemaName)) {
+      throw new ForbiddenException('Invalid studio identifier');
+    }
+
+    try {
+      const schemaExists = await this.prisma.$queryRawUnsafe<Array<{ exists: boolean }>>(
+        `SELECT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = $1) as exists`,
+        schemaName,
+      );
+      if (!schemaExists?.[0]?.exists) {
+        throw new ForbiddenException('Studio environment not found');
+      }
+      await this.prisma.$executeRawUnsafe(
+        `SET search_path TO "${schemaName}", public`,
+      );
+    } catch (err) {
+      if (err instanceof ForbiddenException || err instanceof UnauthorizedException) throw err;
+      this.logger.error(`Failed to set tenant schema for API key: ${err.message}`);
+      throw new ForbiddenException('Unable to access studio environment');
+    }
+
+    const keyHash = this.hashApiKey(apiKey);
 
     const key = await this.prisma.apiKey.findUnique({
       where: { key_hash: keyHash },
@@ -51,11 +89,11 @@ export class ApiKeyGuard implements CanActivate {
       })
       .catch(() => {});
 
-    // Set user context from API key scopes
+    // Set user context with correct studio_id from the validated header
     const scopes = (key.scopes as Record<string, string[]>) || {};
     request.user = {
       user_id: key.created_by_user_id,
-      studio_id: null,
+      studio_id: studioId,
       role: 'api_key',
       branch_ids: [],
       email: null,
@@ -66,5 +104,14 @@ export class ApiKeyGuard implements CanActivate {
     };
 
     return true;
+  }
+
+  private hashApiKey(apiKey: string): string {
+    const secret = this.configService.get<string>('HASH_SECRET', '');
+    if (!secret) {
+      this.logger.warn('HASH_SECRET not set — using fallback. Set HASH_SECRET in production.');
+    }
+    const hmacKey = secret || 'fitsync-pro-default-key';
+    return createHmac('sha256', hmacKey).update(apiKey).digest('hex');
   }
 }

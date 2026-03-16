@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, TrendingDown } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -17,9 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { apiClient } from "@/lib/api";
-import type { Member } from "@/lib/types";
+import type { Member } from "@/types";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
+import { useChurnRisk } from "@/features/members";
 
 type ChurnRisk = "high" | "medium" | "low";
 
@@ -151,15 +150,12 @@ export default function ChurnRiskPage() {
   const router = useRouter();
   const [riskFilter, setRiskFilter] = useState<string>("all");
 
-  const { data: members, isLoading } = useQuery({
-    queryKey: ["churn-risk", riskFilter],
-    queryFn: () =>
-      apiClient.get<Member[]>(
-        `/members/churn-risk${riskFilter !== "all" ? `?risk=${riskFilter}` : ""}`
-      ),
-  });
+  const { data: members, isLoading } = useChurnRisk();
 
-  const membersList = members ?? [];
+  const allMembers = (members ?? []) as Member[];
+  const membersList = riskFilter === "all"
+    ? allMembers
+    : allMembers.filter((m) => m.churn_risk === riskFilter);
 
   // Summary counts
   const highCount = membersList.filter((m) => m.churn_risk === "high").length;

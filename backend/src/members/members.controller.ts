@@ -19,10 +19,13 @@ import {
   RenewMemberDto,
   UpsertMemberProfileDto,
   CreateBodyStatsDto,
+  UpdateBodyStatsDto,
+  CreateProgressPhotoDto,
   CreateMemberNoteDto,
   CreateMemberTagDto,
   AssignTagDto,
   CreateMemberDocumentDto,
+  UpdateMemberDocumentDto,
   CreateMemberReferralDto,
   UpdateReferralStatusDto,
 } from './dto';
@@ -174,10 +177,42 @@ export class MembersController {
     return this.profileService.createBodyStats(id, dto);
   }
 
+  @Patch('body-stats/:statsId')
+  @Permissions({ module: 'members', action: 'edit' })
+  updateBodyStats(@Param('statsId') statsId: string, @Body() dto: UpdateBodyStatsDto) {
+    return this.profileService.updateBodyStats(statsId, dto);
+  }
+
+  @Delete('body-stats/:statsId')
+  @Permissions({ module: 'members', action: 'edit' })
+  deleteBodyStats(@Param('statsId') statsId: string) {
+    return this.profileService.deleteBodyStats(statsId);
+  }
+
   @Get(':id/progress')
   @Permissions({ module: 'members', action: 'view' })
   getProgressSummary(@Param('id') id: string) {
     return this.profileService.getProgressSummary(id);
+  }
+
+  // ── Progress Photos ───────────────────────────────────────────
+
+  @Get(':id/progress-photos')
+  @Permissions({ module: 'members', action: 'view' })
+  getProgressPhotos(@Param('id') id: string) {
+    return this.profileService.getProgressPhotos(id);
+  }
+
+  @Post(':id/progress-photos')
+  @Permissions({ module: 'members', action: 'edit' })
+  createProgressPhoto(@Param('id') id: string, @Body() dto: CreateProgressPhotoDto) {
+    return this.profileService.createProgressPhoto(id, dto);
+  }
+
+  @Delete('progress-photos/:photoId')
+  @Permissions({ module: 'members', action: 'delete' })
+  deleteProgressPhoto(@Param('photoId') photoId: string) {
+    return this.profileService.deleteProgressPhoto(photoId);
   }
 
   // ── Visit Stats ───────────────────────────────────────────────
@@ -258,6 +293,12 @@ export class MembersController {
   @Permissions({ module: 'members', action: 'edit' })
   uploadDocument(@Param('id') id: string, @Body() dto: CreateMemberDocumentDto) {
     return this.crmService.uploadDocument(id, dto);
+  }
+
+  @Patch('documents/:documentId')
+  @Permissions({ module: 'members', action: 'edit' })
+  updateDocument(@Param('documentId') documentId: string, @Body() dto: UpdateMemberDocumentDto) {
+    return this.crmService.updateDocument(documentId, dto);
   }
 
   @Delete('documents/:documentId')

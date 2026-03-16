@@ -4,8 +4,9 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes, createHmac } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
 import { CreateApiKeyDto, UpdateApiKeyDto } from './dto';
 import { Prisma } from '@prisma/client';
 
@@ -13,14 +14,23 @@ import { Prisma } from '@prisma/client';
 export class AuthApiKeyService {
   private readonly logger = new Logger(AuthApiKeyService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {}
+
+  private hashKey(rawKey: string): string {
+    const secret = this.configService.get<string>('HASH_SECRET', '');
+    const hmacKey = secret || 'fitsync-pro-default-key';
+    return createHmac('sha256', hmacKey).update(rawKey).digest('hex');
+  }
 
   /**
    * Create a new API key. The raw key is returned ONLY at creation time.
    */
   async createApiKey(dto: CreateApiKeyDto, userId: string) {
     const rawKey = `fsp_${randomBytes(32).toString('hex')}`;
-    const keyHash = createHash('sha256').update(rawKey).digest('hex');
+    const keyHash = this.hashKey(rawKey);
     const keyPrefix = rawKey.substring(0, 12);
 
     const apiKey = await this.prisma.apiKey.create({

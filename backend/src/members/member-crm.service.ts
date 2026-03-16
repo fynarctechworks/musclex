@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateMemberNoteDto } from './dto/create-member-note.dto';
 import { CreateMemberTagDto } from './dto/member-tag.dto';
 import { CreateMemberDocumentDto } from './dto/create-member-document.dto';
+import { UpdateMemberDocumentDto } from './dto/update-member-document.dto';
 import { CreateMemberReferralDto } from './dto/member-referral.dto';
 
 @Injectable()
@@ -128,6 +129,22 @@ export class MemberCrmService {
         file_url: dto.file_url,
         file_name: dto.file_name,
         file_size: dto.file_size,
+        description: dto.description,
+        expires_at: dto.expires_at ? new Date(dto.expires_at) : undefined,
+      },
+    });
+  }
+
+  async updateDocument(documentId: string, dto: UpdateMemberDocumentDto) {
+    const doc = await this.prisma.memberDocument.findUnique({ where: { id: documentId } });
+    if (!doc) throw new NotFoundException('Document not found');
+
+    return this.prisma.memberDocument.update({
+      where: { id: documentId },
+      data: {
+        ...(dto.document_type !== undefined && { document_type: dto.document_type }),
+        ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.expires_at !== undefined && { expires_at: dto.expires_at ? new Date(dto.expires_at) : null }),
       },
     });
   }

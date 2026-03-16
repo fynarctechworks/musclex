@@ -38,7 +38,7 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      await authApi.register({
+      const res = await authApi.register({
         full_name: data.full_name,
         email: data.email,
         password: data.password,
@@ -47,6 +47,12 @@ export default function RegisterPage() {
 
       // Store email for verify page to display
       sessionStorage.setItem('pendingEmail', data.email);
+
+      // In dev mode (no email service), the API returns verification_url
+      if (res.verification_url) {
+        sessionStorage.setItem('devVerificationUrl', res.verification_url);
+      }
+
       toast.success('Account created! Check your email for a verification link.');
       router.push('/verify-email');
     } catch (err) {
@@ -64,7 +70,7 @@ export default function RegisterPage() {
           Create your account
         </h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Step 1 of 4 — Create Account
+          Step 1 of 7 — Create Account
         </p>
       </div>
 
