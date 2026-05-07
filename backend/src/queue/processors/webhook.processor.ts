@@ -5,6 +5,7 @@ import { createHmac } from 'crypto';
 import { QUEUE_NAMES } from '../queue.module';
 import { WebhookJobData } from '../queue.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { getTenantGymId } from '../../common/tenant-context';
 import { Prisma } from '@prisma/client';
 
 @Processor(QUEUE_NAMES.WEBHOOK)
@@ -35,6 +36,7 @@ export class WebhookProcessor extends WorkerHost {
     // Create delivery record
     const delivery = await this.prisma.webhookDelivery.create({
       data: {
+        gym_id: getTenantGymId()!,
         webhook_id: webhookId,
         event,
         payload: payload as Prisma.InputJsonValue,

@@ -1,7 +1,7 @@
 "use client";
 
 import { AppLayout } from "@/components/layout/app-layout";
-import { LoadingSkeleton } from "@/components/shared";
+import { LoadingSkeleton , AccessDenied } from "@/components/shared";
 import { apiClient } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
@@ -16,6 +16,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 
 interface TrainerPerformance {
   trainer_id: string;
@@ -27,11 +28,21 @@ interface TrainerPerformance {
 }
 
 export default function StaffAnalyticsPage() {
+  const { allowed, checked } = useRequirePermission("staff", "view", "deny");
   const { gymPath } = useGymSlug();
   const { data, isLoading } = useQuery<TrainerPerformance[]>({
     queryKey: ["trainer-performance"],
     queryFn: () => apiClient.get("/analytics/trainer-performance"),
   });
+
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="staff" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

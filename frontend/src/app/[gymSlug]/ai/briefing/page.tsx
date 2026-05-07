@@ -1,7 +1,8 @@
 "use client";
 
 import { AppLayout } from "@/components/layout/app-layout";
-import { LoadingSkeleton } from "@/components/shared";
+import { LoadingSkeleton, AccessDenied } from "@/components/shared";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import { useDailyBriefing } from "@/features/ai";
 import type { DailyBriefing, BriefingAlert } from "@/features/ai";
 import {
@@ -37,10 +38,19 @@ const ALERT_STYLES: Record<string, string> = {
 };
 
 export default function DailyBriefingPage() {
+  const { allowed, checked } = useRequirePermission("ai", "view", "deny");
   const { gymPath } = useGymSlug();
   const { data: briefing, isLoading } = useDailyBriefing();
 
   const b = briefing as DailyBriefing | undefined;
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="ai" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

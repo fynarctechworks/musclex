@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { getTenantGymId } from '../../common/tenant-context';
 import { Prisma } from '@prisma/client';
 import { createHmac, randomBytes } from 'crypto';
 import {
@@ -81,6 +82,7 @@ export class WebhooksService {
 
     const webhook = await this.prisma.webhook.create({
       data: {
+        gym_id: getTenantGymId()!,
         organization_id: organizationId,
         name: dto.name,
         url: dto.url,
@@ -211,6 +213,7 @@ export class WebhooksService {
 
     const delivery = await this.prisma.webhookDelivery.create({
       data: {
+        gym_id: getTenantGymId()!,
         webhook_id: webhookId,
         event,
         payload: payload as Prisma.InputJsonValue,

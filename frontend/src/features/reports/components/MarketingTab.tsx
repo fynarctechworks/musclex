@@ -14,11 +14,15 @@ import {
 } from 'recharts';
 import { KPICard } from '@/components/shared';
 import { LoadingSkeleton } from '@/components/shared';
-import type { CampaignAnalyticsResponse } from '../types';
+import { ReportTable } from './ReportTable';
+import { formatCurrency, formatNumber, formatPercent } from '../utils/format';
+import type { ReportColumn } from '../utils/export';
+import type { CampaignAnalyticsResponse, CampaignAnalyticsRecord } from '../types';
 
 interface MarketingTabProps {
   campaigns: CampaignAnalyticsResponse | undefined;
   isLoading: boolean;
+  isError?: boolean;
 }
 
 const tooltipStyle = {
@@ -28,7 +32,7 @@ const tooltipStyle = {
   color: 'hsl(var(--foreground))',
 };
 
-export function MarketingTab({ campaigns, isLoading }: MarketingTabProps) {
+export function MarketingTab({ campaigns, isLoading, isError }: MarketingTabProps) {
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -66,26 +70,10 @@ export function MarketingTab({ campaigns, isLoading }: MarketingTabProps) {
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard
-          label="Open Rate"
-          value={`${(summary?.open_rate ?? 0).toFixed(1)}%`}
-          icon={Mail}
-        />
-        <KPICard
-          label="Click Rate"
-          value={`${(summary?.click_rate ?? 0).toFixed(1)}%`}
-          icon={MousePointerClick}
-        />
-        <KPICard
-          label="Conversion Rate"
-          value={`${(summary?.conversion_rate ?? 0).toFixed(1)}%`}
-          icon={Target}
-        />
-        <KPICard
-          label="Revenue Generated"
-          value={`₹${(summary?.revenue_generated ?? 0).toLocaleString()}`}
-          icon={DollarSign}
-        />
+        <KPICard label="Open Rate" value={formatPercent(summary?.open_rate)} icon={Mail} />
+        <KPICard label="Click Rate" value={formatPercent(summary?.click_rate)} icon={MousePointerClick} />
+        <KPICard label="Conversion Rate" value={formatPercent(summary?.conversion_rate)} icon={Target} />
+        <KPICard label="Revenue Generated" value={formatCurrency(summary?.revenue_generated)} icon={DollarSign} />
       </div>
 
       {/* Campaign Funnel */}
@@ -131,41 +119,38 @@ export function MarketingTab({ campaigns, isLoading }: MarketingTabProps) {
       )}
 
       {/* Campaign Stats Table */}
-      {records.length > 0 && (
-        <div className="rounded-lg border border-border bg-card p-5">
-          <h3 className="text-sm font-medium text-foreground mb-4">All Campaigns</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground">
-                  <th className="text-left py-2 font-medium">Campaign</th>
-                  <th className="text-right py-2 font-medium">Sent</th>
-                  <th className="text-right py-2 font-medium">Opened</th>
-                  <th className="text-right py-2 font-medium">Clicked</th>
-                  <th className="text-right py-2 font-medium">Converted</th>
-                  <th className="text-right py-2 font-medium">Revenue</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((r) => (
-                  <tr key={r.id} className="border-b border-border/50">
-                    <td className="py-2 text-foreground truncate max-w-[180px]">
-                      {r.campaign?.name ?? '—'}
-                    </td>
-                    <td className="py-2 text-right text-foreground">{r.sent}</td>
-                    <td className="py-2 text-right text-muted-foreground">{r.opened}</td>
-                    <td className="py-2 text-right text-muted-foreground">{r.clicked}</td>
-                    <td className="py-2 text-right text-muted-foreground">{r.converted}</td>
-                    <td className="py-2 text-right text-muted-foreground">
-                      ₹{Number(r.revenue_generated).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {(() => {
+        const cols: ReportColumn<CampaignAnalyticsRecord>[] = [
+          { key: 'campaign', label: 'Campaign', format: (r) => r.campaign?.name ?? '—' },
+          { key: 'sent', label: 'Sent', numeric: true, format: (r) => formatNumber(r.sent) },
+          { key: 'opened', label: 'Opened', numeric: true, format: (r) => formatNumber(r.opened) },
+          { key: 'clicked', label: 'Clicked', numeric: true, format: (r) => formatNumber(r.clicked) },
+          { key: 'converted', label: 'Converted', numeric: true, format: (r) => formatNumber(r.converted) },
+          { key: 'revenue_generated', label: 'Revenue', numeric: true, format: (r) => formatCurrency(Number(r.revenue_generated)) },
+        ];
+        return (
+          <ReportTable
+            title="All Campaigns"
+            description="Per-campaign performance for the selected period"
+            columns={cols}
+            rows={records}
+            isLoading={isLoading}
+            isError={isError}
+            searchable
+            searchPlaceholder="Search campaigns..."
+            rowKey={(r) => r.id}
+            emptyText="No campaigns sent in this period"
+            totals={summary ? {
+              campaign: 'Total',
+              sent: formatNumber(summary.sent),
+              opened: formatNumber(summary.opened),
+              clicked: formatNumber(summary.clicked),
+              converted: formatNumber(summary.converted),
+              revenue_generated: formatCurrency(summary.revenue_generated),
+            } : undefined}
+          />
+        );
+      })()}
     </div>
   );
 }

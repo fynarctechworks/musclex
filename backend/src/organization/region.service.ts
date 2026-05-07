@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
 import { CreateRegionDto, UpdateRegionDto } from './dto';
 
 @Injectable()
@@ -47,6 +48,7 @@ export class RegionService {
 
     const region = await this.prisma.region.create({
       data: {
+        gym_id: getTenantGymId()!,
         organization_id: dto.organization_id,
         name: dto.name,
         country: dto.country,

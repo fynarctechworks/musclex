@@ -46,12 +46,21 @@ export function PlanTable({ plans, onEdit, onDuplicate, onArchive }: PlanTablePr
     {
       accessorKey: "price",
       header: "Price",
-      cell: ({ row }) => (
-        <span className="font-mono text-sm">
-          {row.original.currency === "USD" ? "$" : "₹"}
-          {Number(row.original.price).toLocaleString()}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const raw = row.original.price as unknown;
+        const n =
+          typeof raw === "number"
+            ? raw
+            : raw != null
+              ? Number((raw as { toString(): string }).toString())
+              : NaN;
+        return (
+          <span className="font-mono text-sm">
+            {row.original.currency === "USD" ? "$" : "₹"}
+            {Number.isFinite(n) ? n.toLocaleString() : "—"}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "plan_type",

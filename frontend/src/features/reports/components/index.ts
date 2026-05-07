@@ -4,3 +4,7 @@ export { MembersTab } from './MembersTab';
 export { AttendanceTab } from './AttendanceTab';
 export { MarketingTab } from './MarketingTab';
 export { TrainersTab } from './TrainersTab';
+export { SubscriptionsTab } from './SubscriptionsTab';
+export { BranchesTab } from './BranchesTab';
+export { ReportTable } from './ReportTable';
+export type { ReportTableProps } from './ReportTable';

@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsUUID, IsPositive } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsUUID, IsPositive, IsIn } from 'class-validator';
 
 export class RecordCashDto {
   @IsUUID()
@@ -14,6 +14,16 @@ export class RecordCashDto {
   @IsNumber()
   @IsPositive()
   amount: number;
+
+  @IsString()
+  @IsIn(['cash', 'card', 'upi', 'bank_transfer', 'razorpay', 'stripe'])
+  @IsOptional()
+  payment_method?: string;
+
+  @IsString()
+  @IsIn(['monthly', 'yearly'])
+  @IsOptional()
+  billing_cycle?: 'monthly' | 'yearly';
 
   @IsString()
   @IsOptional()

@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { PageHeader, KPICard, LoadingSkeleton } from "@/components/shared";
+import { PageHeader, KPICard, LoadingSkeleton, AccessDenied } from "@/components/shared";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAiChat, useDailyBriefing } from "@/features/ai";
 import { useChurnRisk, useAnalyticsDashboard, useDailyMetricsTrend } from "@/features/reports";
@@ -205,7 +206,7 @@ const SEVERITY_STYLES: Record<InsightSeverity, { bg: string; border: string; bad
   critical: { bg: "bg-destructive/5", border: "border-destructive/30", badge: "bg-destructive text-destructive-foreground", text: "text-destructive" },
   high: { bg: "bg-amber-500/5", border: "border-amber-500/30", badge: "bg-amber-500 text-white", text: "text-amber-500" },
   medium: { bg: "bg-primary/5", border: "border-primary/30", badge: "bg-primary text-primary-foreground", text: "text-primary" },
-  low: { bg: "bg-emerald-500/5", border: "border-emerald-500/30", badge: "bg-emerald-500 text-white", text: "text-emerald-500" },
+  low: { bg: "bg-success/5", border: "border-success/30", badge: "bg-success text-success-foreground", text: "text-success" },
 };
 
 function InsightCard({ insight }: { insight: AIInsight }) {
@@ -242,6 +243,7 @@ function InsightCard({ insight }: { insight: AIInsight }) {
 // ── Main Page ─────────────────────────────────────────────
 
 export default function AIAdvisorPage() {
+  const { allowed, checked } = useRequirePermission("ai", "view", "deny");
   const { gymPath } = useGymSlug();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -306,6 +308,14 @@ export default function AIAdvisorPage() {
       },
     );
   };
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="ai" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

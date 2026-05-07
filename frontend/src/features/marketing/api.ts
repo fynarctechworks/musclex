@@ -75,6 +75,11 @@ export const messageTemplatesApi = {
 
   delete: (id: string) =>
     apiClient.delete(`/message-templates/${id}`),
+
+  seedDefaults: () =>
+    apiClient.post<{
+      templates: Record<string, { id: string; template_name: string; channel: string; created: boolean }>;
+    }>('/message-templates/seed-defaults'),
 };
 
 // ── Automation Workflows ──────────────────────────────────
@@ -102,11 +107,24 @@ export const workflowsApi = {
 
   create: (data: {
     workflow_name: string;
-    trigger_event: 'membership_expiring' | 'member_inactive' | 'lead_created' | 'class_missed' | 'birthday' | 'payment_failed';
+    trigger_event:
+      | 'member_registered'
+      | 'member_renewed'
+      | 'membership_expiring'
+      | 'member_inactive'
+      | 'lead_created'
+      | 'class_missed'
+      | 'birthday'
+      | 'payment_failed';
     trigger_config?: Record<string, unknown>;
     organization_id?: string;
     actions?: WorkflowAction[];
   }) => apiClient.post('/workflows', data),
+
+  seedDefaults: () =>
+    apiClient.post<{ workflows: Array<{ id: string; trigger_event: string; created: boolean }> }>(
+      '/workflows/seed-defaults',
+    ),
 
   update: (id: string, data: Record<string, unknown>) =>
     apiClient.patch(`/workflows/${id}`, data),

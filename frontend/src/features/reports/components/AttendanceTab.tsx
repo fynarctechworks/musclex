@@ -16,12 +16,16 @@ import {
 import { format, parseISO } from 'date-fns';
 import { KPICard } from '@/components/shared';
 import { LoadingSkeleton } from '@/components/shared';
+import { ReportTable } from './ReportTable';
+import { formatNumber, formatPercent } from '../utils/format';
+import type { ReportColumn } from '../utils/export';
 import type { TrendDataPoint, ClassAnalyticsRecord } from '../types';
 
 interface AttendanceTabProps {
   trend: TrendDataPoint[] | undefined;
   classes: ClassAnalyticsRecord[] | undefined;
   isLoading: boolean;
+  isError?: boolean;
 }
 
 const tooltipStyle = {
@@ -31,7 +35,7 @@ const tooltipStyle = {
   color: 'hsl(var(--foreground))',
 };
 
-export function AttendanceTab({ trend, classes, isLoading }: AttendanceTabProps) {
+export function AttendanceTab({ trend, classes, isLoading, isError }: AttendanceTabProps) {
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -61,9 +65,9 @@ export function AttendanceTab({ trend, classes, isLoading }: AttendanceTabProps)
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard label="Total Visits" value={totalVisits.toLocaleString()} icon={CalendarCheck} />
-        <KPICard label="Avg Daily Visits" value={avgDailyVisits} icon={TrendingUp} />
-        <KPICard label="Classes Held" value={totalClassesHeld.toLocaleString()} icon={BarChart3} />
+        <KPICard label="Total Visits" value={formatNumber(totalVisits)} icon={CalendarCheck} />
+        <KPICard label="Avg Daily Visits" value={formatNumber(avgDailyVisits)} icon={TrendingUp} />
+        <KPICard label="Classes Held" value={formatNumber(totalClassesHeld)} icon={BarChart3} />
         <KPICard
           label="Peak Day"
           value={peakDay ? (() => { try { return format(parseISO(peakDay.date), 'MMM d'); } catch { return peakDay.date; } })() : '—'}
@@ -140,43 +144,27 @@ export function AttendanceTab({ trend, classes, isLoading }: AttendanceTabProps)
         </div>
 
         {/* Class Stats Table */}
-        <div className="rounded-lg border border-border bg-card p-5">
-          <h3 className="text-sm font-medium text-foreground mb-4">Class Performance</h3>
-          {classRecords.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-muted-foreground">
-                    <th className="text-left py-2 font-medium">Class</th>
-                    <th className="text-right py-2 font-medium">Occupancy</th>
-                    <th className="text-right py-2 font-medium">No-Show</th>
-                    <th className="text-right py-2 font-medium">Avg Attend</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {classRecords.slice(0, 12).map((c) => (
-                    <tr key={c.id} className="border-b border-border/50">
-                      <td className="py-2 text-foreground truncate max-w-[140px]">
-                        {c.class_template?.name ?? 'Unknown'}
-                      </td>
-                      <td className="py-2 text-right text-foreground">
-                        {Number(c.occupancy_rate).toFixed(0)}%
-                      </td>
-                      <td className="py-2 text-right text-muted-foreground">
-                        {Number(c.no_show_rate).toFixed(0)}%
-                      </td>
-                      <td className="py-2 text-right text-muted-foreground">
-                        {Number(c.average_attendance).toFixed(0)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground py-8 text-center">No class data</p>
-          )}
-        </div>
+        {(() => {
+          const cols: ReportColumn<ClassAnalyticsRecord>[] = [
+            { key: 'class', label: 'Class', format: (c) => c.class_template?.name ?? 'Unknown' },
+            { key: 'occupancy_rate', label: 'Occupancy', numeric: true, format: (c) => formatPercent(Number(c.occupancy_rate), 0) },
+            { key: 'no_show_rate', label: 'No-Show', numeric: true, format: (c) => formatPercent(Number(c.no_show_rate), 0) },
+            { key: 'average_attendance', label: 'Avg Attend', numeric: true, format: (c) => formatNumber(Math.round(Number(c.average_attendance))) },
+          ];
+          return (
+            <ReportTable
+              title="Class Performance"
+              columns={cols}
+              rows={classRecords}
+              isLoading={isLoading}
+              isError={isError}
+              paginated={classRecords.length > 12}
+              pageSize={12}
+              rowKey={(c) => c.id}
+              emptyText="No class data"
+            />
+          );
+        })()}
       </div>
     </div>
   );

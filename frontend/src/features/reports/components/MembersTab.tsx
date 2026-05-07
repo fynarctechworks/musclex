@@ -19,10 +19,14 @@ import {
 import { format, parseISO } from 'date-fns';
 import { KPICard } from '@/components/shared';
 import { LoadingSkeleton } from '@/components/shared';
+import { ReportTable } from './ReportTable';
+import { formatNumber, formatPercent, formatLabel } from '../utils/format';
+import type { ReportColumn } from '../utils/export';
 import type {
   MembershipAnalyticsResponse,
   ChurnRiskEntry,
   TrendDataPoint,
+  MembershipAnalyticsRecord,
 } from '../types';
 
 interface MembersTabProps {
@@ -30,6 +34,7 @@ interface MembersTabProps {
   churnRisk: ChurnRiskEntry[] | undefined;
   trend: TrendDataPoint[] | undefined;
   isLoading: boolean;
+  isError?: boolean;
 }
 
 const CHURN_COLORS: Record<string, string> = {
@@ -46,7 +51,7 @@ const tooltipStyle = {
   color: 'hsl(var(--foreground))',
 };
 
-export function MembersTab({ memberships, churnRisk, trend, isLoading }: MembersTabProps) {
+export function MembersTab({ memberships, churnRisk, trend, isLoading, isError }: MembersTabProps) {
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -89,10 +94,10 @@ export function MembersTab({ memberships, churnRisk, trend, isLoading }: Members
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard label="Active Members" value={totalActive.toLocaleString()} icon={Users} />
-        <KPICard label="New Signups" value={totalSignups.toLocaleString()} icon={UserPlus} />
-        <KPICard label="Cancellations" value={totalCancellations.toLocaleString()} icon={UserMinus} />
-        <KPICard label="Avg Churn Rate" value={`${avgChurn.toFixed(1)}%`} icon={AlertTriangle} />
+        <KPICard label="Active Members" value={formatNumber(totalActive)} icon={Users} />
+        <KPICard label="New Signups" value={formatNumber(totalSignups)} icon={UserPlus} />
+        <KPICard label="Cancellations" value={formatNumber(totalCancellations)} icon={UserMinus} />
+        <KPICard label="Avg Churn Rate" value={formatPercent(avgChurn)} icon={AlertTriangle} />
       </div>
 
       {/* Member Growth Trend */}
@@ -211,37 +216,30 @@ export function MembersTab({ memberships, churnRisk, trend, isLoading }: Members
       </div>
 
       {/* Plan Breakdown Table */}
-      {records.length > 0 && (
-        <div className="rounded-lg border border-border bg-card p-5">
-          <h3 className="text-sm font-medium text-foreground mb-4">Membership by Plan</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground">
-                  <th className="text-left py-2 font-medium">Plan</th>
-                  <th className="text-right py-2 font-medium">Active</th>
-                  <th className="text-right py-2 font-medium">Signups</th>
-                  <th className="text-right py-2 font-medium">Renewals</th>
-                  <th className="text-right py-2 font-medium">Cancellations</th>
-                  <th className="text-right py-2 font-medium">Churn %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.slice(0, 20).map((r) => (
-                  <tr key={r.id} className="border-b border-border/50">
-                    <td className="py-2 text-foreground">{r.plan?.name ?? 'Unknown'}</td>
-                    <td className="py-2 text-right text-foreground">{r.total_active}</td>
-                    <td className="py-2 text-right text-muted-foreground">{r.new_signups}</td>
-                    <td className="py-2 text-right text-muted-foreground">{r.renewals}</td>
-                    <td className="py-2 text-right text-muted-foreground">{r.cancellations}</td>
-                    <td className="py-2 text-right text-muted-foreground">{Number(r.churn_rate).toFixed(1)}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {(() => {
+        const cols: ReportColumn<MembershipAnalyticsRecord>[] = [
+          { key: 'plan', label: 'Plan', format: (r) => r.plan?.name ?? formatLabel('Unknown') },
+          { key: 'total_active', label: 'Active', numeric: true, format: (r) => formatNumber(r.total_active) },
+          { key: 'new_signups', label: 'Signups', numeric: true, format: (r) => formatNumber(r.new_signups) },
+          { key: 'renewals', label: 'Renewals', numeric: true, format: (r) => formatNumber(r.renewals) },
+          { key: 'cancellations', label: 'Cancellations', numeric: true, format: (r) => formatNumber(r.cancellations) },
+          { key: 'churn_rate', label: 'Churn %', numeric: true, format: (r) => formatPercent(Number(r.churn_rate)) },
+        ];
+        return (
+          <ReportTable
+            title="Membership by Plan"
+            description="Per-plan performance for the selected period"
+            columns={cols}
+            rows={records}
+            isLoading={isLoading}
+            isError={isError}
+            searchable
+            searchPlaceholder="Search plans..."
+            rowKey={(r) => r.id}
+            emptyText="No membership analytics records yet"
+          />
+        );
+      })()}
     </div>
   );
 }

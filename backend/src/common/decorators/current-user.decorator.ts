@@ -31,6 +31,7 @@ export interface UserRoleSummary {
 export interface JwtPayload {
   user_id: string;
   studio_id: string;
+  organization_id?: string; // tenant-schema Organization record ID
   role: string; // primary role name (backward compat)
   roles: UserRoleSummary[]; // all roles in current studio context
   branch_ids: string[]; // branches user has access to (empty = all)

@@ -15,10 +15,12 @@ import { MembershipsController } from './memberships.controller';
 import { FamilyController } from './family.controller';
 import { CorporateController } from './corporate.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { EventsModule } from '../events/events.module';
 import { CronLockService } from '../common/services/cron-lock.service';
+import { ResourceLimitService } from '../common/services/resource-limit.service';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, EventsModule],
   controllers: [
     MembersController,
     MemberVisitsController,
@@ -38,6 +40,7 @@ import { CronLockService } from '../common/services/cron-lock.service';
     FamilyMembershipService,
     CorporateMembershipService,
     CronLockService,
+    ResourceLimitService,
   ],
   exports: [
     MembersService,

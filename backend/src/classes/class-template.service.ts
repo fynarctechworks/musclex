@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateClassTemplateDto, UpdateClassTemplateDto } from './dto';
+import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class ClassTemplateService {
@@ -9,6 +10,7 @@ export class ClassTemplateService {
   async create(dto: CreateClassTemplateDto) {
     return this.prisma.classTemplate.create({
       data: {
+        gym_id: getTenantGymId()!,
         organization_id: dto.organization_id,
         branch_id: dto.branch_id,
         name: dto.name,

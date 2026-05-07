@@ -14,8 +14,15 @@ export {
   OnboardingStaffListDto,
   OnboardingSkipStepDto,
 } from './setup-studio.dto';
+export { OnboardingPaymentDto } from './onboarding-payment.dto';
 export { DeviceInfoDto } from './device-info.dto';
 export { RevokeSessionDto, RevokeAllSessionsDto } from './manage-session.dto';
 export { CreateSsoProviderDto, UpdateSsoProviderDto } from './sso-provider.dto';
 export { CreateApiKeyDto, UpdateApiKeyDto } from './api-key.dto';
-export { Verify2faSetupDto, Login2faDto, Disable2faDto } from './two-factor.dto';
+export {
+  Verify2faSetupDto,
+  Login2faDto,
+  Disable2faDto,
+  Recover2faDto,
+  Reset2faDto,
+} from './two-factor.dto';

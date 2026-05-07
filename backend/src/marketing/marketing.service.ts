@@ -4,6 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class MarketingService {
@@ -53,6 +54,7 @@ export class MarketingService {
   }) {
     return this.prisma.campaign.create({
       data: {
+        gym_id: getTenantGymId()!,
         name: data.name,
         segment: data.segment,
         segment_filters: data.segment_filters || {},
@@ -92,6 +94,7 @@ export class MarketingService {
       // Create audience records
       await tx.campaignAudience.createMany({
         data: memberIds.map((member_id) => ({
+          gym_id: getTenantGymId()!,
           campaign_id: id,
           member_id,
           status: 'sent',

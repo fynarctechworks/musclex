@@ -22,3 +22,4 @@ export { VerifyCodeInput, type VerifyCodeInputRef } from "./verify-code-input";
 export { BackupCodesModal } from "./backup-codes-modal";
 export { TwoFactorSetupCard } from "./two-factor-setup-card";
 export { TwoFactorBanner } from "./two-factor-banner";
+export { AccessDenied } from "./access-denied";

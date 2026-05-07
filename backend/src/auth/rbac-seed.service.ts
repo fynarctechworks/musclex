@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
 
 // ── Permission Definitions ──────────────────────────────────────
 // Each permission is "module.action" — seeded once in the public schema.
@@ -196,6 +197,7 @@ export class RbacSeedService implements OnModuleInit {
       if (!role) {
         role = await this.prisma.role.create({
           data: {
+            gym_id: getTenantGymId()!,
             name: roleName,
             description: def.description,
             permissions: {}, // Legacy field, kept empty for new roles
@@ -216,6 +218,7 @@ export class RbacSeedService implements OnModuleInit {
       if (toCreate.length > 0) {
         await this.prisma.rolePermission.createMany({
           data: toCreate.map((code) => ({
+            gym_id: getTenantGymId()!,
             role_id: role.id,
             permission_code: code,
           })),

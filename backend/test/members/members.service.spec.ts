@@ -1,12 +1,23 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MembersService } from '../../src/members/members.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { ResourceLimitService } from '../../src/common/services/resource-limit.service';
 import { NotFoundException } from '@nestjs/common';
 import {
   createMockPrismaService,
   mockMember,
   mockUserPayload,
 } from '../test-utils';
+
+const mockResourceLimitService = {
+  getPlanLimits: jest.fn().mockResolvedValue({
+    max_members: 1000,
+    max_branches: 10,
+    max_staff: 50,
+  }),
+  checkMemberLimit: jest.fn().mockResolvedValue(undefined),
+  checkBranchLimit: jest.fn().mockResolvedValue(undefined),
+};
 
 describe('MembersService', () => {
   let service: MembersService;
@@ -19,6 +30,7 @@ describe('MembersService', () => {
       providers: [
         MembersService,
         { provide: PrismaService, useValue: prisma },
+        { provide: ResourceLimitService, useValue: mockResourceLimitService },
       ],
     }).compile();
 
@@ -42,7 +54,7 @@ describe('MembersService', () => {
       prisma.member.findMany.mockResolvedValue(members);
       prisma.member.count.mockResolvedValue(2);
 
-      const result = await service.findAll({ page: 1, limit: 20 });
+      const result = await service.findAll('test-studio-id', { page: 1, limit: 20 });
       expect(result).toBeDefined();
       expect(prisma.member.findMany).toHaveBeenCalled();
       expect(prisma.member.count).toHaveBeenCalled();
@@ -52,7 +64,7 @@ describe('MembersService', () => {
       prisma.member.findMany.mockResolvedValue([]);
       prisma.member.count.mockResolvedValue(0);
 
-      await service.findAll({ status: 'active', page: 1, limit: 20 });
+      await service.findAll('test-studio-id', { status: 'active', page: 1, limit: 20 });
       const callArgs = prisma.member.findMany.mock.calls[0][0];
       expect(callArgs.where).toHaveProperty('status', 'active');
     });
@@ -61,7 +73,7 @@ describe('MembersService', () => {
       prisma.member.findMany.mockResolvedValue([]);
       prisma.member.count.mockResolvedValue(0);
 
-      await service.findAll({ search: 'john', page: 1, limit: 20 });
+      await service.findAll('test-studio-id', { search: 'john', page: 1, limit: 20 });
       const callArgs = prisma.member.findMany.mock.calls[0][0];
       expect(callArgs.where).toHaveProperty('OR');
     });
@@ -74,7 +86,7 @@ describe('MembersService', () => {
       prisma.member.findMany.mockResolvedValue([memberWithFace]);
       prisma.member.count.mockResolvedValue(1);
 
-      const result = await service.findAll({ page: 1, limit: 20 });
+      const result = await service.findAll('test-studio-id', { page: 1, limit: 20 });
       expect(result.data).toBeDefined();
       if (result.data.length > 0) {
         expect(result.data[0]).not.toHaveProperty('face_descriptor');
@@ -85,7 +97,7 @@ describe('MembersService', () => {
       prisma.member.findMany.mockResolvedValue([]);
       prisma.member.count.mockResolvedValue(0);
 
-      await service.findAll({});
+      await service.findAll('test-studio-id', {});
       const callArgs = prisma.member.findMany.mock.calls[0][0];
       expect(callArgs.skip).toBe(0);
       expect(callArgs.take).toBeLessThanOrEqual(50);
@@ -94,11 +106,11 @@ describe('MembersService', () => {
 
   describe('findOne', () => {
     it('should return a member by id', async () => {
-      prisma.member.findUnique.mockResolvedValue({ ...mockMember, face_descriptor: null });
+      prisma.member.findFirst.mockResolvedValue({ ...mockMember, face_descriptor: null });
 
-      const result = await service.findOne(mockMember.id);
+      const result = await service.findOne('test-studio-id', mockMember.id);
       expect(result).toBeDefined();
-      expect(prisma.member.findUnique).toHaveBeenCalledWith(
+      expect(prisma.member.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: mockMember.id },
         }),
@@ -106,9 +118,9 @@ describe('MembersService', () => {
     });
 
     it('should throw NotFoundException when member not found', async () => {
-      prisma.member.findUnique.mockResolvedValue(null);
+      prisma.member.findFirst.mockResolvedValue(null);
 
-      await expect(service.findOne('nonexistent-id')).rejects.toThrow(
+      await expect(service.findOne('test-studio-id', 'nonexistent-id')).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -132,7 +144,7 @@ describe('MembersService', () => {
         face_descriptor: null,
       });
 
-      const result = await service.create(createData);
+      const result = await service.create('test-studio-id', createData);
       expect(result).toBeDefined();
       expect(prisma.member.create).toHaveBeenCalled();
     });
@@ -144,7 +156,7 @@ describe('MembersService', () => {
         face_descriptor: null,
       }));
 
-      const result = await service.create({
+      const result = await service.create('test-studio-id', {
         branch_id: mockMember.branch_id,
         full_name: 'Test',
         email: 'test@test.com',
@@ -160,13 +172,13 @@ describe('MembersService', () => {
 
   describe('update', () => {
     it('should update a member', async () => {
-      prisma.member.findUnique.mockResolvedValue(mockMember);
+      prisma.member.findFirst.mockResolvedValue(mockMember);
       prisma.member.update.mockResolvedValue({
         ...mockMember,
         full_name: 'Updated Name',
       });
 
-      const result = await service.update(mockMember.id, {
+      const result = await service.update('test-studio-id', mockMember.id, {
         full_name: 'Updated Name',
       });
 

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
 import { CreateRoleDto, UpdateRoleDto } from './dto';
 import { DEFAULT_ROLE_PERMISSIONS } from '../common/guards/default-permissions';
 import { ENTERPRISE_ROLES, ALL_PERMISSIONS } from '../auth/rbac-seed.service';
@@ -106,6 +107,7 @@ export class RolesService {
 
     const role = await this.prisma.role.create({
       data: {
+        gym_id: getTenantGymId()!,
         name: dto.name,
         description: dto.description,
         permissions: dto.permissions ? this.sanitizePermissions(dto.permissions) : {},
@@ -117,6 +119,7 @@ export class RolesService {
     if (permissionCodes.length > 0) {
       await this.prisma.rolePermission.createMany({
         data: permissionCodes.map((code) => ({
+          gym_id: getTenantGymId()!,
           role_id: role.id,
           permission_code: code,
         })),
@@ -156,6 +159,7 @@ export class RolesService {
       if (newCodes.length > 0) {
         await this.prisma.rolePermission.createMany({
           data: newCodes.map((code) => ({
+            gym_id: getTenantGymId()!,
             role_id: id,
             permission_code: code,
           })),

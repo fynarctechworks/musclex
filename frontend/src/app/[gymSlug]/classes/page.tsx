@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { StatusBadge, LoadingSkeleton, PageHeader } from "@/components/shared";
+import { StatusBadge, LoadingSkeleton, PageHeader, AccessDenied } from "@/components/shared";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { useClasses } from "@/features/classes/hooks";
 import { useAuthStore } from "@/stores/auth-store";
@@ -12,6 +13,7 @@ import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import type { ClassItem } from "@/types";
 
 export default function ClassesPage() {
+  const { allowed, checked } = useRequirePermission("classes", "view", "deny");
   const { gymPath } = useGymSlug();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -19,13 +21,14 @@ export default function ClassesPage() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [page, setPage] = useState(1);
   const limit = 20;
-  const { hasPermission } = useAuthStore();
+  const { hasPermission, activeBranchId } = useAuthStore();
 
   const canCreate = hasPermission("classes", "create");
 
   const { data, isLoading } = useClasses({
     status: statusFilter || undefined,
     category: categoryFilter || undefined,
+    branch_id: activeBranchId || undefined,
     page,
     limit,
   });
@@ -40,6 +43,14 @@ export default function ClassesPage() {
   const classes = filteredClasses;
   const total = response?.total ?? 0;
   const totalPages = Math.ceil(total / limit);
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="classes" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

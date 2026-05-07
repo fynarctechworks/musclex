@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { useParams } from "next/navigation";
 import { Activity, Clock, CreditCard, StickyNote, CreditCard as MembershipIcon, BarChart3, TrendingUp, FileText, UserPlus } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
+import { AccessDenied } from "@/components/shared/access-denied";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -37,6 +39,7 @@ import { MemberReferralsTab } from "@/features/referrals";
 import { MemberSubscriptionCard } from "@/features/memberships";
 
 export default function MemberProfilePage() {
+  const { allowed, checked } = useRequirePermission("members", "view", "deny");
   const { gymPath } = useGymSlug();
   const params = useParams<{ id: string }>();
   const memberId = params.id;
@@ -56,6 +59,14 @@ export default function MemberProfilePage() {
   const memberWithRelations = member as typeof member & { check_ins?: CheckIn[]; payments?: Payment[] } | undefined;
   const checkIns = memberWithRelations?.check_ins;
   const payments = memberWithRelations?.payments;
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="members" />
+      </AppLayout>
+    );
+  }
 
   if (isLoading) {
     return (

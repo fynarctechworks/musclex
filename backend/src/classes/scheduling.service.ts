@@ -3,11 +3,13 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { CronLockService } from '../common/services/cron-lock.service';
+import { getTenantGymId } from '../common/tenant-context';
 import {
   CreateClassSessionDto,
   UpdateClassSessionDto,
@@ -56,7 +58,7 @@ export class SchedulingService {
     excludeSessionId?: string,
   ) {
     const where: any = {
-      studio_id: studioId,
+      // Tenant isolation via search_path — no studio_id filter needed
       status: { not: 'cancelled' },
       start_time: { lt: endTime },
       end_time: { gt: startTime },
@@ -73,27 +75,38 @@ export class SchedulingService {
 
   // ── Class Sessions ────────────────────────────────────────
 
-  async createSession(dto: CreateClassSessionDto) {
+  async createSession(studioId: string, dto: CreateClassSessionDto) {
     const startTime = new Date(dto.start_time);
     const endTime = new Date(startTime.getTime() + dto.duration_minutes * 60000);
 
-    // Validate trainer exists
-    const trainer = await this.prisma.staff.findUnique({ where: { id: dto.trainer_id } });
-    if (!trainer) throw new NotFoundException('Trainer not found');
+    // Validate trainer exists and belongs to studio
+    const trainer = await this.prisma.staff.findFirst({
+      where: { id: dto.trainer_id } // tenant isolation via search_path,
+    });
+    if (!trainer) throw new NotFoundException('Trainer not found in studio');
+
+    // Verify branch belongs to studio
+    const branch = await this.prisma.branch.findFirst({
+      where: { id: dto.branch_id } // tenant isolation via search_path,
+    });
+    if (!branch) throw new NotFoundException('Branch not found in studio');
 
     // Check trainer conflict
     await this.checkTrainerConflict(dto.trainer_id, startTime, endTime);
 
     // Check studio conflict if studio specified
     if (dto.studio_id) {
-      const studio = await this.prisma.studioRoom.findUnique({ where: { id: dto.studio_id } });
-      if (!studio) throw new NotFoundException('Studio room not found');
+      const studio = await this.prisma.studioRoom.findFirst({
+        where: { id: dto.studio_id, branch_id: dto.branch_id },
+      });
+      if (!studio) throw new NotFoundException('Studio room not found in branch');
       if (!studio.is_active) throw new BadRequestException('Studio room is not active');
       await this.checkStudioConflict(dto.studio_id, startTime, endTime);
     }
 
     const session = await this.prisma.classSession.create({
       data: {
+        gym_id: getTenantGymId()!,
         template_id: dto.template_id,
         branch_id: dto.branch_id,
         trainer_id: dto.trainer_id,
@@ -115,6 +128,7 @@ export class SchedulingService {
     // Auto-create primary trainer assignment
     await this.prisma.trainerAssignment.create({
       data: {
+        gym_id: getTenantGymId()!,
         trainer_id: dto.trainer_id,
         session_id: session.id,
         role: 'primary',
@@ -280,6 +294,7 @@ export class SchedulingService {
   async createRoom(dto: CreateStudioRoomDto) {
     return this.prisma.studioRoom.create({
       data: {
+        gym_id: getTenantGymId()!,
         branch_id: dto.branch_id,
         name: dto.name,
         capacity: dto.capacity ?? 30,
@@ -338,6 +353,7 @@ export class SchedulingService {
 
     return this.prisma.classRecurringRule.create({
       data: {
+        gym_id: getTenantGymId()!,
         template_id: dto.template_id,
         branch_id: dto.branch_id,
         days_of_week: dto.days_of_week,
@@ -451,6 +467,7 @@ export class SchedulingService {
         try {
           const session = await this.prisma.classSession.create({
             data: {
+              gym_id: getTenantGymId()!,
               template_id: rule.template_id,
               branch_id: rule.branch_id,
               trainer_id: rule.trainer_id || rule.template.created_by_id!,
@@ -467,6 +484,7 @@ export class SchedulingService {
           if (rule.trainer_id) {
             await this.prisma.trainerAssignment.create({
               data: {
+                gym_id: getTenantGymId()!,
                 trainer_id: rule.trainer_id,
                 session_id: session.id,
                 role: 'primary',
@@ -517,7 +535,7 @@ export class SchedulingService {
 
   async getRoomSchedule(studioId: string, dateFrom?: string, dateTo?: string) {
     const where: any = {
-      studio_id: studioId,
+      // Tenant isolation via search_path — no studio_id filter needed
       status: { not: 'cancelled' },
     };
     if (dateFrom || dateTo) {

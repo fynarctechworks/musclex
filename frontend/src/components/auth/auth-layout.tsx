@@ -16,15 +16,15 @@ export function AuthLayout({ children, heading, subheading }: AuthLayoutProps) {
         className="hidden lg:flex lg:w-[44%] flex-col justify-between p-10 relative overflow-hidden"
         style={{
           background:
-            'radial-gradient(ellipse at 20% 10%, hsl(153 60% 53% / 0.15) 0%, transparent 55%), radial-gradient(ellipse at 85% 85%, hsl(153 60% 53% / 0.10) 0%, transparent 55%), hsl(0 0% 7%)',
+            'radial-gradient(ellipse at 20% 10%, hsl(0 0% 98% / 0.08) 0%, transparent 55%), radial-gradient(ellipse at 85% 85%, hsl(0 0% 98% / 0.05) 0%, transparent 55%), hsl(0 0% 7%)',
         }}
       >
         {/* Logo */}
         <div className="relative flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#3ECF8E]/20">
-            <Dumbbell className="h-4 w-4 text-[#3ECF8E]" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15">
+            <Dumbbell className="h-4 w-4 text-white" />
           </div>
-          <span className="text-[15px] font-semibold text-white tracking-tight">FitSync Pro</span>
+          <span className="text-[15px] font-semibold text-white tracking-tight">MuscleX</span>
         </div>
 
         {/* Bottom copy */}
@@ -46,7 +46,7 @@ export function AuthLayout({ children, heading, subheading }: AuthLayoutProps) {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
             <Dumbbell className="h-4 w-4 text-primary-foreground" />
           </div>
-          <span className="font-semibold text-foreground text-[15px]">FitSync Pro</span>
+          <span className="font-semibold text-foreground text-[15px]">MuscleX</span>
         </div>
 
         <div className="w-full max-w-[380px]">

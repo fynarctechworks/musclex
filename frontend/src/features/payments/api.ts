@@ -47,32 +47,113 @@ export const paymentsApi = {
 
 export interface ExpenseFilters {
   branch_id?: string;
+  category_id?: string;
   category?: string;
+  status?: 'confirmed' | 'pending' | 'reversed';
   date_from?: string;
   date_to?: string;
+  search?: string;
   page?: number;
   limit?: number;
+}
+
+export interface CreateExpenseInput {
+  branch_id: string;
+  /** Either category_id (preferred) or category slug */
+  category_id?: string;
+  category?: string;
+  description: string;
+  amount: number;
+  currency?: string;
+  expense_date: string;
+  receipt_url?: string;
+  vendor?: string;
+  notes?: string;
+  payment_method?: 'cash' | 'bank_transfer' | 'upi' | 'card';
+  idempotency_key?: string;
+}
+
+export interface ReverseExpenseInput {
+  reason?: string;
+  notes?: string;
+}
+
+export interface ExportExpensesInput {
+  format: 'csv' | 'xlsx';
+  branch_id?: string;
+  date_from?: string;
+  date_to?: string;
+  category_id?: string;
 }
 
 export const expensesApi = {
   list: (filters?: ExpenseFilters) =>
     apiClient.get('/expenses', { params: filters }),
 
-  create: (data: {
-    branch_id: string;
-    category: string;
-    description: string;
-    amount: number;
-    expense_date: string;
-    receipt_url?: string;
-    recorded_by_staff_id: string;
-  }) => apiClient.post('/expenses', data),
+  timeline: (filters?: ExpenseFilters) =>
+    apiClient.get('/expenses/timeline', { params: filters }),
 
-  update: (id: string, data: Record<string, unknown>) =>
-    apiClient.patch(`/expenses/${id}`, data),
+  summary: (branchId: string, month?: string) =>
+    apiClient.get('/expenses/summary', {
+      params: { branch_id: branchId, month },
+    }),
 
-  delete: (id: string) =>
-    apiClient.delete(`/expenses/${id}`),
+  intelligence: (branchId: string, range?: { date_from?: string; date_to?: string }) =>
+    apiClient.get('/expenses/intelligence', {
+      params: { branch_id: branchId, ...range },
+    }),
+
+  getById: (id: string) =>
+    apiClient.get(`/expenses/${id}`),
+
+  create: (data: CreateExpenseInput) =>
+    apiClient.post('/expenses', data),
+
+  reverse: (id: string, data: ReverseExpenseInput) =>
+    apiClient.post(`/expenses/${id}/reverse`, data),
+
+  exportFile: async (params: ExportExpensesInput): Promise<Blob> => {
+    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+    const url = new URL(`${base}/expenses/export`);
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, String(v));
+    });
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('auth-storage') : null;
+    const token = stored ? (JSON.parse(stored)?.state?.accessToken ?? null) : null;
+    const activeBranchId = stored ? (JSON.parse(stored)?.state?.activeBranchId ?? null) : null;
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (activeBranchId) headers['X-Active-Branch-Id'] = activeBranchId;
+    const res = await fetch(url.toString(), { headers });
+    if (!res.ok) throw new Error(`Export failed: ${res.status} ${res.statusText}`);
+    return res.blob();
+  },
+};
+
+// ── Expense Categories ────────────────────────────────────
+
+export interface ExpenseCategoryInput {
+  name: string;
+  branch_id?: string | null;
+  icon?: string;
+  color?: string;
+  sort_order?: number;
+}
+
+export const expenseCategoriesApi = {
+  list: (filters?: { branch_id?: string; include_inactive?: boolean }) =>
+    apiClient.get('/expense-categories', { params: filters }),
+
+  create: (data: ExpenseCategoryInput) =>
+    apiClient.post('/expense-categories', data),
+
+  update: (
+    id: string,
+    data: Partial<ExpenseCategoryInput> & { is_active?: boolean },
+  ) => apiClient.patch(`/expense-categories/${id}`, data),
+
+  deactivate: (id: string) =>
+    apiClient.delete(`/expense-categories/${id}`),
 };
 
 // ── Invoices ──────────────────────────────────────────────

@@ -243,15 +243,28 @@ export interface DashboardSummary {
 // ── Branch Comparison ─────────────────────────────────────
 
 export interface BranchComparisonEntry {
-  branch_id: string;
+  branch_id: string | null;
+  branch_name?: string;
   _sum: {
-    total_revenue: number;
-    new_members: number;
-    active_members: number;
-    total_visits: number;
+    total_revenue: number | null;
+    new_members: number | null;
+    total_visits: number | null;
+    classes_held: number | null;
+    products_sold: number | null;
+  };
+  _avg: {
+    active_members: number | null;
   };
 }
 
 // ── Report Tab ────────────────────────────────────────────
 
-export type ReportTab = 'overview' | 'revenue' | 'members' | 'attendance' | 'marketing' | 'trainers' | 'subscriptions';
+export type ReportTab =
+  | 'overview'
+  | 'revenue'
+  | 'members'
+  | 'attendance'
+  | 'marketing'
+  | 'trainers'
+  | 'subscriptions'
+  | 'branches';

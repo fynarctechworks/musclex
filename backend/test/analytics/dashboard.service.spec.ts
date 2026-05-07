@@ -104,11 +104,21 @@ describe('DashboardService', () => {
       prisma.branch.findMany.mockResolvedValue([
         { id: 'branch-1', name: 'Main Branch' },
       ]);
-      prisma.member.count.mockResolvedValue(50);
-      prisma.payment.aggregate.mockResolvedValue({ _sum: { amount: 100000 } });
+      prisma.member.groupBy.mockResolvedValue([
+        { branch_id: 'branch-1', _count: { _all: 50 } },
+      ]);
+      prisma.payment.groupBy.mockResolvedValue([
+        { branch_id: 'branch-1', _sum: { amount: 100000 } },
+      ]);
+      prisma.checkIn.groupBy.mockResolvedValue([
+        { branch_id: 'branch-1', _count: { _all: 30 } },
+      ]);
 
-      const result = await service.getBranchComparison();
+      const result = await service.getBranchComparison() as any[];
       expect(result).toBeDefined();
+      expect(result).toHaveLength(1);
+      expect(result[0].branch_name).toBe('Main Branch');
+      expect(result[0].active_members).toBe(50);
     });
   });
 });

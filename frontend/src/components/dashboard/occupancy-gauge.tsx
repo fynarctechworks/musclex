@@ -1,0 +1,190 @@
+"use client";
+
+// FIXME: Wave 8 will replace with shared <TileCard>
+
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Activity, Users } from "lucide-react";
+import { apiClient } from "@/lib/api";
+import { queryKeys } from "@/services/query-client";
+import { Occupancy } from "@/types";
+import { LoadingSkeleton } from "@/components/shared";
+import { cn } from "@/lib/utils";
+
+interface OccupancyGaugeProps {
+  branchId?: string;
+}
+
+/**
+ * Returns a colour token name based on percentage fill.
+ * <60% green, 60-85% amber, >85% red.
+ */
+function fillTone(pct: number): { stroke: string; text: string; bg: string } {
+  if (pct > 85) {
+    return {
+      stroke: "stroke-destructive",
+      text: "text-destructive",
+      bg: "bg-destructive/10",
+    };
+  }
+  if (pct >= 60) {
+    return {
+      stroke: "stroke-amber-500",
+      text: "text-amber-500",
+      bg: "bg-amber-500/10",
+    };
+  }
+  return {
+    stroke: "stroke-emerald-500",
+    text: "text-emerald-500",
+    bg: "bg-emerald-500/10",
+  };
+}
+
+function formatRelative(iso: string | null): string {
+  if (!iso) return "no check-ins yet";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const sec = Math.floor(diffMs / 1000);
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  return `${day}d ago`;
+}
+
+export function OccupancyGauge({ branchId }: OccupancyGaugeProps) {
+  const { data, isLoading, isError, dataUpdatedAt } = useQuery<Occupancy>({
+    queryKey: queryKeys.dashboard.occupancy(branchId),
+    queryFn: () =>
+      apiClient.get<Occupancy>(
+        `/dashboard/occupancy${branchId ? `?branch_id=${branchId}` : ""}`,
+      ),
+    refetchInterval: 30_000, // poll every 30s for "live" feel
+  });
+
+  // Pulse animation: bump key whenever last_check_in_at changes
+  const [pulseKey, setPulseKey] = useState(0);
+  const lastCheckIn = data?.last_check_in_at ?? null;
+  useEffect(() => {
+    if (lastCheckIn) setPulseKey((k) => k + 1);
+  }, [lastCheckIn]);
+
+  const { current, capacity, peakToday, fillPct } = useMemo(() => {
+    const cur = data?.current ?? 0;
+    const cap = data?.capacity ?? 0;
+    const peak = data?.peak_today ?? 0;
+    const pct = cap > 0 ? Math.min(100, Math.round((cur / cap) * 100)) : 0;
+    return { current: cur, capacity: cap, peakToday: peak, fillPct: pct };
+  }, [data]);
+
+  const tone = fillTone(fillPct);
+
+  // SVG arc parameters
+  const radius = 70;
+  const stroke = 12;
+  const circumference = Math.PI * radius; // half circle
+  const offset = circumference * (1 - fillPct / 100);
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-5 shadow-sm transition-shadow hover:shadow-md">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+          <Activity className="w-4 h-4 text-primary" />
+          Live Occupancy
+        </h2>
+        <span
+          className={cn(
+            "text-[11px] px-2 py-0.5 rounded-full border border-border",
+            "text-muted-foreground bg-muted/40",
+          )}
+          title={data?.as_of ? new Date(data.as_of).toLocaleString() : ""}
+        >
+          {dataUpdatedAt ? formatRelative(new Date(dataUpdatedAt).toISOString()) : "—"}
+        </span>
+      </div>
+
+      {isLoading ? (
+        <div className="flex flex-col items-center gap-3 py-4">
+          <LoadingSkeleton className="h-32 w-44" />
+          <LoadingSkeleton className="h-3 w-24" />
+        </div>
+      ) : isError ? (
+        <div className="py-6 text-center text-sm text-muted-foreground">
+          Could not load occupancy.
+        </div>
+      ) : (
+        <>
+          <div className="flex justify-center py-2">
+            <div className="relative">
+              <svg
+                key={pulseKey}
+                width={radius * 2 + stroke}
+                height={radius + stroke}
+                viewBox={`0 0 ${radius * 2 + stroke} ${radius + stroke}`}
+                className={cn("animate-in fade-in")}
+              >
+                {/* Track */}
+                <path
+                  d={`M ${stroke / 2} ${radius + stroke / 2}
+                      A ${radius} ${radius} 0 0 1 ${radius * 2 + stroke / 2} ${radius + stroke / 2}`}
+                  fill="none"
+                  className="stroke-border"
+                  strokeWidth={stroke}
+                  strokeLinecap="round"
+                />
+                {/* Fill */}
+                <path
+                  d={`M ${stroke / 2} ${radius + stroke / 2}
+                      A ${radius} ${radius} 0 0 1 ${radius * 2 + stroke / 2} ${radius + stroke / 2}`}
+                  fill="none"
+                  className={cn(tone.stroke, "transition-all duration-500")}
+                  strokeWidth={stroke}
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={offset}
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-end pb-1">
+                <span
+                  className={cn(
+                    "text-3xl font-bold tabular-nums",
+                    tone.text,
+                  )}
+                >
+                  {current}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {capacity > 0 ? `of ${capacity}` : "in gym"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mt-3 text-[12px]">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Users className="w-3.5 h-3.5" />
+              <span>Peak today: <span className="text-foreground font-medium">{peakToday}</span></span>
+            </div>
+            <span className="text-muted-foreground">
+              Last check-in: {formatRelative(data?.last_check_in_at ?? null)}
+            </span>
+          </div>
+
+          {/* Pulse ping on each new check-in */}
+          {lastCheckIn && (
+            <span
+              key={`pulse-${pulseKey}`}
+              className={cn(
+                "absolute pointer-events-none rounded-full opacity-0",
+                tone.bg,
+              )}
+              aria-hidden
+            />
+          )}
+        </>
+      )}
+    </div>
+  );
+}

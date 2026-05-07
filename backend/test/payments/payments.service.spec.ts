@@ -1,10 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PaymentsService } from '../../src/payments/payments.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
-import { ConfigService } from '@nestjs/config';
 import { BillingService } from '../../src/payments/billing.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
-import { createMockPrismaService, createMockConfigService, mockPayment, mockMember } from '../test-utils';
+import { createMockPrismaService, mockPayment, mockMember } from '../test-utils';
 
 describe('PaymentsService', () => {
   let service: PaymentsService;
@@ -22,7 +21,6 @@ describe('PaymentsService', () => {
       providers: [
         PaymentsService,
         { provide: PrismaService, useValue: prisma },
-        { provide: ConfigService, useValue: createMockConfigService() },
         { provide: BillingService, useValue: mockBillingService },
       ],
     }).compile();
@@ -43,7 +41,7 @@ describe('PaymentsService', () => {
       prisma.payment.findMany.mockResolvedValue([mockPayment]);
       prisma.payment.count.mockResolvedValue(1);
 
-      const result = await service.findAll({});
+      const result = await service.findAll('test-studio-id', {});
       expect(result).toBeDefined();
       expect(prisma.payment.findMany).toHaveBeenCalled();
     });
@@ -52,7 +50,7 @@ describe('PaymentsService', () => {
       prisma.payment.findMany.mockResolvedValue([]);
       prisma.payment.count.mockResolvedValue(0);
 
-      await service.findAll({ status: 'paid' });
+      await service.findAll('test-studio-id', { status: 'paid' });
       const callArgs = prisma.payment.findMany.mock.calls[0][0];
       expect(callArgs.where).toHaveProperty('status', 'paid');
     });
@@ -61,7 +59,7 @@ describe('PaymentsService', () => {
       prisma.payment.findMany.mockResolvedValue([]);
       prisma.payment.count.mockResolvedValue(0);
 
-      await service.findAll({ branch_id: mockMember.branch_id });
+      await service.findAll('test-studio-id', { branch_id: mockMember.branch_id });
       const callArgs = prisma.payment.findMany.mock.calls[0][0];
       expect(callArgs.where).toHaveProperty('branch_id', mockMember.branch_id);
     });
@@ -69,13 +67,16 @@ describe('PaymentsService', () => {
 
   describe('recordCash', () => {
     it('should create a cash payment with receipt number', async () => {
-      prisma.member.findUnique.mockResolvedValue(mockMember);
+      // recordCash uses member.findFirst (not findUnique)
+      prisma.member.findFirst.mockResolvedValue(mockMember);
+      // recordCash runs inside $transaction; the mock passes prisma as tx
       prisma.payment.create.mockImplementation(async (args: any) => ({
         id: 'new-payment-id',
         ...args.data,
       }));
+      prisma.financialTransaction.create.mockResolvedValue({});
 
-      const result = await service.recordCash({
+      const result = await service.recordCash('test-studio-id', {
         member_id: mockMember.id,
         branch_id: mockMember.branch_id,
         amount: 3000,
@@ -90,10 +91,10 @@ describe('PaymentsService', () => {
     });
 
     it('should throw when member not found', async () => {
-      prisma.member.findUnique.mockResolvedValue(null);
+      prisma.member.findFirst.mockResolvedValue(null);
 
       await expect(
-        service.recordCash({
+        service.recordCash('test-studio-id', {
           member_id: 'nonexistent',
           branch_id: mockMember.branch_id,
           amount: 3000,

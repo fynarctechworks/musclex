@@ -5,7 +5,7 @@ export const authApi = {
     apiClient.post<LoginResponse>('/auth/login', { email, password }),
 
   register: (data: { full_name: string; email: string; password: string; phone?: string }) =>
-    apiClient.post<{ success: boolean; email: string; verification_url?: string }>('/auth/register', data),
+    apiClient.post<{ success: boolean; email: string; verification_url?: string; skip_verification?: boolean; access_token?: string; refresh_token?: string; user?: any }>('/auth/register', data),
 
   verifyEmail: (token: string) =>
     apiClient.post<LoginResponse>('/auth/verify-email', { token }),
@@ -46,6 +46,9 @@ export const authApi = {
   getOnboardingStatus: () =>
     apiClient.get('/auth/onboarding'),
 
+  getMe: () =>
+    apiClient.get<{ user: LoginUser; studio: LoginStudio | null }>('/auth/me'),
+
   selectWorkspace: (studioId: string, branchId?: string) =>
     apiClient.post<WorkspaceSelectResponse>('/auth/select-workspace', { studio_id: studioId, branch_id: branchId }),
 };
@@ -72,6 +75,8 @@ export interface LoginStudio {
   timezone?: string;
   currency?: string;
   logo_url?: string | null;
+  account_type?: 'gym';
+  subscription_plan?: string;
   [key: string]: unknown;
 }
 

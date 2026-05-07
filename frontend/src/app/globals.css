@@ -5,46 +5,46 @@
 @layer base {
   :root {
     /*
-     * FitSync Pro — Supabase-Style Light Design System
-     * Clean, minimal, white-first. Inspired by Supabase Studio.
-     * Aesthetic–Usability: clean = perceived fast + reliable
+     * MuscleX — Supabase-Inspired Design System
+     * Clean, minimal, white-first. Primary buttons: #141413 (near-black).
+     * Supabase pattern: dark CTAs on light backgrounds.
      */
     --background: 0 0% 99%;            /* #FCFCFC — subtle off-white */
-    --foreground: 0 0% 7%;             /* #111111 — crisp dark text */
+    --foreground: 60 3% 8%;            /* #141413 — warm near-black text */
     --card: 0 0% 100%;                 /* #FFFFFF — pure white cards */
-    --card-foreground: 0 0% 7%;
+    --card-foreground: 60 3% 8%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 7%;
-    --primary: 153 60% 53%;            /* #3ECF8E — Supabase green */
-    --primary-foreground: 0 0% 100%;   /* white on green */
+    --popover-foreground: 60 3% 8%;
+    --primary: 60 3% 8%;               /* #141413 — dark primary buttons */
+    --primary-foreground: 0 0% 100%;   /* white text on dark buttons */
     --secondary: 0 0% 96%;             /* #F5F5F5 — neutral surface */
-    --secondary-foreground: 0 0% 7%;
+    --secondary-foreground: 60 3% 8%;
     --muted: 0 0% 96%;                 /* same as secondary */
     --muted-foreground: 0 0% 45%;      /* #737373 — deemphasized text */
     --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 7%;
+    --accent-foreground: 60 3% 8%;
     --destructive: 0 72% 51%;          /* #E5484D — Radix red */
     --destructive-foreground: 0 0% 100%;
-    --success: 153 60% 53%;            /* matches primary */
+    --success: 153 60% 53%;            /* #3ECF8E — green for success states */
     --warning: 40 96% 53%;             /* #F5A623 — warm amber */
     --border: 0 0% 90%;                /* #E5E5E5 — subtle dividers */
     --input: 0 0% 90%;
-    --ring: 153 60% 53%;
+    --ring: 60 3% 8%;                  /* matches primary for focus rings */
     --radius: 0.5rem;
 
-    /* Sidebar — Supabase-style near-white */
+    /* Sidebar — clean white */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 7%;
-    --sidebar-primary: 153 60% 53%;
+    --sidebar-foreground: 60 3% 8%;
+    --sidebar-primary: 60 3% 8%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 96%;
-    --sidebar-accent-foreground: 0 0% 7%;
+    --sidebar-accent-foreground: 60 3% 8%;
     --sidebar-border: 0 0% 92%;
-    --sidebar-ring: 153 60% 53%;
+    --sidebar-ring: 60 3% 8%;
 
     /* Charts — accessible 5-color scheme */
-    --chart-1: 153 60% 53%;            /* green */
-    --chart-2: 199 89% 48%;            /* blue */
+    --chart-1: 199 89% 48%;            /* blue */
+    --chart-2: 153 60% 53%;            /* green */
     --chart-3: 40 96% 53%;             /* amber */
     --chart-4: 0 72% 51%;              /* red */
     --chart-5: 262 83% 58%;            /* purple */
@@ -52,8 +52,9 @@
 
   .dark {
     /*
-     * FitSync Pro — Dark Theme
-     * True dark (not navy), Supabase Studio dark palette
+     * MuscleX — Dark Theme
+     * True dark, Supabase Studio dark palette.
+     * Primary inverts to light for dark backgrounds.
      */
     --background: 0 0% 7%;             /* #111111 */
     --foreground: 0 0% 95%;            /* #F2F2F2 */
@@ -61,8 +62,8 @@
     --card-foreground: 0 0% 95%;
     --popover: 0 0% 10%;
     --popover-foreground: 0 0% 95%;
-    --primary: 153 60% 53%;            /* #3ECF8E — same green */
-    --primary-foreground: 0 0% 100%;
+    --primary: 0 0% 98%;               /* #FAFAFA — light primary in dark mode */
+    --primary-foreground: 60 3% 8%;    /* #141413 — dark text on light buttons */
     --secondary: 0 0% 13%;             /* #222222 */
     --secondary-foreground: 0 0% 95%;
     --muted: 0 0% 13%;
@@ -75,19 +76,19 @@
     --warning: 40 96% 53%;
     --border: 0 0% 17%;                /* #2C2C2C — subtle dark borders */
     --input: 0 0% 13%;
-    --ring: 153 60% 53%;
+    --ring: 0 0% 98%;
 
     --sidebar-background: 0 0% 7%;
     --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 153 60% 53%;
-    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-primary: 0 0% 98%;
+    --sidebar-primary-foreground: 60 3% 8%;
     --sidebar-accent: 0 0% 13%;
     --sidebar-accent-foreground: 0 0% 95%;
     --sidebar-border: 0 0% 17%;
-    --sidebar-ring: 153 60% 53%;
+    --sidebar-ring: 0 0% 98%;
 
-    --chart-1: 153 60% 53%;
-    --chart-2: 199 89% 48%;
+    --chart-1: 199 89% 48%;
+    --chart-2: 153 60% 53%;
     --chart-3: 40 96% 53%;
     --chart-4: 0 72% 51%;
     --chart-5: 262 83% 58%;

@@ -6,46 +6,48 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BillingService } from './billing.service';
-import { randomInt, createHmac } from 'crypto';
-import { ConfigService } from '@nestjs/config';
+import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
+import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class PaymentsService {
   constructor(
     private prisma: PrismaService,
     private billingService: BillingService,
-    private configService: ConfigService,
   ) {}
 
   private generateReceiptNumber(): string {
     const now = new Date();
     const date = now.toISOString().slice(0, 10).replace(/-/g, '');
-    const rand = randomInt(1000, 9999);
+    const rand = randomBytes(4).toString('hex').toUpperCase();
     return `RCP-${date}-${rand}`;
   }
 
-  async recordCash(data: {
+  async recordCash(studioId: string, data: {
     member_id: string;
     membership_id?: string;
     branch_id: string;
     invoice_id?: string;
     amount: number;
+    payment_method?: string;
+    billing_cycle?: 'monthly' | 'yearly';
     notes?: string;
   }) {
-    const member = await this.prisma.member.findUnique({
-      where: { id: data.member_id },
+    const member = await this.prisma.member.findFirst({
+      where: { id: data.member_id } // tenant isolation via search_path,
     });
     if (!member) throw new NotFoundException('Member not found');
 
     return this.prisma.$transaction(async (tx) => {
       const payment = await tx.payment.create({
         data: {
+          gym_id: getTenantGymId()!,
           member_id: data.member_id,
           membership_id: data.membership_id,
           branch_id: data.branch_id,
           invoice_id: data.invoice_id,
           amount: data.amount,
-          payment_method: 'cash',
+          payment_method: data.payment_method || 'cash',
           status: 'paid',
           receipt_number: this.generateReceiptNumber(),
           notes: data.notes,
@@ -59,6 +61,7 @@ export class PaymentsService {
       // Record financial transaction
       await tx.financialTransaction.create({
         data: {
+          gym_id: getTenantGymId()!,
           branch_id: data.branch_id,
           reference_type: 'payment',
           reference_id: payment.id,
@@ -67,6 +70,23 @@ export class PaymentsService {
           description: `Cash payment ${payment.receipt_number}`,
         },
       });
+
+      // Extend membership based on plan duration (not hardcoded 1 year)
+      if (data.billing_cycle === 'yearly' && data.membership_id) {
+        const membership = await tx.memberMembership.findUnique({
+          where: { id: data.membership_id },
+          include: { plan: true },
+        });
+        if (membership) {
+          const extensionDays = membership.plan?.duration_days || 365;
+          const baseDate = membership.end_date ? new Date(membership.end_date) : new Date();
+          const newEnd = new Date(baseDate.getTime() + extensionDays * 86400000);
+          await tx.memberMembership.update({
+            where: { id: data.membership_id },
+            data: { end_date: newEnd },
+          });
+        }
+      }
 
       // Update invoice status if linked
       if (data.invoice_id) {
@@ -77,15 +97,15 @@ export class PaymentsService {
     });
   }
 
-  async createOrder(data: {
+  async createOrder(studioId: string, data: {
     member_id: string;
     plan_id: string;
     branch_id: string;
     invoice_id?: string;
     gateway: 'razorpay' | 'stripe';
   }) {
-    const member = await this.prisma.member.findUnique({
-      where: { id: data.member_id },
+    const member = await this.prisma.member.findFirst({
+      where: { id: data.member_id } // tenant isolation via search_path,
     });
     if (!member) throw new NotFoundException('Member not found');
 
@@ -99,6 +119,7 @@ export class PaymentsService {
     // Create pending payment record
     const payment = await this.prisma.payment.create({
       data: {
+        gym_id: getTenantGymId()!,
         member_id: data.member_id,
         branch_id: data.branch_id,
         invoice_id: data.invoice_id,
@@ -178,6 +199,7 @@ export class PaymentsService {
 
       const membership = await tx.memberMembership.create({
         data: {
+          gym_id: getTenantGymId()!,
           member_id: data.member_id,
           plan_id: data.plan_id,
           branch_id: data.branch_id,
@@ -204,6 +226,7 @@ export class PaymentsService {
       // Record financial transaction
       await tx.financialTransaction.create({
         data: {
+          gym_id: getTenantGymId()!,
           branch_id: data.branch_id,
           reference_type: 'payment',
           reference_id: updatedPayment.id,
@@ -236,28 +259,62 @@ export class PaymentsService {
     if (gateway === 'razorpay') {
       const body = `${data.gateway_order_id}|${data.gateway_payment_id}`;
       const expected = createHmac('sha256', secret).update(body).digest('hex');
-      return expected === data.signature;
+      // Use timing-safe comparison to prevent timing attacks
+      try {
+        return timingSafeEqual(Buffer.from(expected), Buffer.from(data.signature));
+      } catch {
+        return false;
+      }
     }
     if (gateway === 'stripe') {
-      // Stripe uses webhook signature verification — placeholder for Stripe SDK
-      return data.signature.length > 0;
+      // Stripe signature format: "t=timestamp,v1=signature1,v1=signature2"
+      // Verification: HMAC-SHA256(secret, "${timestamp}.${rawPayload}")
+      try {
+        const parts = data.signature.split(',').reduce<Record<string, string>>((acc, part) => {
+          const [k, v] = part.split('=');
+          acc[k] = v;
+          return acc;
+        }, {});
+        const timestamp = parts['t'];
+        const receivedSig = parts['v1'];
+        if (!timestamp || !receivedSig) return false;
+
+        const signedPayload = `${timestamp}.${data.gateway_payment_id}`;
+        const expected = createHmac('sha256', secret).update(signedPayload).digest('hex');
+        return timingSafeEqual(Buffer.from(expected), Buffer.from(receivedSig));
+      } catch {
+        return false;
+      }
     }
     return false;
   }
 
-  async findAll(query: {
+  async findAll(studioId: string, query: {
     branch_id?: string;
     date_from?: string;
     date_to?: string;
     status?: string;
     page?: number;
     limit?: number;
+    user_branch_ids?: string[];
   }) {
-    const { branch_id, date_from, date_to, status, page = 1, limit = 50 } = query;
-    const skip = (page - 1) * limit;
+    const { branch_id, date_from, date_to, status, page = 1, limit = 50, user_branch_ids } = query;
+    const safeLimit = Math.min(limit, 500);
+    const skip = (page - 1) * safeLimit;
 
+    // Tenant isolation via search_path in TenantMiddleware
     const where: any = {};
-    if (branch_id) where.branch_id = branch_id;
+    if (branch_id) {
+      if (user_branch_ids && !user_branch_ids.includes(branch_id)) {
+        return { data: [], total: 0, page, limit };
+      }
+      where.branch_id = branch_id;
+    } else if (Array.isArray(user_branch_ids)) {
+      if (user_branch_ids.length === 0) {
+        return { data: [], total: 0, page, limit };
+      }
+      where.branch_id = { in: user_branch_ids };
+    }
     if (status) where.status = status;
     if (date_from || date_to) {
       where.created_at = {};
@@ -278,7 +335,7 @@ export class PaymentsService {
           invoice: { select: { id: true, invoice_number: true, status: true } },
         },
         skip,
-        take: limit,
+        take: safeLimit,
         orderBy: { created_at: 'desc' },
       }),
       this.prisma.payment.count({ where }),
@@ -328,5 +385,81 @@ export class PaymentsService {
 
     if (!payment) throw new NotFoundException('Payment not found');
     return payment;
+  }
+
+  /**
+   * Called by Razorpay webhook when payment.captured event fires.
+   * Marks the pending payment as paid without needing frontend verification.
+   */
+  async handleRazorpayWebhook(orderId: string, gatewayPaymentId: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: orderId, status: 'pending' },
+    });
+    if (!payment) return; // Already processed or not found — idempotent
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.payment.update({
+        where: { id: orderId },
+        data: {
+          gateway_payment_id: gatewayPaymentId,
+          status: 'paid',
+          paid_at: new Date(),
+        },
+      });
+
+      await tx.financialTransaction.create({
+        data: {
+          gym_id: getTenantGymId()!,
+          branch_id: payment.branch_id,
+          reference_type: 'payment',
+          reference_id: payment.id,
+          transaction_type: 'credit',
+          amount: payment.amount,
+          description: `Razorpay payment ${payment.receipt_number} (webhook)`,
+        },
+      });
+
+      if (payment.invoice_id) {
+        await this.billingService.recalculateInvoiceStatus(payment.invoice_id);
+      }
+    });
+  }
+
+  /**
+   * Called by Stripe webhook when payment_intent.succeeded event fires.
+   * Marks the pending payment as paid without needing frontend verification.
+   */
+  async handleStripeWebhook(orderId: string, gatewayPaymentId: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: orderId, status: 'pending' },
+    });
+    if (!payment) return; // Already processed or not found — idempotent
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.payment.update({
+        where: { id: orderId },
+        data: {
+          gateway_payment_id: gatewayPaymentId,
+          status: 'paid',
+          paid_at: new Date(),
+        },
+      });
+
+      await tx.financialTransaction.create({
+        data: {
+          gym_id: getTenantGymId()!,
+          branch_id: payment.branch_id,
+          reference_type: 'payment',
+          reference_id: payment.id,
+          transaction_type: 'credit',
+          amount: payment.amount,
+          description: `Stripe payment ${payment.receipt_number} (webhook)`,
+        },
+      });
+
+      if (payment.invoice_id) {
+        await this.billingService.recalculateInvoiceStatus(payment.invoice_id);
+      }
+    });
   }
 }

@@ -19,6 +19,9 @@ export { BranchAccessGuard } from './guards/branch-access.guard';
 export { ApiKeyGuard } from './guards/api-key.guard';
 export { TenantMiddleware } from './middleware/tenant.middleware';
 export { TenantContextService } from './middleware/tenant-context.service';
+export { tenantContext, getTenantSchema, getTenantGymId } from './tenant-context';
+export { resolveBranchScope, BranchScope, restrictedBranchIdsForUser } from './branch-scope.util';
+export { ResourceLimitService } from './services/resource-limit.service';
 
 // Rate limiting
 export { RedisThrottlerStorage } from './throttler/redis-throttler-storage';
@@ -27,6 +30,7 @@ export { EnhancedThrottlerGuard } from './throttler/enhanced-throttler.guard';
 // Interceptors
 export { ApiMetadataInterceptor } from './interceptors/api-metadata.interceptor';
 export { ApiVersionInterceptor, ApiDeprecated, ApiDeprecationMeta } from './interceptors/api-version.interceptor';
+export { StripSecretsInterceptor } from './interceptors/strip-secrets.interceptor';
 
 // Pagination
 export {

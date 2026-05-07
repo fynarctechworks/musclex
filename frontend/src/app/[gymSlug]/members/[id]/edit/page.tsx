@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { ArrowLeft, Save } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
+import { AccessDenied } from "@/components/shared/access-denied";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import {
   FormInput,
   FormDatePicker,
@@ -12,6 +14,7 @@ import {
   FormSelect,
 } from "@/components/shared/form-fields";
 import { Button } from "@/components/ui/button";
+import { PhotoUpload } from "@/components/ui/photo-upload";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import Link from "next/link";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
@@ -30,6 +33,7 @@ interface EditMemberFormData {
 }
 
 export default function EditMemberPage() {
+  const { allowed, checked } = useRequirePermission("members", "edit", "deny");
   const { gymPath } = useGymSlug();
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -81,6 +85,14 @@ export default function EditMemberPage() {
     { label: "QR Code", value: "qr" },
     { label: "Facial Recognition", value: "facial" },
   ];
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="members" />
+      </AppLayout>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -187,11 +199,15 @@ export default function EditMemberPage() {
               />
             </div>
 
-            <FormInput
-              label="Profile Photo URL"
-              placeholder="https://example.com/photo.jpg"
-              error={errors.profile_photo_url?.message}
-              {...register("profile_photo_url")}
+            <Controller
+              name="profile_photo_url"
+              control={control}
+              render={({ field }) => (
+                <PhotoUpload
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              )}
             />
           </div>
 

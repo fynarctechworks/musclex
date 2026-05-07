@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Headers, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, Headers, UseGuards, Req, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
@@ -17,6 +17,7 @@ import {
   OnboardingMembershipsDto,
   OnboardingStaffListDto,
   OnboardingSkipStepDto,
+  OnboardingPaymentDto,
 } from './dto';
 import { SelectWorkspaceDto } from './dto/select-workspace.dto';
 import { JwtAuthGuard, CurrentUser, JwtPayload } from '../common';
@@ -82,7 +83,13 @@ export class AuthController {
   @Post('onboarding/subscription')
   @UseGuards(JwtAuthGuard)
   onboardingSubscription(@CurrentUser() user: JwtPayload, @Body() dto: SelectPlanDto) {
-    return this.authService.onboardingSelectSubscription(user.user_id, dto.plan_id);
+    return this.authService.onboardingSelectSubscription(user.user_id, dto.plan_id, dto.billing_cycle);
+  }
+
+  @Post('onboarding/payment')
+  @UseGuards(JwtAuthGuard)
+  onboardingPayment(@CurrentUser() user: JwtPayload, @Body() dto: OnboardingPaymentDto) {
+    return this.authService.onboardingRecordPayment(user.user_id, dto);
   }
 
   @Post('onboarding/skip')
@@ -113,6 +120,12 @@ export class AuthController {
   @Post('refresh')
   refresh(@Body() dto: RefreshTokenDto) {
     return this.authService.refreshToken(dto);
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  getMe(@CurrentUser() user: JwtPayload) {
+    return this.authService.getMe(user.user_id);
   }
 
   @Post('forgot-password')

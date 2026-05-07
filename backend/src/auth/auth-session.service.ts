@@ -194,9 +194,9 @@ export class AuthSessionService {
   private hashToken(token: string): string {
     const secret = this.configService.get<string>('HASH_SECRET', '');
     if (!secret) {
-      this.logger.warn('HASH_SECRET not set — using fallback. Set HASH_SECRET in production.');
+      throw new Error('HASH_SECRET environment variable must be set');
     }
-    const hmacKey = secret || 'fitsync-pro-default-key';
+    const hmacKey = secret;
     return createHmac('sha256', hmacKey).update(token).digest('hex');
   }
 }

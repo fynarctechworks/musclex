@@ -33,6 +33,28 @@ export function useAuth() {
         refresh_token: data.refresh_token,
       });
 
+      // Auto-select branch for the logged-in user.
+      // - Single-branch users (any role): pin to that branch so all queries scope correctly.
+      // - Multi-branch owners: default to "All Branches" (null) for the cross-branch dashboard.
+      // - Multi-branch staff/trainer/manager: default to their first assigned branch.
+      // (AppLayout re-validates this once /branches loads — it's the source of truth
+      //  for whether a "single-branch" gym actually has 1 branch.)
+      const isOwner = data.user?.role === 'owner' || data.user?.role === 'brand_owner';
+      const userBranchIds = data.user?.branch_ids || data.user?.roles
+        ?.filter((r: any) => r.branch_id)
+        .map((r: any) => r.branch_id) || [];
+
+      if (userBranchIds.length === 1) {
+        useAuthStore.getState().setActiveBranch(userBranchIds[0]);
+      } else if (isOwner) {
+        useAuthStore.getState().setActiveBranch(null);
+      } else if (userBranchIds.length > 0) {
+        useAuthStore.getState().setActiveBranch(userBranchIds[0]);
+      } else {
+        // Clear stale branch from previous user session
+        useAuthStore.getState().setActiveBranch(null);
+      }
+
       // Multi-workspace: redirect to workspace selection
       if (data.requires_workspace_selection && data.workspaces) {
         setWorkspaces(data.workspaces.map((w) => ({
@@ -56,6 +78,7 @@ export function useAuth() {
           setup_plans: '/onboarding/memberships',
           setup_staff: '/onboarding/staff',
           select_subscription: '/onboarding/subscription',
+          payment: '/onboarding/payment',
           // Legacy support
           select_plan: '/onboarding/subscription',
           setup_studio: '/onboarding/studio-info',
@@ -64,7 +87,7 @@ export function useAuth() {
         return data;
       }
 
-      // Fully onboarded: redirect to dashboard
+      // Fully onboarded: redirect to the appropriate dashboard
       if (data.studio?.slug) {
         setActiveSlug(data.studio.slug);
         router.push(`/${data.studio.slug}/dashboard`);
@@ -102,10 +125,11 @@ export function useAuth() {
   }, [clearAuth, router]);
 
   const refreshProfile = useCallback(async () => {
-    const data = await authApi.getOnboardingStatus() as { user: Parameters<typeof setAuth>[0]['user'] };
-    updateUser(data.user);
+    const data = await authApi.getMe();
+    updateUser(data.user as unknown as Parameters<typeof setAuth>[0]['user']);
+    if (data.studio) updateStudio(data.studio as unknown as Parameters<typeof updateStudio>[0]);
     return data.user;
-  }, [updateUser]);
+  }, [updateUser, updateStudio]);
 
   return {
     user,

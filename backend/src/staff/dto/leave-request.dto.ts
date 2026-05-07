@@ -4,6 +4,7 @@ import {
   IsString,
   IsOptional,
   IsIn,
+  IsArray,
 } from 'class-validator';
 
 export class CreateLeaveRequestDto {
@@ -22,6 +23,16 @@ export class CreateLeaveRequestDto {
   @IsOptional()
   @IsString()
   reason?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  notify_to?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  notify_cc?: string[];
 }
 
 export class ReviewLeaveRequestDto {

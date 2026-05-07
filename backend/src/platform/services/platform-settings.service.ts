@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { getTenantGymId } from '../../common/tenant-context';
 import { Prisma } from '@prisma/client';
 import {
   CreateFeatureFlagDto,
@@ -46,6 +47,7 @@ export class PlatformSettingsService {
 
     return this.prisma.featureFlag.create({
       data: {
+        gym_id: getTenantGymId()!,
         organization_id: organizationId,
         key: dto.key,
         is_enabled: dto.is_enabled ?? false,
@@ -72,7 +74,7 @@ export class PlatformSettingsService {
       this.prisma.featureFlag.upsert({
         where: { organization_id_key: { organization_id: organizationId, key } },
         update: { is_enabled },
-        create: { organization_id: organizationId, key, is_enabled },
+        create: { gym_id: getTenantGymId()!, organization_id: organizationId, key, is_enabled },
       }),
     );
     return this.prisma.$transaction(operations);
@@ -93,7 +95,7 @@ export class PlatformSettingsService {
     });
     if (!config) {
       config = await this.prisma.whiteLabelConfig.create({
-        data: { organization_id: organizationId },
+        data: { gym_id: getTenantGymId()!, organization_id: organizationId },
       });
     }
     return config;
@@ -119,6 +121,7 @@ export class PlatformSettingsService {
         is_active: dto.is_active,
       },
       create: {
+        gym_id: getTenantGymId()!,
         organization_id: organizationId,
         custom_domain: dto.custom_domain,
         logo_url: dto.logo_url,
@@ -168,6 +171,7 @@ export class PlatformSettingsService {
   async createSsoProvider(dto: CreateSsoProviderDto, createdBy: string) {
     return this.prisma.ssoProvider.create({
       data: {
+        gym_id: getTenantGymId()!,
         provider_type: dto.provider_type,
         display_name: dto.display_name,
         client_id: dto.client_id,
@@ -237,6 +241,7 @@ export class PlatformSettingsService {
   async createNotification(organizationId: string, dto: CreateSystemNotificationDto) {
     return this.prisma.systemNotification.create({
       data: {
+        gym_id: getTenantGymId()!,
         organization_id: organizationId,
         type: dto.type,
         title: dto.title,

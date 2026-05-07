@@ -23,11 +23,11 @@ export function CheckinResult({ result, onDismiss }: CheckinResultProps) {
         onClick={onDismiss}
       >
         <div
-          className="w-full max-w-sm rounded-2xl border-2 border-green-500/50 bg-card p-8 text-center shadow-2xl animate-in zoom-in-95 duration-300"
+          className="w-full max-w-sm rounded-2xl border-2 border-success/50 bg-card p-8 text-center shadow-2xl animate-in zoom-in-95 duration-300"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="mx-auto mb-4 h-20 w-20 rounded-full bg-green-500/20 flex items-center justify-center">
-            <CheckCircle2 className="h-12 w-12 text-green-500" />
+          <div className="mx-auto mb-4 h-20 w-20 rounded-full bg-success/20 flex items-center justify-center">
+            <CheckCircle2 className="h-12 w-12 text-success" />
           </div>
           <h2 className="text-2xl font-bold text-foreground mb-1">
             Check-In Successful

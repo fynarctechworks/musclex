@@ -10,3 +10,7 @@ export { UpsertPayrollConfigDto } from './upsert-payroll-config.dto';
 export { CreateStaffShiftDto, UpdateStaffShiftDto } from './create-staff-shift.dto';
 export { CreateLeaveRequestDto, ReviewLeaveRequestDto } from './leave-request.dto';
 export { ProcessPayrollDto, UpdatePayrollRecordDto } from './process-payroll.dto';
+export { AcceptInviteDto } from './accept-invite.dto';
+export { UpdatePermissionOverridesDto } from './update-permission-overrides.dto';
+export { ResetStaffPasswordDto } from './reset-password.dto';
+export { UpdateBranchAccessDto } from './update-branch-access.dto';

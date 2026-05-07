@@ -16,12 +16,23 @@ import {
 import { format, parseISO } from 'date-fns';
 import { KPICard } from '@/components/shared';
 import { LoadingSkeleton } from '@/components/shared';
+import { ReportTable } from './ReportTable';
+import { formatCurrency, formatNumber, formatPercent, formatLabel } from '../utils/format';
+import type { ReportColumn } from '../utils/export';
 import type { RevenueAnalyticsResponse, TrendDataPoint } from '../types';
 
 interface RevenueTabProps {
   revenue: RevenueAnalyticsResponse | undefined;
   trend: TrendDataPoint[] | undefined;
   isLoading: boolean;
+  isError?: boolean;
+}
+
+interface RevenueRow {
+  revenue_type: string;
+  amount: number;
+  transactions: number;
+  share: number;
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -39,7 +50,7 @@ const tooltipStyle = {
   color: 'hsl(var(--foreground))',
 };
 
-export function RevenueTab({ revenue, trend, isLoading }: RevenueTabProps) {
+export function RevenueTab({ revenue, trend, isLoading, isError }: RevenueTabProps) {
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -80,12 +91,12 @@ export function RevenueTab({ revenue, trend, isLoading }: RevenueTabProps) {
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard label="Total Revenue" value={`₹${totalRevenue.toLocaleString()}`} icon={DollarSign} />
-        <KPICard label="Transactions" value={totalTransactions.toLocaleString()} icon={Receipt} />
-        <KPICard label="Avg Transaction" value={`₹${avgTransaction.toFixed(0)}`} icon={TrendingUp} />
+        <KPICard label="Total Revenue" value={formatCurrency(totalRevenue)} icon={DollarSign} />
+        <KPICard label="Transactions" value={formatNumber(totalTransactions)} icon={Receipt} />
+        <KPICard label="Avg Transaction" value={formatCurrency(avgTransaction)} icon={TrendingUp} />
         <KPICard
           label="Top Source"
-          value={topType ? topType.revenue_type.replace(/_/g, ' ') : '—'}
+          value={topType ? formatLabel(topType.revenue_type) : '—'}
           icon={ArrowUpRight}
         />
       </div>
@@ -157,35 +168,42 @@ export function RevenueTab({ revenue, trend, isLoading }: RevenueTabProps) {
       </div>
 
       {/* Revenue Totals Table */}
-      <div className="rounded-lg border border-border bg-card p-5">
-        <h3 className="text-sm font-medium text-foreground mb-4">Revenue Summary by Type</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-muted-foreground">
-                <th className="text-left py-2 font-medium">Type</th>
-                <th className="text-right py-2 font-medium">Amount</th>
-                <th className="text-right py-2 font-medium">Transactions</th>
-                <th className="text-right py-2 font-medium">% of Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {totals.map((t) => {
-                const amt = Number(t._sum?.amount ?? 0);
-                const pct = totalRevenue > 0 ? ((amt / totalRevenue) * 100).toFixed(1) : '0.0';
-                return (
-                  <tr key={t.revenue_type} className="border-b border-border/50">
-                    <td className="py-2 capitalize text-foreground">{t.revenue_type.replace(/_/g, ' ')}</td>
-                    <td className="py-2 text-right text-foreground">₹{amt.toLocaleString()}</td>
-                    <td className="py-2 text-right text-muted-foreground">{t._sum?.transaction_count ?? 0}</td>
-                    <td className="py-2 text-right text-muted-foreground">{pct}%</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {(() => {
+        const tableRows: RevenueRow[] = totals.map((t) => {
+          const amt = Number(t._sum?.amount ?? 0);
+          return {
+            revenue_type: t.revenue_type,
+            amount: amt,
+            transactions: Number(t._sum?.transaction_count ?? 0),
+            share: totalRevenue > 0 ? (amt / totalRevenue) * 100 : 0,
+          };
+        });
+        const cols: ReportColumn<RevenueRow>[] = [
+          { key: 'revenue_type', label: 'Type', format: (r) => formatLabel(r.revenue_type) },
+          { key: 'amount', label: 'Amount', numeric: true, format: (r) => formatCurrency(r.amount) },
+          { key: 'transactions', label: 'Transactions', numeric: true, format: (r) => formatNumber(r.transactions) },
+          { key: 'share', label: '% of Total', numeric: true, format: (r) => formatPercent(r.share) },
+        ];
+        return (
+          <ReportTable
+            title="Revenue Summary by Type"
+            description="Aggregated by revenue source for the selected period"
+            columns={cols}
+            rows={tableRows}
+            isLoading={isLoading}
+            isError={isError}
+            paginated={false}
+            rowKey={(r) => r.revenue_type}
+            emptyText="No revenue records yet"
+            totals={{
+              revenue_type: 'Total',
+              amount: formatCurrency(totalRevenue),
+              transactions: formatNumber(totalTransactions),
+              share: '100.0%',
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

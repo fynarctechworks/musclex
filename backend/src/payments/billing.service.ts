@@ -5,7 +5,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInvoiceDto } from './dto';
-import { randomInt } from 'crypto';
+import { randomBytes } from 'crypto';
+import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class BillingService {
@@ -14,7 +15,7 @@ export class BillingService {
   private generateInvoiceNumber(): string {
     const now = new Date();
     const date = now.toISOString().slice(0, 10).replace(/-/g, '');
-    const rand = randomInt(1000, 9999);
+    const rand = randomBytes(4).toString('hex').toUpperCase();
     return `INV-${date}-${rand}`;
   }
 
@@ -93,6 +94,7 @@ export class BillingService {
 
       const inv = await tx.memberInvoice.create({
         data: {
+          gym_id: getTenantGymId()!,
           organization_id: dto.organization_id,
           branch_id: dto.branch_id,
           member_id: dto.member_id,
@@ -107,7 +109,7 @@ export class BillingService {
           discount_id: discountId,
           tax_rate_id: dto.tax_rate_id,
           items: {
-            create: items,
+            create: items.map((item) => ({ ...item, gym_id: getTenantGymId()! })),
           },
         },
         include: {
@@ -122,6 +124,7 @@ export class BillingService {
       // Record financial transaction (credit = receivable)
       await tx.financialTransaction.create({
         data: {
+          gym_id: getTenantGymId()!,
           branch_id: dto.branch_id,
           reference_type: 'invoice',
           reference_id: inv.id,
@@ -232,6 +235,7 @@ export class BillingService {
       // Reverse the financial transaction
       await tx.financialTransaction.create({
         data: {
+          gym_id: getTenantGymId()!,
           branch_id: invoice.branch_id,
           reference_type: 'adjustment',
           reference_id: invoice.id,

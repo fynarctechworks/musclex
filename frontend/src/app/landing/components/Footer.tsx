@@ -28,7 +28,7 @@ export default function Footer() {
                 <Dumbbell className="w-5 h-5 text-white" />
               </div>
               <span className="text-lg font-bold text-white tracking-tight">
-                FitSync<span className="text-blue-400">Pro</span>
+                MuscleX<span className="text-blue-400">Pro</span>
               </span>
             </Link>
             <p className="text-sm text-gray-500 max-w-xs leading-relaxed">
@@ -61,7 +61,7 @@ export default function Footer() {
         {/* Bottom */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-gray-600">
-            &copy; {new Date().getFullYear()} FitSync Pro. All rights reserved.
+            &copy; {new Date().getFullYear()} MuscleX. All rights reserved.
           </p>
           <p className="text-xs text-gray-600">
             Made with ♥ for fitness professionals

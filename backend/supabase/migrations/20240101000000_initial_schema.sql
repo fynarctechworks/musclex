@@ -103,12 +103,24 @@ CREATE TABLE IF NOT EXISTS public.pending_registrations (
 -- STUDIO_TEMPLATE SCHEMA: branches
 CREATE TABLE IF NOT EXISTS studio_template.branches (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  gym_id UUID,
+  organization_id UUID,
+  region_id UUID,
   name TEXT NOT NULL,
+  code TEXT UNIQUE,
   address TEXT,
   city TEXT,
+  state TEXT,
+  country TEXT,
+  postal_code TEXT,
+  latitude DECIMAL(10,7),
+  longitude DECIMAL(10,7),
   phone TEXT,
   email TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
   is_active BOOLEAN NOT NULL DEFAULT true,
+  opening_time TEXT,
+  closing_time TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -142,6 +154,8 @@ ALTER TABLE studio_template.members ADD CONSTRAINT members_referred_by_fk FOREIG
 -- membership_plans
 CREATE TABLE IF NOT EXISTS studio_template.membership_plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  gym_id UUID,
+  organization_id UUID,
   branch_id UUID REFERENCES studio_template.branches(id),
   name TEXT NOT NULL,
   description TEXT,
@@ -149,10 +163,16 @@ CREATE TABLE IF NOT EXISTS studio_template.membership_plans (
   duration_days INTEGER,
   total_classes INTEGER,
   max_classes_per_week INTEGER,
+  max_visits INTEGER,
   price DECIMAL(10,2) NOT NULL,
+  yearly_price DECIMAL(10,2),
+  currency TEXT NOT NULL DEFAULT 'INR',
+  multi_branch_access BOOLEAN NOT NULL DEFAULT false,
+  grace_period_days INTEGER NOT NULL DEFAULT 0,
   is_active BOOLEAN NOT NULL DEFAULT true,
   auto_renew_enabled BOOLEAN NOT NULL DEFAULT false,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- member_memberships

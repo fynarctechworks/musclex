@@ -12,6 +12,7 @@ import {
   CreateGatewayConfigDto,
   UpdateGatewayConfigDto,
 } from './dto';
+import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class DiscountsService {
@@ -27,6 +28,7 @@ export class DiscountsService {
 
     return this.prisma.discount.create({
       data: {
+        gym_id: getTenantGymId()!,
         name: dto.name,
         code: dto.code,
         discount_type: dto.discount_type,
@@ -91,6 +93,7 @@ export class DiscountsService {
   async createTaxRate(dto: CreateTaxRateDto) {
     return this.prisma.taxRate.create({
       data: {
+        gym_id: getTenantGymId()!,
         country: dto.country,
         state: dto.state,
         tax_name: dto.tax_name,
@@ -130,6 +133,7 @@ export class DiscountsService {
 
     return this.prisma.paymentGatewayConfig.create({
       data: {
+        gym_id: getTenantGymId()!,
         gateway_name: dto.gateway_name,
         api_key: dto.api_key,
         secret_key: dto.secret_key,

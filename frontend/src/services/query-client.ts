@@ -9,10 +9,12 @@ export function createQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 60 * 1000,       // 1 minute
-        gcTime: 5 * 60 * 1000,      // 5 minutes garbage collection
+        staleTime: 3 * 60 * 1000,   // 3 minutes — data fresh enough for gym ops
+        gcTime: 20 * 60 * 1000,     // 20 minutes — keep cache across nav
         retry: 1,
         refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        refetchOnMount: false,      // use cache if data exists, don't refetch on every mount
       },
       mutations: {
         retry: 0,
@@ -37,11 +39,33 @@ export const queryKeys = {
   dashboard: {
     all: ['dashboard'] as const,
     kpis: (branchId?: string) => [...queryKeys.dashboard.all, 'kpis', branchId] as const,
+    pulse: (branchId?: string) => [...queryKeys.dashboard.all, 'pulse', branchId] as const,
+    actions: (branchId?: string) => [...queryKeys.dashboard.all, 'actions', branchId] as const,
+    actionReceipts: (limit?: number) =>
+      [...queryKeys.dashboard.all, 'action-receipts', limit] as const,
     revenueChart: (months?: number, branchId?: string) =>
       [...queryKeys.dashboard.all, 'revenue-chart', months, branchId] as const,
-    activityFeed: (limit?: number) => [...queryKeys.dashboard.all, 'activity-feed', limit] as const,
-    alerts: () => [...queryKeys.dashboard.all, 'alerts'] as const,
+    activityFeed: (limit?: number, branchId?: string) => [...queryKeys.dashboard.all, 'activity-feed', limit, branchId] as const,
+    alerts: (branchId?: string) => [...queryKeys.dashboard.all, 'alerts', branchId] as const,
     branchComparison: () => [...queryKeys.dashboard.all, 'branch-comparison'] as const,
+    // Wave 8–14
+    tiles: () => [...queryKeys.dashboard.all, 'tiles'] as const,
+    occupancy: (branchId?: string) => [...queryKeys.dashboard.all, 'occupancy', branchId] as const,
+    todaysClasses: (branchId?: string) => [...queryKeys.dashboard.all, 'todays-classes', branchId] as const,
+    revenueMix: (groupBy?: 'plan' | 'trainer', branchId?: string, from?: string, to?: string) =>
+      [...queryKeys.dashboard.all, 'revenue-mix', groupBy, branchId, from, to] as const,
+    paymentMethods: (branchId?: string, from?: string, to?: string) =>
+      [...queryKeys.dashboard.all, 'payment-methods', branchId, from, to] as const,
+    revenueSummary: (branchId?: string, from?: string, to?: string) =>
+      [...queryKeys.dashboard.all, 'revenue-summary', branchId, from, to] as const,
+    cohorts: (branchId?: string, months?: number) =>
+      [...queryKeys.dashboard.all, 'cohorts', branchId, months] as const,
+    segments: (branchId?: string) => [...queryKeys.dashboard.all, 'segments', branchId] as const,
+    businessMetrics: (branchId?: string) => [...queryKeys.dashboard.all, 'business-metrics', branchId] as const,
+    heatmap: (branchId?: string, days?: number) => [...queryKeys.dashboard.all, 'heatmap', branchId, days] as const,
+    systemStatus: () => [...queryKeys.dashboard.all, 'system-status'] as const,
+    inventory: (branchId?: string) => [...queryKeys.dashboard.all, 'inventory', branchId] as const,
+    layout: () => [...queryKeys.dashboard.all, 'layout'] as const,
   },
 
   // Members
@@ -88,6 +112,11 @@ export const queryKeys = {
   expenses: {
     all: ['expenses'] as const,
     list: (filters?: unknown) => [...queryKeys.expenses.all, 'list', filters] as const,
+    timeline: (filters?: unknown) => [...queryKeys.expenses.all, 'timeline', filters] as const,
+    summary: (branchId?: string, month?: string) => [...queryKeys.expenses.all, 'summary', branchId, month] as const,
+    intelligence: (branchId: string, range?: unknown) => [...queryKeys.expenses.all, 'intelligence', branchId, range] as const,
+    detail: (id: string) => [...queryKeys.expenses.all, 'detail', id] as const,
+    categories: (filters?: unknown) => [...queryKeys.expenses.all, 'categories', filters] as const,
   },
 
   // Finance
@@ -141,6 +170,8 @@ export const queryKeys = {
     payrollConfig: (staffId: string) => [...queryKeys.staff.all, 'payroll-config', staffId] as const,
     payrollSummary: (filters?: unknown) => [...queryKeys.staff.all, 'payroll-summary', filters] as const,
     payrollRevenue: (filters?: unknown) => [...queryKeys.staff.all, 'payroll-revenue', filters] as const,
+    invites: (filters?: unknown) => [...queryKeys.staff.all, 'invites', filters] as const,
+    permissions: (staffId: string) => [...queryKeys.staff.all, 'permissions', staffId] as const,
   },
 
   // Marketing

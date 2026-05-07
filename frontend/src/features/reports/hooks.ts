@@ -106,9 +106,10 @@ export function useCampaignAnalytics(filters?: CampaignAnalyticsFilters) {
 
 // ── Branch Comparison ─────────────────────────────────────
 
-export function useBranchComparison(filters?: AnalyticsFilters) {
+export function useBranchComparison(filters?: AnalyticsFilters & { organization_id?: string }) {
   return useQuery({
     queryKey: queryKeys.analytics.branchComparison(filters),
     queryFn: () => analyticsApi.branchComparison(filters),
+    enabled: !!filters?.organization_id,
   });
 }

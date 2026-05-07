@@ -57,7 +57,7 @@ export const analyticsApi = {
   campaigns: (filters?: CampaignAnalyticsFilters) =>
     apiClient.get<CampaignAnalyticsResponse>('/analytics/campaigns', { params: filters }),
 
-  branchComparison: (filters?: AnalyticsFilters) =>
+  branchComparison: (filters?: AnalyticsFilters & { organization_id?: string }) =>
     apiClient.get<BranchComparisonEntry[]>('/analytics/branch-comparison', { params: filters }),
 };
 

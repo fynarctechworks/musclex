@@ -52,6 +52,11 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   image_url?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  initial_stock?: number;
 }
 
 export class UpdateProductDto {

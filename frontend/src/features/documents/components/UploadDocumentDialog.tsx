@@ -34,6 +34,13 @@ const DOCUMENT_TYPES = [
 ] as const;
 
 const ACCEPTED_TYPES = ".pdf,.png,.jpg,.jpeg";
+const ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
 const schema = z.object({
   document_type: z.string().min(1, "Document type is required"),
@@ -79,30 +86,51 @@ export function UploadDocumentDialog({
     onOpenChange(val);
   };
 
+  const validateFile = useCallback((file: File): string | null => {
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      return `Invalid file type "${file.type}". Allowed: PDF, PNG, JPG, WEBP.`;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      return `File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum: 5 MB.`;
+    }
+    return null;
+  }, []);
+
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       setDragOver(false);
       const file = e.dataTransfer.files[0];
       if (file) {
+        const error = validateFile(file);
+        if (error) {
+          alert(error);
+          return;
+        }
         setValue("file_name", file.name);
         // In production, you'd upload to Supabase Storage here and set file_url
         // For now, create an object URL as placeholder
         setValue("file_url", URL.createObjectURL(file));
       }
     },
-    [setValue]
+    [setValue, validateFile]
   );
 
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) {
+        const error = validateFile(file);
+        if (error) {
+          alert(error);
+          e.target.value = "";
+          return;
+        }
         setValue("file_name", file.name);
         setValue("file_url", URL.createObjectURL(file));
       }
     },
-    [setValue]
+    [setValue, validateFile]
   );
 
   return (

@@ -10,9 +10,7 @@ import {
   Building2,
   Users,
   CreditCard,
-  UserCog,
-  CalendarDays,
-  UserCheck,
+  Settings as SettingsIcon,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,20 +28,16 @@ interface SetupChecklistProps {
   gymPath: (path: string) => string;
   hasMembers: boolean;
   hasBranches: boolean;
-  hasStaff: boolean;
   hasPlans: boolean;
-  hasCheckIns: boolean;
-  hasClasses: boolean;
+  hasGymSetup: boolean;
 }
 
 export function SetupChecklist({
   gymPath,
   hasMembers,
   hasBranches,
-  hasStaff,
   hasPlans,
-  hasCheckIns,
-  hasClasses,
+  hasGymSetup,
 }: SetupChecklistProps) {
   const [dismissed, setDismissed] = useState(false);
   const [expanded, setExpanded] = useState(true);
@@ -53,7 +47,7 @@ export function SetupChecklist({
       id: "branch",
       label: "Set up your branch",
       description: "Configure your gym location with address and hours",
-      href: gymPath("/settings/branches"),
+      href: gymPath("/branches"),
       icon: Building2,
       completed: hasBranches,
     },
@@ -74,28 +68,12 @@ export function SetupChecklist({
       completed: hasMembers,
     },
     {
-      id: "staff",
-      label: "Invite staff or trainers",
-      description: "Add team members to help manage your gym",
-      href: gymPath("/staff"),
-      icon: UserCog,
-      completed: hasStaff,
-    },
-    {
-      id: "classes",
-      label: "Set up class schedules",
-      description: "Create classes and assign trainers",
-      href: gymPath("/schedule"),
-      icon: CalendarDays,
-      completed: hasClasses,
-    },
-    {
-      id: "checkin",
-      label: "Try check-in",
-      description: "Test QR code or manual check-in for a member",
-      href: gymPath("/check-in"),
-      icon: UserCheck,
-      completed: hasCheckIns,
+      id: "gym_setup",
+      label: "Gym setup",
+      description: "Add your logo, address, phone & contact details",
+      href: gymPath("/settings/profile"),
+      icon: SettingsIcon,
+      completed: hasGymSetup,
     },
   ];
 

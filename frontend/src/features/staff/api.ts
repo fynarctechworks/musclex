@@ -197,6 +197,55 @@ export const trainersApi = {
     apiClient.get(`/trainer/${trainerId}/performance-history`, { params: filters }),
 };
 
+// ── Invites ──────────────────────────────────────────────
+
+export const invitesApi = {
+  send: (staffId: string, data: {
+    role_name: string;
+    branch_id?: string;
+    permission_overrides?: { grants?: string[]; denials?: string[] };
+  }) => apiClient.post(`/staff/${staffId}/invite`, data),
+
+  list: (filters?: { status?: string }) =>
+    apiClient.get('/staff/invites', { params: filters }),
+
+  resend: (inviteId: string) =>
+    apiClient.post(`/staff/invites/${inviteId}/resend`),
+
+  revoke: (inviteId: string) =>
+    apiClient.delete(`/staff/invites/${inviteId}`),
+
+  // Public endpoints (no auth)
+  getByToken: (token: string) =>
+    apiClient.get(`/staff-invites/${token}`),
+
+  accept: (data: { token: string; password: string; full_name?: string }) =>
+    apiClient.post('/staff-invites/accept', data),
+};
+
+// ── Permission Overrides ─────────────────────────────────
+
+export const permissionsApi = {
+  get: (staffId: string) =>
+    apiClient.get(`/staff/${staffId}/permissions`),
+
+  update: (staffId: string, data: { grants?: string[]; denials?: string[] }) =>
+    apiClient.put(`/staff/${staffId}/permissions`, data),
+
+  updateBranchAccess: (staffId: string, branch_ids: string[]) =>
+    apiClient.patch(`/staff/${staffId}/branch-access`, { branch_ids }),
+};
+
+// ── Staff Access Management ──────────────────────────────
+
+export const staffAccessApi = {
+  resetPassword: (staffId: string, password: string) =>
+    apiClient.post(`/staff/${staffId}/reset-password`, { password }),
+
+  revokeAllAccess: (staffId: string, deleteAuthUser: boolean = false) =>
+    apiClient.delete(`/staff/${staffId}/access${deleteAuthUser ? '?delete_auth_user=true' : ''}`),
+};
+
 // ── Payroll ───────────────────────────────────────────────
 
 export const payrollApi = {

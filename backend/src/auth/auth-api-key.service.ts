@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { CreateApiKeyDto, UpdateApiKeyDto } from './dto';
 import { Prisma } from '@prisma/client';
+import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class AuthApiKeyService {
@@ -21,8 +22,10 @@ export class AuthApiKeyService {
 
   private hashKey(rawKey: string): string {
     const secret = this.configService.get<string>('HASH_SECRET', '');
-    const hmacKey = secret || 'fitsync-pro-default-key';
-    return createHmac('sha256', hmacKey).update(rawKey).digest('hex');
+    if (!secret) {
+      throw new Error('HASH_SECRET environment variable is not set. Cannot hash API keys.');
+    }
+    return createHmac('sha256', secret).update(rawKey).digest('hex');
   }
 
   /**
@@ -35,6 +38,7 @@ export class AuthApiKeyService {
 
     const apiKey = await this.prisma.apiKey.create({
       data: {
+        gym_id: getTenantGymId()!,
         name: dto.name,
         key_hash: keyHash,
         key_prefix: keyPrefix,

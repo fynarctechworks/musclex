@@ -3,6 +3,8 @@
 import React, { useState, useCallback } from 'react';
 import { ShoppingCart, Receipt } from 'lucide-react';
 import { AppLayout } from '@/components/layout/app-layout';
+import { AccessDenied } from '@/components/shared/access-denied';
+import { useRequirePermission } from '@/hooks/use-require-permission';
 import { PageHeader } from '@/components/shared/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProductGrid } from '@/features/pos/components/ProductGrid';
@@ -15,12 +17,14 @@ import type { Product } from '@/features/inventory/types';
 import { useAuthStore } from '@/stores/auth-store';
 
 export default function PosPage() {
+  const { allowed, checked } = useRequirePermission('payments', 'view', 'deny');
   const [tab, setTab] = useState('terminal');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   const user = useAuthStore((s) => s.user);
+  const activeBranchId = useAuthStore((s) => s.activeBranchId);
   const createSale = useCreateSale();
 
   const addToCart = useCallback((product: Product) => {
@@ -78,7 +82,7 @@ export default function PosPage() {
     (paymentMethod: 'cash' | 'card' | 'upi' | 'wallet', memberId?: string) => {
       createSale.mutate(
         {
-          branch_id: user?.branch_ids?.[0] || '',
+          branch_id: activeBranchId || user?.branch_ids?.[0] || '',
           staff_id: user?.id || '',
           items: cart.map((c) => ({ product_id: c.product_id, quantity: c.quantity })),
           payment_method: paymentMethod,
@@ -95,6 +99,14 @@ export default function PosPage() {
     },
     [cart, discountAmount, user, createSale, clearCart],
   );
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="payments" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -123,6 +135,7 @@ export default function PosPage() {
                 <ProductGrid
                   cart={cart}
                   onAddToCart={addToCart}
+                  branchId={activeBranchId || user?.branch_ids?.[0]}
                 />
               </div>
 
@@ -143,7 +156,7 @@ export default function PosPage() {
           </TabsContent>
 
           <TabsContent value="sales" className="mt-4">
-            <SalesTable />
+            <SalesTable branchId={activeBranchId || user?.branch_ids?.[0]} />
           </TabsContent>
         </Tabs>
       </div>

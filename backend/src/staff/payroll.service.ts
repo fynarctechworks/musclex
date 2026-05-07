@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
 import { UpsertPayrollConfigDto } from './dto/upsert-payroll-config.dto';
 import { ProcessPayrollDto, UpdatePayrollRecordDto } from './dto/process-payroll.dto';
 
@@ -39,6 +40,7 @@ export class PayrollService {
         }),
       },
       create: {
+        gym_id: getTenantGymId()!,
         staff_id: dto.staff_id,
         salary_type: dto.salary_type ?? 'fixed',
         base_salary: dto.base_salary ?? 0,
@@ -60,7 +62,7 @@ export class PayrollService {
     revenue_amount: number;
     commission_amount: number;
   }) {
-    return this.prisma.trainerRevenue.create({ data });
+    return this.prisma.trainerRevenue.create({ data: { ...data, gym_id: getTenantGymId()! } });
   }
 
   async getRevenueReport(filters: {
@@ -216,6 +218,7 @@ export class PayrollService {
 
       return tx.payrollRecord.create({
         data: {
+          gym_id: getTenantGymId()!,
           staff_id: dto.staff_id,
           salary_period_start: periodStart,
           salary_period_end: periodEnd,

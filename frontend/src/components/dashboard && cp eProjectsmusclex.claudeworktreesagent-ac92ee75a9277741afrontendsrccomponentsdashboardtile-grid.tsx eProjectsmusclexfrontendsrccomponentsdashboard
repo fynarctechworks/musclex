@@ -1,0 +1,101 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { Search, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+import { EmptyState } from "@/components/shared/empty-state";
+import { FreshnessPill } from "./freshness-pill";
+
+export type TileSize = 1 | 2 | 3;
+
+export interface TileCardProps {
+  title: string;
+  /** As-of timestamp from the server. Renders <FreshnessPill> when provided. */
+  freshness?: Date | string | number;
+  /** Adds the "show your work" magnifier — opens the KPI Inspector when clicked. */
+  onInspect?: () => void;
+  loading?: boolean;
+  empty?: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
+  error?: string | null;
+  /** Width in 12-col grid units (1=third, 2=two-thirds, 3=full). Defaults to 1. */
+  size?: TileSize;
+  /** Optional element rendered on the right side of the header (e.g. a CTA link). */
+  headerAction?: ReactNode;
+  className?: string;
+  children?: ReactNode;
+}
+
+const sizeToColSpan: Record<TileSize, string> = {
+  1: "lg:col-span-1",
+  2: "lg:col-span-2",
+  3: "lg:col-span-3",
+};
+
+/**
+ * Reusable wrapper every dashboard tile must use.
+ * Visual contract matches the existing Revenue Trend block on the dashboard:
+ *   bg-card border border-border rounded-xl p-5
+ *
+ * Provides loading / empty / error states inline so each tile file does not
+ * have to re-implement them. Reuses tokens only — no new colors or radii.
+ */
+export function TileCard({
+  title,
+  freshness,
+  onInspect,
+  loading,
+  empty,
+  emptyTitle = "No data yet",
+  emptyDescription,
+  error,
+  size = 1,
+  headerAction,
+  className,
+  children,
+}: TileCardProps) {
+  return (
+    <section
+      className={cn(
+        "bg-card border border-border rounded-xl p-5",
+        sizeToColSpan[size],
+        className,
+      )}
+    >
+      <header className="mb-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-semibold text-foreground">{title}</h2>
+          {freshness ? <FreshnessPill asOf={freshness} /> : null}
+        </div>
+        <div className="flex items-center gap-2">
+          {headerAction}
+          {onInspect ? (
+            <button
+              type="button"
+              onClick={onInspect}
+              aria-label={`Inspect ${title}`}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <Search className="h-4 w-4" />
+            </button>
+          ) : null}
+        </div>
+      </header>
+
+      {loading ? (
+        <LoadingSkeleton className="h-40 w-full" />
+      ) : error ? (
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-[13px] text-destructive">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      ) : empty ? (
+        <EmptyState title={emptyTitle} description={emptyDescription} />
+      ) : (
+        children
+      )}
+    </section>
+  );
+}

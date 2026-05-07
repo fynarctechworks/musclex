@@ -4,6 +4,8 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
+import { DEFAULT_TIMEZONE, DEFAULT_CURRENCY } from '../common/defaults';
 import { CreateOrganizationDto, UpdateOrganizationDto, UpdateOrganizationSettingsDto } from './dto';
 
 @Injectable()
@@ -59,22 +61,24 @@ export class OrganizationService {
     return this.prisma.$transaction(async (tx) => {
       const org = await tx.organization.create({
         data: {
+          gym_id: getTenantGymId()!,
           name: dto.name,
           slug,
           logo_url: dto.logo_url,
           industry_type: dto.industry_type ?? 'fitness',
           country: dto.country,
-          timezone: dto.timezone ?? 'Asia/Kolkata',
-          currency: dto.currency ?? 'INR',
+          timezone: dto.timezone ?? DEFAULT_TIMEZONE,
+          currency: dto.currency ?? DEFAULT_CURRENCY,
         },
       });
 
       // Auto-create default settings
       await tx.organizationSettings.create({
         data: {
+          gym_id: getTenantGymId()!,
           organization_id: org.id,
-          default_timezone: dto.timezone ?? 'Asia/Kolkata',
-          default_currency: dto.currency ?? 'INR',
+          default_timezone: dto.timezone ?? DEFAULT_TIMEZONE,
+          default_currency: dto.currency ?? DEFAULT_CURRENCY,
         },
       });
 
@@ -132,6 +136,7 @@ export class OrganizationService {
         ...(dto.branding !== undefined && { branding: dto.branding }),
       },
       create: {
+        gym_id: getTenantGymId()!,
         organization_id: organizationId,
         default_timezone: dto.default_timezone ?? org.timezone,
         default_currency: dto.default_currency ?? org.currency,

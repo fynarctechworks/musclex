@@ -9,11 +9,12 @@
       "Bash(npx next build)",
       "Bash(npm install tailwindcss-animate)",
       "Bash(npm uninstall tw-animate-css @base-ui/react class-variance-authority)",
-      "Bash(npx shadcn@latest add button table dialog input select textarea dropdown-menu separator avatar badge tooltip scroll-area sheet popover -y)"
+      "Bash(npx shadcn@latest add button table dialog input select textarea dropdown-menu separator avatar badge tooltip scroll-area sheet popover -y)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:4000/api/v1)"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "supabase"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { StatusBadge, LoadingSkeleton, PageHeader, EmptyState, ConfirmDialog } from "@/components/shared";
+import { StatusBadge, LoadingSkeleton, PageHeader, EmptyState, ConfirmDialog , AccessDenied } from "@/components/shared";
 import { useCampaigns, useDeleteCampaign, useSendCampaign } from "@/features/marketing/hooks";
 import type { Campaign } from "@/features/marketing/types";
 import { Plus, Zap, ChevronLeft, ChevronRight, Megaphone, FileText, Users2, Send, Trash2, Eye, MoreHorizontal } from "lucide-react";
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 
 const subNavItems = [
   { label: "Campaigns", href: "/marketing", icon: Megaphone },
@@ -29,6 +30,7 @@ const statusFilters = [
 ];
 
 export default function MarketingPage() {
+  const { allowed, checked } = useRequirePermission("marketing", "view", "deny");
   const { gymPath } = useGymSlug();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
@@ -50,6 +52,15 @@ export default function MarketingPage() {
   const campaigns = (data as { data?: Campaign[]; total?: number })?.data ?? [];
   const total = (data as { total?: number })?.total ?? 0;
   const totalPages = Math.ceil(total / limit);
+
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="marketing" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

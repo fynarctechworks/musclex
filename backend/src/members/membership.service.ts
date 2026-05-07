@@ -4,9 +4,11 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
 import { AssignMembershipDto } from './dto/assign-membership.dto';
 import { FreezeMembershipDto } from './dto/freeze-membership.dto';
-import { randomInt } from 'crypto';
+import { randomBytes } from 'crypto';
+import { assertMemberTransition, assertMembershipTransition } from '../common/status-transitions';
 
 @Injectable()
 export class MembershipService {
@@ -23,10 +25,18 @@ export class MembershipService {
     if (!plan) throw new BadRequestException('Invalid plan');
     if (!plan.is_active) throw new BadRequestException('Plan is no longer active');
 
-    // Expire any currently active membership for this member
+    // Expire any currently active or frozen membership for this member
     await this.prisma.memberMembership.updateMany({
-      where: { member_id: memberId, status: 'active' },
+      where: { member_id: memberId, status: { in: ['active', 'frozen'] } },
       data: { status: 'expired' },
+    });
+    // Also complete any active freezes on those memberships
+    await this.prisma.membershipFreeze.updateMany({
+      where: {
+        membership: { member_id: memberId },
+        status: 'active',
+      },
+      data: { status: 'completed', end_date: new Date() },
     });
 
     const startDate = dto.start_date ? new Date(dto.start_date) : new Date();
@@ -40,6 +50,7 @@ export class MembershipService {
 
     const membership = await this.prisma.memberMembership.create({
       data: {
+        gym_id: getTenantGymId()!,
         member_id: memberId,
         plan_id: dto.plan_id,
         branch_id: dto.branch_id,
@@ -56,9 +67,10 @@ export class MembershipService {
 
     // Create payment record if payment_method specified
     if (dto.payment_method) {
-      const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomInt(1000, 9999)}`;
-      await this.prisma.payment.create({
+      const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
+      const payment = await this.prisma.payment.create({
         data: {
+          gym_id: getTenantGymId()!,
           member_id: memberId,
           membership_id: membership.id,
           branch_id: dto.branch_id,
@@ -67,6 +79,19 @@ export class MembershipService {
           status: 'paid',
           receipt_number: receiptNumber,
           paid_at: new Date(),
+        },
+      });
+
+      // Create corresponding ledger entry
+      await this.prisma.financialTransaction.create({
+        data: {
+          gym_id: getTenantGymId()!,
+          branch_id: dto.branch_id,
+          reference_type: 'payment',
+          reference_id: payment.id,
+          transaction_type: 'credit',
+          amount: plan.price,
+          description: `Membership payment: ${plan.name}`,
         },
       });
     }
@@ -120,9 +145,7 @@ export class MembershipService {
       include: { member: true },
     });
     if (!membership) throw new NotFoundException('Membership not found');
-    if (membership.status !== 'active') {
-      throw new BadRequestException('Only active memberships can be frozen');
-    }
+    assertMembershipTransition(membership.status, 'frozen');
 
     const startDate = new Date(dto.start_date);
     const endDate = dto.end_date ? new Date(dto.end_date) : null;
@@ -130,6 +153,7 @@ export class MembershipService {
     // Create freeze history record
     const freeze = await this.prisma.membershipFreeze.create({
       data: {
+        gym_id: getTenantGymId()!,
         membership_id: membershipId,
         start_date: startDate,
         end_date: endDate,
@@ -167,9 +191,7 @@ export class MembershipService {
       include: { member: true },
     });
     if (!membership) throw new NotFoundException('Membership not found');
-    if (membership.status !== 'frozen') {
-      throw new BadRequestException('Membership is not frozen');
-    }
+    assertMembershipTransition(membership.status, 'active');
 
     const now = new Date();
     const freezeStart = membership.freeze_start_date;
@@ -226,9 +248,7 @@ export class MembershipService {
       include: { member: true },
     });
     if (!membership) throw new NotFoundException('Membership not found');
-    if (membership.status === 'cancelled') {
-      throw new BadRequestException('Membership is already cancelled');
-    }
+    assertMembershipTransition(membership.status, 'cancelled');
 
     // Cancel any active freezes
     await this.prisma.membershipFreeze.updateMany({
@@ -285,6 +305,7 @@ export class MembershipService {
 
     const newMembership = await this.prisma.memberMembership.create({
       data: {
+        gym_id: getTenantGymId()!,
         member_id: membership.member_id,
         plan_id: plan.id,
         branch_id: membership.branch_id,
@@ -301,9 +322,10 @@ export class MembershipService {
 
     // Create payment if method provided
     if (paymentMethod) {
-      const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomInt(1000, 9999)}`;
-      await this.prisma.payment.create({
+      const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
+      const renewPayment = await this.prisma.payment.create({
         data: {
+          gym_id: getTenantGymId()!,
           member_id: membership.member_id,
           membership_id: newMembership.id,
           branch_id: membership.branch_id,
@@ -312,6 +334,18 @@ export class MembershipService {
           status: 'paid',
           receipt_number: receiptNumber,
           paid_at: new Date(),
+        },
+      });
+
+      await this.prisma.financialTransaction.create({
+        data: {
+          gym_id: getTenantGymId()!,
+          branch_id: membership.branch_id,
+          reference_type: 'payment',
+          reference_id: renewPayment.id,
+          transaction_type: 'credit',
+          amount: plan.price,
+          description: `Membership renewal: ${plan.name}`,
         },
       });
     }

@@ -1,10 +1,13 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerStorage } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ActiveBranchInterceptor } from './common/interceptors/active-branch.interceptor';
+import { StripSecretsInterceptor } from './common/interceptors/strip-secrets.interceptor';
 import { AppController } from './app.controller';
+import { TenantMiddleware } from './common';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { MembersModule } from './members/members.module';
@@ -26,12 +29,26 @@ import { PlatformModule } from './platform/platform.module';
 import { QueueModule } from './queue/queue.module';
 import { SearchModule } from './search/search.module';
 import { ComplianceModule } from './compliance/compliance.module';
+import { ReferralsModule } from './referrals/referrals.module';
+import { OnboardingPlansModule } from './onboarding/onboarding-plans.module';
+import { InvoicesModule } from './invoices/invoices.module';
+import { UploadsModule } from './uploads/uploads.module';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { RedisThrottlerStorage } from './common/throttler/redis-throttler-storage';
 import { EnhancedThrottlerGuard } from './common/throttler/enhanced-throttler.guard';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    EventEmitterModule.forRoot({
+      wildcard: false,
+      delimiter: '.',
+      newListener: false,
+      removeListener: false,
+      maxListeners: 20,
+      verboseMemoryLeak: true,
+      ignoreErrors: false,
+    }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -84,6 +101,10 @@ import { EnhancedThrottlerGuard } from './common/throttler/enhanced-throttler.gu
     QueueModule.register(),
     SearchModule,
     ComplianceModule,
+    ReferralsModule,
+    OnboardingPlansModule,
+    InvoicesModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -95,6 +116,25 @@ import { EnhancedThrottlerGuard } from './common/throttler/enhanced-throttler.gu
       provide: APP_GUARD,
       useClass: EnhancedThrottlerGuard,
     },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ActiveBranchInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: StripSecretsInterceptor,
+    },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Apply tenant schema routing to all authenticated routes (non-auth endpoints)
+    consumer
+      .apply(TenantMiddleware)
+      .exclude(
+        { path: 'api/v1/auth/(.*)', method: RequestMethod.ALL },
+        { path: 'health', method: RequestMethod.ALL },
+      )
+      .forRoutes('*');
+  }
+}

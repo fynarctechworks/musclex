@@ -26,7 +26,7 @@ const features = [
     icon: CalendarCheck,
     title: 'Attendance Tracking',
     description: 'QR code, manual, and facial recognition check-in options for flexibility.',
-    color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+    color: 'text-primary bg-primary/5 border-primary/10',
   },
   {
     icon: CreditCard,

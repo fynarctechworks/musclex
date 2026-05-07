@@ -25,7 +25,7 @@ export function StockBadge({ stockQuantity, reorderLevel, className }: StockBadg
     );
   }
   return (
-    <Badge className={cn('bg-green-500/20 text-green-400 hover:bg-green-500/30 text-xs', className)}>
+    <Badge className={cn('bg-success/20 text-success hover:bg-success/30 text-xs', className)}>
       In Stock ({stockQuantity})
     </Badge>
   );

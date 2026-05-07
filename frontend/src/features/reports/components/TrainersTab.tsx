@@ -17,12 +17,27 @@ import {
 } from 'recharts';
 import { KPICard } from '@/components/shared';
 import { LoadingSkeleton } from '@/components/shared';
+import { ReportTable } from './ReportTable';
+import { formatCurrency, formatNumber, formatPercent } from '../utils/format';
+import type { ReportColumn } from '../utils/export';
 import type { TrainerAnalyticsRecord } from '../types';
 
 interface TrainersTabProps {
   trainers: TrainerAnalyticsRecord[] | undefined;
   leaderboard: TrainerAnalyticsRecord[] | undefined;
   isLoading: boolean;
+  isError?: boolean;
+}
+
+interface TrainerRow {
+  id: string;
+  rank: number;
+  name: string;
+  sessions: number;
+  members: number;
+  rating: number;
+  no_show: number;
+  revenue: number;
 }
 
 const tooltipStyle = {
@@ -32,7 +47,7 @@ const tooltipStyle = {
   color: 'hsl(var(--foreground))',
 };
 
-export function TrainersTab({ trainers, leaderboard, isLoading }: TrainersTabProps) {
+export function TrainersTab({ trainers, leaderboard, isLoading, isError }: TrainersTabProps) {
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -82,10 +97,10 @@ export function TrainersTab({ trainers, leaderboard, isLoading }: TrainersTabPro
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard label="Total Sessions" value={totalSessions.toLocaleString()} icon={Award} />
-        <KPICard label="Members Trained" value={totalTrained.toLocaleString()} icon={Users} />
+        <KPICard label="Total Sessions" value={formatNumber(totalSessions)} icon={Award} />
+        <KPICard label="Members Trained" value={formatNumber(totalTrained)} icon={Users} />
         <KPICard label="Avg Rating" value={avgRating.toFixed(1)} icon={Star} />
-        <KPICard label="Total Revenue" value={`₹${totalRevenue.toLocaleString()}`} icon={DollarSign} />
+        <KPICard label="Total Revenue" value={formatCurrency(totalRevenue)} icon={DollarSign} />
       </div>
 
       {/* Leaderboard Bar Chart */}
@@ -136,45 +151,41 @@ export function TrainersTab({ trainers, leaderboard, isLoading }: TrainersTabPro
         )}
 
         {/* Trainer Table */}
-        <div className="rounded-lg border border-border bg-card p-5">
-          <h3 className="text-sm font-medium text-foreground mb-4">All Trainers</h3>
-          {board.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-muted-foreground">
-                    <th className="text-left py-2 font-medium">#</th>
-                    <th className="text-left py-2 font-medium">Trainer</th>
-                    <th className="text-right py-2 font-medium">Sessions</th>
-                    <th className="text-right py-2 font-medium">Members</th>
-                    <th className="text-right py-2 font-medium">Rating</th>
-                    <th className="text-right py-2 font-medium">Revenue</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {board.map((t, i) => (
-                    <tr key={t.id} className="border-b border-border/50">
-                      <td className="py-2 text-muted-foreground">{i + 1}</td>
-                      <td className="py-2 text-foreground">
-                        {t.trainer ? `${t.trainer.first_name} ${t.trainer.last_name}` : '—'}
-                      </td>
-                      <td className="py-2 text-right text-foreground">{t.sessions_conducted}</td>
-                      <td className="py-2 text-right text-muted-foreground">{t.members_trained}</td>
-                      <td className="py-2 text-right text-muted-foreground">
-                        {Number(t.average_rating).toFixed(1)}
-                      </td>
-                      <td className="py-2 text-right text-muted-foreground">
-                        ₹{Number(t.revenue_generated).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground py-8 text-center">No trainer data</p>
-          )}
-        </div>
+        {(() => {
+          const trainerRows: TrainerRow[] = board.map((t, i) => ({
+            id: t.id,
+            rank: i + 1,
+            name: t.trainer ? `${t.trainer.first_name} ${t.trainer.last_name}` : '—',
+            sessions: t.sessions_conducted,
+            members: t.members_trained,
+            rating: Number(t.average_rating),
+            no_show: Number(t.no_show_rate),
+            revenue: Number(t.revenue_generated),
+          }));
+          const cols: ReportColumn<TrainerRow>[] = [
+            { key: 'rank', label: '#', numeric: true },
+            { key: 'name', label: 'Trainer' },
+            { key: 'sessions', label: 'Sessions', numeric: true, format: (r) => formatNumber(r.sessions) },
+            { key: 'members', label: 'Members', numeric: true, format: (r) => formatNumber(r.members) },
+            { key: 'rating', label: 'Rating', numeric: true, format: (r) => r.rating.toFixed(1) },
+            { key: 'no_show', label: 'No-Show', numeric: true, format: (r) => formatPercent(r.no_show, 0) },
+            { key: 'revenue', label: 'Revenue', numeric: true, format: (r) => formatCurrency(r.revenue) },
+          ];
+          return (
+            <ReportTable
+              title="All Trainers"
+              columns={cols}
+              rows={trainerRows}
+              isLoading={isLoading}
+              isError={isError}
+              searchable
+              searchPlaceholder="Search trainers..."
+              rowKey={(r) => r.id}
+              emptyText="No trainer data"
+              pageSize={10}
+            />
+          );
+        })()}
       </div>
     </div>
   );

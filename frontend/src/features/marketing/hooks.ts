@@ -175,6 +175,34 @@ export function useUpdateWorkflow() {
   });
 }
 
+export function useDeleteWorkflow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: workflowsApi.delete,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.marketing.all });
+      toast.success('Workflow deleted');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useSeedDefaultMessaging() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const templates = await messageTemplatesApi.seedDefaults();
+      const workflows = await workflowsApi.seedDefaults();
+      return { templates, workflows };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.marketing.all });
+      toast.success('Default messages and auto-send rules created');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 // ── Referral Programs ─────────────────────────────────────
 
 export function useReferralPrograms(filters?: { organization_id?: string; status?: string }) {

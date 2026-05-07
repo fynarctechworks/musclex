@@ -25,11 +25,13 @@ export class FamilyController {
   }
 
   @Get(':id')
+  @Roles('owner', 'branch_manager', 'front_desk', 'trainer')
   findOne(@Param('id') id: string) {
     return this.familyService.findOne(id);
   }
 
   @Get('member/:memberId')
+  @Roles('owner', 'branch_manager', 'front_desk', 'trainer')
   findByMember(@Param('memberId') memberId: string) {
     return this.familyService.findByMember(memberId);
   }

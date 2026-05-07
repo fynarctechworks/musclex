@@ -195,14 +195,27 @@
 - [x] Build GET /analytics/trainer-performance (partial — occupancy real, attendance faked)
 - [x] Branch-based filtering (fixed)
 - [x] Privilege escalation protection (ForbiddenException)
-- [ ] Shift scheduling endpoints
-- [ ] Leave request workflow (submit → approve/reject)
+- [x] Auto-generate employee code (EMP-XXXX) when not provided
+- [x] Staff invite system (create, accept, resend, revoke invites)
+- [x] Invite email via Resend (RESEND_API_KEY + RESEND_FROM_EMAIL)
+- [x] RBAC permission overrides (per-staff grant/deny on 56 permission codes)
+- [x] Public invite acceptance endpoint (no auth — POST /api/v1/staff-invites/accept)
+- [x] Invite token validation + Supabase user creation on accept
+- [x] Staff shifts CRUD (create, list, update, delete)
+- [x] Staff leave requests (create, list, review, cancel)
+- [x] Staff attendance (check-in, check-out)
+- [x] Staff availability management
+- [x] Staff profile sub-resource (get, update)
 
 ### 8.2 Frontend — Staff Pages
 - [x] Staff Directory page (S21) — search, role/branch filters, pagination
 - [x] Staff Profile page (S22) — performance score, specializations
-- [x] Add Staff page (S23) — form with branch checkboxes
+- [x] Add Staff page (S23) — form with role, branch, invite toggle, permission picker
 - [x] Trainer Analytics Dashboard page — occupancy chart + table
+- [x] Staff detail page — access management section (owner-only) with invite + permissions
+- [x] Invite acceptance page (/invite/[token]) — public, set password flow
+- [x] Permission picker UX — per-module Grant All / Deny All / Clear + master buttons
+- [x] Staff list 404 fix — proper gymSlug-prefixed links
 - [ ] Edit Staff page
 - [ ] Staff Shift Schedule page
 - [ ] Leave Request Management page

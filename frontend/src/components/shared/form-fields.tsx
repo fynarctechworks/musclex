@@ -89,7 +89,7 @@ export function FormSelect({
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent className="bg-popover border-border">
-          {options.map((opt) => (
+          {options.filter((opt) => opt.value !== "").map((opt) => (
             <SelectItem
               key={opt.value}
               value={opt.value}

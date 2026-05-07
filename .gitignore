@@ -3,8 +3,11 @@ node_modules/
 
 # Environment variables
 .env
+*.env
 .env.local
-.env.*.local
+.env*.local
+backend/.env
+saas-control-center/.env
 
 # Build outputs
 dist/

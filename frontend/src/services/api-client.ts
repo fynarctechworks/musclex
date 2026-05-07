@@ -1,5 +1,5 @@
 /**
- * Centralized API client for FitSync Pro.
+ * Centralized API client for MuscleX.
  * Wraps fetch with JWT auth, token refresh, and tenant headers.
  * All feature modules import from here — never call fetch() directly.
  */
@@ -51,6 +51,15 @@ function updateTokens(accessToken: string, refreshToken?: string) {
   } catch { /* ignore */ }
 }
 
+function getActiveBranchId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem('auth-storage');
+    if (!stored) return null;
+    return JSON.parse(stored)?.state?.activeBranchId || null;
+  } catch { return null; }
+}
+
 function clearSession() {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('auth-storage');
@@ -76,7 +85,8 @@ async function refreshAccessToken(): Promise<string | null> {
     const data = await res.json();
     if (data.access_token) {
       updateTokens(data.access_token, data.refresh_token);
-      document.cookie = `auth-token=${data.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+      const isSecure = window.location.protocol === 'https:';
+      document.cookie = `auth-token=${data.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${isSecure ? '; Secure' : ''}`;
       return data.access_token;
     }
     return null;
@@ -118,6 +128,12 @@ async function request<T = unknown>(
     requestHeaders['Authorization'] = `Bearer ${accessToken}`;
   }
 
+  // Attach active branch context so the backend can scope queries
+  const activeBranchId = getActiveBranchId();
+  if (activeBranchId) {
+    requestHeaders['X-Active-Branch-Id'] = activeBranchId;
+  }
+
   const url = buildUrl(endpoint, params);
 
   let res = await fetch(url, {
@@ -127,9 +143,9 @@ async function request<T = unknown>(
     signal,
   });
 
-  // Token refresh on 401 — skip for auth endpoints (401 = bad credentials, not expired session)
-  const isAuthEndpoint = endpoint.startsWith('/auth/');
-  if (res.status === 401 && typeof window !== 'undefined' && !isAuthEndpoint) {
+  // Token refresh on 401 — skip only for endpoints that don't require a valid session
+  const skipRefresh = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/verify-email', '/auth/resend-verification', '/auth/forgot-password', '/auth/reset-password'].includes(endpoint);
+  if (res.status === 401 && typeof window !== 'undefined' && !skipRefresh) {
     if (!refreshPromise) {
       refreshPromise = refreshAccessToken().finally(() => { refreshPromise = null; });
     }
@@ -151,7 +167,14 @@ async function request<T = unknown>(
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({ message: res.statusText }));
-    throw createApiError(errorData.message || 'API request failed', res.status, errorData);
+    const msg = errorData.message || 'API request failed';
+
+    // Dispatch global event for plan limit errors → redirect to subscription page
+    if (res.status === 403 && typeof window !== 'undefined' && (msg.includes('limit reached') || msg.includes('Upgrade'))) {
+      window.dispatchEvent(new CustomEvent('plan-limit-reached', { detail: { message: msg } }));
+    }
+
+    throw createApiError(msg, res.status, errorData);
   }
 
   // Handle 204 No Content

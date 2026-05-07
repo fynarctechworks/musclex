@@ -3,12 +3,15 @@ import { queryKeys } from '@/services/query-client';
 import {
   paymentsApi,
   expensesApi,
+  expenseCategoriesApi,
   invoicesApi,
   refundsApi,
   discountsApi,
   financialReportsApi,
   type PaymentFilters,
   type ExpenseFilters,
+  type ExpenseCategoryInput,
+  type ExportExpensesInput,
   type InvoiceFilters,
   type RefundFilters,
 } from './api';
@@ -67,44 +70,149 @@ export function useExpenses(filters?: ExpenseFilters) {
   });
 }
 
+export function useExpenseTimeline(filters?: ExpenseFilters) {
+  return useQuery({
+    queryKey: queryKeys.expenses.timeline(filters),
+    queryFn: () => expensesApi.timeline(filters),
+    enabled: !!filters?.branch_id,
+  });
+}
+
+export function useExpenseSummary(branchId?: string, month?: string) {
+  return useQuery({
+    queryKey: queryKeys.expenses.summary(branchId, month),
+    queryFn: () => expensesApi.summary(branchId!, month),
+    enabled: !!branchId,
+  });
+}
+
+export function useExpenseIntelligence(
+  branchId?: string,
+  range?: { date_from?: string; date_to?: string },
+) {
+  return useQuery({
+    queryKey: queryKeys.expenses.intelligence(branchId ?? '', range),
+    queryFn: () => expensesApi.intelligence(branchId!, range),
+    enabled: !!branchId,
+  });
+}
+
+export function useExpense(id?: string) {
+  return useQuery({
+    queryKey: queryKeys.expenses.detail(id ?? ''),
+    queryFn: () => expensesApi.getById(id!),
+    enabled: !!id,
+  });
+}
+
+function invalidateExpenseCaches(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: queryKeys.expenses.all });
+  qc.invalidateQueries({ queryKey: queryKeys.finance.all });
+  qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+}
+
 export function useCreateExpense() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: expensesApi.create,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.expenses.all });
-      qc.invalidateQueries({ queryKey: queryKeys.finance.all });
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      invalidateExpenseCaches(qc);
       toast.success('Expense recorded');
     },
     onError: (err: Error) => toast.error(err.message),
   });
 }
 
-export function useUpdateExpense() {
+export function useReverseExpense() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
-      expensesApi.update(id, data),
+    mutationFn: ({
+      id,
+      reason,
+      notes,
+    }: {
+      id: string;
+      reason?: string;
+      notes?: string;
+    }) => expensesApi.reverse(id, { reason, notes }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.expenses.all });
-      qc.invalidateQueries({ queryKey: queryKeys.finance.all });
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
-      toast.success('Expense updated');
+      invalidateExpenseCaches(qc);
+      toast.success('Expense reversed');
     },
     onError: (err: Error) => toast.error(err.message),
   });
 }
 
-export function useDeleteExpense() {
+export function useExportExpenses() {
+  return useMutation({
+    mutationFn: async (params: ExportExpensesInput) => {
+      const blob = (await expensesApi.exportFile(params)) as unknown as Blob;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const ext = params.format === 'xlsx' ? 'xls' : 'csv';
+      a.href = url;
+      a.download = `expenses-${new Date().toISOString().slice(0, 10)}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      return true;
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+// ── Expense Categories ────────────────────────────────────
+
+export function useExpenseCategories(branchId?: string, includeInactive = false) {
+  return useQuery({
+    queryKey: queryKeys.expenses.categories({ branchId, includeInactive }),
+    queryFn: () =>
+      expenseCategoriesApi.list({
+        branch_id: branchId,
+        include_inactive: includeInactive,
+      }),
+  });
+}
+
+export function useCreateExpenseCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: expensesApi.delete,
+    mutationFn: (data: ExpenseCategoryInput) =>
+      expenseCategoriesApi.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.expenses.all });
-      qc.invalidateQueries({ queryKey: queryKeys.finance.all });
-      qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
-      toast.success('Expense deleted');
+      toast.success('Category created');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useUpdateExpenseCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Partial<ExpenseCategoryInput> & { is_active?: boolean };
+    }) => expenseCategoriesApi.update(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.expenses.all });
+      toast.success('Category updated');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDeactivateExpenseCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => expenseCategoriesApi.deactivate(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.expenses.all });
+      toast.success('Category deactivated');
     },
     onError: (err: Error) => toast.error(err.message),
   });

@@ -5,6 +5,8 @@ import {
   IsUUID,
   IsDateString,
   IsIn,
+  IsNumber,
+  Min,
 } from 'class-validator';
 
 export class CreateMemberDto {
@@ -65,6 +67,16 @@ export class CreateMemberDto {
   @IsDateString()
   @IsOptional()
   membership_start_date?: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['cash', 'card', 'upi', 'bank_transfer', 'razorpay', 'stripe'])
+  payment_method?: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  payment_amount?: number;
 
   @IsUUID()
   @IsOptional()

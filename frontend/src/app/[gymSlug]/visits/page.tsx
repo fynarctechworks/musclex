@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { KPICard, PageHeader, LoadingSkeleton } from "@/components/shared";
+import { KPICard, PageHeader, LoadingSkeleton, AccessDenied } from "@/components/shared";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import {
   Activity,
   TrendingUp,
@@ -25,12 +26,12 @@ import {
 import type { Branch } from "@/lib/types";
 
 export default function VisitsPage() {
+  const { allowed, checked } = useRequirePermission("check_ins", "view", "deny");
   const { gymPath } = useGymSlug();
-  const { user } = useAuthStore();
+  const { user, activeBranchId } = useAuthStore();
   const isOwner = user?.role === "owner";
-  const [selectedBranch, setSelectedBranch] = useState<string>("all");
 
-  const branchId = isOwner && selectedBranch !== "all" ? selectedBranch : undefined;
+  const branchId = activeBranchId || undefined;
 
   const { data: branches } = useQuery<Branch[]>({
     queryKey: ["branches"],
@@ -51,6 +52,14 @@ export default function VisitsPage() {
   const activeMembers = kpis?.active_members ?? 0;
   const expiringSoon = kpis?.expiring_soon_count ?? 0;
 
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="check_ins" />
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <PageHeader
@@ -58,20 +67,6 @@ export default function VisitsPage() {
         description="Track attendance patterns, peak hours, and member engagement."
         actions={
           <div className="flex items-center gap-3">
-            {isOwner && branches && branches.length > 1 && (
-              <select
-                value={selectedBranch}
-                onChange={(e) => setSelectedBranch(e.target.value)}
-                className="text-[13px] bg-card border border-border rounded-lg px-3 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="all">All Branches</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            )}
             <Link
               href={gymPath("/members/at-risk")}
               className="text-[13px] text-primary hover:text-primary/80 flex items-center gap-1"

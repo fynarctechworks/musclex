@@ -14,7 +14,7 @@ export function useRecentCheckIns(branchId?: string, limit = 20) {
   return useQuery({
     queryKey: [...queryKeys.checkIns.all, 'recent', branchId, limit],
     queryFn: () => checkInsApi.list({ branch_id: branchId, limit }),
-    refetchInterval: 5000,
+    refetchInterval: 30000, // 30s — balances freshness vs API load
   });
 }
 

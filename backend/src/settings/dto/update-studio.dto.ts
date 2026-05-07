@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsInt, Min } from 'class-validator';
 
 export class UpdateStudioDto {
   @IsString()
@@ -72,4 +72,14 @@ export class UpdateStudioDto {
   @IsString()
   @IsOptional()
   tax_id?: string;
+
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  referral_free_days?: number;
+
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  referral_reward_days?: number;
 }

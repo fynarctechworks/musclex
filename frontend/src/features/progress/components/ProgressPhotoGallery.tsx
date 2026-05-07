@@ -61,7 +61,7 @@ export function ProgressPhotoGallery({
       case "before":
         return "bg-amber-500/20 text-amber-400";
       case "after":
-        return "bg-green-500/20 text-green-400";
+        return "bg-success/20 text-success";
       default:
         return "bg-primary/20 text-primary";
     }

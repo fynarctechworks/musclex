@@ -21,6 +21,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { KPICard } from '@/components/shared';
 import { LoadingSkeleton } from '@/components/shared';
+import { formatCurrency, formatNumber, formatLabel } from '../utils/format';
 import type { DashboardSummary, TrendDataPoint } from '../types';
 
 interface OverviewTabProps {
@@ -67,7 +68,7 @@ export function OverviewTab({ dashboard, trend, isLoading }: OverviewTabProps) {
     : undefined;
 
   const pieData = revBreakdown.map((r) => ({
-    name: r.revenue_type.replace(/_/g, ' '),
+    name: formatLabel(r.revenue_type),
     value: Number(r._sum?.amount ?? 0),
   }));
 
@@ -77,24 +78,24 @@ export function OverviewTab({ dashboard, trend, isLoading }: OverviewTabProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           label="Today's Revenue"
-          value={`₹${(today?.total_revenue ?? 0).toLocaleString()}`}
+          value={formatCurrency(today?.total_revenue)}
           icon={DollarSign}
           trend={revTrend}
         />
         <KPICard
           label="Active Members"
-          value={memberSummary?._sum?.total_active ?? today?.active_members ?? 0}
+          value={formatNumber(memberSummary?._sum?.total_active ?? today?.active_members ?? 0)}
           icon={Users}
         />
         <KPICard
           label="Today's Visits"
-          value={today?.total_visits ?? 0}
+          value={formatNumber(today?.total_visits)}
           icon={CalendarCheck}
           trend={visitTrend}
         />
         <KPICard
           label="New Signups"
-          value={memberSummary?._sum?.new_signups ?? today?.new_members ?? 0}
+          value={formatNumber(memberSummary?._sum?.new_signups ?? today?.new_members ?? 0)}
           icon={TrendingUp}
         />
       </div>
@@ -157,7 +158,10 @@ export function OverviewTab({ dashboard, trend, isLoading }: OverviewTabProps) {
                     outerRadius={90}
                     paddingAngle={3}
                     dataKey="value"
-                    label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                    nameKey="name"
+                    label={(props: { name?: string; percent?: number }) =>
+                      `${props.name ?? ''} ${(((props.percent ?? 0)) * 100).toFixed(0)}%`
+                    }
                   >
                     {pieData.map((_, i) => (
                       <Cell key={i} fill={REVENUE_COLORS[i % REVENUE_COLORS.length]} />

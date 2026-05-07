@@ -6,6 +6,7 @@ import {
   FormSelect,
   FormTextarea,
   FormDatePicker,
+  AccessDenied,
 } from "@/components/shared";
 import { useCreateCampaign } from "@/features/marketing/hooks";
 import type { CampaignSegment } from "@/features/marketing/types";
@@ -15,6 +16,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import { useAuthStore } from "@/stores/auth-store";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 
 interface CreateCampaignForm {
   name: string;
@@ -25,6 +27,7 @@ interface CreateCampaignForm {
 }
 
 export default function NewCampaignPage() {
+  const { allowed, checked } = useRequirePermission("marketing", "create", "deny");
   const { gymPath } = useGymSlug();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -54,6 +57,15 @@ export default function NewCampaignPage() {
     { label: "New Members", value: "new" },
     { label: "Inactive Members", value: "inactive" },
   ];
+
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="marketing" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

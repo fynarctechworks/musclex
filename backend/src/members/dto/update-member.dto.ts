@@ -52,5 +52,6 @@ export class UpdateMemberDto {
 
   @IsString()
   @IsOptional()
+  @IsIn(['lead', 'trial', 'active', 'inactive', 'frozen', 'cancelled', 'expired'])
   status?: string;
 }

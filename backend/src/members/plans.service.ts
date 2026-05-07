@@ -1,9 +1,21 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
+import { DEFAULT_CURRENCY } from '../common/defaults';
 
 @Injectable()
 export class PlansService {
   constructor(private prisma: PrismaService) {}
+
+  // Prisma Decimal columns serialize as objects over JSON; coerce to plain numbers
+  // so frontends can format `price` directly.
+  private serialize<T extends { price?: unknown; yearly_price?: unknown } | null>(plan: T): T {
+    if (!plan) return plan;
+    const p = plan as any;
+    if (p.price !== undefined && p.price !== null) p.price = Number(p.price.toString());
+    if (p.yearly_price !== undefined && p.yearly_price !== null) p.yearly_price = Number(p.yearly_price.toString());
+    return plan;
+  }
 
   async findAll(filters?: {
     branch_id?: string;
@@ -22,7 +34,7 @@ export class PlansService {
     if (filters?.multi_branch_access !== undefined) where.multi_branch_access = filters.multi_branch_access;
     if (filters?.is_active !== undefined) where.is_active = filters.is_active;
 
-    return this.prisma.membershipPlan.findMany({
+    const plans = await this.prisma.membershipPlan.findMany({
       where,
       include: {
         branch: { select: { id: true, name: true } },
@@ -31,6 +43,7 @@ export class PlansService {
       },
       orderBy: { created_at: 'desc' },
     });
+    return plans.map((p) => this.serialize(p));
   }
 
   async findOne(id: string) {
@@ -43,7 +56,7 @@ export class PlansService {
       },
     });
     if (!plan) throw new NotFoundException('Plan not found');
-    return plan;
+    return this.serialize(plan);
   }
 
   private toIntOrNull(value: any): number | null {
@@ -61,15 +74,18 @@ export class PlansService {
     max_classes_per_week?: number | string;
     max_visits?: number | string;
     price: number | string;
+    yearly_price?: number | string;
     currency?: string;
     branch_id?: string;
     organization_id?: string;
     multi_branch_access?: boolean;
     grace_period_days?: number;
     auto_renew_enabled?: boolean;
+    is_active?: boolean;
   }) {
-    return this.prisma.membershipPlan.create({
+    const plan = await this.prisma.membershipPlan.create({
       data: {
+        gym_id: getTenantGymId()!,
         name: data.name,
         description: data.description || null,
         plan_type: data.plan_type,
@@ -78,18 +94,21 @@ export class PlansService {
         max_classes_per_week: this.toIntOrNull(data.max_classes_per_week),
         max_visits: this.toIntOrNull(data.max_visits),
         price: Number(data.price),
-        currency: data.currency || 'INR',
+        yearly_price: data.yearly_price !== undefined && data.yearly_price !== '' ? Number(data.yearly_price) : null,
+        currency: data.currency || DEFAULT_CURRENCY,
         branch_id: data.branch_id || null,
         organization_id: data.organization_id || null,
         multi_branch_access: data.multi_branch_access || false,
         grace_period_days: data.grace_period_days ?? 0,
         auto_renew_enabled: data.auto_renew_enabled || false,
+        is_active: data.is_active ?? true,
       },
       include: {
         branch: { select: { id: true, name: true } },
         organization: { select: { id: true, name: true } },
       },
     });
+    return this.serialize(plan);
   }
 
   async update(
@@ -103,6 +122,7 @@ export class PlansService {
       max_classes_per_week?: number | string;
       max_visits?: number | string;
       price?: number | string;
+      yearly_price?: number | string;
       currency?: string;
       branch_id?: string;
       organization_id?: string;
@@ -123,6 +143,7 @@ export class PlansService {
     if (data.max_classes_per_week !== undefined) updateData.max_classes_per_week = this.toIntOrNull(data.max_classes_per_week);
     if (data.max_visits !== undefined) updateData.max_visits = this.toIntOrNull(data.max_visits);
     if (data.price !== undefined) updateData.price = Number(data.price);
+    if (data.yearly_price !== undefined) updateData.yearly_price = data.yearly_price !== null && data.yearly_price !== '' ? Number(data.yearly_price) : null;
     if (data.currency !== undefined) updateData.currency = data.currency;
     if (data.branch_id !== undefined) updateData.branch_id = data.branch_id || null;
     if (data.organization_id !== undefined) updateData.organization_id = data.organization_id || null;
@@ -131,7 +152,7 @@ export class PlansService {
     if (data.is_active !== undefined) updateData.is_active = data.is_active;
     if (data.auto_renew_enabled !== undefined) updateData.auto_renew_enabled = data.auto_renew_enabled;
 
-    return this.prisma.membershipPlan.update({
+    const plan = await this.prisma.membershipPlan.update({
       where: { id },
       data: updateData,
       include: {
@@ -139,6 +160,7 @@ export class PlansService {
         organization: { select: { id: true, name: true } },
       },
     });
+    return this.serialize(plan);
   }
 
   async remove(id: string) {
@@ -151,7 +173,7 @@ export class PlansService {
   }
 
   async findByType(planType: string) {
-    return this.prisma.membershipPlan.findMany({
+    const plans = await this.prisma.membershipPlan.findMany({
       where: { plan_type: planType, is_active: true },
       include: {
         branch: { select: { id: true, name: true } },
@@ -159,5 +181,6 @@ export class PlansService {
       },
       orderBy: { price: 'asc' },
     });
+    return plans.map((p) => this.serialize(p));
   }
 }

@@ -16,7 +16,7 @@ import {
   UpdateStudioRoomDto,
   CreateRecurringRuleDto,
 } from './dto';
-import { JwtAuthGuard, PermissionsGuard, Permissions } from '../common';
+import { JwtAuthGuard, PermissionsGuard, Permissions, CurrentUser, JwtPayload } from '../common';
 
 @Controller('api/v1/classes/sessions')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -27,8 +27,11 @@ export class SessionController {
 
   @Post()
   @Permissions({ module: 'classes', action: 'create' })
-  createSession(@Body() dto: CreateClassSessionDto) {
-    return this.schedulingService.createSession(dto);
+  createSession(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: CreateClassSessionDto,
+  ) {
+    return this.schedulingService.createSession(user.studio_id, dto);
   }
 
   @Get()

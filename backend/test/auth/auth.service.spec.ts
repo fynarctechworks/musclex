@@ -9,6 +9,8 @@ import { AuthLoginHistoryService } from '../../src/auth/auth-login-history.servi
 import { AuthSessionService } from '../../src/auth/auth-session.service';
 import { RbacService } from '../../src/auth/rbac.service';
 import { RbacSeedService } from '../../src/auth/rbac-seed.service';
+import { TwoFactorService } from '../../src/auth/two-factor.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { createMockPrismaService, createMockConfigService } from '../test-utils';
 
 describe('AuthService', () => {
@@ -47,6 +49,21 @@ describe('AuthService', () => {
     seedStudioRoles: jest.fn(),
   };
 
+  const mockTwoFactorService = {
+    generate2FASecret: jest.fn(),
+    verify2FAToken: jest.fn(),
+    enable2FA: jest.fn(),
+    disable2FA: jest.fn(),
+    is2FAEnabled: jest.fn().mockResolvedValue(false),
+    validateBackupCode: jest.fn(),
+  };
+
+  const mockEventEmitter = {
+    emit: jest.fn(),
+    on: jest.fn(),
+    removeListener: jest.fn(),
+  };
+
   beforeEach(async () => {
     prisma = createMockPrismaService();
     mockConfigService = createMockConfigService({
@@ -65,6 +82,8 @@ describe('AuthService', () => {
         { provide: AuthSessionService, useValue: mockSessionService },
         { provide: RbacService, useValue: mockRbacService },
         { provide: RbacSeedService, useValue: mockRbacSeedService },
+        { provide: TwoFactorService, useValue: mockTwoFactorService },
+        { provide: EventEmitter2, useValue: mockEventEmitter },
       ],
     }).compile();
 

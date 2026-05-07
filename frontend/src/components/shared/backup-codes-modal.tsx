@@ -30,7 +30,7 @@ export function BackupCodesModal({ open, codes, onClose }: BackupCodesModalProps
 
   const handleDownload = () => {
     const text = [
-      'FitSync Pro — Two-Factor Authentication Backup Codes',
+      'MuscleX — Two-Factor Authentication Backup Codes',
       '=====================================================',
       '',
       'Store these codes in a safe place. Each code can only be used once.',

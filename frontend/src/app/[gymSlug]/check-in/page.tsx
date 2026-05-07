@@ -3,6 +3,8 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { Search, QrCode, ScanFace, WifiOff, Upload, Clock } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
+import { AccessDenied } from "@/components/shared/access-denied";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth-store";
@@ -27,8 +29,10 @@ import type { CheckInResponse, EntryAlert } from "@/features/checkins";
 type CheckInMode = "search" | "qr" | "face";
 
 export default function CheckInPage() {
+  const { allowed, checked } = useRequirePermission("check_ins", "view", "deny");
   const user = useAuthStore((s) => s.user);
-  const branchId = user?.branch_ids?.[0] ?? "";
+  const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const branchId = activeBranchId || (user?.branch_ids?.[0] ?? "");
 
   const [mode, setMode] = useState<CheckInMode>("search");
   const [result, setResult] = useState<CheckInResponse | null>(null);
@@ -164,6 +168,14 @@ export default function CheckInPage() {
     { key: "qr", label: "QR Code", icon: QrCode },
     { key: "face", label: "Face ID", icon: ScanFace },
   ];
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="check_ins" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

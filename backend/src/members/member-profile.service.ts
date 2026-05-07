@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
 import { UpsertMemberProfileDto } from './dto/upsert-member-profile.dto';
 import { CreateBodyStatsDto } from './dto/create-body-stats.dto';
 import { UpdateBodyStatsDto } from './dto/update-body-stats.dto';
@@ -42,6 +43,7 @@ export class MemberProfileService {
         ...(dto.blood_group !== undefined && { blood_group: dto.blood_group }),
       },
       create: {
+        gym_id: getTenantGymId()!,
         member_id: memberId,
         height: dto.height,
         weight: dto.weight,
@@ -72,6 +74,7 @@ export class MemberProfileService {
 
     return this.prisma.memberBodyStats.create({
       data: {
+        gym_id: getTenantGymId()!,
         member_id: memberId,
         weight: dto.weight,
         body_fat: dto.body_fat,
@@ -190,6 +193,7 @@ export class MemberProfileService {
 
     return this.prisma.memberProgressPhoto.create({
       data: {
+        gym_id: getTenantGymId()!,
         member_id: memberId,
         photo_url: dto.photo_url,
         caption: dto.caption,

@@ -22,7 +22,7 @@ export default function CTA() {
             </h2>
 
             <p className="text-lg text-blue-200 max-w-lg mx-auto">
-              Join 500+ gym owners who modernized their operations with FitSync Pro.
+              Join 500+ gym owners who modernized their operations with MuscleX.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">

@@ -17,3 +17,8 @@ Track patterns and mistakes here so they don't repeat.
 - **2026-03-15:** Prisma `$transaction` with interactive callbacks needs to be mocked to pass the mock prisma instance itself: `$transaction: jest.fn(fn => typeof fn === 'function' ? fn(mockPrisma) : Promise.all(fn))`
 - **2026-03-15:** ApiKeyGuard uses `$queryRawUnsafe` (not `$queryRaw`) and `apiKey.findUnique` (not `findFirst`) — always read source before writing mocks
 - **2026-03-15:** `@sentry/profiling-node` is optional and may not have types — use base `@sentry/nestjs` without profiling integration unless explicitly needed
+- **2026-04-11:** NestJS route ordering matters — static routes (`GET /staff/invites`, `POST /staff/shifts`) MUST be declared before parameterized routes (`GET /staff/:id`) or the param swallows the path segment
+- **2026-04-11:** shadcn `FormSelect` uses `value`/`onValueChange` (Radix API) — incompatible with react-hook-form's `register()`. Use `Controller` wrapper instead
+- **2026-04-11:** `[...new Set()]` spread fails with TS `--target` < ES2015 or without `--downlevelIteration` — use `Array.from(new Set(...))` instead
+- **2026-04-11:** Config key names must match `.env` exactly — `RESEND_FROM_EMAIL` in `.env` won't match `EMAIL_FROM` in code. Always verify key names against the env file
+- **2026-04-11:** Next.js dynamic routes need consistent slug prefixes — link `href` in list pages must use `gymPath()` helper (not bare `/staff/id`) to maintain `[gymSlug]` routing

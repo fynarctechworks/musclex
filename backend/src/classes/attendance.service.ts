@@ -2,17 +2,32 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
 import { MarkAttendanceDto } from './dto';
 
 @Injectable()
 export class AttendanceService {
   constructor(private prisma: PrismaService) {}
 
-  async markAttendance(sessionId: string, dto: MarkAttendanceDto) {
-    const session = await this.prisma.classSession.findUnique({ where: { id: sessionId } });
+  async markAttendance(studioId: string, sessionId: string, dto: MarkAttendanceDto) {
+    // Get session and verify it belongs to studio
+    const session = await this.prisma.classSession.findFirst({
+      where: { id: sessionId },
+      include: { branch: { select: { organization_id: true } } },
+    });
     if (!session) throw new NotFoundException('Class session not found');
+    if (session.branch.organization_id !== studioId) {
+      throw new ForbiddenException('Access denied to this session');
+    }
+
+    // Verify member belongs to studio
+    const member = await this.prisma.member.findFirst({
+      where: { id: dto.member_id } // tenant isolation via search_path,
+    });
+    if (!member) throw new NotFoundException('Member not found in studio');
 
     // Verify member has a booking
     const booking = await this.prisma.classBooking.findUnique({
@@ -29,6 +44,7 @@ export class AttendanceService {
         session_id_member_id: { session_id: sessionId, member_id: dto.member_id },
       },
       create: {
+        gym_id: getTenantGymId()!,
         session_id: sessionId,
         member_id: dto.member_id,
         attendance_status: dto.attendance_status,
@@ -58,11 +74,11 @@ export class AttendanceService {
     return attendance;
   }
 
-  async bulkMarkAttendance(sessionId: string, entries: MarkAttendanceDto[]) {
+  async bulkMarkAttendance(studioId: string, sessionId: string, entries: MarkAttendanceDto[]) {
     const results = [];
     for (const entry of entries) {
       try {
-        const result = await this.markAttendance(sessionId, entry);
+        const result = await this.markAttendance(studioId, sessionId, entry);
         results.push({ member_id: entry.member_id, success: true, result });
       } catch (error) {
         results.push({ member_id: entry.member_id, success: false, error: error.message });
@@ -71,9 +87,16 @@ export class AttendanceService {
     return results;
   }
 
-  async getSessionAttendance(sessionId: string) {
-    const session = await this.prisma.classSession.findUnique({ where: { id: sessionId } });
+  async getSessionAttendance(studioId: string, sessionId: string) {
+    // Get session and verify it belongs to studio
+    const session = await this.prisma.classSession.findFirst({
+      where: { id: sessionId },
+      include: { branch: { select: { organization_id: true } } },
+    });
     if (!session) throw new NotFoundException('Class session not found');
+    if (session.branch.organization_id !== studioId) {
+      throw new ForbiddenException('Access denied to this session');
+    }
 
     const attendance = await this.prisma.classAttendance.findMany({
       where: { session_id: sessionId },
@@ -98,9 +121,16 @@ export class AttendanceService {
   }
 
   async getMemberAttendanceHistory(
+    studioId: string,
     memberId: string,
     filters?: { date_from?: string; date_to?: string; category?: string },
   ) {
+    // Verify member belongs to studio
+    const member = await this.prisma.member.findFirst({
+      where: { id: memberId } // tenant isolation via search_path,
+    });
+    if (!member) throw new NotFoundException('Member not found in studio');
+
     const where: any = { member_id: memberId };
 
     if (filters?.date_from || filters?.date_to || filters?.category) {
@@ -141,9 +171,17 @@ export class AttendanceService {
     return { records, stats };
   }
 
-  async completeSession(sessionId: string) {
-    const session = await this.prisma.classSession.findUnique({ where: { id: sessionId } });
+  async completeSession(studioId: string, sessionId: string) {
+    // Get session and verify it belongs to studio
+    const session = await this.prisma.classSession.findFirst({
+      where: { id: sessionId },
+      include: { branch: { select: { organization_id: true } } },
+    });
     if (!session) throw new NotFoundException('Class session not found');
+    if (session.branch.organization_id !== studioId) {
+      throw new ForbiddenException('Access denied to this session');
+    }
+
     if (session.status === 'completed') throw new BadRequestException('Session is already completed');
     if (session.status === 'cancelled') throw new BadRequestException('Cannot complete a cancelled session');
 
@@ -171,6 +209,6 @@ export class AttendanceService {
       });
     }
 
-    return this.getSessionAttendance(sessionId);
+    return this.getSessionAttendance(studioId, sessionId);
   }
 }

@@ -105,7 +105,7 @@ export function CheckinSearch({ branchId, isPending, onSubmit }: CheckinSearchPr
                 <p className="text-xs text-muted-foreground">{m.member_code} &bull; {m.phone}</p>
               </div>
               <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                m.status === "active" ? "bg-green-500/10 text-green-500" :
+                m.status === "active" ? "bg-success/10 text-success" :
                 m.status === "expiring_soon" ? "bg-yellow-500/10 text-yellow-500" :
                 "bg-red-500/10 text-red-500"
               }`}>

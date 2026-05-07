@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { randomInt } from 'crypto';
+import { getTenantGymId } from '../common/tenant-context';
+import { randomBytes } from 'crypto';
 import { CronLockService } from '../common/services/cron-lock.service';
 
 @Injectable()
@@ -153,6 +154,7 @@ export class RenewalsService {
 
           const newMembership = await tx.memberMembership.create({
             data: {
+              gym_id: getTenantGymId()!,
               member_id: membership.member_id,
               plan_id: plan.id,
               branch_id: membership.branch_id,
@@ -167,9 +169,10 @@ export class RenewalsService {
           });
 
           // Create payment record linked to NEW membership
-          const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomInt(1000, 9999)}`;
+          const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
           await tx.payment.create({
             data: {
+              gym_id: getTenantGymId()!,
               member_id: membership.member_id,
               membership_id: newMembership.id,
               branch_id: membership.branch_id,

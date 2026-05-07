@@ -10,6 +10,7 @@ import { BookingController } from './booking.controller';
 import { BookingService } from './booking.service';
 import { AttendanceService } from './attendance.service';
 import { CronLockService } from '../common/services/cron-lock.service';
+import { ResourceLimitService } from '../common/services/resource-limit.service';
 
 @Module({
   imports: [PrismaModule],
@@ -26,6 +27,7 @@ import { CronLockService } from '../common/services/cron-lock.service';
     BookingService,
     AttendanceService,
     CronLockService,
+    ResourceLimitService,
   ],
   exports: [
     ClassTemplateService,

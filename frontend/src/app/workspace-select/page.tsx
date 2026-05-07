@@ -12,6 +12,7 @@ import { AuthLayout } from '@/components/auth/auth-layout';
 export default function WorkspaceSelectPage() {
   const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const studio = useAuthStore((s) => s.studio);
   const { workspaces } = useWorkspaceStore();
   const { selectWorkspace, loading, logout } = useAuth();
 
@@ -22,7 +23,14 @@ export default function WorkspaceSelectPage() {
     }
   }, [isAuthenticated, router]);
 
-  // If only one workspace, auto-select
+  // If the user already has a studio in auth-store (single-studio owner), go straight to dashboard
+  useEffect(() => {
+    if (studio?.slug && workspaces.length === 0) {
+      router.replace(`/${studio.slug}/dashboard`);
+    }
+  }, [studio, workspaces, router]);
+
+  // If only one workspace in the list, auto-select it
   useEffect(() => {
     if (workspaces.length === 1) {
       selectWorkspace(workspaces[0].id);

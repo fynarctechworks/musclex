@@ -46,15 +46,41 @@ export function QRScanner({ onScan, isPending }: QRScannerProps) {
       const { Html5Qrcode } = await import("html5-qrcode");
       const scanner = new Html5Qrcode("qr-scanner-view");
       scannerRef.current = scanner;
-      await scanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        onScanSuccess,
-        () => {}
-      );
+
+      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+      // Try rear camera first (mobile), fall back to any camera (desktop)
+      try {
+        await scanner.start(
+          { facingMode: "environment" },
+          config,
+          onScanSuccess,
+          () => {}
+        );
+      } catch {
+        // Rear camera not available — try front/any camera
+        const devices = await Html5Qrcode.getCameras();
+        if (!devices || devices.length === 0) {
+          throw new Error("No camera found on this device");
+        }
+        await scanner.start(
+          devices[0].id,
+          config,
+          onScanSuccess,
+          () => {}
+        );
+      }
+
       setScanning(true);
-    } catch {
-      toast.error("Camera access denied. Use manual QR input.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.toLowerCase().includes("permission") || msg.toLowerCase().includes("denied")) {
+        toast.error("Camera permission denied. Please allow camera access in your browser settings, or use manual QR input below.");
+      } else if (msg.toLowerCase().includes("no camera")) {
+        toast.error("No camera found. Please use manual QR input below.");
+      } else {
+        toast.error("Could not start camera. Use manual QR input below.");
+      }
     }
   };
 

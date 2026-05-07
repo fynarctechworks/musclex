@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, TrendingDown } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
+import { AccessDenied } from "@/components/shared/access-denied";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -146,6 +148,7 @@ const columns: ColumnDef<Member, unknown>[] = [
 ];
 
 export default function ChurnRiskPage() {
+  const { allowed, checked } = useRequirePermission("members", "view", "deny");
   const { gymPath } = useGymSlug();
   const router = useRouter();
   const [riskFilter, setRiskFilter] = useState<string>("all");
@@ -163,6 +166,14 @@ export default function ChurnRiskPage() {
     (m) => m.churn_risk === "medium"
   ).length;
   const lowCount = membersList.filter((m) => m.churn_risk === "low").length;
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="members" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

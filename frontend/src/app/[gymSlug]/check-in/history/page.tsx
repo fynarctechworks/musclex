@@ -7,6 +7,8 @@ import { ArrowLeft, Clock, Calendar } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { AppLayout } from "@/components/layout/app-layout";
+import { AccessDenied } from "@/components/shared/access-denied";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -23,6 +25,7 @@ import {
 import { apiClient } from "@/lib/api";
 import type { CheckIn, Branch, PaginatedResponse } from "@/lib/types";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
+import { useAuthStore } from "@/stores/auth-store";
 
 const methodLabels: Record<string, string> = {
   manual: "Manual",
@@ -93,10 +96,15 @@ const columns: ColumnDef<CheckIn, unknown>[] = [
 ];
 
 export default function CheckInHistoryPage() {
+  const { allowed, checked } = useRequirePermission("check_ins", "view", "deny");
   const { gymPath } = useGymSlug();
+  const { activeBranchId } = useAuthStore();
   const [branchFilter, setBranchFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+
+  // Branch: use local filter override, then nav selector
+  const effectiveBranch = branchFilter !== "all" ? branchFilter : activeBranchId || "";
 
   const { data: branches } = useQuery({
     queryKey: ["branches"],
@@ -104,11 +112,11 @@ export default function CheckInHistoryPage() {
   });
 
   const { data: checkInsResponse, isLoading } = useQuery({
-    queryKey: ["check-in-history", branchFilter, dateFrom, dateTo],
+    queryKey: ["check-in-history", effectiveBranch, dateFrom, dateTo],
     queryFn: () => {
       const params = new URLSearchParams();
       params.set("limit", "100");
-      if (branchFilter !== "all") params.set("branch_id", branchFilter);
+      if (effectiveBranch) params.set("branch_id", effectiveBranch);
       if (dateFrom) params.set("date_from", dateFrom);
       if (dateTo) params.set("date_to", dateTo);
       return apiClient.get<PaginatedResponse<CheckIn>>(
@@ -118,6 +126,14 @@ export default function CheckInHistoryPage() {
   });
 
   const checkIns = checkInsResponse?.data ?? [];
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="check_ins" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

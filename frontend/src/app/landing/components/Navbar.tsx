@@ -22,7 +22,7 @@ export default function Navbar() {
               <Dumbbell className="w-5 h-5 text-white" />
             </div>
             <span className="text-lg font-bold text-gray-900 tracking-tight">
-              FitSync<span className="text-blue-600">Pro</span>
+              MuscleX<span className="text-blue-600">Pro</span>
             </span>
           </Link>
 

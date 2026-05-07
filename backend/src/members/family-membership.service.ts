@@ -4,6 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
 import { CreateFamilyMembershipDto } from './dto/create-family-membership.dto';
 import { AddFamilyMemberDto } from './dto/add-family-member.dto';
 
@@ -30,6 +31,7 @@ export class FamilyMembershipService {
 
     const membership = await this.prisma.memberMembership.create({
       data: {
+        gym_id: getTenantGymId()!,
         member_id: dto.primary_member_id,
         plan_id: dto.plan_id,
         branch_id: dto.branch_id,
@@ -41,6 +43,7 @@ export class FamilyMembershipService {
 
     const familyMembership = await this.prisma.familyMembership.create({
       data: {
+        gym_id: getTenantGymId()!,
         primary_member_id: dto.primary_member_id,
         membership_id: membership.id,
         plan_id: dto.plan_id,
@@ -96,8 +99,9 @@ export class FamilyMembershipService {
     });
     if (!family) throw new NotFoundException('Family membership not found');
 
-    // Check max members (primary + linked)
-    if (family.members.length + 1 >= family.max_members) {
+    // Check max members (primary + linked). max_members counts the primary,
+    // so linked members table can hold up to max_members - 1 entries.
+    if (family.members.length >= family.max_members - 1) {
       throw new BadRequestException(
         `Family membership has reached the maximum of ${family.max_members} members`,
       );
@@ -108,6 +112,7 @@ export class FamilyMembershipService {
 
     return this.prisma.familyMember.create({
       data: {
+        gym_id: getTenantGymId()!,
         family_membership_id: familyMembershipId,
         member_id: dto.member_id,
         relation: dto.relation,

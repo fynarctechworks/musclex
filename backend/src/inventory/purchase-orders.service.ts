@@ -11,7 +11,8 @@ import {
   ReceivePurchaseOrderDto,
 } from './dto';
 
-import { randomInt } from 'crypto';
+import { randomBytes } from 'crypto';
+import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class PurchaseOrdersService {
@@ -20,14 +21,14 @@ export class PurchaseOrdersService {
   private generateOrderNumber(): string {
     const now = new Date();
     const date = now.toISOString().slice(0, 10).replace(/-/g, '');
-    const seq = String(randomInt(1, 9999)).padStart(4, '0');
+    const seq = randomBytes(4).toString('hex').toUpperCase();
     return `PO-${date}-${seq}`;
   }
 
   // ── Suppliers ─────────────────────────────────────────────────
 
   async createSupplier(dto: CreateSupplierDto) {
-    return this.prisma.supplier.create({ data: dto });
+    return this.prisma.supplier.create({ data: { ...dto, gym_id: getTenantGymId()! } });
   }
 
   async findAllSuppliers(filters: {
@@ -112,6 +113,7 @@ export class PurchaseOrdersService {
 
     return this.prisma.purchaseOrder.create({
       data: {
+        gym_id: getTenantGymId()!,
         supplier_id: dto.supplier_id,
         branch_id: dto.branch_id,
         order_number: orderNumber,
@@ -119,7 +121,7 @@ export class PurchaseOrdersService {
         status: 'pending',
         ordered_at: new Date(),
         notes: dto.notes,
-        items: { create: items },
+        items: { create: items.map((item) => ({ ...item, gym_id: getTenantGymId()! })) },
       },
       include: {
         supplier: { select: { id: true, supplier_name: true } },
@@ -245,6 +247,7 @@ export class PurchaseOrdersService {
         } else {
           await tx.inventory.create({
             data: {
+              gym_id: getTenantGymId()!,
               product_id: orderItem.product_id,
               branch_id: order.branch_id,
               stock_quantity: receiveQty,
@@ -255,6 +258,7 @@ export class PurchaseOrdersService {
         // Log transaction
         await tx.inventoryTransaction.create({
           data: {
+            gym_id: getTenantGymId()!,
             product_id: orderItem.product_id,
             branch_id: order.branch_id,
             transaction_type: 'purchase',

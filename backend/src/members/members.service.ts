@@ -2,35 +2,68 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ResourceLimitService } from '../common/services/resource-limit.service';
+import { QueueService } from '../queue/queue.service';
 import { CreateMemberDto, UpdateMemberDto, FreezeMemberDto, RenewMemberDto } from './dto';
-import { randomUUID, randomInt } from 'crypto';
+import { randomUUID, randomBytes } from 'crypto';
+import { assertMemberTransition, assertMembershipTransition } from '../common/status-transitions';
+import { renderInvoiceHtml, DEFAULT_TEMPLATE_ID } from '../invoices/invoice-templates';
+import { EventStoreService } from '../events/event-store.service';
+import { EventProjectorService } from '../events/event-projector.service';
+import { getTenantGymId } from '../common/tenant-context';
+import { DEFAULT_TIMEZONE, DEFAULT_CURRENCY, DEFAULT_LOCALE } from '../common/defaults';
 
 @Injectable()
 export class MembersService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(MembersService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private resourceLimits: ResourceLimitService,
+    private queueService: QueueService,
+    private eventStore: EventStoreService,
+    private eventProjector: EventProjectorService,
+  ) {}
 
   private generateMemberCode(): string {
     const now = new Date();
     const date = now.toISOString().slice(0, 10).replace(/-/g, '');
-    const rand = randomInt(1000, 9999);
+    const rand = randomBytes(4).toString('hex').toUpperCase();
     return `FS-${date}-${rand}`;
   }
 
   private stripSensitive(member: any) {
     const { face_descriptor, ...safe } = member;
+    // Prisma Decimal serializes as a Decimal.js object over JSON, which the
+    // frontend reads as `[object Object]` / NaN. Coerce numeric plan fields
+    // to plain numbers on every membership.plan that we include.
+    const toNumber = (v: any) =>
+      v === null || v === undefined ? v : Number(v.toString());
+    if (Array.isArray(safe.memberships)) {
+      safe.memberships = safe.memberships.map((m: any) => {
+        if (m?.plan) {
+          m.plan.price = toNumber(m.plan.price);
+          if ('yearly_price' in m.plan) m.plan.yearly_price = toNumber(m.plan.yearly_price);
+        }
+        return m;
+      });
+    }
     return safe;
   }
 
   // ── List Members ──────────────────────────────────────────────
 
-  async findAll(query: {
+  async findAll(studioId: string, query: {
     status?: string;
     branch_id?: string;
     organization_id?: string;
     search?: string;
     tag_id?: string;
+    plan_id?: string;
     trainer_id?: string;
     churn_risk?: string;
     page?: number;
@@ -38,10 +71,11 @@ export class MembersService {
     user_branch_ids?: string[];
   }) {
     const {
-      status, branch_id, organization_id, search, tag_id, trainer_id,
+      status, branch_id, organization_id, search, tag_id, plan_id, trainer_id,
       churn_risk, page = 1, limit = 50, user_branch_ids,
     } = query;
-    const skip = (page - 1) * limit;
+    const safeLimit = Math.min(limit, 500);
+    const skip = (page - 1) * safeLimit;
 
     const where: any = {};
     if (status) where.status = status;
@@ -49,8 +83,16 @@ export class MembersService {
     if (churn_risk) where.churn_risk = churn_risk;
 
     if (branch_id) {
+      // Explicit branch filter: still clamp to user's assigned branches if restricted.
+      if (user_branch_ids && !user_branch_ids.includes(branch_id)) {
+        return { data: [], total: 0, page, limit };
+      }
       where.branch_id = branch_id;
-    } else if (user_branch_ids && user_branch_ids.length > 0) {
+    } else if (Array.isArray(user_branch_ids)) {
+      // Non-owner caller: restrict to assigned branches. Empty set → no results.
+      if (user_branch_ids.length === 0) {
+        return { data: [], total: 0, page, limit };
+      }
       where.branch_id = { in: user_branch_ids };
     }
 
@@ -65,6 +107,10 @@ export class MembersService {
 
     if (tag_id) {
       where.tag_assignments = { some: { tag_id } };
+    }
+
+    if (plan_id) {
+      where.memberships = { some: { plan_id, status: 'active' } };
     }
 
     if (trainer_id) {
@@ -87,7 +133,7 @@ export class MembersService {
           _count: { select: { check_ins: true, payments: true } },
         },
         skip,
-        take: limit,
+        take: safeLimit,
         orderBy: { created_at: 'desc' },
       }),
       this.prisma.member.count({ where }),
@@ -99,8 +145,8 @@ export class MembersService {
 
   // ── 360° Member View ──────────────────────────────────────────
 
-  async findOne(id: string) {
-    const member = await this.prisma.member.findUnique({
+  async findOne(studioId: string, id: string) {
+    const member = await this.prisma.member.findFirst({
       where: { id },
       include: {
         branch: true,
@@ -145,71 +191,415 @@ export class MembersService {
     return this.stripSensitive(member);
   }
 
+  // ── Check Phone Duplicate ─────────────────────────────────────
+
+  async checkPhone(phone: string, organizationId?: string) {
+    if (!phone) return { exists: false };
+    const member = await this.prisma.member.findFirst({
+      where: {
+        ...(organizationId ? { organization_id: organizationId } : {}),
+        phone,
+        status: { not: 'cancelled' },
+      },
+      select: { id: true, full_name: true, member_code: true, branch: { select: { name: true } } },
+    });
+    if (!member) return { exists: false };
+    return {
+      exists: true,
+      member_id: member.id,
+      full_name: member.full_name,
+      member_code: member.member_code,
+      branch_name: member.branch?.name,
+    };
+  }
+
   // ── Create Member ─────────────────────────────────────────────
 
-  async create(dto: CreateMemberDto) {
+  async create(studioId: string, dto: CreateMemberDto) {
+    try {
+      return await this.createInner(studioId, dto);
+    } catch (err: any) {
+      // Pass through well-formed HTTP exceptions — they carry their own status
+      const isHttp = err && typeof err.getStatus === 'function';
+      if (isHttp) throw err;
+      this.logger.error(
+        `Member create failed for studio=${studioId}: ${err?.message}` +
+          (err?.code ? ` [code=${err.code}]` : ''),
+        err?.stack,
+      );
+      if (err?.meta) this.logger.error(`Prisma meta: ${JSON.stringify(err.meta)}`);
+      throw new BadRequestException(
+        err?.meta?.cause || err?.message || 'Failed to create member',
+      );
+    }
+  }
+
+  private async createInner(studioId: string, dto: CreateMemberDto) {
+    // Enforce plan-based member limit before creation
+    await this.resourceLimits.checkMemberLimit(studioId, dto.organization_id);
+
+    // Enforce: at least one active membership plan must exist before creating a member
+    const activePlanCount = await this.prisma.membershipPlan.count({ where: { is_active: true } });
+    if (activePlanCount === 0) {
+      throw new BadRequestException('Create at least one membership plan before adding members');
+    }
+
+    // Resolve organization_id — if not provided, find or auto-create from studio data
+    let organizationId = dto.organization_id;
+    if (!organizationId) {
+      const org = await this.prisma.organization.findFirst({ select: { id: true } });
+      organizationId = org?.id;
+    }
+    if (!organizationId) {
+      // Auto-create organization from studio data (happens when onboarding org creation silently failed)
+      try {
+        const studio = await this.prisma.studio.findUnique({
+          where: { id: studioId },
+          select: { name: true, slug: true, timezone: true, currency: true, country: true },
+        });
+        if (studio) {
+          const newOrg = await this.prisma.organization.create({
+            data: {
+              gym_id: getTenantGymId()!,
+              name: studio.name,
+              slug: studio.slug,
+              country: studio.country ?? undefined,
+              timezone: studio.timezone || DEFAULT_TIMEZONE,
+              currency: studio.currency || DEFAULT_CURRENCY,
+              status: 'active',
+            },
+          });
+          organizationId = newOrg.id;
+          this.logger.log(`Auto-created organization for studio ${studioId}`);
+        }
+      } catch (e) {
+        this.logger.error(`Failed to auto-create organization: ${e}`);
+      }
+    }
+    if (!organizationId) {
+      throw new BadRequestException('Studio setup incomplete. Please contact support.');
+    }
+
+    // Pre-flight: verify branch_id belongs to this studio so we return a clean 400
+    // instead of a Prisma FK violation if the client sends a stale/wrong branch.
+    const branch = await this.prisma.branch.findFirst({
+      where: { id: dto.branch_id },
+      select: { id: true },
+    });
+    if (!branch) {
+      throw new BadRequestException(
+        `Invalid branch_id: ${dto.branch_id} does not belong to this studio`,
+      );
+    }
+
+    // Check for duplicate phone in this studio
+    const existingMember = await this.prisma.member.findFirst({
+      where: {
+        organization_id: organizationId,
+        phone: dto.phone,
+        status: { not: 'cancelled' },
+      },
+      select: { id: true, full_name: true, member_code: true },
+    });
+    if (existingMember) {
+      throw new ConflictException(
+        JSON.stringify({
+          code: 'PHONE_DUPLICATE',
+          message: `Phone number is already registered to ${existingMember.full_name} (${existingMember.member_code})`,
+          existing_member_id: existingMember.id,
+          existing_member_name: existingMember.full_name,
+          existing_member_code: existingMember.member_code,
+        })
+      );
+    }
+
+    // Check for duplicate email in this studio (DB has unique (gym_id, email))
+    if (dto.email) {
+      const existingByEmail = await this.prisma.member.findFirst({
+        where: { email: dto.email },
+        select: { id: true, full_name: true, member_code: true },
+      });
+      if (existingByEmail) {
+        throw new ConflictException(
+          JSON.stringify({
+            code: 'EMAIL_DUPLICATE',
+            message: `Email is already registered to ${existingByEmail.full_name} (${existingByEmail.member_code})`,
+            existing_member_id: existingByEmail.id,
+            existing_member_name: existingByEmail.full_name,
+            existing_member_code: existingByEmail.member_code,
+          })
+        );
+      }
+    }
+
     const memberCode = this.generateMemberCode();
     const qrCode = randomUUID();
 
-    const member = await this.prisma.member.create({
-      data: {
-        member_code: memberCode,
-        organization_id: dto.organization_id,
+    // ── TRANSACTION: Create member + emit MEMBER_CREATED event atomically ──
+    // The event is the source of truth. If the event can't be written, the member creation rolls back.
+    let { member, membership, payment, event, paymentEvent } = await this.prisma.$transaction(async (tx) => {
+      const newMember = await tx.member.create({
+        data: {
+          gym_id: getTenantGymId()!,
+          member_code: memberCode,
+          organization_id: organizationId,
+          branch_id: dto.branch_id,
+          full_name: dto.full_name,
+          phone: dto.phone,
+          email: dto.email,
+          gender: dto.gender,
+          date_of_birth: dto.date_of_birth ? new Date(dto.date_of_birth) : null,
+          join_date: dto.join_date ? new Date(dto.join_date) : new Date(),
+          emergency_contact_name: dto.emergency_contact_name,
+          emergency_contact_phone: dto.emergency_contact_phone,
+          profile_photo_url: dto.profile_photo_url,
+          checkin_method: dto.checkin_method || 'manual',
+          qr_code: qrCode,
+          notes: dto.notes,
+          referred_by_member_id: dto.referred_by_member_id,
+          referral_code: randomUUID().slice(0, 8).toUpperCase(),
+          status: dto.status || 'active',
+        },
+        include: { branch: true },
+      });
+
+      let newMembership = null;
+      let newPayment = null;
+      let newPaymentEvent = null;
+      if (dto.plan_id) {
+        const plan = await tx.membershipPlan.findUnique({
+          where: { id: dto.plan_id },
+        });
+        if (!plan) throw new BadRequestException('Invalid plan');
+
+        const startDate = dto.membership_start_date
+          ? new Date(dto.membership_start_date)
+          : new Date();
+        const endDate = plan.duration_days
+          ? new Date(startDate.getTime() + plan.duration_days * 86400000)
+          : null;
+
+        newMembership = await tx.memberMembership.create({
+          data: {
+            gym_id: getTenantGymId()!,
+            member_id: newMember.id,
+            plan_id: dto.plan_id,
+            branch_id: dto.branch_id,
+            start_date: startDate,
+            end_date: endDate,
+            classes_remaining: plan.total_classes,
+            status: 'active',
+          },
+          include: { plan: true },
+        });
+
+        // Record initial membership payment so revenue/dashboards reflect the sale.
+        const paymentAmount = dto.payment_amount ?? Number(plan.price);
+        if (paymentAmount > 0) {
+          const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
+          newPayment = await tx.payment.create({
+            data: {
+              gym_id: getTenantGymId()!,
+              member_id: newMember.id,
+              membership_id: newMembership.id,
+              branch_id: dto.branch_id,
+              amount: paymentAmount,
+              payment_method: dto.payment_method || 'cash',
+              status: 'paid',
+              receipt_number: receiptNumber,
+              paid_at: new Date(),
+            },
+          });
+
+          newPaymentEvent = await this.eventStore.emit(tx, {
+            aggregate_type: 'payment',
+            aggregate_id: newPayment.id,
+            event_type: 'PAYMENT_RECORDED',
+            payload: {
+              payment_id: newPayment.id,
+              member_id: newMember.id,
+              membership_id: newMembership.id,
+              amount: paymentAmount,
+              payment_method: newPayment.payment_method,
+              receipt_number: receiptNumber,
+            },
+            branch_id: dto.branch_id,
+          });
+        }
+      }
+
+      // Emit MEMBER_CREATED event — MUST succeed or entire tx rolls back
+      const evt = await this.eventStore.emit(tx, {
+        aggregate_type: 'member',
+        aggregate_id: newMember.id,
+        event_type: 'MEMBER_CREATED',
+        payload: {
+          member_id: newMember.id,
+          member_code: newMember.member_code,
+          full_name: newMember.full_name,
+          status: newMember.status,
+          branch_id: dto.branch_id,
+          plan_id: dto.plan_id || null,
+        },
         branch_id: dto.branch_id,
-        full_name: dto.full_name,
-        phone: dto.phone,
-        email: dto.email,
-        gender: dto.gender,
-        date_of_birth: dto.date_of_birth ? new Date(dto.date_of_birth) : null,
-        join_date: dto.join_date ? new Date(dto.join_date) : new Date(),
-        emergency_contact_name: dto.emergency_contact_name,
-        emergency_contact_phone: dto.emergency_contact_phone,
-        profile_photo_url: dto.profile_photo_url,
-        checkin_method: dto.checkin_method || 'manual',
-        qr_code: qrCode,
-        notes: dto.notes,
-        referred_by_member_id: dto.referred_by_member_id,
-        referral_code: randomUUID().slice(0, 8).toUpperCase(),
-        status: dto.status || 'active',
-      },
-      include: { branch: true },
+      });
+
+      return {
+        member: newMember,
+        membership: newMembership,
+        payment: newPayment,
+        event: evt,
+        paymentEvent: newPaymentEvent,
+      };
     });
 
-    let membership = null;
-    if (dto.plan_id) {
-      const plan = await this.prisma.membershipPlan.findUnique({
-        where: { id: dto.plan_id },
+    // ── Post-commit: Project the event into dashboard metrics ──
+    // This runs outside the transaction. If it fails, the event is in the store
+    // and will be picked up by the catchup projector — NO silent swallowing.
+    this.eventProjector.processEvent({
+      id: event.id,
+      gym_id: getTenantGymId()!,
+      event_type: 'MEMBER_CREATED',
+      payload: { full_name: member.full_name, member_code: member.member_code, status: member.status },
+      branch_id: dto.branch_id,
+      version: event.version,
+    }).catch((err) => {
+      // Projection failure is logged as ERROR, not warn — catchup will fix it
+      this.logger.error(`Projection failed for MEMBER_CREATED (event=${event.id}): ${(err as Error).message}`);
+    });
+
+    if (payment && paymentEvent) {
+      this.eventProjector.processEvent({
+        id: paymentEvent.id,
+        gym_id: getTenantGymId()!,
+        event_type: 'PAYMENT_RECORDED',
+        payload: { amount: Number(payment.amount), payment_method: payment.payment_method },
+        branch_id: dto.branch_id,
+        version: paymentEvent.version,
+      }).catch((err) => {
+        this.logger.error(`Projection failed for PAYMENT_RECORDED (event=${paymentEvent.id}): ${(err as Error).message}`);
       });
-      if (!plan) throw new BadRequestException('Invalid plan');
+    }
 
-      const startDate = dto.membership_start_date
-        ? new Date(dto.membership_start_date)
-        : new Date();
-      const endDate = plan.duration_days
-        ? new Date(startDate.getTime() + plan.duration_days * 86400000)
-        : null;
+    // Apply referral free days (from Studio settings) if member was referred
+    if (dto.referred_by_member_id && membership) {
+      try {
+        // Read referral settings from Studio table (public schema)
+        const studioRow = await (this.prisma as any).$queryRaw`
+          SELECT referral_free_days, referral_reward_days FROM public.studios LIMIT 1
+        `.then((rows: any[]) => rows[0]).catch(() => null);
 
-      membership = await this.prisma.memberMembership.create({
-        data: {
-          member_id: member.id,
-          plan_id: dto.plan_id,
-          branch_id: dto.branch_id,
-          start_date: startDate,
-          end_date: endDate,
-          classes_remaining: plan.total_classes,
-          status: 'active',
-        },
-        include: { plan: true },
+        const freeDays: number = Number(studioRow?.referral_free_days ?? 0);
+        const rewardDays: number = Number(studioRow?.referral_reward_days ?? 0);
+
+        // Extend referred member's membership end_date
+        if (freeDays > 0 && membership.end_date) {
+          const newEnd = new Date(membership.end_date);
+          newEnd.setDate(newEnd.getDate() + freeDays);
+          membership = await this.prisma.memberMembership.update({
+            where: { id: membership.id },
+            data: { end_date: newEnd },
+            include: { plan: true },
+          });
+        }
+
+        // Extend referrer's active membership as reward
+        if (rewardDays > 0) {
+          const referrerMembership = await this.prisma.memberMembership.findFirst({
+            where: { member_id: dto.referred_by_member_id, status: 'active' },
+            orderBy: { created_at: 'desc' },
+          });
+          if (referrerMembership?.end_date) {
+            const newReferrerEnd = new Date(referrerMembership.end_date);
+            newReferrerEnd.setDate(newReferrerEnd.getDate() + rewardDays);
+            await this.prisma.memberMembership.update({
+              where: { id: referrerMembership.id },
+              data: { end_date: newReferrerEnd },
+            });
+          }
+        }
+      } catch (err) {
+        this.logger.warn(`Failed to apply referral free days: ${(err as Error).message}`);
+      }
+    }
+
+    // Send welcome email with invoice if member has email and a plan
+    if (member.email && membership) {
+      this.sendMemberInvoiceEmail(member, membership).catch((err) => {
+        this.logger.warn(`Failed to queue invoice email for ${member.member_code}: ${err.message}`);
       });
     }
 
     return { ...member, membership };
   }
 
+  private async sendMemberInvoiceEmail(
+    member: { id: string; full_name: string; email: string | null; phone: string; member_code: string; branch?: { name: string } | null },
+    membership: { plan: { name: string; price: any; currency?: string }; start_date: Date; end_date: Date | null },
+  ) {
+    if (!member.email) return;
+
+    const now = new Date();
+    const invoiceNumber = `INV-${now.toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
+
+    // Fetch studio info from public schema for invoice header
+    let gymName = 'Gym';
+    let gymLogo: string | undefined;
+    let gymAddress: string | undefined;
+    let gymPhone: string | undefined;
+    let gymEmail: string | undefined;
+    try {
+      const org = await this.prisma.organization.findFirst({ select: { name: true } });
+      if (org) gymName = org.name;
+    } catch { /* ignore */ }
+
+    const invoiceHtml = renderInvoiceHtml(DEFAULT_TEMPLATE_ID, {
+      gym_name: gymName,
+      gym_logo_url: gymLogo,
+      gym_address: gymAddress,
+      gym_phone: gymPhone,
+      gym_email: gymEmail,
+      member_name: member.full_name,
+      member_code: member.member_code,
+      member_email: member.email,
+      member_phone: member.phone,
+      plan_name: membership.plan.name,
+      plan_price: Number(membership.plan.price).toFixed(2),
+      currency: membership.plan.currency ?? DEFAULT_CURRENCY,
+      start_date: membership.start_date.toLocaleDateString(DEFAULT_LOCALE),
+      end_date: membership.end_date?.toLocaleDateString(DEFAULT_LOCALE),
+      invoice_number: invoiceNumber,
+      invoice_date: now.toLocaleDateString(DEFAULT_LOCALE),
+      payment_status: 'Paid',
+    });
+
+    await this.queueService.enqueueEmail({
+      to: member.email,
+      subject: `Welcome to ${gymName} — Your Membership Invoice #${invoiceNumber}`,
+      template: invoiceHtml,
+      variables: {}, // Already rendered
+    });
+
+    this.logger.log(`Invoice email queued for ${member.member_code} → ${member.email}`);
+  }
+
   // ── Update Member ─────────────────────────────────────────────
 
-  async update(id: string, dto: UpdateMemberDto) {
-    await this.findOne(id);
+  async update(studioId: string, id: string, dto: UpdateMemberDto) {
+    await this.findOne(studioId, id);
+
+    // Guard: prevent manually setting status='active' without an active membership
+    if (dto.status === 'active') {
+      const activeMembership = await this.prisma.memberMembership.findFirst({
+        where: { member_id: id, status: 'active' },
+      });
+      if (!activeMembership) {
+        throw new BadRequestException(
+          'Cannot activate member without an active membership. Record a payment first.',
+        );
+      }
+    }
+
     const updated = await this.prisma.member.update({
       where: { id },
       data: {
@@ -224,28 +614,58 @@ export class MembersService {
 
   // ── Soft Delete ───────────────────────────────────────────────
 
-  async softDelete(id: string) {
-    const member = await this.prisma.member.findUnique({ where: { id } });
-    if (!member) throw new NotFoundException('Member not found');
-
-    return this.prisma.member.update({
+  async softDelete(studioId: string, id: string) {
+    const member = await this.prisma.member.findFirst({
       where: { id },
-      data: { status: 'cancelled' },
-      select: { id: true, status: true },
     });
+    if (!member) throw new NotFoundException('Member not found');
+    assertMemberTransition(member.status, 'cancelled');
+
+    const { result, event } = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.member.update({
+        where: { id },
+        data: { status: 'cancelled' },
+        select: { id: true, status: true, branch_id: true },
+      });
+
+      const evt = await this.eventStore.emit(tx, {
+        aggregate_type: 'member',
+        aggregate_id: id,
+        event_type: 'MEMBER_CANCELLED',
+        payload: { member_id: id, was_active: member.status === 'active' },
+        branch_id: (updated as any).branch_id,
+      });
+
+      return { result: updated, event: evt };
+    });
+
+    this.eventProjector.processEvent({
+      id: event.id,
+      gym_id: getTenantGymId()!,
+      event_type: 'MEMBER_CANCELLED',
+      payload: { was_active: member.status === 'active' },
+      branch_id: (result as any).branch_id,
+      version: event.version,
+    }).catch((err) => {
+      this.logger.error(`Projection failed for MEMBER_CANCELLED (event=${event.id}): ${(err as Error).message}`);
+    });
+
+    return result;
   }
 
   // ── Freeze / Unfreeze ─────────────────────────────────────────
 
-  async freeze(id: string, dto: FreezeMemberDto) {
-    const member = await this.prisma.member.findUnique({
+  async freeze(studioId: string, id: string, dto: FreezeMemberDto) {
+    const member = await this.prisma.member.findFirst({
       where: { id },
       include: { memberships: { where: { status: 'active' }, take: 1 } },
     });
     if (!member) throw new NotFoundException('Member not found');
+    assertMemberTransition(member.status, 'frozen');
 
     const activeMembership = member.memberships[0];
     if (!activeMembership) throw new BadRequestException('No active membership to freeze');
+    assertMembershipTransition(activeMembership.status, 'frozen');
 
     const updated = await this.prisma.memberMembership.update({
       where: { id: activeMembership.id },
@@ -266,15 +686,17 @@ export class MembersService {
     return updated;
   }
 
-  async unfreeze(id: string) {
-    const member = await this.prisma.member.findUnique({
+  async unfreeze(studioId: string, id: string) {
+    const member = await this.prisma.member.findFirst({
       where: { id },
       include: { memberships: { where: { status: 'frozen' }, take: 1 } },
     });
     if (!member) throw new NotFoundException('Member not found');
+    assertMemberTransition(member.status, 'active');
 
     const frozenMembership = member.memberships[0];
     if (!frozenMembership) throw new BadRequestException('No frozen membership found');
+    assertMembershipTransition(frozenMembership.status, 'active');
 
     // Calculate days frozen and extend end_date accordingly
     const freezeStart = frozenMembership.freeze_start_date;
@@ -309,13 +731,15 @@ export class MembersService {
 
   // ── Renew Membership ──────────────────────────────────────────
 
-  async renew(id: string, dto: RenewMemberDto) {
+  async renew(studioId: string, id: string, dto: RenewMemberDto) {
     const plan = await this.prisma.membershipPlan.findUnique({
       where: { id: dto.plan_id },
     });
     if (!plan) throw new BadRequestException('Invalid plan');
 
-    const member = await this.prisma.member.findUnique({ where: { id } });
+    const member = await this.prisma.member.findFirst({
+      where: { id },
+    });
     if (!member) throw new NotFoundException('Member not found');
 
     const startDate = new Date();
@@ -325,6 +749,7 @@ export class MembersService {
 
     const membership = await this.prisma.memberMembership.create({
       data: {
+        gym_id: getTenantGymId()!,
         member_id: id,
         plan_id: dto.plan_id,
         branch_id: member.branch_id,
@@ -336,9 +761,10 @@ export class MembersService {
       include: { plan: true },
     });
 
-    const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomInt(1000, 9999)}`;
+    const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
     const payment = await this.prisma.payment.create({
       data: {
+        gym_id: getTenantGymId()!,
         member_id: id,
         membership_id: membership.id,
         branch_id: member.branch_id,
@@ -360,8 +786,8 @@ export class MembersService {
 
   // ── Face Descriptor ───────────────────────────────────────────
 
-  async saveFaceDescriptor(id: string, descriptor: number[]) {
-    await this.findOne(id);
+  async saveFaceDescriptor(studioId: string, id: string, descriptor: number[]) {
+    await this.findOne(studioId, id);
     await this.prisma.member.update({
       where: { id },
       data: { face_descriptor: descriptor },
@@ -371,7 +797,7 @@ export class MembersService {
 
   // ── Churn Risk ────────────────────────────────────────────────
 
-  async getChurnRisk(risk?: string) {
+  async getChurnRisk(studioId: string, risk?: string) {
     const where: any = {};
     if (risk) where.churn_risk = risk;
 
@@ -400,8 +826,10 @@ export class MembersService {
 
   // ── Visit Statistics ──────────────────────────────────────────
 
-  async getVisitStats(memberId: string) {
-    const member = await this.prisma.member.findUnique({ where: { id: memberId } });
+  async getVisitStats(studioId: string, memberId: string) {
+    const member = await this.prisma.member.findFirst({
+      where: { id: memberId },
+    });
     if (!member) throw new NotFoundException('Member not found');
 
     const now = new Date();
@@ -434,7 +862,7 @@ export class MembersService {
 
   // ── Member Lifecycle Summary ──────────────────────────────────
 
-  async getLifecycleSummary(filters?: { branch_id?: string; organization_id?: string }) {
+  async getLifecycleSummary(studioId: string, filters?: { branch_id?: string; organization_id?: string }) {
     const where: any = {};
     if (filters?.branch_id) where.branch_id = filters.branch_id;
     if (filters?.organization_id) where.organization_id = filters.organization_id;

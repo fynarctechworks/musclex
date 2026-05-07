@@ -16,7 +16,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FitSync Pro",
+  title: "MuscleX",
   description: "AI-powered gym management platform",
 };
 

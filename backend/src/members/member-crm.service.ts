@@ -4,6 +4,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
 import { CreateMemberNoteDto } from './dto/create-member-note.dto';
 import { CreateMemberTagDto } from './dto/member-tag.dto';
 import { CreateMemberDocumentDto } from './dto/create-member-document.dto';
@@ -32,6 +33,7 @@ export class MemberCrmService {
 
     return this.prisma.memberNote.create({
       data: {
+        gym_id: getTenantGymId()!,
         member_id: memberId,
         staff_id: dto.staff_id,
         note: dto.note,
@@ -62,7 +64,7 @@ export class MemberCrmService {
     if (existing) throw new ConflictException('Tag already exists');
 
     return this.prisma.memberTag.create({
-      data: { name: dto.name, color: dto.color, description: dto.description },
+      data: { gym_id: getTenantGymId()!, name: dto.name, color: dto.color, description: dto.description },
     });
   }
 
@@ -93,7 +95,7 @@ export class MemberCrmService {
     if (existing) throw new ConflictException('Tag already assigned to this member');
 
     return this.prisma.memberTagAssignment.create({
-      data: { member_id: memberId, tag_id: tagId },
+      data: { gym_id: getTenantGymId()!, member_id: memberId, tag_id: tagId },
       include: { tag: true },
     });
   }
@@ -124,6 +126,7 @@ export class MemberCrmService {
 
     return this.prisma.memberDocument.create({
       data: {
+        gym_id: getTenantGymId()!,
         member_id: memberId,
         document_type: dto.document_type,
         file_url: dto.file_url,
@@ -193,6 +196,7 @@ export class MemberCrmService {
 
     return this.prisma.memberReferral.create({
       data: {
+        gym_id: getTenantGymId()!,
         referrer_member_id: dto.referrer_member_id,
         referred_member_id: dto.referred_member_id,
         reward_type: dto.reward_type,

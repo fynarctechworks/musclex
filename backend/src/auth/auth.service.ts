@@ -11,6 +11,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { PrismaService } from '../prisma/prisma.service';
 import { randomBytes, createCipheriv, createDecipheriv, pbkdf2Sync } from 'crypto';
 import { Resend } from 'resend';
+import { tenantContext } from '../common/tenant-context';
 import {
   LoginDto,
   ForgotPasswordDto,
@@ -26,8 +27,11 @@ import {
   OnboardingMembershipsDto,
   OnboardingStaffListDto,
   OnboardingSkipStepDto,
+  OnboardingPaymentDto,
 } from './dto';
 import { PLAN_CONFIGS, fetchAvailablePlans } from '../common/plan-configs';
+import { DEFAULT_TIMEZONE, DEFAULT_CURRENCY, DEFAULT_PLAN } from '../common/defaults';
+import { SccSyncService } from '../common/services/scc-sync.service';
 import { AuthIdentityService } from './auth-identity.service';
 import { AuthDeviceService } from './auth-device.service';
 import { AuthLoginHistoryService } from './auth-login-history.service';
@@ -35,6 +39,11 @@ import { AuthSessionService } from './auth-session.service';
 import { RbacService } from './rbac.service';
 import { RbacSeedService } from './rbac-seed.service';
 import { TwoFactorService } from './two-factor.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  REFERRAL_EVENTS,
+  SubscriptionActivatedPayload,
+} from '../referrals/events/domain-events';
 
 /** Request context passed from the controller for tracking. */
 export interface LoginContext {
@@ -58,6 +67,8 @@ export class AuthService {
     private rbacService: RbacService,
     private rbacSeedService: RbacSeedService,
     private twoFactorService: TwoFactorService,
+    private eventEmitter: EventEmitter2,
+    private sccSync: SccSyncService,
   ) {
     this.supabase = createClient(
       this.configService.get<string>('SUPABASE_URL', ''),
@@ -186,7 +197,7 @@ export class AuthService {
     if (identity2fa?.two_factor_enabled) {
       // Keep the Supabase session alive — pass encrypted tokens to temp JWT
       // They'll be returned after successful OTP verification
-      const tempToken = this.twoFactorService.generateTempToken(
+      const tempToken = await this.twoFactorService.generateTempToken(
         data.user.id,
         data.user.email!,
         data.session ? {
@@ -236,6 +247,14 @@ export class AuthService {
 
     // If still onboarding, return minimal data with step indicator
     if (onboardingStep && onboardingStep !== 'complete') {
+      // If user can log in, their email is verified — skip past verify_email step
+      const effectiveStep = onboardingStep === 'verify_email' ? 'studio_info' : onboardingStep;
+      if (effectiveStep !== onboardingStep) {
+        await this.supabase.auth.admin.updateUserById(data.user.id, {
+          user_metadata: { ...metadata, onboarding_step: effectiveStep },
+        });
+      }
+
       return {
         access_token: data.session?.access_token,
         refresh_token: data.session?.refresh_token,
@@ -247,7 +266,7 @@ export class AuthService {
           role: metadata.role || 'owner',
           studio_id: metadata.studio_id,
           branch_ids: metadata.branch_ids || [],
-          onboarding_step: onboardingStep,
+          onboarding_step: effectiveStep,
         },
         studio: null,
         device: device.is_new ? { id: device.id, is_new_device: true } : undefined,
@@ -358,9 +377,107 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
+    // Return full user/studio payload so frontend can update state
+    const metadata = data.user?.user_metadata || {};
+    const studioId = metadata.studio_id;
+    let studio = null;
+    if (studioId) {
+      try {
+        studio = await this.prisma.studio.findUnique({ where: { id: studioId } });
+      } catch (err) {
+        this.logger.error(`Error fetching studio on refresh: ${(err as Error).message}`);
+      }
+    }
+
+    // Resolve roles/permissions
+    let role = metadata.role || 'owner';
+    let branchIds = metadata.branch_ids || [];
+    let permissionCodes: string[] = [];
+
+    if (studioId && data.user) {
+      try {
+        const userRoles = await this.rbacService.getUserRoles(data.user.id, studioId);
+        if (userRoles.length > 0) {
+          const primaryRole = userRoles.find((r) => r.is_primary) || userRoles[0];
+          role = primaryRole.role_name;
+          const hasGlobalAccess = userRoles.some((r) => r.branch_id === null);
+          if (!hasGlobalAccess) {
+            branchIds = [...new Set(userRoles.filter((r) => r.branch_id).map((r) => r.branch_id!))];
+          }
+          permissionCodes = await this.rbacService.resolvePermissions(data.user.id, studioId);
+        }
+      } catch (e) {
+        this.logger.warn(`RBAC on refresh: ${e}`);
+      }
+    }
+
     return {
       access_token: data.session.access_token,
       refresh_token: data.session.refresh_token,
+      user: data.user ? {
+        id: data.user.id,
+        email: data.user.email,
+        full_name: metadata.full_name,
+        role,
+        studio_id: studioId,
+        organization_id: metadata.organization_id,
+        branch_ids: branchIds,
+        permission_codes: permissionCodes,
+        onboarding_step: metadata.onboarding_step,
+      } : undefined,
+      studio,
+    };
+  }
+
+  async getMe(userId: string) {
+    const { data: userData } = await this.supabase.auth.admin.getUserById(userId);
+    if (!userData?.user) throw new UnauthorizedException('User not found');
+
+    const metadata = userData.user.user_metadata || {};
+    const studioId = metadata.studio_id;
+    let studio = null;
+    if (studioId) {
+      try {
+        studio = await this.prisma.studio.findUnique({ where: { id: studioId } });
+      } catch (err) {
+        this.logger.error(`Error fetching studio: ${(err as Error).message}`);
+      }
+    }
+
+    let role = metadata.role || 'owner';
+    let branchIds = metadata.branch_ids || [];
+    let permissionCodes: string[] = [];
+
+    if (studioId) {
+      try {
+        const userRoles = await this.rbacService.getUserRoles(userId, studioId);
+        if (userRoles.length > 0) {
+          const primaryRole = userRoles.find((r) => r.is_primary) || userRoles[0];
+          role = primaryRole.role_name;
+          const hasGlobalAccess = userRoles.some((r) => r.branch_id === null);
+          if (!hasGlobalAccess) {
+            branchIds = [...new Set(userRoles.filter((r) => r.branch_id).map((r) => r.branch_id!))];
+          }
+          permissionCodes = await this.rbacService.resolvePermissions(userId, studioId);
+        }
+      } catch (e) {
+        this.logger.warn(`RBAC in getMe: ${e}`);
+      }
+    }
+
+    return {
+      user: {
+        id: userId,
+        email: userData.user.email,
+        full_name: metadata.full_name,
+        role,
+        studio_id: studioId,
+        organization_id: metadata.organization_id,
+        branch_ids: branchIds,
+        permission_codes: permissionCodes,
+        onboarding_step: metadata.onboarding_step,
+      },
+      studio,
     };
   }
 
@@ -415,46 +532,75 @@ export class AuthService {
     }
 
     // Create studio
+    const studioReferralCode = await this.generateUniqueReferralCode();
     const studio = await this.prisma.studio.create({
       data: {
         name: dto.studio_name,
         slug,
         schema_name: `studio_${authData.user.id.replace(/-/g, '_')}`,
         owner_user_id: authData.user.id,
-        timezone: dto.timezone || 'Asia/Kolkata',
-        currency: dto.currency || 'INR',
+        timezone: dto.timezone || DEFAULT_TIMEZONE,
+        currency: dto.currency || DEFAULT_CURRENCY,
+        referral_code: studioReferralCode,
       },
     });
 
-    // Create first branch
-    const branch = await this.prisma.branch.create({
-      data: {
-        name: dto.branch_name,
-        address: dto.branch_address,
-        city: dto.branch_city,
-        phone: dto.branch_phone,
-      },
-    });
+    // Create studio schema FIRST — must exist before any tenant data
+    try {
+      if (!/^studio_[0-9a-f_]+$/i.test(studio.schema_name)) {
+        throw new InternalServerErrorException('Invalid schema name');
+      }
+      await this.prisma.$executeRawUnsafe(
+        `CREATE SCHEMA IF NOT EXISTS "${studio.schema_name}"`,
+      );
+      await this.cloneTenantSchema(studio.schema_name);
+    } catch (error) {
+      this.logger.error(`Failed to create schema ${studio.schema_name}`, error);
+      throw new InternalServerErrorException('Failed to initialize studio environment');
+    }
 
-    // Update user metadata with studio_id and branch_ids
+    // Create organization + branch inside the tenant schema context
+    // This ensures the Prisma $use middleware sets the correct search_path
+    const { branch, organizationId } = await this.runInTenantContext(studio.schema_name, async () => {
+      // Create organization for this studio
+      const org = await this.prisma.organization.create({
+        data: {
+          gym_id: studio.id,
+          name: dto.studio_name,
+          slug,
+          country: 'IN',
+          timezone: dto.timezone || DEFAULT_TIMEZONE,
+          currency: dto.currency || DEFAULT_CURRENCY,
+          status: 'active',
+        },
+      });
+
+      // Create first branch linked to organization
+      const b = await this.prisma.branch.create({
+        data: {
+          gym_id: studio.id,
+          name: dto.branch_name,
+          address: dto.branch_address,
+          city: dto.branch_city,
+          phone: dto.branch_phone,
+          organization_id: org.id,
+          is_active: true,
+        },
+      });
+
+      return { branch: b, organizationId: org.id };
+    }, studio.id);
+
+    // Update user metadata with studio_id, org_id, and branch_ids
     await this.supabase.auth.admin.updateUserById(authData.user.id, {
       user_metadata: {
         full_name: dto.full_name,
         role: 'owner',
         studio_id: studio.id,
+        organization_id: organizationId,
         branch_ids: [branch.id],
       },
     });
-
-    // Create studio schema
-    try {
-      await this.prisma.$executeRawUnsafe(
-        `CREATE SCHEMA IF NOT EXISTS "${studio.schema_name}"`,
-      );
-    } catch (error) {
-      this.logger.error(`Failed to create schema ${studio.schema_name}`, error);
-      throw new InternalServerErrorException('Failed to initialize studio environment');
-    }
 
     // ── Assign owner role via normalized RBAC ──
     await this.rbacService.assignRole({
@@ -467,7 +613,9 @@ export class AuthService {
 
     // Seed enterprise roles for this studio (runs in tenant context)
     try {
-      await this.rbacSeedService.seedStudioRoles();
+      await this.runInTenantContext(studio.schema_name, () =>
+        this.rbacSeedService.seedStudioRoles(),
+      studio.id);
     } catch (err) {
       this.logger.warn(`Failed to seed studio roles: ${err.message}`);
     }
@@ -553,6 +701,59 @@ export class AuthService {
   // ── Registration (stores pending; Supabase account created only after email verified) ──
 
   async register(dto: RegisterDto) {
+    // Check if email already has a completed account in Supabase Auth
+    const { data: listData } = await this.supabase.auth.admin.listUsers({ perPage: 1000 });
+    const existingAuthUser = (listData?.users as unknown as Array<{ id: string; email?: string; user_metadata?: Record<string, unknown> }>)
+      ?.find((u) => u.email === dto.email);
+    if (existingAuthUser) {
+      const meta = existingAuthUser.user_metadata || {};
+      // If user exists but never completed onboarding (no studio_id),
+      // reset their metadata and allow re-registration through the normal flow
+      if (!meta.studio_id) {
+        await this.supabase.auth.admin.updateUserById(existingAuthUser.id, {
+          password: dto.password,
+          user_metadata: {
+            full_name: dto.full_name,
+            phone: dto.phone,
+            role: 'owner',
+            onboarding_step: 'studio_info',
+          },
+        });
+
+        // Sync identity
+        await this.identityService.syncIdentity({
+          id: existingAuthUser.id,
+          email: dto.email,
+          full_name: dto.full_name,
+          phone: dto.phone ?? undefined,
+          email_verified: true,
+        });
+
+        // Sign in and return tokens — skip email verification since account already confirmed
+        const { data: signInData } = await this.supabase.auth.signInWithPassword({
+          email: dto.email,
+          password: dto.password,
+        });
+
+        return {
+          success: true,
+          email: dto.email,
+          skip_verification: true,
+          access_token: signInData?.session?.access_token,
+          refresh_token: signInData?.session?.refresh_token,
+          user: {
+            id: existingAuthUser.id,
+            email: dto.email,
+            full_name: dto.full_name,
+            role: 'owner',
+            onboarding_step: 'studio_info',
+          },
+        };
+      }
+
+      throw new ConflictException('An account with this email already exists. Please sign in instead.');
+    }
+
     // Remove any previous pending registration for this email (allows re-registration)
     await this.prisma.pendingRegistration.deleteMany({ where: { email: dto.email } });
 
@@ -579,12 +780,12 @@ export class AuthService {
       .trim();
     const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
     this.logger.log(`📧 Verification link for ${dto.email}: ${verificationUrl}`);
-    await this.sendVerificationEmail(dto.email, dto.full_name, verificationUrl);
+    const emailSent = await this.sendVerificationEmail(dto.email, dto.full_name, verificationUrl);
 
-    // No tokens returned — user must verify email before account exists
-    // In dev mode (no RESEND_API_KEY), include the verification URL so the frontend can show it
+    // Always return verification_url if email delivery failed (domain not verified, etc.)
+    // so the user can still verify via the link shown in the UI
     const result: Record<string, unknown> = { success: true, email: dto.email };
-    if (!this.resend) {
+    if (!emailSent) {
       result.verification_url = verificationUrl;
     }
     return result;
@@ -630,42 +831,41 @@ export class AuthService {
       });
 
     if (authError || !authData.user) {
+      this.logger.warn(`createUser failed for ${pending.email}: ${authError?.message}`);
       // If account already exists (e.g. re-registration after DB truncation),
       // update password and sign in instead of failing
-      if (authError?.message?.toLowerCase().includes('already')) {
-        // Look up existing user by email in auth.users
-        const { data: existingRows } = await this.supabase
-          .from('users')  // uses auth schema via service role
-          .select('id')
-          .eq('email', pending.email)
-          .limit(1);
+      if (authError?.message?.toLowerCase().includes('already') ||
+          authError?.message?.toLowerCase().includes('duplicate') ||
+          authError?.message?.toLowerCase().includes('exists')) {
+        // Use admin API to find the existing user by email
+        let existingId: string | null = null;
 
-        // Fallback: query auth.users via raw RPC if above fails (different Supabase versions)
-        let existingId: string | null = (existingRows as { id: string }[])?.[0]?.id ?? null;
-
-        if (!existingId) {
-          // Try the admin API with a broader search
-          const { data: listData } = await this.supabase.auth.admin.listUsers({ perPage: 1000 });
-          const found = (listData?.users as unknown as Array<{ id: string; email?: string }>)
-            ?.find((u) => u.email === pending.email);
-          existingId = found?.id ?? null;
+        const { data: listData, error: listError } = await this.supabase.auth.admin.listUsers({ perPage: 1000 });
+        if (listError) {
+          this.logger.error(`listUsers failed: ${listError.message}`);
         }
+        const found = (listData?.users as unknown as Array<{ id: string; email?: string }>)
+          ?.find((u) => u.email === pending.email);
+        existingId = found?.id ?? null;
 
         if (!existingId) {
+          this.logger.error(`Could not find existing Supabase Auth user for ${pending.email}`);
           throw new ConflictException('An account with this email already exists. Please sign in.');
         }
 
+        this.logger.log(`Found existing auth user ${existingId} for ${pending.email}, updating...`);
         // Fetch the existing user's metadata
         const { data: existingUser } = await this.supabase.auth.admin.getUserById(existingId);
         const existingMeta = existingUser?.user?.user_metadata || {};
         // Update password to the newly registered one and reset metadata
         await this.supabase.auth.admin.updateUserById(existingId, {
           password,
+          email_confirm: true,
           user_metadata: {
             ...existingMeta,
             full_name: pending.full_name,
             phone: pending.phone,
-            onboarding_step: existingMeta?.onboarding_step || 'studio_info',
+            onboarding_step: 'studio_info',
           },
         });
         userId = existingId;
@@ -682,32 +882,54 @@ export class AuthService {
     // Delete the pending record — account is now real
     await this.prisma.pendingRegistration.delete({ where: { token: dto.token } });
 
-    // Sign in to return session tokens to the frontend
-    const { data: signInData } = await this.supabase.auth.signInWithPassword({
+    // Sync user to local identity table so JWT guard can find them
+    await this.identityService.syncIdentity({
+      id: userId,
       email: pending.email,
-      password,
+      full_name: pending.full_name,
+      phone: pending.phone ?? undefined,
+      email_verified: true,
     });
 
-    // Determine current onboarding step
-    const metadata = isExistingUser
-      ? (await this.supabase.auth.admin.getUserById(userId)).data?.user?.user_metadata
-      : authData!.user!.user_metadata;
-    const onboardingStep = metadata?.onboarding_step || 'studio_info';
-
-    return {
-      access_token: signInData?.session?.access_token,
-      refresh_token: signInData?.session?.refresh_token,
-      user: {
-        id: userId,
+    // Sign in to return session tokens to the frontend
+    try {
+      const { data: signInData, error: signInError } = await this.supabase.auth.signInWithPassword({
         email: pending.email,
-        full_name: pending.full_name,
-        role: 'owner',
-        studio_id: undefined as string | undefined,
-        branch_ids: [] as string[],
-        onboarding_step: onboardingStep,
-      },
-      studio: null,
-    };
+        password,
+      });
+
+      if (signInError || !signInData?.session) {
+        this.logger.error(`signInWithPassword failed for ${pending.email}: ${signInError?.message ?? 'no session returned'}`);
+        throw new InternalServerErrorException('Account created but sign-in failed. Please try logging in manually.');
+      }
+
+      // Determine current onboarding step
+      const metadata = isExistingUser
+        ? (await this.supabase.auth.admin.getUserById(userId)).data?.user?.user_metadata
+        : authData?.user?.user_metadata;
+      const onboardingStep = metadata?.onboarding_step || 'studio_info';
+
+      return {
+        access_token: signInData.session.access_token,
+        refresh_token: signInData.session.refresh_token,
+        user: {
+          id: userId,
+          email: pending.email,
+          full_name: pending.full_name,
+          role: 'owner',
+          studio_id: undefined as string | undefined,
+          branch_ids: [] as string[],
+          onboarding_step: onboardingStep,
+        },
+        studio: null,
+      };
+    } catch (err) {
+      this.logger.error(`verifyEmail post-creation failed for ${pending.email}: ${err?.message ?? err}`, err?.stack);
+      if (err instanceof InternalServerErrorException) throw err;
+      throw new InternalServerErrorException(
+        `Account created but post-setup failed: ${err?.message ?? 'unknown error'}. Please try logging in manually.`,
+      );
+    }
   }
 
   // ── Resend Verification (public — takes email in body, no JWT required) ──────
@@ -737,10 +959,10 @@ export class AuthService {
       .trim();
     const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
     this.logger.log(`📧 Resent verification for ${email}: ${verificationUrl}`);
-    await this.sendVerificationEmail(email, pending.full_name, verificationUrl);
+    const emailSent = await this.sendVerificationEmail(email, pending.full_name, verificationUrl);
 
     const result: Record<string, unknown> = { sent: true };
-    if (!this.resend) {
+    if (!emailSent) {
       result.verification_url = verificationUrl;
     }
     return result;
@@ -752,27 +974,27 @@ export class AuthService {
     email: string,
     name: string,
     verificationUrl: string,
-  ) {
+  ): Promise<boolean> {
     if (!this.resend) {
       this.logger.warn(`No RESEND_API_KEY — skipping email to ${email}. Use console link above.`);
-      return;
+      return false;
     }
     try {
       const fromEmail = this.configService.get(
         'RESEND_FROM_EMAIL',
-        'FitSync Pro <onboarding@fitsyncpro.com>',
+        'MuscleX <onboarding@resend.dev>',
       );
-      await this.resend.emails.send({
+      const { error } = await this.resend.emails.send({
         from: fromEmail,
         to: email,
-        subject: 'Verify your FitSync Pro account',
+        subject: 'Verify your MuscleX account',
         html: `
           <div style="font-family: 'Inter', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
             <div style="text-align: center; margin-bottom: 32px;">
               <div style="display: inline-block; background: #3ECF8E; border-radius: 8px; width: 40px; height: 40px; line-height: 40px; text-align: center;">
-                <span style="color: #171717; font-weight: bold; font-size: 18px;">F</span>
+                <span style="color: #171717; font-weight: bold; font-size: 18px;">M</span>
               </div>
-              <p style="font-size: 16px; font-weight: 600; color: #171717; margin: 8px 0 0;">FitSync Pro</p>
+              <p style="font-size: 16px; font-weight: 600; color: #171717; margin: 8px 0 0;">MuscleX</p>
             </div>
             <h1 style="font-size: 22px; font-weight: 700; color: #171717; margin-bottom: 8px;">Verify your email</h1>
             <p style="font-size: 14px; color: #666; line-height: 1.6; margin-bottom: 24px;">
@@ -785,15 +1007,19 @@ export class AuthService {
               This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.
             </p>
             <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-            <p style="font-size: 11px; color: #bbb; text-align: center;">FitSync Pro — The complete operating system for modern fitness studios.</p>
+            <p style="font-size: 11px; color: #bbb; text-align: center;">MuscleX — The complete operating system for modern fitness studios.</p>
           </div>
         `,
       });
+      if (error) {
+        this.logger.warn(`⚠️ Resend rejected email to ${email}: ${error.message} — returning verification_url as fallback`);
+        return false;
+      }
       this.logger.log(`✅ Verification email sent to ${email}`);
+      return true;
     } catch (err) {
       this.logger.error(`❌ Failed to send verification email to ${email}: ${err.message}`);
-      // Don't throw — registration should still succeed even if email fails
-      // The user can use the resend button
+      return false;
     }
   }
 
@@ -830,7 +1056,7 @@ export class AuthService {
   // ── Available Plans (public, DB-backed) ──────────────────
 
   async getPlans() {
-    return fetchAvailablePlans(this.prisma);
+    return fetchAvailablePlans(this.prisma, 'regular');
   }
 
   // ── Plan Selection (delegates to onboarding step 7) ───────────────────
@@ -883,17 +1109,21 @@ export class AuthService {
           name: dto.studio_name,
           slug,
           business_type: dto.business_type,
+          account_type: 'gym',
           phone: dto.phone,
           email: dto.email || email,
           country: dto.country,
           website: dto.website,
           logo_url: dto.logo_url,
-          timezone: dto.timezone || existingStudio.timezone || 'Asia/Kolkata',
-          currency: dto.currency || existingStudio.currency || 'INR',
+          timezone: dto.timezone || existingStudio.timezone || DEFAULT_TIMEZONE,
+          currency: dto.currency || existingStudio.currency || DEFAULT_CURRENCY,
           email_verified: true,
         },
       });
     } else {
+      // Generate a unique 6-char referral code for this studio
+      const referralCode = await this.generateUniqueReferralCode();
+
       studio = await this.prisma.studio.create({
         data: {
           name: dto.studio_name,
@@ -901,17 +1131,19 @@ export class AuthService {
           schema_name: schemaName,
           owner_user_id: userId,
           business_type: dto.business_type,
+          account_type: 'gym',
           phone: dto.phone,
           email: dto.email || email,
           country: dto.country,
           website: dto.website,
           logo_url: dto.logo_url,
-          timezone: dto.timezone || 'Asia/Kolkata',
-          currency: dto.currency || 'INR',
-          subscription_plan: 'free',
+          timezone: dto.timezone || DEFAULT_TIMEZONE,
+          currency: dto.currency || DEFAULT_CURRENCY,
+          subscription_plan: DEFAULT_PLAN,
           subscription_status: 'trial',
           subscription_start: now,
           email_verified: true,
+          referral_code: referralCode,
         },
       });
 
@@ -919,44 +1151,73 @@ export class AuthService {
         await this.prisma.$executeRawUnsafe(
           `CREATE SCHEMA IF NOT EXISTS "${schemaName}"`,
         );
+        await this.cloneTenantSchema(schemaName);
       } catch (error) {
         this.logger.error(`Failed to create schema ${schemaName}`, error);
         throw new InternalServerErrorException('Failed to initialize studio environment');
       }
-
-      branch = await this.prisma.branch.create({
-        data: {
-          name: 'Main Branch',
-          country: dto.country,
-          phone: dto.phone,
-        },
-      });
     }
 
-    if (!branch) {
-      branch = await this.prisma.branch.create({
-        data: {
-          name: 'Main Branch',
-          country: dto.country,
-          phone: dto.phone,
-        },
-      });
+    // Create Organization record in the tenant schema (required for staff/member/class relationships)
+    // Use runInTenantContext to set AsyncLocalStorage so Prisma $use middleware works correctly
+    let organizationId = metadata.organization_id as string | undefined;
+    if (!organizationId) {
+      try {
+        const orgSlug = studio.slug || schemaName;
+        const org = await this.runInTenantContext(schemaName, () =>
+          this.prisma.organization.create({
+            data: {
+              gym_id: studio.id,
+              name: studio.name,
+              slug: orgSlug,
+              country: dto.country,
+              timezone: studio.timezone || DEFAULT_TIMEZONE,
+              currency: studio.currency || DEFAULT_CURRENCY,
+              status: 'active',
+            },
+          }),
+        studio.id);
+        organizationId = org.id;
+      } catch (e) {
+        this.logger.warn(`Organization creation in tenant schema: ${e}`);
+      }
     }
 
     // Set up user metadata — advance to next onboarding step
+    const nextOnboardingStep = 'setup_branches';
+
     await this.supabase.auth.admin.updateUserById(userId, {
       user_metadata: {
         ...metadata,
         role: 'owner',
         studio_id: studio.id,
-        branch_ids: [branch.id],
-        onboarding_step: 'setup_branches',
+        organization_id: organizationId,
+        branch_ids: [],
+        account_type: 'gym',
+        onboarding_step: nextOnboardingStep,
       },
     });
 
-    // Seed RBAC roles for the studio
+    // Sync studio to SaaS Control Center
+    await this.sccSync.upsertTenant({
+      id: studio.id,
+      name: studio.name,
+      slug: studio.slug,
+      email: studio.email || email,
+      phone: studio.phone,
+      logo_url: studio.logo_url,
+      account_type: (studio as any).account_type || 'gym',
+      subscription_plan: studio.subscription_plan,
+      subscription_status: studio.subscription_status,
+      trial_ends_at: studio.trial_ends_at,
+      owner_full_name: metadata.full_name as string | undefined,
+    });
+
+    // Seed RBAC roles for the studio (inside tenant context)
     try {
-      await this.rbacSeedService.seedStudioRoles();
+      await this.runInTenantContext(schemaName, () =>
+        this.rbacSeedService.seedStudioRoles(),
+      studio.id);
     } catch (e) {
       this.logger.warn(`RBAC seed partially failed: ${e}`);
     }
@@ -979,8 +1240,10 @@ export class AuthService {
         full_name: metadata.full_name,
         role: 'owner',
         studio_id: studio.id,
-        branch_ids: [branch.id],
-        onboarding_step: 'setup_branches',
+        organization_id: organizationId,
+        branch_ids: [],
+        account_type: 'gym',
+        onboarding_step: nextOnboardingStep,
       },
       studio: {
         id: studio.id,
@@ -996,29 +1259,92 @@ export class AuthService {
   // ── Onboarding Step 4: Branches ──────────────────────────────────────
 
   async onboardingBranches(userId: string, dto: OnboardingBranchesDto) {
+    this.logger.log(`onboardingBranches called for user ${userId}, branches: ${dto.branches?.length}`);
     const { data: userData } = await this.supabase.auth.admin.getUserById(userId);
     const metadata = userData?.user?.user_metadata || {};
     const studioId = metadata.studio_id;
+    const organizationId = metadata.organization_id as string | undefined;
+    this.logger.log(`onboardingBranches: studioId=${studioId}, organizationId=${organizationId}`);
 
     if (!studioId) {
       throw new BadRequestException('Studio not yet created. Complete studio setup first.');
     }
 
-    const createdBranches: string[] = [...(metadata.branch_ids || [])];
+    if (!dto.branches || dto.branches.length === 0) {
+      throw new BadRequestException('At least one branch is required to continue.');
+    }
+
+    // Look up the actual schema_name from the Studio record
+    const studioRows = await this.prisma.$queryRawUnsafe<Array<{ schema_name: string }>>(
+      `SELECT schema_name FROM public.studios WHERE id = $1::uuid LIMIT 1`,
+      studioId,
+    );
+    const schemaName = studioRows?.[0]?.schema_name;
+    if (!schemaName || !/^studio_[0-9a-f_]+$/i.test(schemaName)) {
+      throw new BadRequestException('Studio schema not found');
+    }
+
+    const createdBranches: string[] = [];
+
+    // Verify organization_id actually exists in the tenant schema before using it (FK constraint)
+    let validOrgId: string | undefined;
+    if (organizationId) {
+      const orgCheck = await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(`SET LOCAL search_path TO "studio_template", public`);
+        return tx.$queryRawUnsafe<Array<{ id: string }>>(
+          `SELECT id FROM organizations WHERE id = $1::uuid LIMIT 1`,
+          organizationId,
+        );
+      });
+      if (orgCheck.length > 0) {
+        validOrgId = organizationId;
+      } else {
+        // Organization record missing — create it now
+        try {
+          await this.prisma.$transaction(async (tx) => {
+            await tx.$executeRawUnsafe(`SET LOCAL search_path TO "studio_template", public`);
+            await tx.$queryRawUnsafe(
+              `INSERT INTO organizations (id, gym_id, name, slug, status)
+               VALUES ($1::uuid, $2::uuid, $3, $4, $5)`,
+              organizationId,
+              studioId,
+              metadata.full_name || 'My Gym',
+              schemaName,
+              'active',
+            );
+          });
+          validOrgId = organizationId;
+        } catch (e) {
+          this.logger.warn(`Could not create missing organization: ${e}`);
+        }
+      }
+    }
 
     for (const b of dto.branches) {
-      const branch = await this.prisma.branch.create({
-        data: {
-          name: b.name,
-          address: b.address,
-          city: b.city,
-          state: b.state,
-          country: b.country,
-          postal_code: b.postal_code,
-          phone: b.phone,
-        },
-      });
-      createdBranches.push(branch.id);
+      try {
+        const columns: string[] = ['gym_id', 'name', 'address', 'city', 'state', 'country', 'postal_code', 'phone', 'is_active', 'status'];
+        const casts: string[] = ['::uuid', '', '', '', '', '', '', '', '', ''];
+        const values: unknown[] = [studioId, b.name, b.address || null, b.city || null, b.state || null, b.country || null, b.postal_code || null, b.phone || null, true, 'active'];
+
+        if (validOrgId) {
+          columns.push('organization_id');
+          casts.push('::uuid');
+          values.push(validOrgId);
+        }
+
+        const placeholders = values.map((_, i) => `$${i + 1}${casts[i]}`).join(', ');
+        const rows = await this.prisma.$transaction(async (tx) => {
+          await tx.$executeRawUnsafe(`SET LOCAL search_path TO "studio_template", public`);
+          return tx.$queryRawUnsafe<Array<{ id: string }>>(
+            `INSERT INTO branches (${columns.join(', ')}) VALUES (${placeholders}) RETURNING id`,
+            ...values,
+          );
+        });
+        if (rows[0]?.id) createdBranches.push(rows[0].id);
+      } catch (err) {
+        this.logger.error(`onboardingBranches INSERT failed: ${err?.message ?? err}`, err?.stack);
+        throw err;
+      }
     }
 
     await this.supabase.auth.admin.updateUserById(userId, {
@@ -1039,27 +1365,65 @@ export class AuthService {
     const metadata = userData?.user?.user_metadata || {};
     const studioId = metadata.studio_id;
     const branchIds: string[] = metadata.branch_ids || [];
+    const organizationId = metadata.organization_id as string | undefined;
 
     if (!studioId) {
       throw new BadRequestException('Studio not yet created.');
     }
 
+    // Look up the actual schema_name from the Studio record
+    const studioRows = await this.prisma.$queryRawUnsafe<Array<{ schema_name: string }>>(
+      `SELECT schema_name FROM public.studios WHERE id = $1::uuid LIMIT 1`,
+      studioId,
+    );
+    const schemaName = studioRows?.[0]?.schema_name;
+    if (!schemaName || !/^studio_[0-9a-f_]+$/i.test(schemaName)) {
+      throw new BadRequestException('Studio schema not found');
+    }
+
     const createdPlans: string[] = [];
 
-    for (const p of dto.plans) {
-      const plan = await this.prisma.membershipPlan.create({
-        data: {
-          name: p.name,
-          description: p.description,
-          plan_type: p.plan_type,
-          duration_days: p.duration_days,
-          price: p.price,
-          currency: p.currency || 'INR',
-          branch_id: branchIds[0] || undefined,
-          is_active: true,
-        },
+    // Verify organization_id exists in tenant schema (FK constraint)
+    let validOrgId: string | undefined;
+    if (organizationId) {
+      const orgCheck = await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(`SET LOCAL search_path TO "studio_template", public`);
+        return tx.$queryRawUnsafe<Array<{ id: string }>>(
+          `SELECT id FROM organizations WHERE id = $1::uuid LIMIT 1`,
+          organizationId,
+        );
       });
-      createdPlans.push(plan.id);
+      validOrgId = orgCheck.length > 0 ? organizationId : undefined;
+    }
+
+    if (dto.plans && dto.plans.length > 0) {
+      for (const p of dto.plans) {
+        const rows = await this.prisma.$transaction(async (tx) => {
+          await tx.$executeRawUnsafe(`SET LOCAL search_path TO "studio_template", public`);
+
+          const columns: string[] = ['gym_id', 'name', 'description', 'plan_type', 'duration_days', 'price', 'currency', 'is_active', 'auto_renew_enabled', 'grace_period_days', 'multi_branch_access'];
+          const casts: string[] = ['::uuid', '', '', '', '', '', '', '', '', '', ''];
+          const values: unknown[] = [studioId, p.name, p.description || null, p.plan_type, p.duration_days || null, p.price, p.currency || DEFAULT_CURRENCY, true, false, 0, false];
+
+          if (branchIds[0]) {
+            columns.push('branch_id');
+            casts.push('::uuid');
+            values.push(branchIds[0]);
+          }
+          if (validOrgId) {
+            columns.push('organization_id');
+            casts.push('::uuid');
+            values.push(validOrgId);
+          }
+
+          const placeholders = values.map((_, i) => `$${i + 1}${casts[i]}`).join(', ');
+          return tx.$queryRawUnsafe<Array<{ id: string }>>(
+            `INSERT INTO membership_plans (${columns.join(', ')}) VALUES (${placeholders}) RETURNING id`,
+            ...values,
+          );
+        });
+        if (rows[0]?.id) createdPlans.push(rows[0].id);
+      }
     }
 
     await this.supabase.auth.admin.updateUserById(userId, {
@@ -1076,26 +1440,41 @@ export class AuthService {
     const metadata = userData?.user?.user_metadata || {};
     const studioId = metadata.studio_id;
     const branchIds: string[] = metadata.branch_ids || [];
+    const organizationId = metadata.organization_id as string | undefined;
 
     if (!studioId) {
       throw new BadRequestException('Studio not yet created.');
     }
 
+    // Look up the actual schema_name from the Studio record (consistent with branches/memberships)
+    const studioRows = await this.prisma.$queryRawUnsafe<Array<{ schema_name: string }>>(
+      `SELECT schema_name FROM public.studios WHERE id = $1::uuid LIMIT 1`,
+      studioId,
+    );
+    const schemaName = studioRows?.[0]?.schema_name;
+    if (!schemaName || !/^studio_[0-9a-f_]+$/i.test(schemaName)) {
+      throw new BadRequestException('Studio schema not found');
+    }
+
     const createdStaff: string[] = [];
 
-    for (const s of dto.staff) {
-      const staff = await this.prisma.staff.create({
-        data: {
-          full_name: s.full_name,
-          role: s.role,
-          email: s.email || undefined,
-          phone: s.phone || '',
-          branch_id: branchIds[0] || undefined,
-          status: 'active',
-        },
-      });
-      createdStaff.push(staff.id);
-    }
+    await this.runInTenantContext(schemaName, async () => {
+      for (const s of dto.staff) {
+        const staff = await this.prisma.staff.create({
+          data: {
+            gym_id: studioId,
+            full_name: s.full_name,
+            role: s.role,
+            email: s.email || undefined,
+            phone: s.phone || '',
+            branch_id: branchIds[0] || undefined,
+            organization_id: organizationId || undefined,
+            status: 'active',
+          },
+        });
+        createdStaff.push(staff.id);
+      }
+    }, studioId);
 
     await this.supabase.auth.admin.updateUserById(userId, {
       user_metadata: { ...metadata, onboarding_step: 'select_subscription' },
@@ -1106,7 +1485,7 @@ export class AuthService {
 
   // ── Onboarding Step 7: Select Subscription ───────────────────────────
 
-  async onboardingSelectSubscription(userId: string, planId: string) {
+  async onboardingSelectSubscription(userId: string, planId: string, billingCycle: 'monthly' | 'annual' = 'monthly') {
     if (!PLAN_CONFIGS[planId]) {
       throw new BadRequestException(`Invalid plan: ${planId}`);
     }
@@ -1119,27 +1498,161 @@ export class AuthService {
       throw new BadRequestException('Studio not yet created.');
     }
 
-    // Update studio subscription
+    // Validate plan is a regular gym plan
+    const planConfig = PLAN_CONFIGS[planId];
+    if (!planConfig || planConfig.plan_type !== 'regular') {
+      throw new BadRequestException(
+        `Plan "${planId}" is not available.`,
+      );
+    }
+
+    // Lookup the SubscriptionPlan DB record for the rule engine
+    const subscriptionPlan = await this.prisma.subscriptionPlan.findFirst({
+      where: { name: planId, is_active: true },
+    });
+
     const now = new Date();
     const nextBilling = new Date(now);
-    nextBilling.setDate(nextBilling.getDate() + 30);
+    nextBilling.setDate(nextBilling.getDate() + (billingCycle === 'annual' ? 365 : 30));
 
     await this.prisma.studio.update({
       where: { id: studioId },
       data: {
         subscription_plan: planId,
-        subscription_status: planId === 'free' ? 'active' : 'trial',
+        subscription_status: planId === DEFAULT_PLAN ? 'active' : 'trial',
+        billing_cycle: billingCycle,
         subscription_start: now,
-        trial_ends_at: planId !== 'free' ? new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000) : null,
-        next_billing_date: planId !== 'free' ? nextBilling : null,
+        trial_ends_at: planId !== DEFAULT_PLAN ? new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000) : null,
+        next_billing_date: planId !== DEFAULT_PLAN ? nextBilling : null,
       },
     });
 
+    // Free plan → complete onboarding immediately
+    // Paid plan → go to payment step first
+    const nextStep = planId === DEFAULT_PLAN ? 'complete' : 'payment';
+
     await this.supabase.auth.admin.updateUserById(userId, {
-      user_metadata: { ...metadata, selected_plan: planId, onboarding_step: 'complete' },
+      user_metadata: { ...metadata, selected_plan: planId, billing_cycle: billingCycle, onboarding_step: nextStep },
     });
 
-    return { plan: planId, onboarding_step: 'complete' };
+    // Sync plan selection to SCC (trial status — confirmed active after payment)
+    const studioRow = await this.prisma.studio.findUnique({ where: { id: studioId }, select: { slug: true } });
+    if (studioRow) {
+      const trialEndsAt = planId !== DEFAULT_PLAN ? new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000) : null;
+      await this.sccSync.syncPlanChange(studioRow.slug, planId === DEFAULT_PLAN ? 'active' : 'trial', trialEndsAt, planId);
+    }
+
+    // ── Emit domain event for referral reward system ───────────────
+    // Only fire for paid plans (free plan activations don't trigger rewards)
+    if (planId !== DEFAULT_PLAN && subscriptionPlan) {
+      const idempotencyKey = `onboarding_${studioId}_plan_${planId}_${now.getTime()}`;
+      const amountPaid = billingCycle === 'annual'
+        ? Number(subscriptionPlan.annual_price)
+        : Number(subscriptionPlan.monthly_price);
+      const eventPayload: SubscriptionActivatedPayload = {
+        studioId,
+        planId:         subscriptionPlan.id,
+        planName:       planId,
+        billingCycle,
+        amountPaid,
+        currency:       DEFAULT_CURRENCY,
+        idempotencyKey,
+        activatedAt:    now,
+      };
+      this.eventEmitter.emit(REFERRAL_EVENTS.SUBSCRIPTION_ACTIVATED, eventPayload);
+    }
+
+    return { plan: planId, billing_cycle: billingCycle, onboarding_step: nextStep };
+  }
+
+  // ── Onboarding Step 8: Record Payment (paid plans only) ──────────
+
+  async onboardingRecordPayment(userId: string, dto: OnboardingPaymentDto) {
+    const { data: userData } = await this.supabase.auth.admin.getUserById(userId);
+    const metadata = userData?.user?.user_metadata || {};
+    const studioId = metadata.studio_id as string;
+    if (!studioId) throw new BadRequestException('Studio not yet created.');
+
+    const studio = await this.prisma.studio.findUnique({ where: { id: studioId } });
+    if (!studio) throw new BadRequestException('Studio not found.');
+
+    const currency = dto.currency || studio.currency || DEFAULT_CURRENCY;
+    const now = new Date();
+    const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    // Generate invoice number: INV-YYYYMMDD-XXXX
+    const datePart = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const rand = Math.floor(Math.random() * 9000 + 1000);
+    const invoiceNumber = `INV-${datePart}-${rand}`;
+
+    // Create billing invoice in public schema
+    const invoice = await this.prisma.invoice.create({
+      data: {
+        studio_id: studioId,
+        invoice_number: invoiceNumber,
+        amount: dto.amount,
+        currency,
+        status: 'paid',
+        billing_period_start: now,
+        billing_period_end: periodEnd,
+        paid_at: now,
+      },
+    });
+
+    // Upgrade subscription_status to active
+    await this.prisma.studio.update({
+      where: { id: studioId },
+      data: { subscription_status: 'active' },
+    });
+
+    // Complete onboarding
+    await this.supabase.auth.admin.updateUserById(userId, {
+      user_metadata: { ...metadata, onboarding_step: 'complete' },
+    });
+
+    // Sync payment + active status to SCC
+    await this.sccSync.syncPlanChange(studio.slug, 'active', null, dto.plan_id);
+    await this.sccSync.upsertPayment({
+      id: invoice.id,
+      studio_slug: studio.slug,
+      amount: dto.amount,
+      currency,
+      status: 'paid',
+      invoice_number: invoiceNumber,
+      paid_at: now,
+    });
+
+    return {
+      invoice_id: invoice.id,
+      invoice_number: invoiceNumber,
+      amount: dto.amount,
+      currency,
+      card_last4: dto.card_last4,
+      card_brand: dto.card_brand,
+      status: 'paid',
+      onboarding_step: 'complete',
+    };
+  }
+
+  // ── Helper: unique referral code generation ─────────────────────
+
+  private async generateUniqueReferralCode(): Promise<string> {
+    const { randomBytes } = await import('crypto');
+    for (let attempt = 0; attempt < 10; attempt++) {
+      // 4 random bytes → base36 → trim to 6 chars → uppercase
+      const raw = parseInt(randomBytes(3).toString('hex'), 16)
+        .toString(36)
+        .toUpperCase()
+        .padStart(6, '0')
+        .slice(0, 6);
+      const exists = await this.prisma.studio.findUnique({
+        where: { referral_code: raw },
+        select: { id: true },
+      });
+      if (!exists) return raw;
+    }
+    // Fallback: UUID prefix
+    return randomBytes(3).toString('hex').toUpperCase();
   }
 
   // ── Skip Onboarding Step ─────────────────────────────────────────────
@@ -1165,5 +1678,145 @@ export class AuthService {
     });
 
     return { onboarding_step: nextStep };
+  }
+
+  // ── Clone Tenant Schema ─────────────────────────────────────────────
+  // Copies all table structures (DDL) from studio_template into the new
+  // tenant schema so that Prisma queries resolve correctly when
+  // search_path is set to the tenant schema.
+
+  private assertValidUuid(value: string, label = 'identifier'): void {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
+      throw new BadRequestException(`Invalid ${label}: must be a valid UUID`);
+    }
+  }
+
+  private async cloneTenantSchema(targetSchema: string): Promise<void> {
+    const sourceSchema = 'studio_template';
+
+    // Validate schema name to prevent injection (already validated upstream, but belt-and-suspenders)
+    if (!/^studio_[0-9a-f_]+$/i.test(targetSchema)) {
+      throw new InternalServerErrorException('Invalid target schema name');
+    }
+
+    try {
+      // Get all tables in the source schema
+      const tables = await this.prisma.$queryRawUnsafe<{ table_name: string }[]>(
+        `SELECT table_name FROM information_schema.tables
+         WHERE table_schema = $1 AND table_type = 'BASE TABLE'
+         ORDER BY table_name`,
+        sourceSchema,
+      );
+
+      if (tables.length === 0) {
+        this.logger.warn(`Source schema "${sourceSchema}" has no tables to clone`);
+        return;
+      }
+
+      this.logger.log(`Cloning ${tables.length} tables from "${sourceSchema}" to "${targetSchema}"`);
+
+      // Clone each table structure (DDL only, no data) using CREATE TABLE ... LIKE
+      // This copies column definitions, defaults, NOT NULL constraints, and indexes
+      const identifierRegex = /^[a-z_][a-z0-9_]{0,62}$/i;
+      for (const { table_name } of tables) {
+        if (!identifierRegex.test(table_name)) {
+          this.logger.warn(`Skipping table with unsafe name: ${table_name}`);
+          continue;
+        }
+        await this.prisma.$executeRawUnsafe(
+          `CREATE TABLE IF NOT EXISTS "${targetSchema}"."${table_name}"
+           (LIKE "${sourceSchema}"."${table_name}" INCLUDING ALL)`,
+        );
+      }
+
+      // Copy foreign key constraints from source schema
+      // LIKE ... INCLUDING ALL copies indexes and defaults but NOT foreign keys
+      const fks = await this.prisma.$queryRawUnsafe<{
+        constraint_name: string;
+        table_name: string;
+        column_name: string;
+        foreign_table_name: string;
+        foreign_column_name: string;
+        delete_rule: string;
+        update_rule: string;
+      }[]>(
+        `SELECT
+           tc.constraint_name,
+           tc.table_name,
+           kcu.column_name,
+           ccu.table_name AS foreign_table_name,
+           ccu.column_name AS foreign_column_name,
+           rc.delete_rule,
+           rc.update_rule
+         FROM information_schema.table_constraints tc
+         JOIN information_schema.key_column_usage kcu
+           ON tc.constraint_name = kcu.constraint_name
+           AND tc.table_schema = kcu.table_schema
+         JOIN information_schema.constraint_column_usage ccu
+           ON ccu.constraint_name = tc.constraint_name
+           AND ccu.table_schema = tc.table_schema
+         JOIN information_schema.referential_constraints rc
+           ON rc.constraint_name = tc.constraint_name
+           AND rc.constraint_schema = tc.table_schema
+         WHERE tc.constraint_type = 'FOREIGN KEY'
+           AND tc.table_schema = $1`,
+        sourceSchema,
+      );
+
+      const ALLOWED_FK_RULES = new Set(['CASCADE', 'RESTRICT', 'SET NULL', 'SET DEFAULT', 'NO ACTION']);
+      for (const fk of fks) {
+        // Validate all identifier fields fetched from information_schema before interpolation
+        const fkIdentifiers = [fk.table_name, fk.column_name, fk.foreign_table_name, fk.foreign_column_name, fk.constraint_name];
+        if (fkIdentifiers.some((id) => !identifierRegex.test(id))) {
+          this.logger.warn(`Skipping FK with unsafe identifier: ${JSON.stringify(fkIdentifiers)}`);
+          continue;
+        }
+        // Validate ON DELETE / ON UPDATE rules against an allowlist
+        const deleteRuleValid = ALLOWED_FK_RULES.has(fk.delete_rule.toUpperCase());
+        const updateRuleValid = ALLOWED_FK_RULES.has(fk.update_rule.toUpperCase());
+        if (!deleteRuleValid || !updateRuleValid) {
+          this.logger.warn(`Skipping FK with invalid referential action: DELETE=${fk.delete_rule} UPDATE=${fk.update_rule}`);
+          continue;
+        }
+        const onDelete = fk.delete_rule !== 'NO ACTION' ? `ON DELETE ${fk.delete_rule}` : '';
+        const onUpdate = fk.update_rule !== 'NO ACTION' ? `ON UPDATE ${fk.update_rule}` : '';
+        // Use a unique constraint name for the target schema
+        const fkName = `${targetSchema}_${fk.constraint_name}`.slice(0, 63);
+        try {
+          await this.prisma.$executeRawUnsafe(
+            `ALTER TABLE "${targetSchema}"."${fk.table_name}"
+             ADD CONSTRAINT "${fkName}"
+             FOREIGN KEY ("${fk.column_name}")
+             REFERENCES "${targetSchema}"."${fk.foreign_table_name}" ("${fk.foreign_column_name}")
+             ${onDelete} ${onUpdate}`,
+          );
+        } catch {
+          // FK might reference a public schema table or already exist — skip
+        }
+      }
+
+      this.logger.log(`Schema clone complete: ${tables.length} tables in "${targetSchema}"`);
+    } catch (error) {
+      this.logger.error(`Failed to clone schema "${sourceSchema}" → "${targetSchema}": ${error}`);
+      throw new InternalServerErrorException('Failed to initialize studio tables');
+    }
+  }
+
+  /**
+   * Run an async operation inside the correct tenant AsyncLocalStorage context.
+   * This ensures the Prisma $use middleware sets the correct search_path,
+   * even in auth routes that are excluded from TenantMiddleware.
+   */
+  private runInTenantContext<T>(schemaName: string, fn: () => Promise<T>, gymId?: string): Promise<T> {
+    // gymId must always be the actual studio UUID, NOT derived from schemaName.
+    // schemaName is studio_{userId} which is different from studioId.
+    if (!gymId) {
+      throw new Error('runInTenantContext: gymId (studioId) is required. Do NOT derive from schemaName.');
+    }
+    return new Promise<T>((resolve, reject) => {
+      tenantContext.run({ schemaName, gymId, activeBranchId: null, allowedBranchIds: [], bypassBranchScope: false }, () => {
+        fn().then(resolve).catch(reject);
+      });
+    });
   }
 }

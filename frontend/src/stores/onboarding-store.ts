@@ -6,6 +6,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 export interface StudioInfoDraft {
   studio_name: string;
   business_type: string;
+  account_type: 'gym';
   phone: string;
   country: string;
   timezone: string;
@@ -64,6 +65,7 @@ interface OnboardingDraftState {
 const defaultStudioInfo: StudioInfoDraft = {
   studio_name: '',
   business_type: 'gym',
+  account_type: 'gym',
   phone: '',
   country: '',
   timezone: '',

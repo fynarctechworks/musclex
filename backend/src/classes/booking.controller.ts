@@ -11,7 +11,7 @@ import {
 import { BookingService } from './booking.service';
 import { AttendanceService } from './attendance.service';
 import { BookClassDto, CancelBookingDto, MarkAttendanceDto } from './dto';
-import { JwtAuthGuard, PermissionsGuard, Permissions } from '../common';
+import { JwtAuthGuard, PermissionsGuard, Permissions, CurrentUser, JwtPayload } from '../common';
 
 @Controller('api/v1/classes/bookings')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -79,36 +79,42 @@ export class BookingController {
   @Post('attendance/:sessionId')
   @Permissions({ module: 'classes', action: 'edit' })
   markAttendance(
+    @CurrentUser() user: JwtPayload,
     @Param('sessionId') sessionId: string,
     @Body() dto: MarkAttendanceDto,
   ) {
-    return this.attendanceService.markAttendance(sessionId, dto);
+    return this.attendanceService.markAttendance(user.studio_id, sessionId, dto);
   }
 
   @Post('attendance/:sessionId/bulk')
   @Permissions({ module: 'classes', action: 'edit' })
   bulkMarkAttendance(
+    @CurrentUser() user: JwtPayload,
     @Param('sessionId') sessionId: string,
     @Body('entries') entries: MarkAttendanceDto[],
   ) {
-    return this.attendanceService.bulkMarkAttendance(sessionId, entries);
+    return this.attendanceService.bulkMarkAttendance(user.studio_id, sessionId, entries);
   }
 
   @Get('attendance/:sessionId')
   @Permissions({ module: 'classes', action: 'view' })
-  getSessionAttendance(@Param('sessionId') sessionId: string) {
-    return this.attendanceService.getSessionAttendance(sessionId);
+  getSessionAttendance(
+    @CurrentUser() user: JwtPayload,
+    @Param('sessionId') sessionId: string,
+  ) {
+    return this.attendanceService.getSessionAttendance(user.studio_id, sessionId);
   }
 
   @Get('attendance/member/:memberId')
   @Permissions({ module: 'classes', action: 'view' })
   getMemberAttendanceHistory(
+    @CurrentUser() user: JwtPayload,
     @Param('memberId') memberId: string,
     @Query('date_from') dateFrom?: string,
     @Query('date_to') dateTo?: string,
     @Query('category') category?: string,
   ) {
-    return this.attendanceService.getMemberAttendanceHistory(memberId, {
+    return this.attendanceService.getMemberAttendanceHistory(user.studio_id, memberId, {
       date_from: dateFrom,
       date_to: dateTo,
       category,
@@ -117,7 +123,10 @@ export class BookingController {
 
   @Post('attendance/:sessionId/complete')
   @Permissions({ module: 'classes', action: 'edit' })
-  completeSession(@Param('sessionId') sessionId: string) {
-    return this.attendanceService.completeSession(sessionId);
+  completeSession(
+    @CurrentUser() user: JwtPayload,
+    @Param('sessionId') sessionId: string,
+  ) {
+    return this.attendanceService.completeSession(user.studio_id, sessionId);
   }
 }

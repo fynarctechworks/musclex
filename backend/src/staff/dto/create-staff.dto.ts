@@ -7,6 +7,7 @@ import {
   IsNumber,
   IsDateString,
   IsIn,
+  IsBoolean,
 } from 'class-validator';
 
 export class CreateStaffDto {
@@ -65,4 +66,18 @@ export class CreateStaffDto {
   @IsDateString()
   @IsOptional()
   joined_at?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  send_invite?: boolean;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  permission_grants?: string[];
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  permission_denials?: string[];
 }

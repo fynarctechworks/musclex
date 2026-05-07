@@ -4,6 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
 import { CreateCorporateAccountDto, AddCorporateMemberDto } from './dto/corporate.dto';
 
 @Injectable()
@@ -15,6 +16,7 @@ export class CorporateMembershipService {
   async createAccount(dto: CreateCorporateAccountDto) {
     return this.prisma.corporateAccount.create({
       data: {
+        gym_id: getTenantGymId()!,
         organization_id: dto.organization_id || null,
         company_name: dto.company_name,
         contact_person: dto.contact_person,
@@ -107,6 +109,7 @@ export class CorporateMembershipService {
 
     return this.prisma.corporateMember.create({
       data: {
+        gym_id: getTenantGymId()!,
         corporate_account_id: accountId,
         member_id: dto.member_id,
         membership_id: dto.membership_id,

@@ -4,6 +4,8 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
+import { AccessDenied } from "@/components/shared/access-denied";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import { PageHeader } from "@/components/shared/page-header";
 import { queryKeys } from "@/services/query-client";
 import { apiClient } from "@/services/api-client";
@@ -12,6 +14,7 @@ import type { Branch } from "@/types";
 import { useCreatePlan, PlanForm } from "@/features/memberships";
 
 export default function CreatePlanPage() {
+  const { allowed, checked } = useRequirePermission("members", "create", "deny");
   const { gymPath } = useGymSlug();
   const router = useRouter();
 
@@ -21,6 +24,14 @@ export default function CreatePlanPage() {
   });
 
   const createMutation = useCreatePlan();
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="members" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

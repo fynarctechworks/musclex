@@ -32,11 +32,54 @@ export class AnalyticsService {
         this.getTopClasses(query),
       ]);
 
+    // ── Live fallback: if pre-aggregated metrics table is empty, compute live ──
+    let todayMetrics = latestMetrics;
+    if (!todayMetrics) {
+      todayMetrics = await this.computeLiveTodayMetrics(query.branch_id);
+    }
+
     return {
-      today: latestMetrics,
+      today: todayMetrics,
       revenue_breakdown: revenueByType,
       membership_summary: membershipSummary,
       top_classes: topClasses,
+    };
+  }
+
+  private async computeLiveTodayMetrics(branchId?: string) {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const branchFilter = branchId ? { branch_id: branchId } : {};
+
+    const [totalRevenue, newMembers, activeMembers, totalVisits] = await Promise.all([
+      this.prisma.payment.aggregate({
+        where: { ...branchFilter, status: 'paid', paid_at: { gte: todayStart } },
+        _sum: { amount: true },
+      }).then((r) => Number(r._sum.amount ?? 0)),
+      this.prisma.member.count({
+        where: { ...branchFilter, created_at: { gte: todayStart } },
+      }),
+      this.prisma.member.count({
+        where: { ...branchFilter, status: 'active' },
+      }),
+      this.prisma.checkIn.count({
+        where: { ...branchFilter, checked_in_at: { gte: todayStart } },
+      }),
+    ]);
+
+    return {
+      id: 'live',
+      gym_id: '',
+      created_at: new Date(),
+      date: todayStart,
+      total_revenue: totalRevenue as any,
+      new_members: newMembers,
+      active_members: activeMembers,
+      total_visits: totalVisits,
+      classes_held: 0,
+      products_sold: 0,
+      branch_id: branchId ?? null,
+      organization_id: null,
     };
   }
 
@@ -71,7 +114,60 @@ export class AnalyticsService {
       },
     });
 
-    return metrics;
+    if (metrics.length > 0) return metrics;
+
+    // ── Live fallback: compute daily trend from raw tables ──────
+    const startDate = query.start_date ? new Date(query.start_date) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const endDate = query.end_date ? new Date(query.end_date) : new Date();
+    const branchFilter = query.branch_id ? { branch_id: query.branch_id } : {};
+
+    const [payments, checkIns, members] = await Promise.all([
+      this.prisma.payment.findMany({
+        where: { ...branchFilter, status: 'paid', paid_at: { gte: startDate, lte: endDate } },
+        select: { paid_at: true, amount: true },
+      }),
+      this.prisma.checkIn.findMany({
+        where: { ...branchFilter, checked_in_at: { gte: startDate, lte: endDate } },
+        select: { checked_in_at: true },
+      }),
+      this.prisma.member.findMany({
+        where: { ...branchFilter, created_at: { gte: startDate, lte: endDate } },
+        select: { created_at: true },
+      }),
+    ]);
+
+    // Group by date
+    const dayMap = new Map<string, { total_revenue: number; total_visits: number; new_members: number }>();
+    const dateKey = (d: Date) => d.toISOString().slice(0, 10);
+
+    for (const p of payments) {
+      const k = dateKey(new Date(p.paid_at!));
+      const entry = dayMap.get(k) ?? { total_revenue: 0, total_visits: 0, new_members: 0 };
+      entry.total_revenue += Number(p.amount);
+      dayMap.set(k, entry);
+    }
+    for (const c of checkIns) {
+      const k = dateKey(new Date(c.checked_in_at));
+      const entry = dayMap.get(k) ?? { total_revenue: 0, total_visits: 0, new_members: 0 };
+      entry.total_visits += 1;
+      dayMap.set(k, entry);
+    }
+    for (const m of members) {
+      const k = dateKey(new Date(m.created_at));
+      const entry = dayMap.get(k) ?? { total_revenue: 0, total_visits: 0, new_members: 0 };
+      entry.new_members += 1;
+      dayMap.set(k, entry);
+    }
+
+    return Array.from(dayMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, vals]) => ({
+        date: new Date(date),
+        ...vals,
+        active_members: 0,
+        classes_held: 0,
+        products_sold: 0,
+      }));
   }
 
   // ─── Revenue Analytics ───────────────────────────────────────

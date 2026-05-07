@@ -82,14 +82,14 @@ export function ProgressSummaryCards({ summary, loading }: ProgressSummaryCardsP
           {card.change && card.change.text !== "—" && (
             <div className="flex items-center gap-1 mt-1">
               {card.change.positive ? (
-                <TrendingUp className="h-3 w-3 text-emerald-500" />
+                <TrendingUp className="h-3 w-3 text-success" />
               ) : (
                 <TrendingDown className="h-3 w-3 text-destructive" />
               )}
               <span
                 className={cn(
                   "text-xs font-medium",
-                  card.change.positive ? "text-emerald-500" : "text-destructive"
+                  card.change.positive ? "text-success" : "text-destructive"
                 )}
               >
                 {card.change.text}

@@ -35,6 +35,13 @@ export class AutomationController {
 
   // ── Message Templates ─────────────────────────────────────────
 
+  @Post('message-templates/seed-defaults')
+  @Roles('owner', 'brand_owner', 'manager')
+  @Permissions({ module: 'marketing', action: 'create' })
+  seedDefaultTemplates() {
+    return this.automationService.seedDefaultTemplates();
+  }
+
   @Post('message-templates')
   @Roles('owner', 'brand_owner', 'manager')
   @Permissions({ module: 'marketing', action: 'create' })
@@ -79,6 +86,13 @@ export class AutomationController {
   }
 
   // ── Automation Workflows ──────────────────────────────────────
+
+  @Post('workflows/seed-defaults')
+  @Roles('owner', 'brand_owner', 'manager')
+  @Permissions({ module: 'marketing', action: 'create' })
+  seedDefaultWorkflows() {
+    return this.automationService.seedDefaultWorkflows();
+  }
 
   @Post('workflows')
   @Roles('owner', 'brand_owner', 'manager')

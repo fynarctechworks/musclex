@@ -109,9 +109,9 @@ export class ApiKeyGuard implements CanActivate {
   private hashApiKey(apiKey: string): string {
     const secret = this.configService.get<string>('HASH_SECRET', '');
     if (!secret) {
-      this.logger.warn('HASH_SECRET not set — using fallback. Set HASH_SECRET in production.');
+      this.logger.error('HASH_SECRET not set — API key verification will always fail. Set HASH_SECRET in environment.');
+      throw new UnauthorizedException('API key verification is misconfigured');
     }
-    const hmacKey = secret || 'fitsync-pro-default-key';
-    return createHmac('sha256', hmacKey).update(apiKey).digest('hex');
+    return createHmac('sha256', secret).update(apiKey).digest('hex');
   }
 }

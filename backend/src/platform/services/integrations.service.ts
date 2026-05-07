@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { getTenantGymId } from '../../common/tenant-context';
 import { Prisma } from '@prisma/client';
 import {
   CreateIntegrationDto,
@@ -53,6 +54,7 @@ export class IntegrationsService {
 
     return this.prisma.integration.create({
       data: {
+        gym_id: getTenantGymId()!,
         organization_id: organizationId,
         provider: dto.provider,
         display_name: dto.display_name,

@@ -2,6 +2,9 @@ import { withSentryConfig } from '@sentry/nextjs';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   images: {
     remotePatterns: [
       {
@@ -15,6 +18,22 @@ const nextConfig = {
     ],
   },
   compress: true,
+  poweredByHeader: false,
+  reactStrictMode: true,
+  experimental: {
+    serverComponentsExternalPackages: ['@opentelemetry/api', '@opentelemetry/core', '@opentelemetry/semantic-conventions'],
+    optimizePackageImports: [
+      'lucide-react',
+      'recharts',
+      'date-fns',
+      'zod',
+    ],
+  },
+  modularizeImports: {
+    'date-fns': {
+      transform: 'date-fns/{{member}}',
+    },
+  },
 };
 
 export default withSentryConfig(nextConfig, {

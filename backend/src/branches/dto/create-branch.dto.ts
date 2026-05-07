@@ -64,4 +64,12 @@ export class CreateBranchDto {
   @IsOptional()
   @IsString()
   closing_time?: string;
+
+  @IsOptional()
+  @IsIn(['default', 'clone', 'empty'])
+  init_mode?: 'default' | 'clone' | 'empty';
+
+  @IsOptional()
+  @IsUUID()
+  source_branch_id?: string;
 }

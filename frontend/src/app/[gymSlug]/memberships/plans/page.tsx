@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, CreditCard } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
+import { AccessDenied } from "@/components/shared/access-denied";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading-skeleton";
 import { PageHeader } from "@/components/shared/page-header";
@@ -27,12 +29,15 @@ import {
   useDuplicatePlan,
   PlanTable,
 } from "@/features/memberships";
+import { useAuthStore } from "@/stores/auth-store";
 
 export default function MembershipPlansPage() {
+  const { allowed, checked } = useRequirePermission("members", "view", "deny");
   const { gymPath } = useGymSlug();
   const router = useRouter();
+  const activeBranchId = useAuthStore((s) => s.activeBranchId);
 
-  const [branchFilter, setBranchFilter] = useState("all");
+  const [branchFilter, setBranchFilter] = useState(activeBranchId || "all");
   const [cycleFilter, setCycleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [archivePlan, setArchivePlan] = useState<MembershipPlan | null>(null);
@@ -65,6 +70,14 @@ export default function MembershipPlansPage() {
       });
     setArchivePlan(null);
   };
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="members" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

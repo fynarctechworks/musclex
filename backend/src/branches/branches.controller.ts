@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { BranchesService } from './branches.service';
+import { BranchProvisioningService } from './branch-provisioning.service';
 import {
   JwtAuthGuard,
   RolesGuard,
@@ -25,7 +26,10 @@ import { UpdateBranchSettingsDto } from '../organization/dto';
 @Controller('api/v1/branches')
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 export class BranchesController {
-  constructor(private readonly branchesService: BranchesService) {}
+  constructor(
+    private readonly branchesService: BranchesService,
+    private readonly provisioning: BranchProvisioningService,
+  ) {}
 
   @Get()
   @Permissions({ module: 'branches', action: 'view' })
@@ -51,8 +55,8 @@ export class BranchesController {
   @Post()
   @Roles('owner', 'brand_owner')
   @Permissions({ module: 'branches', action: 'create' })
-  create(@Body() data: CreateBranchDto) {
-    return this.branchesService.create(data);
+  create(@CurrentUser() user: JwtPayload, @Body() data: CreateBranchDto) {
+    return this.branchesService.create(data, user.studio_id);
   }
 
   @Patch(':id')
@@ -65,8 +69,15 @@ export class BranchesController {
   @Delete(':id')
   @Roles('owner', 'brand_owner')
   @Permissions({ module: 'branches', action: 'delete' })
-  deactivate(@Param('id') id: string) {
-    return this.branchesService.deactivate(id);
+  remove(@Param('id') id: string) {
+    return this.branchesService.deleteBranch(id);
+  }
+
+  @Post(':id/retry-provision')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('owner', 'brand_owner', 'super_admin')
+  async retryProvision(@Param('id') id: string) {
+    return this.provisioning.retry(id);
   }
 
   // ── Branch Settings ─────────────────────────────────────────

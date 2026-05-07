@@ -13,6 +13,7 @@ import {
   AdjustInventoryDto,
   UpdateReorderLevelDto,
 } from './dto';
+import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class InventoryService {
@@ -22,7 +23,7 @@ export class InventoryService {
 
   async createCategory(dto: CreateProductCategoryDto) {
     return this.prisma.productCategory.create({
-      data: dto,
+      data: { ...dto, gym_id: getTenantGymId()! },
     });
   }
 
@@ -56,6 +57,7 @@ export class InventoryService {
 
     const product = await this.prisma.product.create({
       data: {
+        gym_id: getTenantGymId()!,
         product_name: dto.product_name,
         description: dto.description,
         organization_id: dto.organization_id,
@@ -75,9 +77,10 @@ export class InventoryService {
     if (dto.branch_id) {
       await this.prisma.inventory.create({
         data: {
+          gym_id: getTenantGymId()!,
           product_id: product.id,
           branch_id: dto.branch_id,
-          stock_quantity: 0,
+          stock_quantity: dto.initial_stock ?? 0,
         },
       });
     }
@@ -95,7 +98,8 @@ export class InventoryService {
     limit?: number;
   }) {
     const { branch_id, organization_id, category_id, status, search, page = 1, limit = 50 } = filters;
-    const skip = (page - 1) * limit;
+    const safeLimit = Math.min(limit, 500);
+    const skip = (page - 1) * safeLimit;
     const where: any = {};
 
     if (branch_id) where.branch_id = branch_id;
@@ -114,7 +118,7 @@ export class InventoryService {
       this.prisma.product.findMany({
         where,
         skip,
-        take: limit,
+        take: safeLimit,
         orderBy: { product_name: 'asc' },
         include: {
           category: { select: { id: true, name: true } },
@@ -199,16 +203,46 @@ export class InventoryService {
     limit?: number;
   }) {
     const { branch_id, low_stock, page = 1, limit = 50 } = filters;
-    const skip = (page - 1) * limit;
+    const safeLimit = Math.min(limit, 500);
+    const skip = (page - 1) * safeLimit;
     const where: any = {};
 
     if (branch_id) where.branch_id = branch_id;
+
+    // For low_stock: Prisma cannot express WHERE stock_quantity <= reorder_level (two-column comparison)
+    // natively, so we fetch all matching rows first then filter and paginate in memory.
+    if (low_stock) {
+      // Fetch only what we need to filter (no skip/take before filter)
+      const allRows = await this.prisma.inventory.findMany({
+        where: branch_id ? { branch_id } : {},
+        include: {
+          product: {
+            select: {
+              id: true,
+              product_name: true,
+              sku: true,
+              barcode: true,
+              price: true,
+              cost_price: true,
+              status: true,
+              category: { select: { id: true, name: true } },
+            },
+          },
+          branch: { select: { id: true, name: true } },
+        },
+      });
+
+      const filtered = allRows.filter((i) => i.stock_quantity <= i.reorder_level);
+      const total = filtered.length;
+      const data = filtered.slice(skip, skip + limit);
+      return { data, total, page, limit };
+    }
 
     const [data, total] = await Promise.all([
       this.prisma.inventory.findMany({
         where,
         skip,
-        take: limit,
+        take: safeLimit,
         include: {
           product: {
             select: {
@@ -228,13 +262,9 @@ export class InventoryService {
       this.prisma.inventory.count({ where }),
     ]);
 
-    const result = low_stock
-      ? data.filter((i) => i.stock_quantity <= i.reorder_level)
-      : data;
-
     return {
-      data: result,
-      total: low_stock ? result.length : total,
+      data,
+      total,
       page,
       limit,
     };
@@ -266,6 +296,7 @@ export class InventoryService {
 
       await tx.inventoryTransaction.create({
         data: {
+          gym_id: getTenantGymId()!,
           product_id: dto.product_id,
           branch_id: dto.branch_id,
           transaction_type: dto.transaction_type,
@@ -297,7 +328,8 @@ export class InventoryService {
     limit?: number;
   }) {
     const { product_id, branch_id, transaction_type, start_date, end_date, page = 1, limit = 50 } = filters;
-    const skip = (page - 1) * limit;
+    const safeLimit = Math.min(limit, 500);
+    const skip = (page - 1) * safeLimit;
     const where: any = {};
 
     if (product_id) where.product_id = product_id;
@@ -313,7 +345,7 @@ export class InventoryService {
       this.prisma.inventoryTransaction.findMany({
         where,
         skip,
-        take: limit,
+        take: safeLimit,
         orderBy: { created_at: 'desc' },
         include: {
           product: { select: { id: true, product_name: true, sku: true } },

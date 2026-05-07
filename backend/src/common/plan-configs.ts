@@ -9,6 +9,7 @@ export interface PlanConfig {
   storage_limit_gb: number;
   api_access: boolean;
   features: Record<string, boolean>;
+  plan_type: 'regular';
 }
 
 export const PLAN_CONFIGS: Record<string, PlanConfig> = {
@@ -22,14 +23,15 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     max_staff: 3,
     storage_limit_gb: 1,
     api_access: false,
+    plan_type: 'regular',
     features: {
       member_management: true,
       check_in: true,
       manual_payments: true,
       basic_reports: true,
       multi_branch: false,
-      staff_management: false,
-      trainer_management: false,
+      staff_management: true,
+      trainer_management: true,
       class_scheduling: false,
       payment_gateway: false,
       marketing_campaigns: false,
@@ -51,6 +53,7 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     max_staff: 10,
     storage_limit_gb: 5,
     api_access: false,
+    plan_type: 'regular',
     features: {
       member_management: true,
       check_in: true,
@@ -80,6 +83,7 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     max_staff: 50,
     storage_limit_gb: 25,
     api_access: true,
+    plan_type: 'regular',
     features: {
       member_management: true,
       check_in: true,
@@ -109,6 +113,7 @@ export const PLAN_CONFIGS: Record<string, PlanConfig> = {
     max_staff: 999,
     storage_limit_gb: 100,
     api_access: true,
+    plan_type: 'regular',
     features: {
       member_management: true,
       check_in: true,
@@ -159,6 +164,7 @@ export async function ensurePlansSeeded(prisma: {
         storage_limit_gb: config.storage_limit_gb,
         api_access: config.api_access,
         features: config.features,
+        plan_type: config.plan_type,
         sort_order: i,
       },
     });
@@ -166,21 +172,21 @@ export async function ensurePlansSeeded(prisma: {
 }
 
 /**
- * Returns all active plans from the database, seeding if needed.
+ * Returns all active regular plans from the database, seeding if needed.
  */
 export async function fetchAvailablePlans(prisma: {
   subscriptionPlan: {
     count: () => Promise<number>;
     create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
     findMany: (args: {
-      where: { is_active: boolean };
+      where: Record<string, unknown>;
       orderBy: { sort_order: 'asc' };
     }) => Promise<unknown[]>;
   };
-}) {
+}, _planType?: 'regular') {
   await ensurePlansSeeded(prisma);
   return prisma.subscriptionPlan.findMany({
-    where: { is_active: true },
+    where: { is_active: true, plan_type: 'regular' },
     orderBy: { sort_order: 'asc' },
   });
 }

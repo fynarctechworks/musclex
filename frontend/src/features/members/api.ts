@@ -13,6 +13,8 @@ export interface CreateMemberDto {
   profile_photo_url?: string;
   plan_id?: string;
   membership_start_date?: string;
+  payment_method?: string;
+  payment_amount?: number;
   notes?: string;
 }
 
@@ -23,6 +25,7 @@ export interface MemberFilters {
   status?: string;
   branch_id?: string;
   tag_id?: string;
+  plan_id?: string;
   sort_by?: string;
   sort_order?: 'asc' | 'desc';
 }
@@ -56,7 +59,7 @@ export const membersApi = {
     apiClient.get(`/members/${id}/notes`),
 
   addNote: (id: string, content: string) =>
-    apiClient.post(`/members/${id}/notes`, { content }),
+    apiClient.post(`/members/${id}/notes`, { note: content }),
 
   getTags: (id: string) =>
     apiClient.get(`/members/${id}/tags`),
@@ -77,5 +80,5 @@ export const membersApi = {
     apiClient.get('/members/churn-risk'),
 
   setFaceDescriptor: (id: string, descriptor: number[]) =>
-    apiClient.post(`/members/${id}/face-descriptor`, { face_descriptor: descriptor }),
+    apiClient.post(`/members/${id}/face-descriptor`, { descriptor }),
 };

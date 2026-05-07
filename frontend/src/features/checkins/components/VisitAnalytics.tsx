@@ -19,7 +19,7 @@ export function VisitAnalytics({
   const stats = [
     { label: "Today's Check-ins", value: todayCount, icon: Activity, color: "text-primary" },
     { label: "Peak Hour", value: peakHour, icon: Clock, color: "text-yellow-500" },
-    { label: "Avg Duration", value: `${avgDurationMinutes}m`, icon: Timer, color: "text-green-500" },
+    { label: "Avg Duration", value: `${avgDurationMinutes}m`, icon: Timer, color: "text-success" },
     { label: "Returning", value: returningMembers, icon: UserCheck, color: "text-purple-500" },
   ];
 

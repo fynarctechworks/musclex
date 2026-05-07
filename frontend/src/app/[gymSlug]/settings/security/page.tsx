@@ -1,12 +1,14 @@
 'use client';
 
 import { AppLayout } from '@/components/layout/app-layout';
-import { PageHeader, LoadingSkeleton } from '@/components/shared';
+import { PageHeader, LoadingSkeleton , AccessDenied } from '@/components/shared';
 import { TwoFactorSetupCard } from '@/components/shared/two-factor-setup-card';
 import { twoFactorApi } from '@/features/auth/two-factor-api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRequirePermission } from "@/hooks/use-require-permission";
 
 export default function SecuritySettingsPage() {
+  const { allowed, checked } = useRequirePermission("settings", "view", "deny");
   const queryClient = useQueryClient();
 
   const { data: status, isLoading } = useQuery({
@@ -17,6 +19,15 @@ export default function SecuritySettingsPage() {
   const handleStatusChange = () => {
     queryClient.invalidateQueries({ queryKey: ['2fa-status'] });
   };
+
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="settings" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

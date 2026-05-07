@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
+import { AccessDenied } from "@/components/shared/access-denied";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -20,8 +22,12 @@ import {
   Mail,
   Users,
   X,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import type { Branch } from "@/lib/types";
+import { useRouter } from "next/navigation";
+import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 
 interface BranchFormData {
   name: string;
@@ -120,10 +126,14 @@ function BranchFormModal({
 }
 
 export default function BranchesPage() {
+  const { allowed, checked } = useRequirePermission("branches", "view", "deny");
   const [showForm, setShowForm] = useState(false);
   const [editingBranch, setEditingBranch] = useState<Branch | undefined>();
+  const [deletingBranch, setDeletingBranch] = useState<Branch | null>(null);
   const queryClient = useQueryClient();
   const { hasPermission } = useAuthStore();
+  const router = useRouter();
+  const { gymPath } = useGymSlug();
 
   const { data: branches = [], isLoading } = useQuery({
     queryKey: ["branches"],
@@ -137,7 +147,14 @@ export default function BranchesPage() {
       queryClient.invalidateQueries({ queryKey: ["branches"] });
       setShowForm(false);
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      if (err.message?.includes("limit reached") || err.message?.includes("Upgrade")) {
+        toast.error(err.message);
+        router.push(gymPath("/settings/subscription"));
+      } else {
+        toast.error(err.message);
+      }
+    },
   });
 
   const updateMutation = useMutation({
@@ -152,11 +169,12 @@ export default function BranchesPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const deactivateMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.delete(`/branches/${id}`),
     onSuccess: () => {
-      toast.success("Branch deactivated");
+      toast.success("Branch and all linked data deleted permanently");
       queryClient.invalidateQueries({ queryKey: ["branches"] });
+      setDeletingBranch(null);
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -275,16 +293,13 @@ export default function BranchesPage() {
                       <Pencil className="w-4 h-4 text-muted-foreground" />
                     </button>
                   )}
-                  {canDelete && branch.is_active && (
+                  {canDelete && (
                     <button
-                      onClick={() => {
-                        if (confirm("Deactivate this branch?")) {
-                          deactivateMutation.mutate(branch.id);
-                        }
-                      }}
-                      className="text-xs text-red-500 hover:text-red-400 transition-colors px-2 py-1"
+                      onClick={() => setDeletingBranch(branch)}
+                      className="p-1.5 hover:bg-red-500/10 rounded-lg transition-colors"
+                      title="Delete branch"
                     >
-                      Deactivate
+                      <Trash2 className="w-4 h-4 text-red-500" />
                     </button>
                   )}
                 </div>
@@ -294,6 +309,14 @@ export default function BranchesPage() {
         ]
       : []),
   ];
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="branches" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -348,6 +371,50 @@ export default function BranchesPage() {
           onSave={handleSave}
           saving={createMutation.isPending || updateMutation.isPending}
         />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {deletingBranch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md mx-4">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Delete Branch</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Are you sure you want to delete <strong className="text-foreground">{deletingBranch.name}</strong>?
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 mb-5">
+              <p className="text-sm text-red-400 font-medium mb-1">This action cannot be undone.</p>
+              <p className="text-xs text-muted-foreground">
+                All data linked to this branch will be permanently deleted including:
+                members, check-ins, payments, classes, staff, and membership plans.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeletingBranch(null)}
+                className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteMutation.mutate(deletingBranch.id)}
+                disabled={deleteMutation.isPending}
+                className="bg-red-500 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {deleteMutation.isPending ? "Deleting..." : "Delete Branch"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </AppLayout>
   );

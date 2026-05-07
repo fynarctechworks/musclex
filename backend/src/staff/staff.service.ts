@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger, Inject, forwardRef } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import { JwtPayload } from '../common';
+import { JwtPayload, ResourceLimitService, resolveBranchScope } from '../common';
+import { EventStoreService } from '../events/event-store.service';
+import { EventProjectorService } from '../events/event-projector.service';
+import { getTenantGymId } from '../common/tenant-context';
+import { StaffInviteService } from './staff-invite.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
 import { UpdateStaffProfileDto } from './dto/update-staff-profile.dto';
@@ -11,7 +16,17 @@ import { CreateLeaveRequestDto, ReviewLeaveRequestDto } from './dto/leave-reques
 
 @Injectable()
 export class StaffService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(StaffService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+    private resourceLimits: ResourceLimitService,
+    private eventStore: EventStoreService,
+    private eventProjector: EventProjectorService,
+    @Inject(forwardRef(() => StaffInviteService))
+    private inviteService: StaffInviteService,
+  ) {}
 
   private stripSalary(staff: any, userRole: string): any {
     if (userRole === 'owner') return staff;
@@ -22,6 +37,7 @@ export class StaffService {
   // ── Staff CRUD ────────────────────────────────────────────────
 
   async findAll(
+    studioId: string,
     query: {
       branch_id?: string;
       organization_id?: string;
@@ -34,24 +50,29 @@ export class StaffService {
     user: JwtPayload,
   ) {
     const { branch_id, organization_id, role, status, search, page = 1, limit = 50 } = query;
-    const skip = (page - 1) * limit;
+    const safeLimit = Math.min(limit, 500);
+    const skip = (page - 1) * safeLimit;
 
-    const where: any = {};
+    const where: any = {}; // Tenant isolation handled by SET search_path in TenantMiddleware
     if (role) where.role = role;
     if (status) where.status = status;
     if (organization_id) where.organization_id = organization_id;
 
+    // Global access = role is owner/brand_owner OR any role row with branch_id=null.
+    const scope = resolveBranchScope(user, branch_id);
     if (branch_id) {
+      if (!scope.hasGlobalAccess && scope.allowedIds.length === 0) {
+        return { data: [], total: 0, page, limit };
+      }
       where.OR = [
         { branch_id },
         { branch_ids: { has: branch_id } },
       ];
-    } else if (
-      user.role !== 'owner' &&
-      user.role !== 'brand_owner' &&
-      user.branch_ids?.length > 0
-    ) {
-      where.OR = user.branch_ids.flatMap((bid: string) => [
+    } else if (!scope.hasGlobalAccess) {
+      if (scope.allowedIds === 'ALL' || scope.allowedIds.length === 0) {
+        return { data: [], total: 0, page, limit };
+      }
+      where.OR = scope.allowedIds.flatMap((bid: string) => [
         { branch_id: bid },
         { branch_ids: { has: bid } },
       ]);
@@ -75,7 +96,7 @@ export class StaffService {
       this.prisma.staff.findMany({
         where,
         skip,
-        take: limit,
+        take: safeLimit,
         orderBy: { created_at: 'desc' },
         include: {
           organization: { select: { id: true, name: true } },
@@ -95,9 +116,9 @@ export class StaffService {
     };
   }
 
-  async findOne(id: string, userRole: string) {
-    const staff = await this.prisma.staff.findUnique({
-      where: { id },
+  async findOne(studioId: string, id: string, userRole: string) {
+    const staff = await this.prisma.staff.findFirst({
+      where: { id, },
       include: {
         organization: { select: { id: true, name: true } },
         primary_branch: { select: { id: true, name: true, code: true } },
@@ -116,26 +137,52 @@ export class StaffService {
     return this.stripSalary(staff, userRole);
   }
 
-  async create(data: CreateStaffDto) {
-    // Check employee_code uniqueness
-    if (data.employee_code) {
-      const existing = await this.prisma.staff.findUnique({
-        where: { employee_code: data.employee_code },
-      });
-      if (existing) throw new ConflictException('Employee code already exists');
+  async create(studioId: string, data: CreateStaffDto, createdBy?: string) {
+    // Resolve organization_id — if not provided, find the first org in the tenant schema
+    let organizationId = data.organization_id;
+    if (!organizationId) {
+      const org = await this.prisma.organization.findFirst({ select: { id: true } });
+      organizationId = org?.id;
     }
+
+    // Enforce plan-based staff limit and feature access before creation
+    await this.resourceLimits.checkFeatureAccess(studioId, 'staff_management');
+    await this.resourceLimits.checkStaffLimit(studioId, organizationId);
+
+    // Auto-generate employee_code: EMP-{gymShort}-{seq}
+    // gymShort = first 6 hex chars of the tenant gym_id (uppercase), so codes
+    // stay unique across gyms even if the schema is ever merged.
+    const gymId = getTenantGymId()!;
+    const gymShort = gymId.replace(/-/g, '').slice(0, 6).toUpperCase();
+    const staffCount = await this.prisma.staff.count();
+    let attempt = staffCount + 1;
+    let employeeCode = `EMP-${gymShort}-${String(attempt).padStart(4, '0')}`;
+    let existing = await this.prisma.staff.findFirst({
+      where: { employee_code: employeeCode },
+    });
+    while (existing) {
+      attempt++;
+      employeeCode = `EMP-${gymShort}-${String(attempt).padStart(4, '0')}`;
+      existing = await this.prisma.staff.findFirst({
+        where: { employee_code: employeeCode },
+      });
+    }
+
+    // If branch_id not provided but branch_ids has entries, use the first as primary
+    const primaryBranchId = data.branch_id ?? data.branch_ids?.[0];
 
     const staff = await this.prisma.staff.create({
       data: {
+        gym_id: getTenantGymId()!,
         full_name: data.full_name,
         phone: data.phone,
         role: data.role,
         email: data.email,
         user_id: data.user_id,
-        organization_id: data.organization_id,
-        branch_id: data.branch_id,
+        organization_id: organizationId,
+        branch_id: primaryBranchId,
         branch_ids: data.branch_ids || [],
-        employee_code: data.employee_code,
+        employee_code: employeeCode,
         job_title: data.job_title,
         employment_type: data.employment_type ?? 'full_time',
         specializations: data.specializations || [],
@@ -148,23 +195,68 @@ export class StaffService {
     if (data.role === 'trainer') {
       await this.prisma.staffProfile.create({
         data: {
+          gym_id: getTenantGymId()!,
           staff_id: staff.id,
           specializations: data.specializations || [],
         },
       });
     }
 
-    return this.findOne(staff.id, 'owner');
+    // Emit STAFF_CREATED event — must succeed
+    const event = await this.prisma.$transaction(async (tx) => {
+      return this.eventStore.emit(tx, {
+        aggregate_type: 'staff',
+        aggregate_id: staff.id,
+        event_type: 'STAFF_CREATED',
+        payload: { staff_id: staff.id, full_name: staff.full_name, role: data.role, branch_id: primaryBranchId },
+        branch_id: primaryBranchId,
+      });
+    });
+
+    this.eventProjector.processEvent({
+      id: event.id,
+      gym_id: getTenantGymId()!,
+      event_type: 'STAFF_CREATED',
+      payload: { full_name: staff.full_name, role: data.role },
+      branch_id: primaryBranchId,
+      version: event.version,
+    }).catch((err) => {
+      this.logger.error(`Projection failed for STAFF_CREATED (event=${event.id}): ${(err as Error).message}`);
+    });
+
+    // Auto-send invite if send_invite=true and email is provided
+    if (data.send_invite && data.email) {
+      try {
+        await this.inviteService.createInvite({
+          staff_id: staff.id,
+          studio_id: studioId,
+          email: data.email,
+          role_name: data.role,
+          branch_id: primaryBranchId,
+          permission_overrides: {
+            grants: data.permission_grants,
+            denials: data.permission_denials,
+          },
+          invited_by: createdBy || staff.id,
+        });
+      } catch (err) {
+        this.logger.warn(`Auto-invite failed for ${data.email}: ${(err as Error).message}`);
+      }
+    }
+
+    return this.findOne(studioId, staff.id, 'owner');
   }
 
-  async update(id: string, data: UpdateStaffDto) {
-    const existing = await this.prisma.staff.findUnique({ where: { id } });
+  async update(studioId: string, id: string, data: UpdateStaffDto) {
+    const existing = await this.prisma.staff.findFirst({
+      where: { id, },
+    });
     if (!existing) throw new NotFoundException('Staff member not found');
 
     // Check employee_code uniqueness if changing
     if (data.employee_code && data.employee_code !== existing.employee_code) {
-      const conflict = await this.prisma.staff.findUnique({
-        where: { employee_code: data.employee_code },
+      const conflict = await this.prisma.staff.findFirst({
+        where: { employee_code: data.employee_code, },
       });
       if (conflict) throw new ConflictException('Employee code already exists');
     }
@@ -175,21 +267,127 @@ export class StaffService {
     }
 
     await this.prisma.staff.update({ where: { id }, data: updateData });
-    return this.findOne(id, 'owner');
+    return this.findOne(studioId, id, 'owner');
   }
 
-  async deactivate(id: string) {
-    const existing = await this.prisma.staff.findUnique({ where: { id } });
+  /**
+   * Update the set of branches a staff member has access to.
+   * Owner/brand_owner only. Syncs both tenant.staff (branch_id + branch_ids[])
+   * and public.user_roles so the next login rebuilds JWT.branch_ids correctly.
+   */
+  async updateBranchAccess(studioId: string, staffId: string, branchIds: string[]) {
+    const staff = await this.prisma.staff.findFirst({ where: { id: staffId } });
+    if (!staff) throw new NotFoundException('Staff member not found');
+
+    // Validate every branch exists in this studio
+    if (branchIds.length > 0) {
+      const found = await this.prisma.branch.findMany({
+        where: { id: { in: branchIds } },
+        select: { id: true },
+      });
+      if (found.length !== branchIds.length) {
+        throw new BadRequestException('One or more branch_ids do not belong to this studio');
+      }
+    }
+
+    const unique = Array.from(new Set(branchIds));
+    const primaryBranchId = unique[0] ?? null;
+
+    // 1. Update tenant.staff
+    await this.prisma.staff.update({
+      where: { id: staffId },
+      data: {
+        branch_id: primaryBranchId,
+        branch_ids: unique,
+      },
+    });
+
+    // 2. Sync public.user_roles if the staff has logged in (has user_id)
+    if (staff.user_id) {
+      // Preserve any gym-wide (branch_id=null) role, drop branch-scoped roles, then re-create for each new branch.
+      await this.prisma.userRole.deleteMany({
+        where: {
+          user_id: staff.user_id,
+          studio_id: studioId,
+          branch_id: { not: null },
+        },
+      });
+
+      for (const [idx, bid] of unique.entries()) {
+        await this.prisma.userRole.create({
+          data: {
+            user_id: staff.user_id,
+            studio_id: studioId,
+            branch_id: bid,
+            role_name: staff.role,
+            is_primary: idx === 0,
+          },
+        });
+      }
+    }
+
+    // 3. If there's a still-pending invite, update its branch_id so the accept flow lands on the new primary
+    if (!staff.user_id) {
+      const pending = await this.prisma.staffInvitation.findFirst({
+        where: { staff_id: staffId, studio_id: studioId, status: 'pending' },
+      });
+      if (pending) {
+        await this.prisma.staffInvitation.update({
+          where: { id: pending.id },
+          data: { branch_id: primaryBranchId },
+        });
+      }
+    }
+
+    return this.findOne(studioId, staffId, 'owner');
+  }
+
+  async deactivate(studioId: string, id: string) {
+    const existing = await this.prisma.staff.findFirst({
+      where: { id, },
+    });
     if (!existing) throw new NotFoundException('Staff member not found');
-    return this.prisma.staff.update({
+
+    const result = await this.prisma.staff.update({
       where: { id },
       data: { is_active: false, status: 'inactive' },
     });
+
+    if (existing.is_active) {
+      const event = await this.prisma.$transaction(async (tx) => {
+        return this.eventStore.emit(tx, {
+          aggregate_type: 'staff',
+          aggregate_id: id,
+          event_type: 'STAFF_DEACTIVATED',
+          payload: { staff_id: id },
+          branch_id: existing.branch_id,
+        });
+      });
+
+      this.eventProjector.processEvent({
+        id: event.id,
+        gym_id: getTenantGymId()!,
+        event_type: 'STAFF_DEACTIVATED',
+        payload: {},
+        branch_id: existing.branch_id,
+        version: event.version,
+      }).catch((err) => {
+        this.logger.error(`Projection failed for STAFF_DEACTIVATED (event=${event.id}): ${(err as Error).message}`);
+      });
+    }
+
+    return result;
   }
 
   // ── Staff Profile ─────────────────────────────────────────────
 
-  async getProfile(staffId: string) {
+  async getProfile(studioId: string, staffId: string) {
+    // Verify staff belongs to studio
+    const staff = await this.prisma.staff.findFirst({
+      where: { id: staffId, },
+    });
+    if (!staff) throw new NotFoundException('Staff member not found in studio');
+
     const profile = await this.prisma.staffProfile.findUnique({
       where: { staff_id: staffId },
     });
@@ -197,14 +395,17 @@ export class StaffService {
     return profile;
   }
 
-  async updateProfile(staffId: string, dto: UpdateStaffProfileDto) {
-    const staff = await this.prisma.staff.findUnique({ where: { id: staffId } });
+  async updateProfile(studioId: string, staffId: string, dto: UpdateStaffProfileDto) {
+    const staff = await this.prisma.staff.findFirst({
+      where: { id: staffId, },
+    });
     if (!staff) throw new NotFoundException('Staff member not found');
 
     return this.prisma.staffProfile.upsert({
       where: { staff_id: staffId },
       update: dto,
       create: {
+        gym_id: getTenantGymId()!,
         staff_id: staffId,
         bio: dto.bio,
         certifications: dto.certifications ?? [],
@@ -233,6 +434,7 @@ export class StaffService {
       await tx.staffAvailability.deleteMany({ where: { staff_id: staffId } });
       await tx.staffAvailability.createMany({
         data: slots.map((s) => ({
+          gym_id: getTenantGymId()!,
           staff_id: staffId,
           day_of_week: s.day_of_week,
           start_time: s.start_time,
@@ -274,6 +476,7 @@ export class StaffService {
 
     return this.prisma.staffAttendance.create({
       data: {
+        gym_id: getTenantGymId()!,
         staff_id: dto.staff_id,
         branch_id: dto.branch_id,
         check_in_time: dto.check_in_time ? new Date(dto.check_in_time) : new Date(),
@@ -316,6 +519,7 @@ export class StaffService {
 
     return this.prisma.staffShift.create({
       data: {
+        gym_id: getTenantGymId()!,
         staff_id: dto.staff_id,
         branch_id: dto.branch_id,
         shift_date: new Date(dto.shift_date),
@@ -399,8 +603,11 @@ export class StaffService {
     });
     if (overlap) throw new ConflictException('Overlapping leave request already exists');
 
-    return this.prisma.leaveRequest.create({
+    const gymId = getTenantGymId()!;
+
+    const leaveRequest = await this.prisma.leaveRequest.create({
       data: {
+        gym_id: gymId,
         staff_id: dto.staff_id,
         leave_type: dto.leave_type,
         start_date: startDate,
@@ -411,6 +618,131 @@ export class StaffService {
         staff: { select: { id: true, full_name: true, employee_code: true } },
       },
     });
+
+    // Send notifications (non-blocking)
+    const allRecipientIds = [
+      ...(dto.notify_to || []),
+      ...(dto.notify_cc || []),
+    ];
+
+    if (allRecipientIds.length > 0) {
+      this.sendLeaveNotifications({
+        leaveRequest,
+        staffName: staff.full_name,
+        leaveType: dto.leave_type,
+        startDate: dto.start_date,
+        endDate: dto.end_date,
+        reason: dto.reason,
+        notifyTo: dto.notify_to || [],
+        notifyCc: dto.notify_cc || [],
+        gymId,
+      }).catch((err) => {
+        this.logger.error(`Leave notification failed: ${err.message}`);
+      });
+    }
+
+    return leaveRequest;
+  }
+
+  /**
+   * Send in-app notifications + emails for a leave request.
+   */
+  private async sendLeaveNotifications(params: {
+    leaveRequest: any;
+    staffName: string;
+    leaveType: string;
+    startDate: string;
+    endDate: string;
+    reason?: string;
+    notifyTo: string[];
+    notifyCc: string[];
+    gymId: string;
+  }) {
+    const allIds = [...params.notifyTo, ...params.notifyCc];
+    const recipients = await this.prisma.staff.findMany({
+      where: { id: { in: allIds } },
+      select: { id: true, full_name: true, email: true, user_id: true },
+    });
+
+    const leaveTypeLabel = params.leaveType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const isTo = (id: string) => params.notifyTo.includes(id);
+
+    // 1. Create in-app notifications
+    for (const recipient of recipients) {
+      if (!recipient.user_id) continue;
+      try {
+        await this.prisma.notification.create({
+          data: {
+            gym_id: params.gymId,
+            user_id: recipient.user_id,
+            type: 'leave_request',
+            title: `Leave Request from ${params.staffName}`,
+            message: `${params.staffName} has requested ${leaveTypeLabel} from ${params.startDate} to ${params.endDate}.${params.reason ? ` Reason: ${params.reason}` : ''}`,
+            data: {
+              leave_id: params.leaveRequest.id,
+              staff_name: params.staffName,
+              leave_type: params.leaveType,
+              start_date: params.startDate,
+              end_date: params.endDate,
+              recipient_type: isTo(recipient.id) ? 'to' : 'cc',
+            },
+            related_entity_id: params.leaveRequest.id,
+            related_entity_type: 'leave_request',
+          },
+        });
+      } catch (err) {
+        this.logger.warn(`In-app notification failed for ${recipient.id}: ${(err as Error).message}`);
+      }
+    }
+
+    // 2. Send emails
+    const resendKey = this.configService.get<string>('RESEND_API_KEY');
+    if (!resendKey) {
+      this.logger.warn('RESEND_API_KEY not configured — leave notification emails skipped');
+      return;
+    }
+
+    const { Resend } = await import('resend');
+    const resend = new Resend(resendKey);
+    const fromEmail = this.configService.get<string>('RESEND_FROM_EMAIL', 'MuscleX <noreply@musclex.app>');
+
+    const toEmails = recipients.filter((r) => isTo(r.id) && r.email).map((r) => r.email!);
+    const ccEmails = recipients.filter((r) => !isTo(r.id) && r.email).map((r) => r.email!);
+
+    if (toEmails.length === 0 && ccEmails.length === 0) return;
+
+    const subject = `Leave Request: ${params.staffName} — ${leaveTypeLabel}`;
+    const html = `
+      <div style="font-family: Inter, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px;">
+        <h2 style="color: #0D1B2A; margin-bottom: 8px;">Leave Request</h2>
+        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+          <tr><td style="padding: 8px 0; color: #5A7A9A; width: 120px;">Staff</td><td style="padding: 8px 0; color: #0D1B2A; font-weight: 600;">${params.staffName}</td></tr>
+          <tr><td style="padding: 8px 0; color: #5A7A9A;">Type</td><td style="padding: 8px 0; color: #0D1B2A;">${leaveTypeLabel}</td></tr>
+          <tr><td style="padding: 8px 0; color: #5A7A9A;">From</td><td style="padding: 8px 0; color: #0D1B2A;">${params.startDate}</td></tr>
+          <tr><td style="padding: 8px 0; color: #5A7A9A;">To</td><td style="padding: 8px 0; color: #0D1B2A;">${params.endDate}</td></tr>
+          ${params.reason ? `<tr><td style="padding: 8px 0; color: #5A7A9A;">Reason</td><td style="padding: 8px 0; color: #0D1B2A;">${params.reason}</td></tr>` : ''}
+        </table>
+        <p style="color: #5A7A9A; font-size: 14px;">Please review and approve or reject this request in your dashboard.</p>
+        <p style="color: #B0C8E0; font-size: 12px; margin-top: 24px;">This is an automated notification from MuscleX.</p>
+      </div>
+    `;
+
+    try {
+      const { error } = await resend.emails.send({
+        from: fromEmail,
+        to: toEmails.length > 0 ? toEmails : ccEmails,
+        cc: toEmails.length > 0 ? ccEmails : undefined,
+        subject,
+        html,
+      });
+      if (error) {
+        this.logger.warn(`Leave email error: ${JSON.stringify(error)}`);
+      } else {
+        this.logger.log(`Leave notification email sent to: ${[...toEmails, ...ccEmails].join(', ')}`);
+      }
+    } catch (err) {
+      this.logger.warn(`Leave notification email failed: ${(err as Error).message}`);
+    }
   }
 
   async getLeaveRequests(filters: {
@@ -418,11 +750,13 @@ export class StaffService {
     status?: string;
     start_date?: string;
     end_date?: string;
+    branch_id?: string;
     page?: number;
     limit?: number;
   }) {
-    const { staff_id, status, start_date, end_date, page = 1, limit = 50 } = filters;
-    const skip = (page - 1) * limit;
+    const { staff_id, status, start_date, end_date, branch_id, page = 1, limit = 50 } = filters;
+    const safeLimit = Math.min(limit, 500);
+    const skip = (page - 1) * safeLimit;
     const where: any = {};
 
     if (staff_id) where.staff_id = staff_id;
@@ -432,12 +766,16 @@ export class StaffService {
       if (start_date) where.start_date.gte = new Date(start_date);
       if (end_date) where.start_date.lte = new Date(end_date);
     }
+    // Filter by branch: find staff assigned to this branch
+    if (branch_id) {
+      where.staff = { branch_ids: { has: branch_id } };
+    }
 
     const [data, total] = await Promise.all([
       this.prisma.leaveRequest.findMany({
         where,
         skip,
-        take: limit,
+        take: safeLimit,
         orderBy: { created_at: 'desc' },
         include: {
           staff: { select: { id: true, full_name: true, employee_code: true, role: true } },
@@ -457,7 +795,7 @@ export class StaffService {
       throw new BadRequestException('Only pending requests can be reviewed');
     }
 
-    return this.prisma.leaveRequest.update({
+    const updated = await this.prisma.leaveRequest.update({
       where: { id },
       data: {
         status: dto.status,
@@ -466,10 +804,37 @@ export class StaffService {
         reviewer_notes: dto.reviewer_notes,
       },
       include: {
-        staff: { select: { id: true, full_name: true } },
+        staff: { select: { id: true, full_name: true, user_id: true, email: true } },
         reviewer: { select: { id: true, full_name: true } },
       },
     });
+
+    // Notify the staff member about the review decision
+    if (updated.staff?.user_id) {
+      const statusLabel = dto.status === 'approved' ? 'Approved' : 'Rejected';
+      try {
+        await this.prisma.notification.create({
+          data: {
+            gym_id: request.gym_id,
+            user_id: updated.staff.user_id,
+            type: 'leave_reviewed',
+            title: `Leave Request ${statusLabel}`,
+            message: `Your ${request.leave_type.replace(/_/g, ' ')} leave request has been ${dto.status} by ${updated.reviewer?.full_name || 'a manager'}.${dto.reviewer_notes ? ` Note: ${dto.reviewer_notes}` : ''}`,
+            data: {
+              leave_id: id,
+              status: dto.status,
+              reviewer_name: updated.reviewer?.full_name,
+            },
+            related_entity_id: id,
+            related_entity_type: 'leave_request',
+          },
+        });
+      } catch (err) {
+        this.logger.warn(`Leave review notification failed: ${(err as Error).message}`);
+      }
+    }
+
+    return updated;
   }
 
   async cancelLeaveRequest(id: string, staffId: string) {

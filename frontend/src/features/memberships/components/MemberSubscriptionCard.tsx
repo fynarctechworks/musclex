@@ -55,8 +55,17 @@ export function MemberSubscriptionCard({ member }: MemberSubscriptionCardProps) 
                     {active.plan?.name ?? 'Unknown Plan'}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    ₹{active.plan?.price?.toLocaleString() ?? '0'}{' '}
-                    / {active.plan?.duration_days ?? 0} days
+                    {(() => {
+                      const raw = active.plan?.price as unknown;
+                      const n =
+                        typeof raw === 'number'
+                          ? raw
+                          : typeof raw === 'string'
+                            ? Number(raw)
+                            : Number((raw as { toString?: () => string })?.toString?.() ?? NaN);
+                      const priceLabel = Number.isFinite(n) ? `₹${n.toLocaleString()}` : '—';
+                      return `${priceLabel} / ${active.plan?.duration_days ?? 0} days`;
+                    })()}
                   </p>
                 </div>
                 {active.plan?.plan_type && (
@@ -111,7 +120,7 @@ export function MemberSubscriptionCard({ member }: MemberSubscriptionCardProps) 
 
             {/* Auto-Renew Indicator */}
             {active.auto_renew && (
-              <p className="text-xs text-green-500 flex items-center gap-1">
+              <p className="text-xs text-success flex items-center gap-1">
                 <RefreshCcw className="h-3 w-3" />
                 Auto-renew enabled
               </p>

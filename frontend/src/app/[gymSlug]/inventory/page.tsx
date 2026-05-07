@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { Package, Plus, Tags, ArrowUpDown } from 'lucide-react';
 import { AppLayout } from '@/components/layout/app-layout';
+import { AccessDenied } from '@/components/shared/access-denied';
+import { useRequirePermission } from '@/hooks/use-require-permission';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -12,9 +14,14 @@ import { LowStockAlert } from '@/features/inventory/components/LowStockAlert';
 import { ProductDialog } from '@/features/inventory/components/ProductDialog';
 import { CategoryDialog } from '@/features/inventory/components/CategoryDialog';
 import { useCategories } from '@/features/inventory/hooks';
+import { useAuthStore } from '@/stores/auth-store';
 import type { Product, ProductCategory } from '@/features/inventory/types';
 
 export default function InventoryPage() {
+  const { allowed, checked } = useRequirePermission('settings', 'view', 'deny');
+  const user = useAuthStore((s) => s.user);
+  const activeBranchId = useAuthStore((s) => s.activeBranchId);
+  const branchId = activeBranchId || user?.branch_ids?.[0];
   const [tab, setTab] = useState('products');
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
@@ -42,6 +49,14 @@ export default function InventoryPage() {
     if (!open) setEditCategory(null);
     setCategoryDialogOpen(open);
   };
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="settings" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -158,6 +173,7 @@ export default function InventoryPage() {
         open={productDialogOpen}
         onOpenChange={handleCloseProductDialog}
         product={editProduct}
+        branchId={branchId}
       />
       <CategoryDialog
         open={categoryDialogOpen}

@@ -5,7 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { Logger as PinoLogger } from 'nestjs-pino';
 import * as Sentry from '@sentry/nestjs';
 import helmet from 'helmet';
-import * as compression from 'compression';
+import compression from 'compression';
 import { AppModule } from './app.module';
 import { ApiMetadataInterceptor } from './common/interceptors/api-metadata.interceptor';
 import { ApiVersionInterceptor } from './common/interceptors/api-version.interceptor';
@@ -22,11 +22,13 @@ async function bootstrap() {
     'SUPABASE_URL',
     'SUPABASE_SERVICE_ROLE_KEY',
     'DATABASE_URL',
+    'JWT_SECRET',
+    'HASH_SECRET',
   ];
 
   const isProduction = configService.get<string>('NODE_ENV') === 'production';
   if (isProduction) {
-    requiredEnvVars.push('CORS_ORIGINS', 'HASH_SECRET');
+    requiredEnvVars.push('CORS_ORIGINS', 'TWO_FACTOR_ENCRYPTION_KEY', 'RAZORPAY_WEBHOOK_SECRET', 'STRIPE_WEBHOOK_SECRET');
   }
 
   for (const envVar of requiredEnvVars) {
@@ -74,12 +76,12 @@ async function bootstrap() {
       .split(','),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'x-studio-id'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'x-studio-id', 'x-branch-id', 'x-active-branch-id'],
     maxAge: 86400,
   });
 
   const port = configService.get<number>('PORT', 4000);
   await app.listen(port);
-  logger.log(`FitSync Pro API running on port ${port}`);
+  logger.log(`MuscleX API running on port ${port}`);
 }
 bootstrap();

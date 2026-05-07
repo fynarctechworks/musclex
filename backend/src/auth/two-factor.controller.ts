@@ -3,14 +3,21 @@ import {
   Post,
   Get,
   Body,
+  Param,
   UseGuards,
   Req,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { TwoFactorService } from './two-factor.service';
-import { Verify2faSetupDto, Login2faDto, Disable2faDto } from './dto';
-import { JwtAuthGuard, CurrentUser, JwtPayload } from '../common';
+import {
+  Verify2faSetupDto,
+  Login2faDto,
+  Disable2faDto,
+  Recover2faDto,
+  Reset2faDto,
+} from './dto';
+import { JwtAuthGuard, CurrentUser, JwtPayload, RolesGuard, Roles } from '../common';
 
 @Controller('api/v1/auth/2fa')
 export class TwoFactorController {
@@ -58,4 +65,39 @@ export class TwoFactorController {
   status(@CurrentUser() user: JwtPayload) {
     return this.twoFactorService.getStatus(user.user_id);
   }
+
+  /** Admin: reset 2FA for a specific user */
+  @Post('admin-reset/:userId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('owner')
+  adminReset(
+    @CurrentUser() admin: JwtPayload,
+    @Param('userId') userId: string,
+  ) {
+    return this.twoFactorService.adminReset2fa(userId, admin.user_id);
+  }
 }
+
+/**
+ * Public 2FA recovery endpoints (no JWT — user is locked out).
+ * Mounted at /api/v1/auth/ to match the frontend API stubs.
+ */
+@Controller('api/v1/auth')
+export class TwoFactorRecoveryController {
+  constructor(private readonly twoFactorService: TwoFactorService) {}
+
+  /** Request a recovery email for lost authenticator */
+  @Post('recover-2fa')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  recover(@Body() dto: Recover2faDto) {
+    return this.twoFactorService.requestRecovery(dto.email);
+  }
+
+  /** Complete 2FA reset via recovery token + password */
+  @Post('reset-2fa')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  reset(@Body() dto: Reset2faDto) {
+    return this.twoFactorService.resetWithRecovery(dto.token, dto.password);
+  }
+}
+

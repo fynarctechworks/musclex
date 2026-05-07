@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/app-layout";
-import { LoadingSkeleton, EmptyState, FormSelect, FormTextarea } from "@/components/shared";
+import { LoadingSkeleton, EmptyState, FormSelect, FormTextarea , AccessDenied } from "@/components/shared";
 import { useLead, useLeadActivities, useUpdateLead, useAddLeadActivity } from "@/features/marketing/hooks";
 import type { Lead, LeadActivity, LeadStatus } from "@/features/marketing/types";
 import {
@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { format } from "date-fns";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 
 const statusOptions = [
   { label: "New", value: "new" },
@@ -37,7 +38,7 @@ const statusColors: Record<string, string> = {
   new: "bg-blue-500/10 text-blue-500 border-blue-500/20",
   contacted: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
   trial_scheduled: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  converted: "bg-green-500/10 text-green-500 border-green-500/20",
+  converted: "bg-success/10 text-success border-success/20",
   lost: "bg-red-500/10 text-red-400 border-red-500/20",
 };
 
@@ -64,6 +65,7 @@ interface ActivityFormData {
 }
 
 export default function LeadDetailPage() {
+  const { allowed, checked } = useRequirePermission("marketing", "view", "deny");
   const { gymPath } = useGymSlug();
   const params = useParams();
   const leadId = params.id as string;
@@ -101,6 +103,14 @@ export default function LeadDetailPage() {
       data: { status: newStatus },
     });
   };
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="marketing" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

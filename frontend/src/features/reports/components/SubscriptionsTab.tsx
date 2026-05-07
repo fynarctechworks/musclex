@@ -71,7 +71,7 @@ export function SubscriptionsTab({ metrics, isLoading }: SubscriptionsTabProps) 
         />
         <KPICard
           label="Monthly Recurring Revenue"
-          value={`₹${metrics.mrr.toLocaleString()}`}
+          value={`₹${(metrics.mrr ?? 0).toLocaleString()}`}
           icon={BarChart3}
         />
         <KPICard
@@ -91,7 +91,7 @@ export function SubscriptionsTab({ metrics, isLoading }: SubscriptionsTabProps) 
         />
         <KPICard
           label="Churn Rate"
-          value={`${metrics.churn_rate.toFixed(1)}%`}
+          value={`${(metrics.churn_rate ?? 0).toFixed(1)}%`}
           icon={TrendingUp}
         />
       </div>
@@ -113,9 +113,8 @@ export function SubscriptionsTab({ metrics, isLoading }: SubscriptionsTabProps) 
                     cx="50%"
                     cy="50%"
                     outerRadius={90}
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    label={(entry: any) =>
-                      `${entry.name} (${((entry.percent ?? 0) * 100).toFixed(0)}%)`
+                    label={(props: { name?: string; percent?: number }) =>
+                      `${props.name ?? ''} (${(((props.percent ?? 0)) * 100).toFixed(0)}%)`
                     }
                   >
                     {planDistribution.map((_, index) => (

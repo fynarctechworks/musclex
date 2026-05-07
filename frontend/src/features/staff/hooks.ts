@@ -6,6 +6,9 @@ import {
   leavesApi,
   trainersApi,
   payrollApi,
+  invitesApi,
+  permissionsApi,
+  staffAccessApi,
   type StaffFilters,
   type ShiftFilters,
   type LeaveFilters,
@@ -126,6 +129,128 @@ export function useStaffCheckOut() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.staff.all });
       toast.success('Staff checked out');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+// ── Invites ──────────────────────────────────────────────
+
+export function useStaffInvites(filters?: { status?: string }) {
+  return useQuery({
+    queryKey: queryKeys.staff.invites(filters),
+    queryFn: () => invitesApi.list(filters),
+  });
+}
+
+export function useSendInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ staffId, data }: { staffId: string; data: Parameters<typeof invitesApi.send>[1] }) =>
+      invitesApi.send(staffId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.staff.all });
+      toast.success('Invite sent');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useResendInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: invitesApi.resend,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.staff.all });
+      toast.success('Invite resent');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useRevokeInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: invitesApi.revoke,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.staff.all });
+      toast.success('Invite revoked');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useAcceptInvite() {
+  return useMutation({
+    mutationFn: invitesApi.accept,
+    onSuccess: () => toast.success('Account created successfully'),
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useInviteByToken(token: string) {
+  return useQuery({
+    queryKey: ['invite', token],
+    queryFn: () => invitesApi.getByToken(token),
+    enabled: !!token,
+  });
+}
+
+// ── Permission Overrides ─────────────────────────────────
+
+export function useStaffPermissions(staffId: string) {
+  return useQuery({
+    queryKey: queryKeys.staff.permissions(staffId),
+    queryFn: () => permissionsApi.get(staffId),
+    enabled: !!staffId,
+  });
+}
+
+export function useUpdatePermissions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ staffId, data }: { staffId: string; data: { grants?: string[]; denials?: string[] } }) =>
+      permissionsApi.update(staffId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.staff.all });
+      toast.success('Permissions updated');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useUpdateStaffBranchAccess() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ staffId, branch_ids }: { staffId: string; branch_ids: string[] }) =>
+      permissionsApi.updateBranchAccess(staffId, branch_ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.staff.all });
+      toast.success('Branch access updated');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+// ── Staff Access Management ─────────────────────────────
+
+export function useResetStaffPassword() {
+  return useMutation({
+    mutationFn: ({ staffId, password }: { staffId: string; password: string }) =>
+      staffAccessApi.resetPassword(staffId, password),
+    onSuccess: () => toast.success('Password has been reset'),
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useRevokeAllAccess() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ staffId, deleteAuthUser }: { staffId: string; deleteAuthUser?: boolean }) =>
+      staffAccessApi.revokeAllAccess(staffId, deleteAuthUser),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.staff.all });
+      toast.success('All access revoked and staff deactivated');
     },
     onError: (err: Error) => toast.error(err.message),
   });

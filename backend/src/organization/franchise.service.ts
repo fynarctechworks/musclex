@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
 import {
   CreateFranchiseOwnerDto,
   UpdateFranchiseOwnerDto,
@@ -51,6 +52,7 @@ export class FranchiseService {
 
     const owner = await this.prisma.franchiseOwner.create({
       data: {
+        gym_id: getTenantGymId()!,
         organization_id: dto.organization_id,
         owner_name: dto.owner_name,
         email: dto.email,
@@ -93,6 +95,7 @@ export class FranchiseService {
 
     return this.prisma.branchFranchise.create({
       data: {
+        gym_id: getTenantGymId()!,
         branch_id: dto.branch_id,
         franchise_owner_id: dto.franchise_owner_id,
         revenue_share_pct: dto.revenue_share_pct,

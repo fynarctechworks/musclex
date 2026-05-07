@@ -14,6 +14,7 @@ export function createMockPrismaService() {
       update: jest.fn(),
       delete: jest.fn(),
       count: jest.fn().mockResolvedValue(0),
+      groupBy: jest.fn().mockResolvedValue([]),
     },
     payment: {
       findMany: jest.fn().mockResolvedValue([]),
@@ -36,6 +37,7 @@ export function createMockPrismaService() {
       findMany: jest.fn().mockResolvedValue([]),
       create: jest.fn(),
       count: jest.fn().mockResolvedValue(0),
+      groupBy: jest.fn().mockResolvedValue([]),
     },
     branch: {
       findMany: jest.fn().mockResolvedValue([]),

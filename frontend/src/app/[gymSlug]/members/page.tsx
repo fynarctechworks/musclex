@@ -13,6 +13,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
+import { AccessDenied } from "@/components/shared/access-denied";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -39,6 +41,7 @@ import type { Member, Branch } from "@/types";
 import Link from "next/link";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import { useDebounce } from "@/lib/hooks/use-debounce";
+import { useAuthStore } from "@/stores/auth-store";
 import { useMembers } from "@/features/members";
 import { useAllTags } from "@/features/tags";
 import { queryKeys } from "@/services/query-client";
@@ -69,6 +72,8 @@ const statusLabels: Record<MemberStatus, string> = {
 export default function MembersPage() {
   const { gymPath } = useGymSlug();
   const router = useRouter();
+  const { activeBranchId } = useAuthStore();
+  const { allowed, checked } = useRequirePermission("members", "view", "deny");
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -78,10 +83,13 @@ export default function MembersPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
 
+  // Branch: use local filter override, then nav selector, then "all"
+  const effectiveBranch = branchFilter !== "all" ? branchFilter : activeBranchId || undefined;
+
   const filters = {
     search: debouncedSearch || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
-    branch_id: branchFilter !== "all" ? branchFilter : undefined,
+    branch_id: effectiveBranch,
     tag_id: tagFilter !== "all" ? tagFilter : undefined,
     plan_id: planFilter !== "all" ? planFilter : undefined,
   };
@@ -214,6 +222,14 @@ export default function MembersPage() {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="members" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

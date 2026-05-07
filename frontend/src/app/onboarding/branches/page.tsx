@@ -153,30 +153,18 @@ export default function OnboardingBranchesPage() {
     }
   };
 
-  const handleSkip = async () => {
-    setLoading(true);
-    try {
-      const res = await apiClient.post<{ onboarding_step: string }>('/auth/onboarding/skip', {
-        current_step: 'setup_branches',
-      });
-      updateUser({ onboarding_step: res.onboarding_step });
-      router.push('/onboarding/memberships');
-    } catch {
-      router.push('/onboarding/memberships');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <OnboardingLayout currentStep={3}>
       <div className="mb-7">
         <span className="text-primary text-4xl font-black leading-none">*</span>
         <h1 className="mt-2 text-[22px] font-bold text-foreground tracking-tight">
-          Add your locations
+          Add your first location
         </h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Step 4 of 7 — Add branches. A default branch was already created.
+          Step 4 of 7 — You must add at least one branch to continue.
+        </p>
+        <p className="mt-1 text-[12px] text-amber-500 font-medium">
+          ⚠ Branch is required before you can create members, staff, or classes.
         </p>
       </div>
 
@@ -279,26 +267,25 @@ export default function OnboardingBranchesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <label className="text-[13px] font-medium text-foreground">Phone</label>
-                <div className="flex h-10 items-center overflow-hidden rounded-md border border-border bg-background">
-                  <div className="flex h-full min-w-[72px] items-center justify-center border-r border-border px-3 text-[13px] text-muted-foreground">
-                    {getPhoneMetadata(watchedBranches?.[index]?.country || '').dialCode || '--'}
-                  </div>
-                  <Input
-                    placeholder="Phone"
-                    className="h-full border-0 text-[13px] focus-visible:ring-0"
-                    inputMode="numeric"
-                    maxLength={getPhoneMetadata(watchedBranches?.[index]?.country || '').maxDigits}
-                    {...register(`branches.${index}.phone`, {
-                      onChange: (event) => {
-                        const maxDigits = getPhoneMetadata(watchedBranches?.[index]?.country || '').maxDigits;
-                        event.target.value = sanitizePhoneDigits(event.target.value, maxDigits);
-                      },
-                    })}
-                  />
-                </div>
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-medium text-foreground">Phone</label>
+              <div className="flex rounded-md border border-border bg-background focus-within:ring-1 focus-within:ring-ring overflow-hidden">
+                <span className="flex shrink-0 items-center justify-center border-r border-border bg-muted/40 px-3 text-[13px] text-muted-foreground whitespace-nowrap">
+                  {getPhoneMetadata(watchedBranches?.[index]?.country || '').dialCode || '--'}
+                </span>
+                <input
+                  type="text"
+                  placeholder="Phone number"
+                  inputMode="numeric"
+                  maxLength={getPhoneMetadata(watchedBranches?.[index]?.country || '').maxDigits}
+                  className="h-10 w-full bg-transparent px-3 text-[13px] text-foreground placeholder:text-muted-foreground outline-none"
+                  {...register(`branches.${index}.phone`, {
+                    onChange: (event) => {
+                      const maxDigits = getPhoneMetadata(watchedBranches?.[index]?.country || '').maxDigits;
+                      event.target.value = sanitizePhoneDigits(event.target.value, maxDigits);
+                    },
+                  })}
+                />
               </div>
             </div>
           </div>
@@ -314,23 +301,17 @@ export default function OnboardingBranchesPage() {
           Add Another Branch
         </Button>
 
-        <div className="flex gap-3 pt-2">
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={loading}
-            onClick={handleSkip}
-            className="flex-1 h-10 text-[13px] text-muted-foreground"
-          >
-            Skip for now
-          </Button>
+        <div className="pt-2">
           <Button
             type="submit"
             disabled={loading}
-            className="flex-1 h-10 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[13px]"
+            className="w-full h-10 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-[13px]"
           >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Continue'}
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Continue →'}
           </Button>
+          <p className="mt-2 text-center text-[11px] text-muted-foreground">
+            Branch cannot be skipped — it&apos;s required for all other features.
+          </p>
         </div>
       </form>
     </OnboardingLayout>

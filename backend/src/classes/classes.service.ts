@@ -5,12 +5,20 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ResourceLimitService } from '../common/services/resource-limit.service';
+import { getTenantGymId } from '../common/tenant-context';
 
+// LEGACY: migrate to ClassTemplate/ClassSession endpoints
+// This service operates on the legacy Class and ClassEnrollment Prisma models.
+// Replace with SchedulingService (templates/sessions) and AttendanceService (bookings/waitlist).
 @Injectable()
 export class ClassesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private resourceLimits: ResourceLimitService,
+  ) {}
 
-  async create(data: {
+  async create(studioId: string, data: {
     branch_id: string;
     trainer_id: string;
     substitute_trainer_id?: string;
@@ -23,12 +31,22 @@ export class ClassesService {
     recurrence_rule?: string;
     recurrence_end_date?: string;
   }) {
+    // Enforce plan-based feature access
+    await this.resourceLimits.checkFeatureAccess(studioId, 'class_scheduling');
+
     const startsAt = new Date(data.starts_at);
+
+    // Prevent creating classes in the past
+    if (startsAt.getTime() < Date.now()) {
+      throw new BadRequestException('Cannot create a class in the past. Please select a future date and time.');
+    }
+
     const endsAt = new Date(startsAt.getTime() + data.duration_minutes * 60000);
 
-    // Check for trainer double-booking
+    // Check for trainer double-booking (SCOPED TO STUDIO)
     const conflict = await this.prisma.class.findFirst({
       where: {
+
         trainer_id: data.trainer_id,
         status: { not: 'cancelled' },
         starts_at: { lt: endsAt },
@@ -46,8 +64,26 @@ export class ClassesService {
       );
     }
 
+    // Validate trainer belongs to the class branch
+    if (data.trainer_id && data.branch_id) {
+      const trainer = await this.prisma.staff.findFirst({
+        where: {
+          id: data.trainer_id,
+          role: 'trainer',
+          OR: [
+            { branch_id: data.branch_id },
+            { branch_ids: { has: data.branch_id } },
+          ],
+        },
+      });
+      if (!trainer) {
+        throw new BadRequestException('Trainer does not belong to the specified branch');
+      }
+    }
+
     return this.prisma.class.create({
       data: {
+        gym_id: getTenantGymId()!,
         branch_id: data.branch_id,
         trainer_id: data.trainer_id,
         substitute_trainer_id: data.substitute_trainer_id,
@@ -70,7 +106,7 @@ export class ClassesService {
     });
   }
 
-  async findAll(query: {
+  async findAll(studioId: string, query: {
     branch_id?: string;
     trainer_id?: string;
     category?: string;
@@ -79,6 +115,7 @@ export class ClassesService {
     status?: string;
     page?: number;
     limit?: number;
+    user_branch_ids?: string[];
   }) {
     const {
       branch_id,
@@ -89,11 +126,24 @@ export class ClassesService {
       status,
       page = 1,
       limit = 50,
+      user_branch_ids,
     } = query;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
-    if (branch_id) where.branch_id = branch_id;
+    const where: any = {
+      // Tenant isolation handled by SET search_path in TenantMiddleware
+    };
+    if (branch_id) {
+      if (user_branch_ids && !user_branch_ids.includes(branch_id)) {
+        return { data: [], total: 0, page, limit };
+      }
+      where.branch_id = branch_id;
+    } else if (Array.isArray(user_branch_ids)) {
+      if (user_branch_ids.length === 0) {
+        return { data: [], total: 0, page, limit };
+      }
+      where.branch_id = { in: user_branch_ids };
+    }
     if (trainer_id) where.trainer_id = trainer_id;
     if (category) where.category = category;
     if (status) where.status = status;
@@ -122,9 +172,12 @@ export class ClassesService {
     return { data, total, page, limit };
   }
 
-  async findOne(id: string) {
-    const classItem = await this.prisma.class.findUnique({
-      where: { id },
+  async findOne(studioId: string, id: string) {
+    const classItem = await this.prisma.class.findFirst({
+      where: {
+        id,
+
+      },
       include: {
         branch: { select: { id: true, name: true } },
         trainer: { select: { id: true, full_name: true, specializations: true } },
@@ -149,6 +202,7 @@ export class ClassesService {
   }
 
   async update(
+    studioId: string,
     id: string,
     data: {
       name?: string;
@@ -164,7 +218,9 @@ export class ClassesService {
       status?: string;
     },
   ) {
-    const existing = await this.prisma.class.findUnique({ where: { id } });
+    const existing = await this.prisma.class.findFirst({
+      where: { id }, // Tenant isolation via search_path
+    });
     if (!existing) throw new NotFoundException('Class not found');
 
     // If trainer or time is changing, check for conflicts
@@ -177,6 +233,7 @@ export class ClassesService {
       const conflict = await this.prisma.class.findFirst({
         where: {
           id: { not: id },
+  
           trainer_id: trainerId,
           status: { not: 'cancelled' },
           starts_at: { lt: endsAt },
@@ -212,13 +269,37 @@ export class ClassesService {
     });
   }
 
-  async enroll(classId: string, memberId: string) {
+  async enroll(studioId: string, classId: string, memberIdentifier: string, data?: { branch_id?: string }) {
     // Wrap entire enrollment in a transaction for atomicity
     return this.prisma.$transaction(async (tx) => {
-      const classItem = await tx.class.findUnique({
-        where: { id: classId },
+      const classItem = await tx.class.findFirst({
+        where: { id: classId }, // Tenant isolation via search_path
       });
       if (!classItem) throw new NotFoundException('Class not found');
+
+      // Resolve member by id (UUID), member_code, or phone number
+      const branchFilter = data?.branch_id ? { branch_id: data.branch_id } : {};
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(memberIdentifier);
+
+      let member: any = null;
+      if (isUuid) {
+        member = await tx.member.findFirst({
+          where: { id: memberIdentifier, ...branchFilter },
+        });
+      }
+      if (!member) {
+        member = await tx.member.findFirst({
+          where: { member_code: memberIdentifier, ...branchFilter },
+        });
+      }
+      if (!member) {
+        member = await tx.member.findFirst({
+          where: { phone: memberIdentifier, ...branchFilter },
+        });
+      }
+      if (!member) throw new NotFoundException('Member not found. Search by member ID, member code, or phone number.');
+
+      const memberId = member.id;
 
       // Check if already enrolled
       const existing = await tx.classEnrollment.findFirst({
@@ -252,6 +333,7 @@ export class ClassesService {
 
         const enrollment = await tx.classEnrollment.create({
           data: {
+            gym_id: getTenantGymId()!,
             class_id: classId,
             member_id: memberId,
             status: 'waitlisted',
@@ -270,6 +352,7 @@ export class ClassesService {
 
       const enrollment = await tx.classEnrollment.create({
         data: {
+          gym_id: getTenantGymId()!,
           class_id: classId,
           member_id: memberId,
           status: 'enrolled',
@@ -283,7 +366,13 @@ export class ClassesService {
     });
   }
 
-  async cancelEnrollment(classId: string, memberId: string) {
+  async cancelEnrollment(studioId: string, classId: string, memberId: string, data?: { branch_id?: string }) {
+    // Verify class exists in tenant schema
+    const classItem = await this.prisma.class.findFirst({
+      where: { id: classId },
+    });
+    if (!classItem) throw new NotFoundException('Class not found');
+
     const enrollment = await this.prisma.classEnrollment.findFirst({
       where: {
         class_id: classId,
@@ -333,7 +422,13 @@ export class ClassesService {
     };
   }
 
-  async promoteFromWaitlist(classId: string, enrollmentId: string) {
+  async promoteFromWaitlist(studioId: string, classId: string, enrollmentId: string, data?: { branch_id?: string }) {
+    // Verify class exists in tenant schema
+    const classItem = await this.prisma.class.findFirst({
+      where: { id: classId },
+    });
+    if (!classItem) throw new NotFoundException('Class not found');
+
     const enrollment = await this.prisma.classEnrollment.findFirst({
       where: {
         id: enrollmentId,

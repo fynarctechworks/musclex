@@ -41,10 +41,12 @@ function VerifyEmailContent() {
   // Auto verify when token is present
   useEffect(() => {
     if (!token) return;
+    setStatus('verifying');
     let cancelled = false;
 
     async function verify() {
       try {
+        console.log('[verify-email] calling backend with token:', token?.slice(0, 8) + '...');
         const data = await authApi.verifyEmail(token!);
         if (cancelled) return;
 
@@ -81,6 +83,7 @@ function VerifyEmailContent() {
         }, 1500);
       } catch (err) {
         if (cancelled) return;
+        console.error('[verify-email] verification failed:', err);
         setStatus('error');
         setErrorMessage(err instanceof Error ? err.message : 'Verification failed. The link may have expired.');
       }
@@ -108,7 +111,13 @@ function VerifyEmailContent() {
         setDevVerifyUrl(res.verification_url);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to resend email');
+      const msg = err instanceof Error ? err.message : 'Failed to resend email';
+      if (msg.includes('No pending registration')) {
+        toast.error('No pending registration found. Please register again.');
+        router.push('/register');
+        return;
+      }
+      toast.error(msg);
     } finally {
       setResending(false);
     }
@@ -132,8 +141,8 @@ function VerifyEmailContent() {
     return (
       <OnboardingLayout currentStep={1}>
         <div className="text-center space-y-5">
-          <div className="mx-auto w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center">
-            <CheckCircle2 className="h-8 w-8 text-green-500" />
+          <div className="mx-auto w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
+            <CheckCircle2 className="h-8 w-8 text-success" />
           </div>
           <h1 className="text-[22px] font-bold text-foreground">Email verified!</h1>
           <p className="text-[13px] text-muted-foreground">Redirecting you to continue setup...</p>
@@ -195,16 +204,17 @@ function VerifyEmailContent() {
           Click the link in the email to verify your account and continue setting up your studio. The link expires in 24 hours.
         </p>
 
-        {/* Dev mode: show clickable verification link when no email service is configured */}
+        {/* Fallback: show direct verification link if email delivery failed */}
         {devVerifyUrl && (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-left">
-            <p className="text-[11px] font-semibold text-amber-500 mb-1">Development Mode</p>
-            <p className="text-[11px] text-muted-foreground mb-2">No email service configured. Use this link to verify:</p>
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-center">
+            <p className="text-[13px] text-muted-foreground mb-3">
+              Having trouble receiving the email? Verify directly using the link below:
+            </p>
             <a
               href={devVerifyUrl}
-              className="text-[12px] text-primary hover:underline break-all"
+              className="inline-block bg-primary text-primary-foreground px-5 py-2.5 rounded-lg text-[13px] font-semibold hover:opacity-90 transition-opacity"
             >
-              Click here to verify your email →
+              Verify My Email →
             </a>
           </div>
         )}

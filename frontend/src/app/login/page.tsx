@@ -90,7 +90,7 @@ function LoginForm() {
         <div className="flex justify-end">
           <Link
             href="/forgot-password"
-            className="text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+            className="text-[13px] text-primary hover:text-primary/80 transition-colors"
           >
             Forgot password?
           </Link>
@@ -106,7 +106,7 @@ function LoginForm() {
       </form>
 
       <p className="mt-6 text-center text-[13px] text-muted-foreground">
-        New to FitSync Pro?{' '}
+        New to MuscleX?{' '}
         <Link href="/register" className="text-primary font-medium hover:underline">
           Set up your studio
         </Link>

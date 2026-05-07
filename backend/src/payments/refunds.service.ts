@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProcessRefundDto } from './dto';
+import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class RefundsService {
@@ -34,6 +35,7 @@ export class RefundsService {
     return this.prisma.$transaction(async (tx) => {
       const refund = await tx.refund.create({
         data: {
+          gym_id: getTenantGymId()!,
           payment_id: dto.payment_id,
           member_id: payment.member_id,
           refund_amount: dto.refund_amount,
@@ -61,6 +63,7 @@ export class RefundsService {
       // Record financial transaction (debit = money leaving)
       await tx.financialTransaction.create({
         data: {
+          gym_id: getTenantGymId()!,
           branch_id: payment.branch_id,
           reference_type: 'refund',
           reference_id: refund.id,

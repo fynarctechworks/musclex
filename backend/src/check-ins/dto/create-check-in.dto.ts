@@ -10,7 +10,8 @@ export class CreateCheckInDto {
   qr_code?: string;
 
   @IsUUID()
-  branch_id: string;
+  @IsOptional()
+  branch_id?: string;
 
   @IsString()
   checkin_method: string;

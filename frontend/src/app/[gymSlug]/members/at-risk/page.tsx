@@ -6,6 +6,8 @@ import { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, TrendingDown, Phone, Mail, MessageSquare } from "lucide-react";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { AppLayout } from "@/components/layout/app-layout";
+import { AccessDenied } from "@/components/shared/access-denied";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -40,6 +42,7 @@ function getDaysAbsent(lastVisit: string | null): number {
 }
 
 export default function AtRiskMembersPage() {
+  const { allowed, checked } = useRequirePermission("members", "view", "deny");
   const { gymPath } = useGymSlug();
   const router = useRouter();
   const [riskFilter, setRiskFilter] = useState<ChurnRisk | "all">("all");
@@ -168,6 +171,14 @@ export default function AtRiskMembersPage() {
       },
     },
   ];
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="members" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

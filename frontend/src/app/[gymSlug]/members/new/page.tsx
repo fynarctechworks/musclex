@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, UserPlus } from "lucide-react";
+import { ArrowLeft, UserPlus, AlertCircle, Users } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
+import { AccessDenied } from "@/components/shared/access-denied";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import {
   FormInput,
   FormDatePicker,
@@ -13,6 +15,7 @@ import {
   FormSelect,
 } from "@/components/shared/form-fields";
 import { Button } from "@/components/ui/button";
+import { PhotoUpload } from "@/components/ui/photo-upload";
 import { apiClient } from "@/services/api-client";
 import type { MembershipPlan, Branch } from "@/types";
 import Link from "next/link";
@@ -32,10 +35,22 @@ interface MemberFormData {
   branch_id: string;
   plan_id?: string;
   membership_start_date?: string;
+  payment_method?: string;
+  payment_amount?: string;
   notes?: string;
 }
 
+const PAYMENT_METHOD_OPTIONS = [
+  { label: "Cash", value: "cash" },
+  { label: "Card", value: "card" },
+  { label: "UPI", value: "upi" },
+  { label: "Bank Transfer", value: "bank_transfer" },
+  { label: "Razorpay", value: "razorpay" },
+  { label: "Stripe", value: "stripe" },
+];
+
 export default function AddMemberPage() {
+  const { allowed, checked } = useRequirePermission("members", "create", "deny");
   const { gymPath } = useGymSlug();
   const router = useRouter();
 
@@ -43,6 +58,7 @@ export default function AddMemberPage() {
     register,
     handleSubmit,
     control,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<MemberFormData>({
     defaultValues: {
@@ -56,9 +72,13 @@ export default function AddMemberPage() {
       branch_id: "",
       plan_id: "",
       membership_start_date: format(new Date(), "yyyy-MM-dd"),
+      payment_method: "cash",
+      payment_amount: "",
       notes: "",
     },
   });
+
+  const selectedPlanId = watch("plan_id");
 
   const { data: plans } = useQuery({
     queryKey: queryKeys.memberships.plans(),
@@ -70,26 +90,92 @@ export default function AddMemberPage() {
     queryFn: () => apiClient.get<Branch[]>("/branches"),
   });
 
+  const selectedPlan = useMemo(
+    () => (plans ?? []).find((p) => p.id === selectedPlanId),
+    [plans, selectedPlanId],
+  );
+
   const memberIdPreview = useMemo(() => {
     const dateStr = format(new Date(), "yyyyMMdd");
     const random = Math.floor(1000 + Math.random() * 9000);
     return `FS-${dateStr}-${random}`;
   }, []);
 
+  const [phoneCheck, setPhoneCheck] = useState<{
+    status: 'idle' | 'checking' | 'duplicate' | 'clear';
+    existingMember?: { id: string; full_name: string; member_code: string; branch_name?: string };
+  }>({ status: 'idle' });
+
+  const checkPhone = async (phone: string) => {
+    if (!phone || phone.length < 7) return;
+    setPhoneCheck({ status: 'checking' });
+    try {
+      const result = await apiClient.get<{ exists: boolean; member_id?: string; full_name?: string; member_code?: string; branch_name?: string }>(
+        `/members/check-phone?phone=${encodeURIComponent(phone)}`
+      );
+      if (result.exists) {
+        setPhoneCheck({
+          status: 'duplicate',
+          existingMember: {
+            id: result.member_id!,
+            full_name: result.full_name!,
+            member_code: result.member_code!,
+            branch_name: result.branch_name,
+          },
+        });
+      } else {
+        setPhoneCheck({ status: 'clear' });
+      }
+    } catch {
+      setPhoneCheck({ status: 'idle' });
+    }
+  };
+
   const createMutation = useCreateMember();
 
   const onSubmit = (data: MemberFormData) => {
-    const cleanedData = {
-      ...data,
+    const hasPlan = !!data.plan_id;
+    const planPrice = selectedPlan ? Number(selectedPlan.price) : 0;
+    const parsedAmount =
+      data.payment_amount !== undefined && data.payment_amount !== ""
+        ? Number(data.payment_amount)
+        : undefined;
+    // If customer hands over more than the plan price, cap the recorded
+    // revenue at the plan price — the overage is returned as change.
+    const recordedAmount =
+      hasPlan && parsedAmount !== undefined && !Number.isNaN(parsedAmount)
+        ? Math.min(parsedAmount, planPrice)
+        : undefined;
+    const cleanedData: CreateMemberDto = {
+      full_name: data.full_name,
+      phone: data.phone,
+      branch_id: data.branch_id,
       email: data.email || undefined,
+      date_of_birth: data.date_of_birth || undefined,
+      emergency_contact_name: data.emergency_contact_name || undefined,
+      emergency_contact_phone: data.emergency_contact_phone || undefined,
       profile_photo_url: data.profile_photo_url || undefined,
       plan_id: data.plan_id || undefined,
       membership_start_date: data.membership_start_date || undefined,
+      payment_method: hasPlan ? data.payment_method || "cash" : undefined,
+      payment_amount: recordedAmount,
+      notes: data.notes || undefined,
     };
-    createMutation.mutate(cleanedData as CreateMemberDto, {
+    createMutation.mutate(cleanedData, {
       onSuccess: (member) => router.push(gymPath(`/members/${member.id}`)),
     });
   };
+
+  const receivedAmount = Number(watch("payment_amount") || 0);
+  const planPriceNum = selectedPlan ? Number(selectedPlan.price) : 0;
+  const changeDue =
+    selectedPlanId && receivedAmount > planPriceNum
+      ? receivedAmount - planPriceNum
+      : 0;
+  const shortfall =
+    selectedPlanId && receivedAmount > 0 && receivedAmount < planPriceNum
+      ? planPriceNum - receivedAmount
+      : 0;
 
   const branchOptions = (branches ?? []).map((b) => ({
     label: b.name,
@@ -103,9 +189,32 @@ export default function AddMemberPage() {
       value: p.id,
     }));
 
+  const hasPlans = plans !== undefined && plans.filter((p) => p.is_active).length > 0;
+  const plansLoaded = plans !== undefined;
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="members" />
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
-      <div className="mx-auto max-w-2xl space-y-6">
+      <div className="mx-auto max-w-2xl space-y-6 pb-8">
+        {/* No Plans Warning */}
+        {plansLoaded && !hasPlans && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+            <p className="text-sm font-medium text-amber-400">
+              You need at least one membership plan before adding members.
+            </p>
+            <Link href={gymPath("/settings/plans?create=true")} className="mt-2 inline-block text-sm text-primary underline">
+              Create a membership plan →
+            </Link>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center gap-4">
           <Link href={gymPath("/members")}>
@@ -165,9 +274,50 @@ export default function AddMemberPage() {
                     value: /^\+?[\d\s-]{7,15}$/,
                     message: "Enter a valid phone number",
                   },
+                  onChange: () => setPhoneCheck({ status: 'idle' }),
                 })}
+                onBlur={(e) => checkPhone(e.target.value)}
               />
             </div>
+
+            {/* Phone duplicate warning */}
+            {phoneCheck.status === 'checking' && (
+              <p className="text-xs text-muted-foreground">Checking phone number...</p>
+            )}
+            {phoneCheck.status === 'duplicate' && phoneCheck.existingMember && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-2">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                  <div className="text-sm">
+                    <p className="font-medium text-amber-400">Phone number already registered</p>
+                    <p className="text-muted-foreground">
+                      {phoneCheck.existingMember.full_name} ({phoneCheck.existingMember.member_code})
+                      {phoneCheck.existingMember.branch_name ? ` · ${phoneCheck.existingMember.branch_name}` : ''}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Link href={gymPath(`/members/${phoneCheck.existingMember.id}/family/add`)}>
+                    <Button type="button" size="sm" variant="outline" className="text-xs border-amber-500/40 text-amber-400 hover:bg-amber-500/10">
+                      <Users className="h-3 w-3 mr-1" />
+                      Add as Family Member
+                    </Button>
+                  </Link>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="text-xs text-muted-foreground"
+                    onClick={() => setPhoneCheck({ status: 'idle' })}
+                  >
+                    Use different number
+                  </Button>
+                </div>
+              </div>
+            )}
+            {phoneCheck.status === 'clear' && (
+              <p className="text-xs text-green-500">✓ Phone number available</p>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <FormInput
@@ -189,11 +339,15 @@ export default function AddMemberPage() {
               />
             </div>
 
-            <FormInput
-              label="Profile Photo URL"
-              placeholder="https://example.com/photo.jpg"
-              error={errors.profile_photo_url?.message}
-              {...register("profile_photo_url")}
+            <Controller
+              name="profile_photo_url"
+              control={control}
+              render={({ field }) => (
+                <PhotoUpload
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              )}
             />
           </div>
 
@@ -259,6 +413,54 @@ export default function AddMemberPage() {
                 {...register("membership_start_date")}
               />
             </div>
+
+            {selectedPlanId && (
+              <div className="grid gap-4 sm:grid-cols-2 pt-2 border-t border-border">
+                <Controller
+                  name="payment_method"
+                  control={control}
+                  render={({ field }) => (
+                    <FormSelect
+                      label="Payment Method *"
+                      placeholder="Select method"
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      options={PAYMENT_METHOD_OPTIONS}
+                      error={errors.payment_method?.message}
+                    />
+                  )}
+                />
+                <FormInput
+                  label="Amount Received"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder={
+                    selectedPlan ? `₹${selectedPlan.price}` : "0.00"
+                  }
+                  error={errors.payment_amount?.message}
+                  {...register("payment_amount")}
+                />
+                <div className="sm:col-span-2 -mt-2 space-y-1">
+                  <p className="text-xs text-muted-foreground">
+                    Leave blank to charge the plan price (₹
+                    {selectedPlan?.price ?? 0}). Payment is recorded as paid.
+                  </p>
+                  {changeDue > 0 && (
+                    <p className="text-xs font-medium text-green-500">
+                      Change to return: ₹{changeDue.toFixed(2)} (revenue
+                      recorded as ₹{planPriceNum.toFixed(2)})
+                    </p>
+                  )}
+                  {shortfall > 0 && (
+                    <p className="text-xs font-medium text-amber-500">
+                      Short by ₹{shortfall.toFixed(2)} — partial payment will
+                      be recorded.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Notes */}
@@ -286,7 +488,7 @@ export default function AddMemberPage() {
             </Link>
             <Button
               type="submit"
-              disabled={isSubmitting || createMutation.isPending}
+              disabled={isSubmitting || createMutation.isPending || phoneCheck.status === 'duplicate'}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               <UserPlus className="mr-2 h-4 w-4" />

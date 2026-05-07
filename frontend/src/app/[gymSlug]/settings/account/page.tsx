@@ -2,7 +2,7 @@
 
 import { AppLayout } from "@/components/layout/app-layout";
 import Image from "next/image";
-import { LoadingSkeleton, StatusBadge } from "@/components/shared";
+import { LoadingSkeleton, StatusBadge, AccessDenied } from "@/components/shared";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useForm } from "react-hook-form";
@@ -36,6 +36,7 @@ import {
   getStateName,
   getStateOptions,
 } from "@/lib/location";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 
 // ── Types ──────────────────────────────────────────────────────
 interface AccountOverview {
@@ -257,13 +258,13 @@ function UsageBar({
 function StatusPill({ status }: { status: string }) {
   const color =
     status === "active"
-      ? "bg-emerald-500/10 text-emerald-600"
+      ? "bg-success/10 text-success"
       : status === "trial"
         ? "bg-blue-500/10 text-blue-600"
         : status === "past_due"
           ? "bg-amber-500/10 text-amber-600"
           : status === "paid"
-            ? "bg-emerald-500/10 text-emerald-600"
+            ? "bg-success/10 text-success"
             : "bg-red-500/10 text-red-500";
   return (
     <span
@@ -276,7 +277,7 @@ function StatusPill({ status }: { status: string }) {
 
 function VerificationDot({ verified }: { verified: boolean }) {
   return verified ? (
-    <span className="flex items-center gap-1 text-xs text-emerald-600">
+    <span className="flex items-center gap-1 text-xs text-success">
       <Check className="w-3.5 h-3.5" /> Verified
     </span>
   ) : (
@@ -347,6 +348,7 @@ function fmtCurrency(amount: number, currency: string) {
 
 // ── Page Component ─────────────────────────────────────────────
 export default function AccountDetailsPage() {
+  const { allowed, checked } = useRequirePermission("settings", "view", "deny");
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
 
@@ -467,6 +469,15 @@ export default function AccountDetailsPage() {
   const s = account.studio;
   const sub = account.subscription;
   const usage = account.usage;
+
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="settings" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -1079,7 +1090,7 @@ export default function AccountDetailsPage() {
                   <span className="text-sm">Two-Factor Authentication</span>
                 </div>
                 {s.two_factor_enabled ? (
-                  <span className="flex items-center gap-1 text-xs text-emerald-600">
+                  <span className="flex items-center gap-1 text-xs text-success">
                     <Check className="w-3.5 h-3.5" /> Enabled
                   </span>
                 ) : (

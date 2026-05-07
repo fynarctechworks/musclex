@@ -9,6 +9,7 @@ import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSsoProviderDto, UpdateSsoProviderDto } from './dto';
 import { Prisma } from '@prisma/client';
+import { getTenantGymId } from '../common/tenant-context';
 
 const VALID_PROVIDER_TYPES = ['google', 'microsoft', 'saml', 'oidc'];
 
@@ -82,6 +83,7 @@ export class AuthSsoService {
 
     const provider = await this.prisma.ssoProvider.create({
       data: {
+        gym_id: getTenantGymId()!,
         provider_type: dto.provider_type,
         display_name: dto.display_name,
         client_id: dto.client_id,

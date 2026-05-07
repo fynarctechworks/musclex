@@ -1,0 +1,280 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────────
+
+enum TenantStatus {
+  ACTIVE
+  TRIAL
+  EXPIRED
+  SUSPENDED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+  TRIALING
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FLAT
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  SUSPEND
+  ACTIVATE
+  IMPERSONATE
+  LOGIN
+  LOGOUT
+  PLAN_CHANGE
+  PAYMENT_RETRY
+  REFUND
+  FEATURE_TOGGLE
+}
+
+// ─── Models ─────────────────────────────────────────────────────────────────────
+
+model AdminUser {
+  id                  String    @id @default(uuid()) @db.Uuid
+  email               String    @unique
+  password_hash       String
+  name                String
+  is_active           Boolean   @default(true)
+  last_login_at       DateTime?
+  mfa_enabled         Boolean   @default(false)
+  mfa_secret          String?
+  mfa_pending_secret  String?
+  mfa_backup_codes    String[]  @default([])
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  audit_logs            AuditLog[]
+  password_reset_tokens PasswordResetToken[]
+
+  @@map("admin_users")
+}
+
+model PasswordResetToken {
+  id          String    @id @default(uuid()) @db.Uuid
+  admin_id    String    @db.Uuid
+  token_hash  String    @unique
+  expires_at  DateTime
+  used_at     DateTime?
+  created_at  DateTime  @default(now())
+
+  admin AdminUser @relation(fields: [admin_id], references: [id], onDelete: Cascade)
+
+  @@index([admin_id])
+  @@map("password_reset_tokens")
+}
+
+model Tenant {
+  id                  String       @id @default(uuid()) @db.Uuid
+  name                String
+  slug                String       @unique
+  owner_email         String
+  owner_name          String
+  phone               String?
+  logo_url            String?
+  account_type        String       @default("gym")
+  status              TenantStatus @default(TRIAL)
+  plan_id             String?      @db.Uuid
+  max_members         Int          @default(50)
+  max_branches        Int          @default(1)
+  max_staff           Int          @default(5)
+  storage_limit_mb    Int          @default(500)
+  is_active           Boolean      @default(true)
+  trial_ends_at       DateTime?
+  last_active_at      DateTime?
+  metadata            Json?
+  created_at          DateTime     @default(now())
+  updated_at          DateTime     @updatedAt
+
+  plan          SubscriptionPlan? @relation(fields: [plan_id], references: [id])
+  subscriptions Subscription[]
+  payments      Payment[]
+  feature_flags TenantFeatureFlag[]
+
+  @@index([status])
+  @@index([plan_id])
+  @@index([owner_email])
+  @@index([is_active, status])
+  @@map("tenants")
+}
+
+model SubscriptionPlan {
+  id              String   @id @default(uuid()) @db.Uuid
+  name            String   @unique
+  description     String?
+  price_monthly   Decimal  @db.Decimal(10, 2)
+  price_yearly    Decimal  @db.Decimal(10, 2)
+  features        Json     @default("{}") // { "check_in": true, "ai_advisor": false, ... }
+  limits          Json     @default("{}") // { "max_members": 100, "max_branches": 3, ... }
+  sort_order      Int      @default(0)
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  tenants       Tenant[]
+  subscriptions Subscription[]
+  discounts     Discount[]
+  plan_features PlanFeatureFlag[]
+
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id           String             @id @default(uuid()) @db.Uuid
+  tenant_id    String             @db.Uuid
+  plan_id      String             @db.Uuid
+  status       SubscriptionStatus @default(TRIALING)
+  start_date   DateTime           @default(now())
+  end_date     DateTime
+  auto_renew   Boolean            @default(true)
+  canceled_at  DateTime?
+  created_at   DateTime           @default(now())
+  updated_at   DateTime           @updatedAt
+
+  tenant   Tenant           @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  plan     SubscriptionPlan @relation(fields: [plan_id], references: [id])
+  payments Payment[]
+
+  @@unique([tenant_id], name: "subscriptions_tenant_id_unique")
+  @@index([status])
+  @@index([end_date])
+  @@index([tenant_id, status])
+  @@map("subscriptions")
+}
+
+model Payment {
+  id                 String        @id @default(uuid()) @db.Uuid
+  tenant_id          String        @db.Uuid
+  subscription_id    String?       @db.Uuid
+  amount             Decimal       @db.Decimal(10, 2)
+  currency           String        @default("INR") @db.VarChar(3)
+  status             PaymentStatus @default(PENDING)
+  gateway            String?       // razorpay, stripe, manual
+  gateway_payment_id String?
+  invoice_url        String?
+  failure_reason     String?
+  retry_count        Int           @default(0)
+  metadata           Json?
+  created_at         DateTime      @default(now())
+  updated_at         DateTime      @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscription_id], references: [id])
+
+  @@index([tenant_id])
+  @@index([status])
+  @@index([created_at])
+  @@index([tenant_id, status])
+  @@map("payments")
+}
+
+model Discount {
+  id         String       @id @default(uuid()) @db.Uuid
+  name       String
+  plan_id    String?      @db.Uuid
+  type       DiscountType
+  value      Decimal      @db.Decimal(10, 2)
+  code       String?      @unique
+  valid_from DateTime
+  valid_to   DateTime
+  max_uses   Int?
+  used_count Int          @default(0)
+  is_active  Boolean      @default(true)
+  created_at DateTime     @default(now())
+  updated_at DateTime     @updatedAt
+
+  plan SubscriptionPlan? @relation(fields: [plan_id], references: [id])
+
+  @@index([plan_id])
+  @@index([is_active, valid_from, valid_to])
+  @@index([code])
+  @@map("discounts")
+}
+
+model FeatureFlag {
+  id          String  @id @default(uuid()) @db.Uuid
+  key         String  @unique // e.g., "ai_advisor", "facial_recognition"
+  name        String
+  description String?
+  is_global   Boolean @default(false) // When true, enabled for ALL tenants
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  plan_flags   PlanFeatureFlag[]
+  tenant_flags TenantFeatureFlag[]
+
+  @@map("feature_flags")
+}
+
+model PlanFeatureFlag {
+  id         String @id @default(uuid()) @db.Uuid
+  plan_id    String @db.Uuid
+  flag_id    String @db.Uuid
+  enabled    Boolean @default(true)
+  created_at DateTime @default(now())
+
+  plan SubscriptionPlan @relation(fields: [plan_id], references: [id], onDelete: Cascade)
+  flag FeatureFlag      @relation(fields: [flag_id], references: [id], onDelete: Cascade)
+
+  @@unique([plan_id, flag_id])
+  @@map("plan_feature_flags")
+}
+
+model TenantFeatureFlag {
+  id         String @id @default(uuid()) @db.Uuid
+  tenant_id  String @db.Uuid
+  flag_id    String @db.Uuid
+  enabled    Boolean @default(true)
+  created_at DateTime @default(now())
+
+  tenant Tenant      @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  flag   FeatureFlag @relation(fields: [flag_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, flag_id])
+  @@map("tenant_feature_flags")
+}
+
+model AuditLog {
+  id          String      @id @default(uuid()) @db.Uuid
+  action      AuditAction
+  admin_id    String?     @db.Uuid
+  entity_type String      // "tenant", "plan", "subscription", etc.
+  entity_id   String?
+  old_value   Json?
+  new_value   Json?
+  ip_address  String?
+  user_agent  String?
+  metadata    Json?
+  created_at  DateTime    @default(now())
+
+  admin AdminUser? @relation(fields: [admin_id], references: [id])
+
+  @@index([admin_id])
+  @@index([entity_type, entity_id])
+  @@index([action])
+  @@index([created_at])
+  @@map("audit_logs")
+}

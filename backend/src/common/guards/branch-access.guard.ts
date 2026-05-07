@@ -4,11 +4,15 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { CROSS_BRANCH_KEY } from '../decorators/cross-branch.decorator';
 
 const ADMIN_ROLES = ['super_admin', 'owner', 'brand_owner'];
 
 @Injectable()
 export class BranchAccessGuard implements CanActivate {
+  constructor(private reflector: Reflector) {}
+
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
@@ -17,12 +21,18 @@ export class BranchAccessGuard implements CanActivate {
       throw new ForbiddenException('Authentication required');
     }
 
-    // Admin roles have access to all branches
+    // @CrossBranch() handlers skip branch checks
+    const isCrossBranch = this.reflector.getAllAndOverride<boolean>(CROSS_BRANCH_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isCrossBranch) return true;
+
     if (ADMIN_ROLES.includes(user.role)) {
       return true;
     }
 
-    // Check from normalized roles: null branch_id = all branches
+    // Null branch_id in roles = all branches
     if (user.roles && Array.isArray(user.roles)) {
       const hasGlobalAccess = user.roles.some(
         (r: { branch_id: string | null }) => r.branch_id === null,
@@ -30,22 +40,21 @@ export class BranchAccessGuard implements CanActivate {
       if (hasGlobalAccess) return true;
     }
 
-    // Check if branch_id is in the request (params, query, or body)
+    // Check branch_id from request OR from X-Active-Branch-Id header
     const branchId =
       request.params?.branch_id ||
       request.query?.branch_id ||
-      request.body?.branch_id;
+      request.body?.branch_id ||
+      request.headers?.['x-active-branch-id'];
 
     if (!branchId) {
-      return true; // No branch specified, other guards/services handle filtering
+      return true; // No branch context — extension handles scoping via ALS
     }
 
-    // Check branch_ids array (legacy + populated from UserRole)
     if (user.branch_ids && user.branch_ids.includes(branchId)) {
       return true;
     }
 
-    // Check individual role branch assignments
     if (user.roles && Array.isArray(user.roles)) {
       const hasBranchRole = user.roles.some(
         (r: { branch_id: string | null }) => r.branch_id === branchId,

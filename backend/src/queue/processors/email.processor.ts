@@ -23,7 +23,7 @@ export class EmailProcessor extends WorkerHost {
       }
 
       await resend.emails.send({
-        from: process.env.EMAIL_FROM || 'FitSync Pro <noreply@fitsyncpro.com>',
+        from: process.env.EMAIL_FROM || 'MuscleX <noreply@fitsyncpro.com>',
         to,
         subject,
         html: this.renderTemplate(template, variables),

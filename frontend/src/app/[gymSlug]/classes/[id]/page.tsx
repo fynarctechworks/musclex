@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/app-layout";
-import { StatusBadge, LoadingSkeleton } from "@/components/shared";
+import { StatusBadge, LoadingSkeleton, AccessDenied } from "@/components/shared";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import { apiClient } from "@/lib/api";
 import { ClassItem, ClassEnrollment } from "@/lib/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -15,16 +16,22 @@ import {
   MapPin,
   Calendar,
   UserPlus,
+  Phone,
+  Hash,
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 
+type EnrollMode = "member_code" | "phone";
+
 export default function ClassDetailPage() {
+  const { allowed, checked } = useRequirePermission("classes", "view", "deny");
   const { gymPath } = useGymSlug();
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
-  const [memberId, setMemberId] = useState("");
+  const [enrollInput, setEnrollInput] = useState("");
+  const [enrollMode, setEnrollMode] = useState<EnrollMode>("member_code");
 
   const { data: classItem, isLoading } = useQuery<ClassItem>({
     queryKey: ["class", id],
@@ -34,12 +41,12 @@ export default function ClassDetailPage() {
   const enrollMutation = useMutation({
     mutationFn: (member_id: string) =>
       apiClient.post(`/classes/${id}/enroll`, { member_id }),
-    onSuccess: () => {
-      toast.success("Member enrolled");
-      setMemberId("");
+    onSuccess: (data: any) => {
+      toast.success(data?.message || "Member enrolled");
+      setEnrollInput("");
       queryClient.invalidateQueries({ queryKey: ["class", id] });
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(err.message || "Enrollment failed"),
   });
 
   const cancelMutation = useMutation({
@@ -51,6 +58,21 @@ export default function ClassDetailPage() {
     },
     onError: (err: Error) => toast.error(err.message),
   });
+
+  const handleEnroll = () => {
+    const value = enrollInput.trim();
+    if (!value) return;
+    // Send the raw value — backend resolves by UUID, member_code, or phone
+    enrollMutation.mutate(value);
+  };
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="classes" />
+      </AppLayout>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -86,7 +108,9 @@ export default function ClassDetailPage() {
       <div className="bg-card border border-border rounded-xl p-6 mb-6">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-foreground">{classItem.name}</h1>
+            <h1 className="text-xl font-semibold text-foreground">
+              {classItem.name}
+            </h1>
             <span className="inline-block mt-1 px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">
               {classItem.category}
             </span>
@@ -118,7 +142,10 @@ export default function ClassDetailPage() {
 
         {classItem.trainer && (
           <div className="mt-3 text-sm text-muted-foreground">
-            Trainer: <span className="text-foreground">{classItem.trainer.full_name}</span>
+            Trainer:{" "}
+            <span className="text-foreground">
+              {classItem.trainer.full_name}
+            </span>
           </div>
         )}
       </div>
@@ -128,22 +155,65 @@ export default function ClassDetailPage() {
         <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
           <UserPlus className="w-5 h-5" /> Enroll Member
         </h2>
+
+        {/* Mode Toggle */}
+        <div className="flex gap-1 mb-3 bg-muted rounded-lg p-1 w-fit">
+          <button
+            type="button"
+            onClick={() => {
+              setEnrollMode("member_code");
+              setEnrollInput("");
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              enrollMode === "member_code"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Hash className="w-3.5 h-3.5" />
+            Member Code
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEnrollMode("phone");
+              setEnrollInput("");
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              enrollMode === "phone"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Phone className="w-3.5 h-3.5" />
+            Phone Number
+          </button>
+        </div>
+
         <div className="flex gap-2">
           <input
-            type="text"
-            value={memberId}
-            onChange={(e) => setMemberId(e.target.value)}
-            placeholder="Enter Member ID"
+            type={enrollMode === "phone" ? "tel" : "text"}
+            value={enrollInput}
+            onChange={(e) => setEnrollInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleEnroll()}
+            placeholder={
+              enrollMode === "member_code"
+                ? "e.g. FS-20260416-0001"
+                : "e.g. 9876543210"
+            }
             className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary outline-none"
           />
           <button
-            onClick={() => memberId && enrollMutation.mutate(memberId)}
-            disabled={!memberId || enrollMutation.isPending}
+            onClick={handleEnroll}
+            disabled={!enrollInput.trim() || enrollMutation.isPending}
             className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
-            Enroll
+            {enrollMutation.isPending ? "Enrolling..." : "Enroll"}
           </button>
         </div>
+        <p className="text-[11px] text-muted-foreground mt-1.5">
+          Enter a member code (FS-XXXXXXXX-XXXX) or mobile number to enroll
+        </p>
       </div>
 
       {/* Enrolled Members */}
@@ -162,6 +232,11 @@ export default function ClassDetailPage() {
                   <p className="text-sm text-foreground">
                     {enrollment.member?.full_name ?? enrollment.member_id}
                   </p>
+                  {enrollment.member?.member_code && (
+                    <p className="text-xs text-muted-foreground">
+                      {enrollment.member.member_code}
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={() => cancelMutation.mutate(enrollment.member_id)}

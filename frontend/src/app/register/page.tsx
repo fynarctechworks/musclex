@@ -8,6 +8,7 @@ import { Eye, EyeOff, Loader2, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { authApi } from '@/features/auth';
+import { useAuthStore } from '@/stores/auth-store';
 import { toast } from 'sonner';
 import { OnboardingLayout } from '@/components/onboarding/onboarding-layout';
 
@@ -44,6 +45,21 @@ export default function RegisterPage() {
         password: data.password,
         phone: data.phone,
       });
+
+      // If user already existed but had no studio (re-registration after DB reset),
+      // the API skips verification and returns tokens directly
+      if (res.skip_verification && res.access_token) {
+        const setAuth = useAuthStore.getState().setAuth;
+        setAuth({
+          user: res.user,
+          studio: null,
+          access_token: res.access_token!,
+          refresh_token: res.refresh_token!,
+        });
+        toast.success('Welcome back! Continuing your setup...');
+        router.push('/onboarding/studio-info');
+        return;
+      }
 
       // Store email for verify page to display
       sessionStorage.setItem('pendingEmail', data.email);
@@ -116,6 +132,12 @@ export default function RegisterPage() {
                 {...register('password', {
                   required: 'Password is required',
                   minLength: { value: 8, message: 'Min 8 characters' },
+                  validate: {
+                    uppercase: (v) => /[A-Z]/.test(v) || 'Must contain an uppercase letter',
+                    lowercase: (v) => /[a-z]/.test(v) || 'Must contain a lowercase letter',
+                    number: (v) => /[0-9]/.test(v) || 'Must contain a number',
+                    special: (v) => /[^A-Za-z0-9]/.test(v) || 'Must contain a special character',
+                  },
                 })}
               />
               <button

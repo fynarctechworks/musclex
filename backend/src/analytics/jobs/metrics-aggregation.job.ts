@@ -21,11 +21,11 @@ export class MetricsAggregationJob {
       try {
         const branches = await this.prisma.branch.findMany({
           where: { is_active: true },
-          select: { id: true, organization_id: true },
+          select: { id: true, organization_id: true, gym_id: true },
         });
 
         for (const branch of branches) {
-          await this.aggregateBranchDailyMetrics(branch.id, branch.organization_id, today);
+          await this.aggregateBranchDailyMetrics(branch.id, branch.organization_id, branch.gym_id, today);
         }
 
         this.logger.log(`Daily metrics aggregated for ${branches.length} branches`);
@@ -38,6 +38,7 @@ export class MetricsAggregationJob {
   private async aggregateBranchDailyMetrics(
     branchId: string,
     organizationId: string | null,
+    gymId: string,
     date: Date,
   ) {
     const nextDay = new Date(date);
@@ -99,6 +100,7 @@ export class MetricsAggregationJob {
         },
       },
       create: {
+        gym_id: gymId,
         organization_id: organizationId,
         branch_id: branchId,
         date,
@@ -136,11 +138,11 @@ export class MetricsAggregationJob {
 
         const branches = await this.prisma.branch.findMany({
           where: { is_active: true },
-          select: { id: true, organization_id: true },
+          select: { id: true, organization_id: true, gym_id: true },
         });
 
         for (const branch of branches) {
-          await this.aggregateBranchRevenue(branch.id, branch.organization_id, yesterday, today);
+          await this.aggregateBranchRevenue(branch.id, branch.organization_id, branch.gym_id, yesterday, today);
         }
 
         this.logger.log(`Revenue analytics aggregated for ${branches.length} branches`);
@@ -153,6 +155,7 @@ export class MetricsAggregationJob {
   private async aggregateBranchRevenue(
     branchId: string,
     organizationId: string | null,
+    gymId: string,
     periodStart: Date,
     periodEnd: Date,
   ) {
@@ -205,6 +208,7 @@ export class MetricsAggregationJob {
           },
         },
         create: {
+          gym_id: gymId,
           organization_id: organizationId,
           branch_id: branchId,
           revenue_type: rt.type,
@@ -237,11 +241,11 @@ export class MetricsAggregationJob {
 
         const branches = await this.prisma.branch.findMany({
           where: { is_active: true },
-          select: { id: true, organization_id: true },
+          select: { id: true, organization_id: true, gym_id: true },
         });
 
         for (const branch of branches) {
-          await this.aggregateBranchMembership(branch.id, branch.organization_id, yesterday, today);
+          await this.aggregateBranchMembership(branch.id, branch.organization_id, branch.gym_id, yesterday, today);
         }
 
         this.logger.log(`Membership analytics aggregated for ${branches.length} branches`);
@@ -254,6 +258,7 @@ export class MetricsAggregationJob {
   private async aggregateBranchMembership(
     branchId: string,
     organizationId: string | null,
+    gymId: string,
     periodStart: Date,
     periodEnd: Date,
   ) {
@@ -297,6 +302,7 @@ export class MetricsAggregationJob {
         },
       },
       create: {
+        gym_id: gymId,
         organization_id: organizationId,
         branch_id: branchId,
         total_active: active,
@@ -333,12 +339,12 @@ export class MetricsAggregationJob {
 
         const templates = await this.prisma.classTemplate.findMany({
           where: { is_active: true },
-          select: { id: true, branch_id: true },
+          select: { id: true, branch_id: true, gym_id: true },
         });
 
         for (const tmpl of templates) {
           if (!tmpl.branch_id) continue;
-          await this.aggregateClassTemplate(tmpl.id, tmpl.branch_id, weekAgo, today);
+          await this.aggregateClassTemplate(tmpl.id, tmpl.branch_id, tmpl.gym_id, weekAgo, today);
         }
 
         this.logger.log(`Class analytics aggregated for ${templates.length} templates`);
@@ -351,6 +357,7 @@ export class MetricsAggregationJob {
   private async aggregateClassTemplate(
     templateId: string,
     branchId: string,
+    gymId: string,
     periodStart: Date,
     periodEnd: Date,
   ) {
@@ -396,6 +403,7 @@ export class MetricsAggregationJob {
         },
       },
       create: {
+        gym_id: gymId,
         class_template_id: templateId,
         branch_id: branchId,
         total_sessions: totalSessions,
@@ -426,7 +434,7 @@ export class MetricsAggregationJob {
       try {
         const members = await this.prisma.member.findMany({
           where: { status: 'active' },
-          select: { id: true, branch_id: true, last_visit_at: true },
+          select: { id: true, branch_id: true, gym_id: true, last_visit_at: true },
         });
 
         const now = new Date();
@@ -445,7 +453,7 @@ export class MetricsAggregationJob {
   }
 
   private async computeMemberEngagement(
-    member: { id: string; branch_id: string; last_visit_at: Date | null },
+    member: { id: string; branch_id: string; gym_id: string; last_visit_at: Date | null },
     now: Date,
     thirtyDaysAgo: Date,
   ) {
@@ -493,6 +501,7 @@ export class MetricsAggregationJob {
 
     await this.prisma.memberBehaviorAnalytics.create({
       data: {
+        gym_id: member.gym_id,
         member_id: member.id,
         branch_id: member.branch_id,
         visit_frequency: visitFrequency,
@@ -531,11 +540,11 @@ export class MetricsAggregationJob {
             status: 'active',
             role: { in: ['trainer', 'senior_trainer', 'head_trainer'] },
           },
-          select: { id: true, branch_id: true },
+          select: { id: true, branch_id: true, gym_id: true },
         });
 
         for (const trainer of trainers) {
-          await this.aggregateTrainer(trainer.id, trainer.branch_id, weekAgo, today);
+          await this.aggregateTrainer(trainer.id, trainer.branch_id, trainer.gym_id, weekAgo, today);
         }
 
         this.logger.log(`Trainer analytics aggregated for ${trainers.length} trainers`);
@@ -548,6 +557,7 @@ export class MetricsAggregationJob {
   private async aggregateTrainer(
     trainerId: string,
     branchId: string | null,
+    gymId: string,
     periodStart: Date,
     periodEnd: Date,
   ) {
@@ -585,6 +595,7 @@ export class MetricsAggregationJob {
         },
       },
       create: {
+        gym_id: gymId,
         trainer_id: trainerId,
         branch_id: branchId,
         sessions_conducted: sessions,
@@ -611,11 +622,11 @@ export class MetricsAggregationJob {
       try {
         const campaigns = await this.prisma.campaign.findMany({
           where: { status: { in: ['sent', 'completed'] } },
-          select: { id: true },
+          select: { id: true, gym_id: true },
         });
 
         for (const campaign of campaigns) {
-          await this.aggregateCampaign(campaign.id);
+          await this.aggregateCampaign(campaign.id, campaign.gym_id);
         }
 
         this.logger.log(`Campaign analytics aggregated for ${campaigns.length} campaigns`);
@@ -625,7 +636,7 @@ export class MetricsAggregationJob {
     });
   }
 
-  private async aggregateCampaign(campaignId: string) {
+  private async aggregateCampaign(campaignId: string, gymId: string) {
     const audience = await this.prisma.campaignAudience.groupBy({
       by: ['status'],
       where: { campaign_id: campaignId },
@@ -644,6 +655,7 @@ export class MetricsAggregationJob {
 
     await this.prisma.campaignAnalyticsRecord.create({
       data: {
+        gym_id: gymId,
         campaign_id: campaignId,
         sent,
         opened,

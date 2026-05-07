@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class ComplianceService {
@@ -24,6 +25,7 @@ export class ComplianceService {
 
     const consent = await this.prisma.consentLog.create({
       data: {
+        gym_id: getTenantGymId()!,
         member_id: memberId,
         consent_type: consentType,
         granted,
@@ -83,6 +85,7 @@ export class ComplianceService {
     // Create export request record
     const request = await this.prisma.dataRequest.create({
       data: {
+        gym_id: getTenantGymId()!,
         member_id: memberId,
         type: 'export',
         format,
@@ -198,6 +201,7 @@ export class ComplianceService {
     // Create deletion request record
     const request = await this.prisma.dataRequest.create({
       data: {
+        gym_id: getTenantGymId()!,
         member_id: memberId,
         type: 'deletion',
         status: 'pending',

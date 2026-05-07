@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLeadDto, UpdateLeadDto, CreateLeadActivityDto } from './dto';
+import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class LeadsService {
@@ -11,7 +12,7 @@ export class LeadsService {
 
   async create(dto: CreateLeadDto) {
     const lead = await this.prisma.lead.create({
-      data: dto,
+      data: { ...dto, gym_id: getTenantGymId()! },
       include: {
         branch: { select: { id: true, name: true } },
         assigned_staff: { select: { id: true, full_name: true } },
@@ -21,6 +22,7 @@ export class LeadsService {
     // Log creation activity
     await this.prisma.leadActivity.create({
       data: {
+        gym_id: getTenantGymId()!,
         lead_id: lead.id,
         staff_id: dto.assigned_staff_id,
         activity_type: 'note',
@@ -106,6 +108,7 @@ export class LeadsService {
     if (dto.status && dto.status !== lead.status) {
       await this.prisma.leadActivity.create({
         data: {
+          gym_id: getTenantGymId()!,
           lead_id: id,
           activity_type: 'status_change',
           notes: `Status changed from ${lead.status} to ${dto.status}`,
@@ -128,7 +131,7 @@ export class LeadsService {
     if (!lead) throw new NotFoundException('Lead not found');
 
     return this.prisma.leadActivity.create({
-      data: dto,
+      data: { ...dto, gym_id: getTenantGymId()! },
       include: { staff: { select: { id: true, full_name: true } } },
     });
   }

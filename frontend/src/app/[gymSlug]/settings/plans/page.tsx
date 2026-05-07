@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
@@ -24,6 +25,8 @@ import {
 } from "@/components/ui/dialog";
 import { apiClient } from "@/lib/api";
 import type { MembershipPlan, Branch } from "@/lib/types";
+import { useRequirePermission } from "@/hooks/use-require-permission";
+import { AccessDenied } from "@/components/shared";
 
 interface PlanFormData {
   name: string;
@@ -44,13 +47,22 @@ const planTypeOptions = [
   { label: "Half Yearly", value: "half_yearly" },
   { label: "Yearly", value: "yearly" },
   { label: "Class Pack", value: "class_pack" },
+  { label: "Family", value: "family" },
   { label: "Custom", value: "custom" },
 ];
 
 export default function MembershipPlansPage() {
+  const { allowed, checked } = useRequirePermission("settings", "view", "deny");
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<MembershipPlan | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get("create") === "true") {
+      setDialogOpen(true);
+    }
+  }, [searchParams]);
 
   const { data: plans, isLoading } = useQuery({
     queryKey: ["membership-plans"],
@@ -80,7 +92,7 @@ export default function MembershipPlansPage() {
       price: undefined,
       is_active: true,
       auto_renew_enabled: false,
-      branch_id: "",
+      branch_id: "none",
     },
   });
 
@@ -90,7 +102,7 @@ export default function MembershipPlansPage() {
     mutationFn: (data: PlanFormData) => {
       const payload = {
         ...data,
-        branch_id: data.branch_id || undefined,
+        branch_id: data.branch_id && data.branch_id !== "none" ? data.branch_id : undefined,
       };
       return apiClient.post<MembershipPlan>("/membership-plans", payload);
     },
@@ -106,7 +118,7 @@ export default function MembershipPlansPage() {
     mutationFn: ({ id, data }: { id: string; data: PlanFormData }) => {
       const payload = {
         ...data,
-        branch_id: data.branch_id || undefined,
+        branch_id: data.branch_id && data.branch_id !== "none" ? data.branch_id : undefined,
       };
       return apiClient.patch<MembershipPlan>(
         `/membership-plans/${id}`,
@@ -143,7 +155,7 @@ export default function MembershipPlansPage() {
       price: undefined,
       is_active: true,
       auto_renew_enabled: false,
-      branch_id: "",
+      branch_id: "none",
     });
     setDialogOpen(true);
   };
@@ -160,7 +172,7 @@ export default function MembershipPlansPage() {
       price: plan.price,
       is_active: plan.is_active,
       auto_renew_enabled: plan.auto_renew_enabled,
-      branch_id: plan.branch_id || "",
+      branch_id: plan.branch_id || "none",
     });
     setDialogOpen(true);
   };
@@ -179,11 +191,20 @@ export default function MembershipPlansPage() {
   };
 
   const branchOptions = [
-    { label: "All Branches", value: "" },
+    { label: "All Branches", value: "none" },
     ...(branches ?? []).map((b) => ({ label: b.name, value: b.id })),
   ];
 
   const isMutating = createMutation.isPending || updateMutation.isPending;
+
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="settings" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -419,7 +440,7 @@ export default function MembershipPlansPage() {
                 render={({ field }) => (
                   <FormSelect
                     label="Branch Scope"
-                    value={field.value || ""}
+                    value={field.value || "none"}
                     onValueChange={field.onChange}
                     options={branchOptions}
                     error={errors.branch_id?.message}

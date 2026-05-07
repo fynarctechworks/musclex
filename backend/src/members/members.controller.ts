@@ -37,6 +37,7 @@ import {
   Permissions,
   CurrentUser,
   JwtPayload,
+  restrictedBranchIdsForUser,
 } from '../common';
 
 @Controller('api/v1/members')
@@ -59,94 +60,136 @@ export class MembersController {
     @Query('organization_id') organization_id?: string,
     @Query('search') search?: string,
     @Query('tag_id') tag_id?: string,
+    @Query('plan_id') plan_id?: string,
     @Query('trainer_id') trainer_id?: string,
     @Query('churn_risk') churn_risk?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.membersService.findAll({
+    return this.membersService.findAll(user.studio_id, {
       status,
       branch_id: branch_id,
       organization_id,
       search,
       tag_id,
+      plan_id,
       trainer_id,
       churn_risk,
       page: page ? parseInt(page) : 1,
       limit: limit ? parseInt(limit) : 50,
-      user_branch_ids: user.role !== 'owner' && user.role !== 'brand_owner'
-        ? user.branch_ids
-        : undefined,
+      user_branch_ids: restrictedBranchIdsForUser(user),
     });
+  }
+
+  @Get('check-phone')
+  @Permissions({ module: 'members', action: 'view' })
+  checkPhone(
+    @CurrentUser() user: JwtPayload,
+    @Query('phone') phone: string,
+  ) {
+    return this.membersService.checkPhone(phone, user.organization_id);
   }
 
   @Get('churn-risk')
   @Permissions({ module: 'members', action: 'view' })
-  getChurnRisk(@Query('risk') risk?: string) {
-    return this.membersService.getChurnRisk(risk);
+  getChurnRisk(
+    @CurrentUser() user: JwtPayload,
+    @Query('risk') risk?: string,
+  ) {
+    return this.membersService.getChurnRisk(user.studio_id, risk);
   }
 
   @Get('lifecycle')
   @Permissions({ module: 'members', action: 'view' })
   getLifecycle(
+    @CurrentUser() user: JwtPayload,
     @Query('branch_id') branch_id?: string,
     @Query('organization_id') organization_id?: string,
   ) {
-    return this.membersService.getLifecycleSummary({ branch_id, organization_id });
+    return this.membersService.getLifecycleSummary(user.studio_id, { branch_id, organization_id });
   }
 
   @Post()
   @Permissions({ module: 'members', action: 'create' })
-  create(@Body() dto: CreateMemberDto) {
-    return this.membersService.create(dto);
+  create(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: CreateMemberDto,
+  ) {
+    // Inject organization_id from JWT so the member is created in the correct tenant scope
+    if (!dto.organization_id && user.organization_id) {
+      dto.organization_id = user.organization_id;
+    }
+    return this.membersService.create(user.studio_id, dto);
   }
 
   @Get(':id')
   @Permissions({ module: 'members', action: 'view' })
-  findOne(@Param('id') id: string) {
-    return this.membersService.findOne(id);
+  findOne(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.membersService.findOne(user.studio_id, id);
   }
 
   @Patch(':id')
   @Permissions({ module: 'members', action: 'edit' })
-  update(@Param('id') id: string, @Body() dto: UpdateMemberDto) {
-    return this.membersService.update(id, dto);
+  update(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: UpdateMemberDto,
+  ) {
+    return this.membersService.update(user.studio_id, id, dto);
   }
 
   @Delete(':id')
   @Roles('owner', 'brand_owner', 'branch_manager')
   @Permissions({ module: 'members', action: 'delete' })
-  softDelete(@Param('id') id: string) {
-    return this.membersService.softDelete(id);
+  softDelete(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.membersService.softDelete(user.studio_id, id);
   }
 
   // ── Freeze / Unfreeze / Renew ─────────────────────────────────
 
   @Post(':id/freeze')
   @Permissions({ module: 'members', action: 'edit' })
-  freeze(@Param('id') id: string, @Body() dto: FreezeMemberDto) {
-    return this.membersService.freeze(id, dto);
+  freeze(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: FreezeMemberDto,
+  ) {
+    return this.membersService.freeze(user.studio_id, id, dto);
   }
 
   @Post(':id/unfreeze')
   @Permissions({ module: 'members', action: 'edit' })
-  unfreeze(@Param('id') id: string) {
-    return this.membersService.unfreeze(id);
+  unfreeze(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.membersService.unfreeze(user.studio_id, id);
   }
 
   @Post(':id/renew')
   @Permissions({ module: 'members', action: 'edit' })
-  renew(@Param('id') id: string, @Body() dto: RenewMemberDto) {
-    return this.membersService.renew(id, dto);
+  renew(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: RenewMemberDto,
+  ) {
+    return this.membersService.renew(user.studio_id, id, dto);
   }
 
   @Post(':id/face-descriptor')
   @Permissions({ module: 'members', action: 'edit' })
   saveFaceDescriptor(
+    @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Body('descriptor') descriptor: number[],
   ) {
-    return this.membersService.saveFaceDescriptor(id, descriptor);
+    return this.membersService.saveFaceDescriptor(user.studio_id, id, descriptor);
   }
 
   // ── Health Profile ────────────────────────────────────────────
@@ -219,8 +262,11 @@ export class MembersController {
 
   @Get(':id/visits')
   @Permissions({ module: 'members', action: 'view' })
-  getVisitStats(@Param('id') id: string) {
-    return this.membersService.getVisitStats(id);
+  getVisitStats(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.membersService.getVisitStats(user.studio_id, id);
   }
 
   // ── Notes ─────────────────────────────────────────────────────

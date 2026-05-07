@@ -7,7 +7,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { CheckInsService } from './check-ins.service';
-import { JwtAuthGuard, PermissionsGuard, Permissions } from '../common';
+import { JwtAuthGuard, PermissionsGuard, Permissions, CurrentUser, JwtPayload, restrictedBranchIdsForUser } from '../common';
 import { CreateCheckInDto } from './dto/create-check-in.dto';
 import { FacialCheckInDto } from './dto/facial-check-in.dto';
 import { SyncCheckInsDto } from './dto/sync-check-ins.dto';
@@ -20,28 +20,34 @@ export class CheckInsController {
   @Post()
   @Permissions({ module: 'check_ins', action: 'create' })
   create(
+    @CurrentUser() user: JwtPayload,
     @Body() data: CreateCheckInDto,
   ) {
-    return this.checkInsService.create(data);
+    return this.checkInsService.create(user.studio_id, data);
   }
 
   @Post('facial')
   @Permissions({ module: 'check_ins', action: 'create' })
   facialCheckIn(
+    @CurrentUser() user: JwtPayload,
     @Body() data: FacialCheckInDto,
   ) {
-    return this.checkInsService.facialCheckIn(data);
+    return this.checkInsService.facialCheckIn(user.studio_id, data);
   }
 
   @Post('sync')
   @Permissions({ module: 'check_ins', action: 'create' })
-  syncOffline(@Body() data: SyncCheckInsDto) {
-    return this.checkInsService.syncOffline(data.check_ins);
+  syncOffline(
+    @CurrentUser() user: JwtPayload,
+    @Body() data: SyncCheckInsDto,
+  ) {
+    return this.checkInsService.syncOffline(user.studio_id, data.check_ins);
   }
 
   @Get()
   @Permissions({ module: 'check_ins', action: 'view' })
   findAll(
+    @CurrentUser() user: JwtPayload,
     @Query('branch_id') branch_id?: string,
     @Query('date_from') date_from?: string,
     @Query('date_to') date_to?: string,
@@ -49,13 +55,14 @@ export class CheckInsController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.checkInsService.findAll({
+    return this.checkInsService.findAll(user.studio_id, {
       branch_id,
       date_from,
       date_to,
       member_id,
       page: page ? parseInt(page) : 1,
       limit: limit ? parseInt(limit) : 50,
+      user_branch_ids: restrictedBranchIdsForUser(user),
     });
   }
 

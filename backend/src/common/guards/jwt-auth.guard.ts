@@ -10,20 +10,29 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { PermissionsMap, UserRoleSummary } from '../decorators/current-user.decorator';
 import { DEFAULT_ROLE_PERMISSIONS } from './default-permissions';
 import { RbacService } from '../../auth/rbac.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import * as jose from 'jose';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   private supabase: SupabaseClient;
   private readonly logger = new Logger(JwtAuthGuard.name);
+  private jwtSecret: Uint8Array | null = null;
 
   constructor(
     private configService: ConfigService,
     private rbacService: RbacService,
+    private prisma: PrismaService,
   ) {
     this.supabase = createClient(
       this.configService.get<string>('SUPABASE_URL', ''),
       this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY', ''),
     );
+
+    const secret = this.configService.get<string>('SUPABASE_JWT_SECRET');
+    if (secret) {
+      this.jwtSecret = new TextEncoder().encode(secret);
+    }
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -37,17 +46,44 @@ export class JwtAuthGuard implements CanActivate {
     const token = authHeader.substring(7);
 
     try {
-      const {
-        data: { user },
-        error,
-      } = await this.supabase.auth.getUser(token);
+      // Prefer local JWT verification (no network call) over Supabase getUser
+      let user: { id: string; email?: string; user_metadata: Record<string, any> };
 
-      if (error || !user) {
-        throw new UnauthorizedException('Invalid or expired token');
+      if (this.jwtSecret) {
+        try {
+          const { payload } = await jose.jwtVerify(token, this.jwtSecret, {
+            issuer: this.configService.get<string>('SUPABASE_URL') + '/auth/v1',
+          });
+          user = {
+            id: payload.sub!,
+            email: payload.email as string | undefined,
+            user_metadata: (payload.user_metadata as Record<string, any>) || {},
+          };
+        } catch {
+          // Local verification failed — fall back to network call
+          const { data, error } = await this.supabase.auth.getUser(token);
+          if (error || !data.user) throw new UnauthorizedException('Invalid or expired token');
+          user = { id: data.user.id, email: data.user.email, user_metadata: data.user.user_metadata || {} };
+        }
+      } else {
+        // No JWT secret configured — use network call
+        const { data, error } = await this.supabase.auth.getUser(token);
+        if (error || !data.user) throw new UnauthorizedException('Invalid or expired token');
+        user = { id: data.user.id, email: data.user.email, user_metadata: data.user.user_metadata || {} };
+      }
+
+      // Verify user exists in our DB — catches wiped/deleted users with live tokens
+      const dbUser = await this.prisma.userIdentity.findUnique({
+        where: { id: user.id },
+        select: { id: true },
+      });
+      if (!dbUser) {
+        throw new UnauthorizedException('User not found');
       }
 
       const metadata = user.user_metadata || {};
       const studioId = metadata.studio_id;
+      const organizationId = metadata.organization_id as string | undefined;
 
       // ── Resolve from normalized RBAC tables ──
       let role = metadata.role || 'owner';
@@ -109,6 +145,7 @@ export class JwtAuthGuard implements CanActivate {
       request.user = {
         user_id: user.id,
         studio_id: studioId,
+        organization_id: organizationId,
         role,
         roles,
         branch_ids: branchIds,

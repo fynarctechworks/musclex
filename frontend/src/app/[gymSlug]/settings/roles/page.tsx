@@ -19,6 +19,8 @@ import {
   Users,
 } from "lucide-react";
 import type { Role, PermissionModule, ModuleAction } from "@/lib/types";
+import { useRequirePermission } from "@/hooks/use-require-permission";
+import { AccessDenied } from "@/components/shared";
 
 const MODULE_LABELS: Record<PermissionModule, string> = {
   dashboard: "Dashboard",
@@ -276,6 +278,7 @@ function RoleViewModal({
 }
 
 export default function RolesPage() {
+  const { allowed, checked } = useRequirePermission("roles", "view", "deny");
   const [showForm, setShowForm] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | undefined>();
   const [viewingRole, setViewingRole] = useState<Role | undefined>();
@@ -343,6 +346,15 @@ export default function RolesPage() {
 
   const systemRoles = data?.system_roles || [];
   const customRoles = data?.custom_roles || [];
+
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="roles" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

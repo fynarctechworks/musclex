@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { PageHeader, LoadingSkeleton, EmptyState, ConfirmDialog } from "@/components/shared";
+import { PageHeader, LoadingSkeleton, EmptyState, ConfirmDialog , AccessDenied } from "@/components/shared";
 import {
   useWorkflows,
   useCreateWorkflow,
@@ -48,6 +48,7 @@ import { format } from "date-fns";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/services/query-client";
 import { toast } from "sonner";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 
 const subNavItems = [
   { label: "Campaigns", href: "/marketing", icon: Megaphone },
@@ -101,6 +102,7 @@ interface WorkflowFormData {
 }
 
 export default function AutomationPage() {
+  const { allowed, checked } = useRequirePermission("marketing", "view", "deny");
   const { gymPath } = useGymSlug();
   const [statusFilter, setStatusFilter] = useState("");
   const [showCreate, setShowCreate] = useState(false);
@@ -124,6 +126,14 @@ export default function AutomationPage() {
     },
     onError: (err: Error) => toast.error(err.message),
   });
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="marketing" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -232,7 +242,7 @@ export default function AutomationPage() {
                         className={cn(
                           "px-2 py-0.5 text-[10px] rounded-full font-medium",
                           wf.status === "active"
-                            ? "bg-green-500/10 text-green-500"
+                            ? "bg-success/10 text-success"
                             : wf.status === "paused"
                             ? "bg-yellow-500/10 text-yellow-500"
                             : "bg-muted text-muted-foreground"

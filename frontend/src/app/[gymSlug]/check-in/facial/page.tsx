@@ -3,10 +3,20 @@
 import { ArrowLeft, ScanFace } from "lucide-react";
 import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
+import { AccessDenied } from "@/components/shared/access-denied";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 
 export default function FacialCheckInPage() {
+  const { allowed, checked } = useRequirePermission("check_ins", "create", "deny");
   const { gymPath } = useGymSlug();
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="check_ins" />
+      </AppLayout>
+    );
+  }
   return (
     <AppLayout>
       <div className="mb-6">

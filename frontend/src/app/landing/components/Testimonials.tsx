@@ -14,7 +14,7 @@ const testimonials = [
     rating: 5,
   },
   {
-    quote: 'Managing 3 branches was a nightmare before FitSync Pro. Now everything is in one dashboard. Game changer.',
+    quote: 'Managing 3 branches was a nightmare before MuscleX. Now everything is in one dashboard. Game changer.',
     name: 'Arjun Mehta',
     role: 'FitZone Chain, Delhi',
     rating: 5,

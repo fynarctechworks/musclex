@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
+  Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
@@ -14,6 +15,8 @@ const ADMIN_ROLES = ['super_admin', 'owner', 'brand_owner'];
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
+  private readonly logger = new Logger(PermissionsGuard.name);
+
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -34,8 +37,12 @@ export class PermissionsGuard implements CanActivate {
       throw new ForbiddenException('Authentication required');
     }
 
-    // Admin roles bypass all permission checks
+    // Admin roles bypass permission checks — log for audit trail
     if (ADMIN_ROLES.includes(user.role)) {
+      const permCodes = requiredPermissions.map((p) => `${p.module}.${p.action}`).join(', ');
+      this.logger.log(
+        `ADMIN_BYPASS user=${user.user_id} role=${user.role} studio=${user.studio_id} permissions=[${permCodes}] path=${request.method} ${request.url}`,
+      );
       return true;
     }
 

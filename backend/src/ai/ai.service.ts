@@ -7,8 +7,9 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { randomUUID } from 'crypto';
 import Anthropic from '@anthropic-ai/sdk';
+import { getTenantGymId } from '../common/tenant-context';
 
-const SYSTEM_PROMPT = `You are FitSync Pro AI Advisor — an expert gym management consultant embedded in a fitness studio SaaS platform. Your role is to help gym owners and managers optimize operations, increase revenue, improve member retention, and manage staff effectively.
+const SYSTEM_PROMPT = `You are MuscleX AI Advisor — an expert gym management consultant embedded in a fitness studio SaaS platform. Your role is to help gym owners and managers optimize operations, increase revenue, improve member retention, and manage staff effectively.
 
 Guidelines:
 - Be concise, actionable, and data-driven in your responses.
@@ -45,6 +46,8 @@ export class AiService {
     message: string;
     conversation_id?: string;
     staff_id: string;
+    view_context?: Record<string, unknown>;
+    user_role?: string;
   }) {
     let conversationId = data.conversation_id;
 
@@ -53,6 +56,7 @@ export class AiService {
       const conversation = await this.prisma.aiConversation.create({
         data: {
           id: randomUUID(),
+          gym_id: getTenantGymId()!,
           staff_id: data.staff_id,
           messages: [],
         },
@@ -77,12 +81,14 @@ export class AiService {
       timestamp: new Date().toISOString(),
     };
 
-    // Generate AI response
+    // Generate AI response with view context (Wave 5: scope-aware advisor)
     let aiResponseContent: string;
     try {
       aiResponseContent = await this.generateResponse(
         data.message,
         existingMessages,
+        data.view_context,
+        data.user_role,
       );
     } catch (err) {
       this.logger.error(`AI response failed: ${err instanceof Error ? err.message : err}`);
@@ -115,16 +121,19 @@ export class AiService {
 
   /**
    * Generate AI response using Anthropic Claude, with fallback.
+   * Wave 5: injects view context (active branch, role, screen, period) so
+   * the advisor answers in the user's current scope without asking.
    */
   private async generateResponse(
     message: string,
     history: { role: string; content: string }[],
+    viewContext?: Record<string, unknown>,
+    userRole?: string,
   ): Promise<string> {
     if (!this.anthropic) {
       return this.generateFallbackResponse(message);
     }
 
-    // Build conversation history for Claude (last 20 messages for context window)
     const recentHistory = history.slice(-20);
     const claudeMessages: { role: 'user' | 'assistant'; content: string }[] =
       recentHistory
@@ -134,13 +143,27 @@ export class AiService {
           content: m.content,
         }));
 
-    // Add current message
     claudeMessages.push({ role: 'user', content: message });
+
+    const ctxParts: string[] = [];
+    if (userRole) ctxParts.push(`The asker's role is "${userRole}".`);
+    if (viewContext && Object.keys(viewContext).length > 0) {
+      ctxParts.push(
+        `They are currently viewing: ${JSON.stringify(viewContext)}.`,
+      );
+      ctxParts.push(
+        'Answer in that scope. Do not ask "which branch / role / period" — assume the one in view_context unless they explicitly broaden.',
+      );
+    }
+    const systemPrompt =
+      ctxParts.length > 0
+        ? `${SYSTEM_PROMPT}\n\n${ctxParts.join(' ')}`
+        : SYSTEM_PROMPT;
 
     const response = await this.anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1024,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: claudeMessages,
     });
 

@@ -5,17 +5,21 @@ import {
   FormInput,
   FormSelect,
   FormTextarea,
-  FormDatePicker,
+  AccessDenied,
 } from "@/components/shared";
+import { FieldWrapper } from "@/components/shared/form-fields";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import { apiClient } from "@/lib/api";
 import { Staff, Branch } from "@/lib/types";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
+import { Input } from "@/components/ui/input";
 
 interface CreateClassForm {
   name: string;
@@ -29,47 +33,81 @@ interface CreateClassForm {
   description: string;
 }
 
+const categories = [
+  { label: "Cardio", value: "cardio" },
+  { label: "Strength", value: "strength" },
+  { label: "Flexibility", value: "flexibility" },
+  { label: "Mind & Body", value: "mind_body" },
+  { label: "Dance", value: "dance" },
+  { label: "Martial Arts", value: "martial_arts" },
+  { label: "Rehabilitation", value: "rehabilitation" },
+  { label: "Other", value: "other" },
+];
+
 export default function NewClassPage() {
+  const { allowed, checked } = useRequirePermission("classes", "create", "deny");
   const { gymPath } = useGymSlug();
   const router = useRouter();
-  const { register, handleSubmit } = useForm<CreateClassForm>();
+  const queryClient = useQueryClient();
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = useForm<CreateClassForm>();
 
   const { data: trainers } = useQuery<Staff[]>({
     queryKey: ["trainers"],
-    queryFn: () => apiClient.get("/staff?role=trainer"),
+    queryFn: () =>
+      apiClient
+        .get<{ data: Staff[]; total: number }>("/staff", {
+          params: { role: "trainer", limit: 100 },
+        })
+        .then((r) => r.data),
   });
 
   const { data: branches } = useQuery<Branch[]>({
     queryKey: ["branches"],
-    queryFn: () => apiClient.get("/branches"),
+    queryFn: () =>
+      apiClient
+        .get<{ data: Branch[] }>("/branches")
+        .then((r) => r.data ?? r),
   });
 
   const mutation = useMutation({
-    mutationFn: (data: CreateClassForm) =>
-      apiClient.post("/classes", {
-        ...data,
+    mutationFn: (data: CreateClassForm) => {
+      // Convert datetime-local value to ISO string
+      const startsAt = data.starts_at
+        ? new Date(data.starts_at).toISOString()
+        : data.starts_at;
+
+      return apiClient.post("/classes", {
+        name: data.name,
+        category: data.category,
+        branch_id: data.branch_id,
+        trainer_id: data.trainer_id,
+        room: data.room || undefined,
         capacity: Number(data.capacity),
         duration_minutes: Number(data.duration_minutes),
-      }),
+        starts_at: startsAt,
+        description: data.description || undefined,
+      });
+    },
     onSuccess: () => {
       toast.success("Class created successfully");
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
       router.push(gymPath("/schedule"));
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => toast.error(err.message || "Failed to create class"),
   });
 
-  const categories = [
-    { label: "Yoga", value: "yoga" },
-    { label: "HIIT", value: "hiit" },
-    { label: "Strength", value: "strength" },
-    { label: "Cardio", value: "cardio" },
-    { label: "Pilates", value: "pilates" },
-    { label: "CrossFit", value: "crossfit" },
-    { label: "Zumba", value: "zumba" },
-    { label: "Spinning", value: "spinning" },
-    { label: "Boxing", value: "boxing" },
-    { label: "Other", value: "other" },
-  ];
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="classes" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -80,7 +118,9 @@ export default function NewClassPage() {
         >
           <ArrowLeft className="w-4 h-4" /> Back to Schedule
         </Link>
-        <h1 className="text-xl font-semibold text-foreground mb-6">Create New Class</h1>
+        <h1 className="text-xl font-semibold text-foreground mb-6">
+          Create New Class
+        </h1>
 
         <form
           onSubmit={handleSubmit((data) => mutation.mutate(data))}
@@ -91,32 +131,61 @@ export default function NewClassPage() {
               label="Class Name"
               {...register("name", { required: "Class name is required" })}
               placeholder="e.g. Morning Yoga"
+              error={errors.name?.message}
             />
 
             <div className="grid grid-cols-2 gap-4">
-              <FormSelect
-                label="Category"
-                {...register("category", { required: "Category is required" })}
-                options={categories}
+              <Controller
+                name="category"
+                control={control}
+                rules={{ required: "Category is required" }}
+                render={({ field }) => (
+                  <FormSelect
+                    label="Category"
+                    value={field.value || ""}
+                    onValueChange={field.onChange}
+                    options={categories}
+                    error={errors.category?.message}
+                  />
+                )}
               />
-              <FormSelect
-                label="Branch"
-                {...register("branch_id", { required: "Branch is required" })}
-                options={
-                  branches?.map((b) => ({ label: b.name, value: b.id })) ?? []
-                }
+              <Controller
+                name="branch_id"
+                control={control}
+                rules={{ required: "Branch is required" }}
+                render={({ field }) => (
+                  <FormSelect
+                    label="Branch"
+                    value={field.value || ""}
+                    onValueChange={field.onChange}
+                    options={
+                      branches?.map((b) => ({ label: b.name, value: b.id })) ??
+                      []
+                    }
+                    error={errors.branch_id?.message}
+                  />
+                )}
               />
             </div>
 
-            <FormSelect
-              label="Trainer"
-              {...register("trainer_id", { required: "Trainer is required" })}
-              options={
-                trainers?.map((t) => ({
-                  label: t.full_name,
-                  value: t.id,
-                })) ?? []
-              }
+            <Controller
+              name="trainer_id"
+              control={control}
+              rules={{ required: "Trainer is required" }}
+              render={({ field }) => (
+                <FormSelect
+                  label="Trainer"
+                  value={field.value || ""}
+                  onValueChange={field.onChange}
+                  options={
+                    trainers?.map((t) => ({
+                      label: t.full_name,
+                      value: t.id,
+                    })) ?? []
+                  }
+                  error={errors.trainer_id?.message}
+                />
+              )}
             />
 
             <div className="grid grid-cols-3 gap-4">
@@ -133,6 +202,7 @@ export default function NewClassPage() {
                   min: { value: 1, message: "Min 1" },
                 })}
                 placeholder="20"
+                error={errors.capacity?.message}
               />
               <FormInput
                 label="Duration (min)"
@@ -142,16 +212,26 @@ export default function NewClassPage() {
                   min: { value: 15, message: "Min 15" },
                 })}
                 placeholder="60"
+                error={errors.duration_minutes?.message}
               />
             </div>
 
-            <FormDatePicker
+            <FieldWrapper
               label="Starts At"
-              type="datetime-local"
-              {...register("starts_at", {
-                required: "Start time is required",
-              })}
-            />
+              error={errors.starts_at?.message}
+            >
+              <Input
+                type="datetime-local"
+                min={new Date().toISOString().slice(0, 16)}
+                {...register("starts_at", {
+                  required: "Start time is required",
+                  validate: (v) =>
+                    new Date(v).getTime() > Date.now() ||
+                    "Cannot schedule a class in the past",
+                })}
+                className="h-9 bg-secondary border-border text-foreground text-[13px] focus:border-primary focus:ring-1 focus:ring-primary/30"
+              />
+            </FieldWrapper>
 
             <FormTextarea
               label="Description"

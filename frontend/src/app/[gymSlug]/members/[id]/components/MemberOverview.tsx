@@ -1,12 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { format, formatDistanceToNow } from "date-fns";
-import { TrendingUp, TrendingDown, Scale } from "lucide-react";
+import { TrendingUp, TrendingDown, Scale, QrCode, Download } from "lucide-react";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { useProgressSummary } from "@/features/progress";
 import type { Member, CheckIn } from "@/types";
 import { statusToVariant, statusLabels } from "./member-utils";
+
+// Lazy-load QR to avoid SSR issues
+const QRCodeSVG = lazy(() => import("qrcode.react").then(m => ({ default: m.QRCodeSVG })));
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -71,7 +74,16 @@ export function MemberOverview({ member, checkIns }: MemberOverviewProps) {
               )}
             <InfoRow
               label="Price"
-              value={`₹${Number(activeMembership.plan.price).toFixed(2)}`}
+              value={(() => {
+                const raw = activeMembership.plan.price as unknown;
+                const n =
+                  typeof raw === "number"
+                    ? raw
+                    : typeof raw === "string"
+                      ? Number(raw)
+                      : Number((raw as { toString?: () => string })?.toString?.() ?? NaN);
+                return Number.isFinite(n) ? `₹${n.toFixed(2)}` : "—";
+              })()}
             />
             <InfoRow
               label="Status"
@@ -152,6 +164,36 @@ export function MemberOverview({ member, checkIns }: MemberOverviewProps) {
           />
         </div>
       </div>
+
+      {/* QR Code Card */}
+      {member.qr_code && (
+        <div className="rounded-lg border border-border bg-card p-6 flex flex-col items-center gap-4">
+          <div className="flex items-center gap-2 w-full">
+            <QrCode className="h-4 w-4 text-primary" />
+            <h3 className="text-base font-semibold text-foreground">Member QR Code</h3>
+          </div>
+          <div className="bg-white p-3 rounded-lg">
+            <Suspense fallback={<div className="h-40 w-40 bg-muted animate-pulse rounded" />}>
+              <QRCodeSVG
+                value={member.qr_code}
+                size={160}
+                level="M"
+                includeMargin={false}
+              />
+            </Suspense>
+          </div>
+          <div className="text-center">
+            <p className="text-xs font-mono text-muted-foreground">{member.member_code}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {activeMembership?.status === "active" ? (
+                <span className="text-green-500 font-medium">✓ Active — scan to check in</span>
+              ) : (
+                <span className="text-amber-500 font-medium">⚠ No active plan — check-in blocked</span>
+              )}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Recent Check-ins */}
       <div className="rounded-lg border border-border bg-card p-6 lg:col-span-2">
@@ -234,11 +276,11 @@ export function MemberOverview({ member, checkIns }: MemberOverviewProps) {
               {progress.changes?.weight !== null && progress.changes?.weight !== undefined ? (
                 <div className="flex items-center gap-1">
                   {progress.changes.weight < 0 ? (
-                    <TrendingDown className="h-4 w-4 text-green-400" />
+                    <TrendingDown className="h-4 w-4 text-success" />
                   ) : progress.changes.weight > 0 ? (
                     <TrendingUp className="h-4 w-4 text-amber-400" />
                   ) : null}
-                  <span className={`text-lg font-semibold ${progress.changes.weight <= 0 ? "text-green-400" : "text-amber-400"}`}>
+                  <span className={`text-lg font-semibold ${progress.changes.weight <= 0 ? "text-success" : "text-amber-400"}`}>
                     {progress.changes.weight > 0 ? "+" : ""}{Number(progress.changes.weight).toFixed(1)} kg
                   </span>
                 </div>

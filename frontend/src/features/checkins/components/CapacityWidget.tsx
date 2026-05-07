@@ -16,14 +16,14 @@ export function CapacityWidget({ current, max }: CapacityWidgetProps) {
       ? "text-red-500"
       : pct >= 70
       ? "text-yellow-500"
-      : "text-green-500";
+      : "text-success";
 
   const barColor =
     pct >= 90
       ? "bg-red-500"
       : pct >= 70
       ? "bg-yellow-500"
-      : "bg-green-500";
+      : "bg-success";
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">

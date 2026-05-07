@@ -33,6 +33,7 @@ const schema = z.object({
   price: z.string().min(1, 'Price is required'),
   cost_price: z.string().optional(),
   tax_rate: z.string().optional(),
+  initial_stock: z.string().optional(),
   image_url: z.string().optional(),
   category_id: z.string().optional(),
   status: z.string().optional(),
@@ -71,6 +72,7 @@ export function ProductDialog({ open, onOpenChange, product, branchId }: Product
       price: '',
       cost_price: '',
       tax_rate: '0',
+      initial_stock: '0',
       image_url: '',
       category_id: '',
       status: 'active',
@@ -100,6 +102,7 @@ export function ProductDialog({ open, onOpenChange, product, branchId }: Product
         price: '',
         cost_price: '',
         tax_rate: '0',
+        initial_stock: '0',
         image_url: '',
         category_id: '',
         status: 'active',
@@ -116,6 +119,7 @@ export function ProductDialog({ open, onOpenChange, product, branchId }: Product
       price: Number(values.price),
       cost_price: values.cost_price ? Number(values.cost_price) : undefined,
       tax_rate: values.tax_rate ? Number(values.tax_rate) : undefined,
+      initial_stock: values.initial_stock ? Number(values.initial_stock) : 0,
       image_url: values.image_url || undefined,
       category_id: values.category_id || undefined,
       branch_id: branchId,
@@ -214,6 +218,20 @@ export function ProductDialog({ open, onOpenChange, product, branchId }: Product
               />
             </div>
           </div>
+
+          {!isEdit && (
+            <div className="space-y-2">
+              <Label className="text-foreground">Initial Stock</Label>
+              <Input
+                {...register('initial_stock')}
+                type="number"
+                step="1"
+                min="0"
+                placeholder="0"
+                className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label className="text-foreground">Category</Label>

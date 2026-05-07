@@ -167,7 +167,7 @@ function ResetPasswordContent() {
     return (
       <AuthLayout heading="Password reset!" subheading="You can now sign in with your new password.">
         <div className="text-center space-y-4">
-          <CheckCircle2 className="mx-auto h-12 w-12 text-green-500" />
+          <CheckCircle2 className="mx-auto h-12 w-12 text-success" />
           <p className="text-sm text-muted-foreground">Redirecting to login...</p>
           <Loader2 className="mx-auto h-5 w-5 animate-spin text-primary" />
         </div>

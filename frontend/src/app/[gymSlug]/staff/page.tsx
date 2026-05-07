@@ -2,40 +2,47 @@
 
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { StatusBadge, LoadingSkeleton, PageHeader } from "@/components/shared";
+import { StatusBadge, LoadingSkeleton, PageHeader , AccessDenied } from "@/components/shared";
 import { apiClient } from "@/lib/api";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { Staff, Branch, PaginatedResponse } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth-store";
-import { Plus, BarChart3, ChevronLeft, ChevronRight, Building2 } from "lucide-react";
+import { Plus, BarChart3, ChevronLeft, ChevronRight, Building2, CalendarOff, Clock } from "lucide-react";
 import Link from "next/link";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 
 export default function StaffPage() {
+  const { allowed, checked } = useRequirePermission("staff", "view", "deny");
   const { gymPath } = useGymSlug();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
-  const [roleFilter, setRoleFilter] = useState("");
-  const [branchFilter, setBranchFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [branchFilter, setBranchFilter] = useState("all");
   const [page, setPage] = useState(1);
   const limit = 20;
-  const { hasPermission } = useAuthStore();
+  const { hasPermission, activeBranchId } = useAuthStore();
 
   const canCreate = hasPermission("staff", "create");
+
+  // Branch: use local filter override, then nav selector, then no filter
+  const effectiveBranch = branchFilter !== "all" ? branchFilter : activeBranchId || "";
 
   const { data: branches } = useQuery<Branch[]>({
     queryKey: ["branches"],
     queryFn: () => apiClient.get("/branches"),
   });
 
+  const effectiveRole = roleFilter !== "all" ? roleFilter : undefined;
+
   const { data, isLoading } = useQuery<PaginatedResponse<Staff>>({
-    queryKey: ["staff", debouncedSearch, roleFilter, branchFilter, page],
+    queryKey: ["staff", debouncedSearch, effectiveRole, effectiveBranch, page],
     queryFn: () => {
       const params = new URLSearchParams();
       if (debouncedSearch) params.set("search", debouncedSearch);
-      if (roleFilter) params.set("role", roleFilter);
-      if (branchFilter) params.set("branch_id", branchFilter);
+      if (effectiveRole) params.set("role", effectiveRole);
+      if (effectiveBranch) params.set("branch_id", effectiveBranch);
       params.set("page", String(page));
       params.set("limit", String(limit));
       return apiClient.get(`/staff?${params}`);
@@ -44,6 +51,15 @@ export default function StaffPage() {
 
   const totalPages = Math.ceil((data?.total ?? 0) / limit);
 
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="staff" />
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <PageHeader
@@ -51,6 +67,18 @@ export default function StaffPage() {
         description="Manage your team members"
         actions={
           <div className="flex gap-2">
+            <Link
+              href={gymPath("/staff/attendance")}
+              className="border border-border text-muted-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
+            >
+              <Clock className="w-4 h-4" /> Attendance
+            </Link>
+            <Link
+              href={gymPath("/staff/leaves")}
+              className="border border-border text-muted-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
+            >
+              <CalendarOff className="w-4 h-4" /> Leaves
+            </Link>
             <Link
               href={gymPath("/staff/analytics")}
               className="border border-border text-muted-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
@@ -89,7 +117,7 @@ export default function StaffPage() {
           }}
           className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:border-primary outline-none"
         >
-          <option value="">All Roles</option>
+          <option value="all">All Roles</option>
           <option value="owner">Owner</option>
           <option value="manager">Manager</option>
           <option value="trainer">Trainer</option>
@@ -104,7 +132,7 @@ export default function StaffPage() {
             }}
             className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:border-primary outline-none"
           >
-            <option value="">All Branches</option>
+            <option value="all">All Branches</option>
             {branches.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
@@ -135,7 +163,7 @@ export default function StaffPage() {
                   data.data.map((staff) => (
                     <tr key={staff.id} className="border-b border-border last:border-0 hover:bg-muted/50">
                       <td className="px-4 py-3">
-                        <Link href={`/staff/${staff.id}`} className="text-sm text-primary hover:text-primary/80 font-medium">
+                        <Link href={gymPath(`/staff/${staff.id}`)} className="text-sm text-primary hover:text-primary/80 font-medium">
                           {staff.full_name}
                         </Link>
                       </td>

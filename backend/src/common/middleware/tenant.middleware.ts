@@ -4,55 +4,77 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Request, Response, NextFunction } from 'express';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { PrismaService } from '../../prisma/prisma.service';
+import { tenantContext } from '../tenant-context';
 
 @Injectable()
 export class TenantMiddleware implements NestMiddleware {
   private readonly logger = new Logger(TenantMiddleware.name);
+  private supabase: SupabaseClient;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {
+    this.supabase = createClient(
+      this.configService.get<string>('SUPABASE_URL', ''),
+      this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY', ''),
+    );
+  }
 
   async use(req: Request, _res: Response, next: NextFunction) {
-    const user = (req as any).user;
+    // Middleware runs BEFORE guards, so req.user isn't populated yet.
+    // We decode the JWT ourselves (without verification) to extract studio_id.
+    // Security is enforced by JwtAuthGuard which properly verifies the token.
+    let studioId: string | undefined;
 
-    if (user?.studio_id) {
-      // Validate studio_id is a valid UUID to prevent SQL injection
-      const uuidRegex =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (!uuidRegex.test(user.studio_id)) {
-        throw new ForbiddenException('Invalid studio identifier');
-      }
-
-      const schemaName = `studio_${user.studio_id.replace(/-/g, '_')}`;
-
-      // Double-validate resulting schema name only contains safe characters
-      if (!/^studio_[0-9a-f_]+$/i.test(schemaName)) {
-        throw new ForbiddenException('Invalid schema name');
-      }
-
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
       try {
-        // Verify the schema actually exists before setting search_path
-        const schemaExists = await this.prisma.$queryRawUnsafe<Array<{ exists: boolean }>>(
-          `SELECT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = $1) as exists`,
-          schemaName,
-        );
-
-        if (!schemaExists?.[0]?.exists) {
-          this.logger.error(`Tenant schema "${schemaName}" does not exist for studio ${user.studio_id}`);
-          throw new ForbiddenException('Studio environment not initialized. Please complete onboarding.');
+        // Decode payload without verification (guard will verify)
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+          studioId = payload?.user_metadata?.studio_id;
         }
-
-        await this.prisma.$executeRawUnsafe(
-          `SET search_path TO "${schemaName}", public`,
-        );
-      } catch (err) {
-        if (err instanceof ForbiddenException) throw err;
-        this.logger.error(`Failed to set tenant schema "${schemaName}": ${err.message}`);
-        throw new ForbiddenException('Unable to access studio environment');
+      } catch {
+        // Malformed token — let the guard reject
       }
     }
 
-    next();
+    if (!studioId) {
+      return tenantContext.run({ schemaName: '', gymId: '', activeBranchId: null, allowedBranchIds: [], bypassBranchScope: false }, () => next());
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(studioId)) {
+      return tenantContext.run({ schemaName: '', gymId: '', activeBranchId: null, allowedBranchIds: [], bypassBranchScope: false }, () => next());
+    }
+
+    // Look up the actual schema_name from the Studio record
+    let schemaName: string | undefined;
+    try {
+      const rows = await this.prisma.$queryRawUnsafe<Array<{ schema_name: string }>>(
+        `SELECT schema_name FROM public.studios WHERE id = $1::uuid LIMIT 1`,
+        studioId,
+      );
+      schemaName = rows?.[0]?.schema_name;
+    } catch (err) {
+      this.logger.error(`Failed to look up schema for studio ${studioId}: ${err.message}`);
+      return tenantContext.run({ schemaName: '', gymId: '', activeBranchId: null, allowedBranchIds: [], bypassBranchScope: false }, () => next());
+    }
+
+    if (!schemaName || !/^studio_[0-9a-f_]+$/i.test(schemaName)) {
+      return tenantContext.run({ schemaName: '', gymId: '', activeBranchId: null, allowedBranchIds: [], bypassBranchScope: false }, () => next());
+    }
+
+    return tenantContext.run(
+      { schemaName, gymId: studioId, activeBranchId: null, allowedBranchIds: [], bypassBranchScope: false },
+      () => next(),
+    );
   }
 }

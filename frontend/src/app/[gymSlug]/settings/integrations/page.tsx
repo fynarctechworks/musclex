@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { FormInput } from "@/components/shared";
+import { FormInput , AccessDenied } from "@/components/shared";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 
 interface Integration {
   id: string;
@@ -168,6 +169,7 @@ const integrations: Integration[] = [
 ];
 
 export default function IntegrationsPage() {
+  const { allowed, checked } = useRequirePermission("settings", "view", "deny");
   const { gymPath } = useGymSlug();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [connectedIds, setConnectedIds] = useState<string[]>([]);
@@ -179,6 +181,15 @@ export default function IntegrationsPage() {
   };
 
   const categories = Array.from(new Set(integrations.map((i) => i.category)));
+
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="settings" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

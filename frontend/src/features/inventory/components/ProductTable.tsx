@@ -50,7 +50,7 @@ export function ProductTable({ branchId, onEdit }: ProductTableProps) {
 
   const statusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-500/20 text-green-400';
+      case 'active': return 'bg-success/20 text-success';
       case 'inactive': return 'bg-gray-500/20 text-gray-400';
       case 'discontinued': return 'bg-red-500/20 text-red-400';
       default: return '';

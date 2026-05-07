@@ -72,7 +72,7 @@ export function CheckoutDialog({
             {discountAmount > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Discount</span>
-                <span className="text-green-400">-₹{discountAmount.toFixed(2)}</span>
+                <span className="text-success">-₹{discountAmount.toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between text-base font-semibold pt-1 border-t border-border">

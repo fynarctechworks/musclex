@@ -2,6 +2,7 @@ import { Injectable, Scope, Inject } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { Request } from 'express';
 import { JwtPayload } from '../decorators/current-user.decorator';
+import { getTenantGymId } from '../tenant-context';
 
 /**
  * Request-scoped service that provides the current tenant context.
@@ -19,6 +20,11 @@ export class TenantContextService {
     return this.user?.studio_id;
   }
 
+  /** The gym_id used for tenant isolation filtering (same as studioId) */
+  get gymId(): string | undefined {
+    return getTenantGymId() || this.studioId;
+  }
+
   get branchId(): string | undefined {
     return this.user?.branch_id;
   }
@@ -33,13 +39,11 @@ export class TenantContextService {
 
   /**
    * Returns a where-clause filter that scopes queries to the current tenant's branches.
-   * Use: `this.prisma.member.findMany({ where: { ...tenantContext.branchFilter, ...otherFilters } })`
    */
   get branchFilter(): { branch_id: { in: string[] } } | Record<string, never> {
     if (this.branchIds.length > 0) {
       return { branch_id: { in: this.branchIds } };
     }
-    // Empty branch_ids means global access within the studio
     return {};
   }
 }

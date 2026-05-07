@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/app-layout";
-import { StatusBadge, LoadingSkeleton, ConfirmDialog, EmptyState } from "@/components/shared";
+import { StatusBadge, LoadingSkeleton, ConfirmDialog, EmptyState , AccessDenied } from "@/components/shared";
 import {
   useCampaign,
   useCampaignAnalytics,
@@ -32,8 +32,10 @@ import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/services/query-client";
 import { format } from "date-fns";
 import { KPICard } from "@/components/shared";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 
 export default function CampaignDetailPage() {
+  const { allowed, checked } = useRequirePermission("marketing", "view", "deny");
   const { gymPath } = useGymSlug();
   const params = useParams();
   const router = useRouter();
@@ -76,6 +78,15 @@ export default function CampaignDetailPage() {
     return (
       <AppLayout>
         <EmptyState title="Campaign not found" description="This campaign does not exist or was deleted." />
+      </AppLayout>
+    );
+  }
+
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="marketing" />
       </AppLayout>
     );
   }

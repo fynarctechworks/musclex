@@ -1,6 +1,15 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ReportExportDto } from '../dto';
+import { resolveBranchScope } from '../../common/branch-scope.util';
+import type { JwtPayload } from '../../common/decorators/current-user.decorator';
+
+export interface ReportUserScope {
+  role: string;
+  branch_ids?: string[];
+  /** Optional role rows from JWT — a row with branch_id=null grants gym-wide access. */
+  roles?: JwtPayload['roles'];
+}
 
 @Injectable()
 export class ReportsService {
@@ -8,8 +17,28 @@ export class ReportsService {
 
   constructor(private prisma: PrismaService) {}
 
-  async generateReport(dto: ReportExportDto) {
-    const data = await this.fetchReportData(dto);
+  /**
+   * Enforces branch scope: owners/brand_owners can pick any branch or "all";
+   * everyone else is clamped to their assigned branch_ids.
+   * Returns { branchFilter, allowedIds } or throws if request is out of scope.
+   */
+  private resolveBranchScope(
+    dto: ReportExportDto,
+    user?: ReportUserScope,
+  ): { branchFilter: any; allowedIds: string[] | 'ALL' } {
+    const scope = resolveBranchScope(user as JwtPayload | undefined, dto.branch_id);
+
+    // An explicit branch_id the caller cannot access → hard-fail for reports
+    // (vs. silent no-match used elsewhere). Preserves the existing API contract.
+    if (dto.branch_id && !scope.hasGlobalAccess && scope.allowedIds.length === 0) {
+      throw new ForbiddenException('BRANCH_NOT_ACCESSIBLE');
+    }
+
+    return { branchFilter: scope.branchFilter, allowedIds: scope.allowedIds };
+  }
+
+  async generateReport(dto: ReportExportDto, user?: ReportUserScope) {
+    const data = await this.fetchReportData(dto, user);
 
     if (dto.format === 'csv') {
       return this.generateCsv(data, dto.report_type);
@@ -19,23 +48,27 @@ export class ReportsService {
     return { format: 'pdf', report_type: dto.report_type, data, generated_at: new Date() };
   }
 
-  private async fetchReportData(dto: ReportExportDto): Promise<Record<string, unknown>[]> {
+  private async fetchReportData(
+    dto: ReportExportDto,
+    user?: ReportUserScope,
+  ): Promise<Record<string, unknown>[]> {
     const startDate = dto.start_date ? new Date(dto.start_date) : this.defaultStartDate();
     const endDate = dto.end_date ? new Date(dto.end_date) : new Date();
+    const scope = this.resolveBranchScope(dto, user);
 
     switch (dto.report_type) {
       case 'revenue':
-        return this.fetchRevenueReport(dto, startDate, endDate);
+        return this.fetchRevenueReport(dto, startDate, endDate, scope);
       case 'membership':
-        return this.fetchMembershipReport(dto, startDate, endDate);
+        return this.fetchMembershipReport(dto, startDate, endDate, scope);
       case 'attendance':
-        return this.fetchAttendanceReport(dto, startDate, endDate);
+        return this.fetchAttendanceReport(dto, startDate, endDate, scope);
       case 'trainer':
-        return this.fetchTrainerReport(dto, startDate, endDate);
+        return this.fetchTrainerReport(dto, startDate, endDate, scope);
       case 'inventory':
-        return this.fetchInventoryReport(dto, startDate, endDate);
+        return this.fetchInventoryReport(dto, startDate, endDate, scope);
       case 'daily_metrics':
-        return this.fetchDailyMetricsReport(dto, startDate, endDate);
+        return this.fetchDailyMetricsReport(dto, startDate, endDate, scope);
       default:
         return [];
     }
@@ -45,12 +78,13 @@ export class ReportsService {
     dto: ReportExportDto,
     startDate: Date,
     endDate: Date,
+    scope: { branchFilter: any },
   ): Promise<Record<string, unknown>[]> {
     const where: any = {
       period_start: { gte: startDate },
       period_end: { lte: endDate },
+      ...scope.branchFilter,
     };
-    if (dto.branch_id) where.branch_id = dto.branch_id;
 
     const records = await this.prisma.revenueAnalytics.findMany({
       where,
@@ -70,12 +104,13 @@ export class ReportsService {
     dto: ReportExportDto,
     startDate: Date,
     endDate: Date,
+    scope: { branchFilter: any },
   ): Promise<Record<string, unknown>[]> {
     const where: any = {
       period_start: { gte: startDate },
       period_end: { lte: endDate },
+      ...scope.branchFilter,
     };
-    if (dto.branch_id) where.branch_id = dto.branch_id;
 
     const records = await this.prisma.membershipAnalytics.findMany({
       where,
@@ -99,11 +134,12 @@ export class ReportsService {
     dto: ReportExportDto,
     startDate: Date,
     endDate: Date,
+    scope: { branchFilter: any },
   ): Promise<Record<string, unknown>[]> {
     const where: any = {
       date: { gte: startDate, lte: endDate },
+      ...scope.branchFilter,
     };
-    if (dto.branch_id) where.branch_id = dto.branch_id;
 
     const records = await this.prisma.dailyGymMetrics.findMany({
       where,
@@ -123,12 +159,13 @@ export class ReportsService {
     dto: ReportExportDto,
     startDate: Date,
     endDate: Date,
+    scope: { branchFilter: any },
   ): Promise<Record<string, unknown>[]> {
     const where: any = {
       period_start: { gte: startDate },
       period_end: { lte: endDate },
+      ...scope.branchFilter,
     };
-    if (dto.branch_id) where.branch_id = dto.branch_id;
 
     const records = await this.prisma.trainerAnalytics.findMany({
       where,
@@ -151,11 +188,12 @@ export class ReportsService {
     dto: ReportExportDto,
     startDate: Date,
     endDate: Date,
+    scope: { branchFilter: any },
   ): Promise<Record<string, unknown>[]> {
     const where: any = {
       sale_date: { gte: startDate, lte: endDate },
+      ...scope.branchFilter,
     };
-    if (dto.branch_id) where.branch_id = dto.branch_id;
 
     const records = await this.prisma.posSale.findMany({
       where,
@@ -181,11 +219,12 @@ export class ReportsService {
     dto: ReportExportDto,
     startDate: Date,
     endDate: Date,
+    scope: { branchFilter: any },
   ): Promise<Record<string, unknown>[]> {
     const where: any = {
       date: { gte: startDate, lte: endDate },
+      ...scope.branchFilter,
     };
-    if (dto.branch_id) where.branch_id = dto.branch_id;
 
     const records = await this.prisma.dailyGymMetrics.findMany({
       where,

@@ -85,9 +85,9 @@ export default function HeroSection() {
                 <div className="flex gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-red-400" />
                   <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                  <div className="w-3 h-3 rounded-full bg-green-400" />
+                  <div className="w-3 h-3 rounded-full bg-success" />
                 </div>
-                <span className="ml-3 text-xs font-medium text-gray-400">FitSync Pro — Dashboard</span>
+                <span className="ml-3 text-xs font-medium text-gray-400">MuscleX — Dashboard</span>
               </div>
 
               {/* Dashboard Content */}
@@ -96,7 +96,7 @@ export default function HeroSection() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[
                     { label: 'Members', value: '1,284', icon: Users, color: 'text-blue-600 bg-blue-50' },
-                    { label: 'Revenue', value: '₹4.2L', icon: CreditCard, color: 'text-emerald-600 bg-emerald-50' },
+                    { label: 'Revenue', value: '₹4.2L', icon: CreditCard, color: 'text-primary bg-primary/5' },
                     { label: 'Check‑ins', value: '342', icon: CalendarCheck, color: 'text-amber-600 bg-amber-50' },
                     { label: 'Growth', value: '+18%', icon: BarChart3, color: 'text-purple-600 bg-purple-50' },
                   ].map((kpi) => (
@@ -125,8 +125,8 @@ export default function HeroSection() {
 
             {/* Floating card */}
             <div className="absolute -bottom-5 -left-5 bg-white rounded-xl shadow-lg shadow-gray-200/50 border border-gray-100 p-4 hidden lg:flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center">
-                <CalendarCheck className="w-5 h-5 text-emerald-600" />
+              <div className="w-10 h-10 bg-primary/5 rounded-lg flex items-center justify-center">
+                <CalendarCheck className="w-5 h-5 text-primary" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-gray-900">Today&apos;s Check-ins</p>

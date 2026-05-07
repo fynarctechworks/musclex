@@ -5,7 +5,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePosSaleDto, CreateProductReturnDto } from './dto';
-import { randomInt } from 'crypto';
+import { randomBytes } from 'crypto';
+import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class PosService {
@@ -14,7 +15,7 @@ export class PosService {
   private generateInvoiceNumber(): string {
     const now = new Date();
     const date = now.toISOString().slice(0, 10).replace(/-/g, '');
-    const seq = String(randomInt(1, 9999)).padStart(4, '0');
+    const seq = randomBytes(4).toString('hex').toUpperCase();
     return `POS-${date}-${seq}`;
   }
 
@@ -71,6 +72,7 @@ export class PosService {
     return this.prisma.$transaction(async (tx) => {
       const sale = await tx.posSale.create({
         data: {
+          gym_id: getTenantGymId()!,
           branch_id: dto.branch_id,
           member_id: dto.member_id,
           staff_id: dto.staff_id,
@@ -82,7 +84,7 @@ export class PosService {
           payment_method: dto.payment_method,
           status: 'completed',
           items: {
-            create: lineItems,
+            create: lineItems.map((item) => ({ ...item, gym_id: getTenantGymId()! })),
           },
         },
         include: {
@@ -106,6 +108,7 @@ export class PosService {
         }
         await tx.inventoryTransaction.create({
           data: {
+            gym_id: getTenantGymId()!,
             product_id: item.product_id,
             branch_id: dto.branch_id,
             transaction_type: 'sale',
@@ -256,6 +259,7 @@ export class PosService {
     return this.prisma.$transaction(async (tx) => {
       const returnRecord = await tx.productReturn.create({
         data: {
+          gym_id: getTenantGymId()!,
           sale_id: dto.sale_id,
           product_id: dto.product_id,
           quantity: dto.quantity,
@@ -281,6 +285,7 @@ export class PosService {
 
       await tx.inventoryTransaction.create({
         data: {
+          gym_id: getTenantGymId()!,
           product_id: dto.product_id,
           branch_id: sale.branch_id,
           transaction_type: 'return',

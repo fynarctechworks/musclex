@@ -1,10 +1,12 @@
 "use client";
 
+import React, { useState } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { LoadingSkeleton } from "@/components/shared";
-import { useQuery } from "@tanstack/react-query";
+import { LoadingSkeleton , AccessDenied } from "@/components/shared";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Crown,
@@ -25,10 +27,20 @@ import {
   Dumbbell,
   Wallet,
   Bot,
+  Rocket,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 
 // ── Types ──────────────────────────────────────────────────────
 interface AccountOverview {
@@ -147,7 +159,7 @@ function fmtCurrency(amount: number, currency: string) {
 function StatusPill({ status }: { status: string }) {
   const color =
     status === "active"
-      ? "bg-emerald-500/10 text-emerald-500 ring-emerald-500/20"
+      ? "bg-success/10 text-success ring-success/20"
       : status === "trial"
         ? "bg-blue-500/10 text-blue-400 ring-blue-500/20"
         : status === "past_due"
@@ -229,10 +241,26 @@ function UsageBar({
   );
 }
 
+// ── Plan tiers for upgrade dialog ─────────────────────────────
+const GYM_PLAN_TIERS = [
+  { key: "free", name: "Free", monthly: 0, annual: 0, branches: 1, members: 50, staff: 3 },
+  { key: "starter", name: "Starter", monthly: 999, annual: 9990, branches: 1, members: 200, staff: 10 },
+  { key: "pro", name: "Pro", monthly: 2499, annual: 24990, branches: 5, members: 1000, staff: 50 },
+  { key: "enterprise", name: "Enterprise", monthly: 4999, annual: 49990, branches: 999, members: 99999, staff: 999 },
+];
+
 // ── Component ──────────────────────────────────────────────────
 export default function SubscriptionPage() {
+  const { allowed, checked } = useRequirePermission("settings", "view", "deny");
   const { gymPath } = useGymSlug();
   const { user } = useAuthStore();
+  const queryClient = useQueryClient();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
+
+  const PLAN_TIERS = GYM_PLAN_TIERS;
+  const canUpgrade = true;
+  const [confirmPlan, setConfirmPlan] = useState<string | null>(null);
 
   const {
     data: account,
@@ -242,6 +270,27 @@ export default function SubscriptionPage() {
     queryKey: ["account-overview"],
     queryFn: () => apiClient.get("/settings/account"),
   });
+
+  const upgradeMutation = useMutation({
+    mutationFn: (data: { plan: string; billing_cycle: string }) =>
+      apiClient.patch("/settings/subscription", data),
+    onSuccess: () => {
+      toast.success("Plan upgraded successfully! A confirmation email has been sent.");
+      queryClient.invalidateQueries({ queryKey: ["account-overview"] });
+      setUpgradeOpen(false);
+      setConfirmPlan(null);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="settings" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -308,14 +357,14 @@ export default function SubscriptionPage() {
                       per {account.subscription.billing_cycle === "annual" ? "year" : "month"}
                     </p>
                   </div>
-                  {account.subscription.plan !== "enterprise" && (
-                    <Link
-                      href={gymPath("/settings/plans")}
+                  {account.subscription.plan !== "enterprise" && canUpgrade && (
+                    <button
+                      onClick={() => setUpgradeOpen(true)}
                       className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/20"
                     >
                       <TrendingUp className="w-4 h-4" />
                       Upgrade
-                    </Link>
+                    </button>
                   )}
                 </div>
               </div>
@@ -475,7 +524,7 @@ export default function SubscriptionPage() {
                               key={key}
                               className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs ${
                                 enabled
-                                  ? "bg-emerald-500/5 text-foreground"
+                                  ? "bg-success/5 text-foreground"
                                   : "bg-muted/30 text-muted-foreground"
                               }`}
                             >
@@ -496,7 +545,7 @@ export default function SubscriptionPage() {
             </div>
 
             {/* Upgrade banner */}
-            {account.subscription.plan !== "enterprise" && (
+            {account.subscription.plan !== "enterprise" && canUpgrade && (
               <div className="border-t border-border bg-primary/5 px-6 py-4 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-foreground">
@@ -506,18 +555,151 @@ export default function SubscriptionPage() {
                     Upgrade your plan to unlock additional capabilities
                   </p>
                 </div>
-                <Link
-                  href={gymPath("/settings/subscription")}
+                <button
+                  onClick={() => setUpgradeOpen(true)}
                   className="inline-flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/20"
                 >
                   <TrendingUp className="w-4 h-4" />
                   View Plans
-                </Link>
+                </button>
               </div>
             )}
           </div>
         </div>
       ) : null}
+
+      {/* ── Upgrade Plan Dialog ──────────────────────────── */}
+      <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
+        <DialogContent className="bg-card border-border text-foreground sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground flex items-center gap-2">
+              <Rocket className="w-5 h-5 text-primary" />
+              Choose Your Plan
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Billing toggle */}
+          <div className="flex items-center justify-center gap-3 my-4">
+            <span className={`text-sm ${billingCycle === "monthly" ? "text-foreground font-semibold" : "text-muted-foreground"}`}>
+              Monthly
+            </span>
+            <button
+              type="button"
+              onClick={() => setBillingCycle(billingCycle === "monthly" ? "annual" : "monthly")}
+              className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+                billingCycle === "annual" ? "bg-primary" : "bg-border"
+              }`}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                  billingCycle === "annual" ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+            <span className={`text-sm ${billingCycle === "annual" ? "text-foreground font-semibold" : "text-muted-foreground"}`}>
+              Annual <span className="text-xs text-primary">(Save ~17%)</span>
+            </span>
+          </div>
+
+          {/* Plan cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {PLAN_TIERS.map((tier) => {
+              const isCurrent = account?.subscription.plan === tier.key;
+              const price = billingCycle === "annual" ? tier.annual : tier.monthly;
+              const isDowngrade =
+                PLAN_TIERS.findIndex((t) => t.key === account?.subscription.plan) >=
+                PLAN_TIERS.findIndex((t) => t.key === tier.key);
+
+              return (
+                <div
+                  key={tier.key}
+                  className={`rounded-xl border p-5 flex flex-col ${
+                    isCurrent
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-background hover:border-primary/40 transition-colors"
+                  }`}
+                >
+                  <h3 className="text-base font-bold text-foreground">{tier.name}</h3>
+                  <p className="text-2xl font-bold text-foreground mt-2">
+                    {price === 0 ? "Free" : `₹${price.toLocaleString("en-IN")}`}
+                    {price > 0 && (
+                      <span className="text-xs text-muted-foreground font-normal">
+                        /{billingCycle === "annual" ? "yr" : "mo"}
+                      </span>
+                    )}
+                  </p>
+
+                  <div className="mt-4 space-y-2 text-xs text-muted-foreground flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5" />
+                      {tier.branches >= 999 ? "Unlimited" : tier.branches} branch{tier.branches !== 1 ? "es" : ""}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5" />
+                      {tier.members >= 99999 ? "Unlimited" : tier.members.toLocaleString()} members
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <UserCog className="w-3.5 h-3.5" />
+                      {tier.staff >= 999 ? "Unlimited" : tier.staff} staff
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    {isCurrent ? (
+                      <span className="block text-center text-xs font-semibold text-primary py-2">
+                        Current Plan
+                      </span>
+                    ) : isDowngrade ? (
+                      <span className="block text-center text-xs text-muted-foreground py-2">
+                        —
+                      </span>
+                    ) : confirmPlan === tier.key ? (
+                      <div className="space-y-2">
+                        <p className="text-xs text-center text-amber-500 font-medium">
+                          Confirm upgrade to {tier.name}?
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="flex-1 text-xs"
+                            onClick={() => setConfirmPlan(null)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
+                            disabled={upgradeMutation.isPending}
+                            onClick={() =>
+                              upgradeMutation.mutate({
+                                plan: tier.key,
+                                billing_cycle: billingCycle,
+                              })
+                            }
+                          >
+                            {upgradeMutation.isPending ? "Upgrading..." : "Confirm"}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="w-full text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
+                        onClick={() => setConfirmPlan(tier.key)}
+                      >
+                        Upgrade to {tier.name}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Confirm Plan Change Dialog (from plan-limit-reached event) ── */}
     </AppLayout>
   );
 }

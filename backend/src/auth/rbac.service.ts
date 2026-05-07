@@ -105,8 +105,11 @@ export class RbacService {
 
   /**
    * Resolve the effective permission codes for a user in a studio/branch context.
-   * Queries RolePermission (per-tenant) to get permission_codes linked to user's roles.
-   * Falls back to ENTERPRISE_ROLES definitions if no RolePermission rows exist yet.
+   * Queries RolePermission (per-tenant) to get permission_codes linked to user's roles,
+   * then applies StaffPermissionOverride grants and denials.
+   *
+   * Resolution chain:
+   *   FINAL = (ROLE_PERMISSIONS + staff_grants) - staff_denials
    *
    * NOTE: Tenant search_path must be set before calling this method.
    */
@@ -161,6 +164,39 @@ export class RbacService {
           permissionCodes.push(...def.permissions);
         }
       }
+    }
+
+    // 5. Apply StaffPermissionOverride (grants + denials)
+    try {
+      const staff = await this.prisma.staff.findFirst({
+        where: { user_id: userId },
+        select: { id: true },
+      });
+
+      if (staff) {
+        const overrides = await this.prisma.staffPermissionOverride.findMany({
+          where: { staff_id: staff.id },
+          select: { permission_code: true, type: true },
+        });
+
+        const grants = overrides
+          .filter((o) => o.type === 'grant')
+          .map((o) => o.permission_code);
+        const denials = new Set(
+          overrides
+            .filter((o) => o.type === 'deny')
+            .map((o) => o.permission_code),
+        );
+
+        // Add grants
+        permissionCodes.push(...grants);
+
+        // Remove denials
+        permissionCodes = permissionCodes.filter((code) => !denials.has(code));
+      }
+    } catch (err) {
+      // Non-fatal: if staff table or overrides table doesn't exist yet, skip
+      this.logger.debug(`Permission override lookup skipped: ${(err as Error).message}`);
     }
 
     // Deduplicate

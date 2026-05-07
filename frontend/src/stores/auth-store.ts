@@ -13,10 +13,12 @@ interface User {
   full_name: string;
   role: string;
   studio_id?: string;
+  organization_id?: string;
   branch_ids: string[];
   permissions?: PermissionsMap;
   permission_codes?: string[];
   onboarding_step?: string;
+  account_type?: 'gym';
 }
 
 interface Studio {
@@ -31,6 +33,8 @@ interface Studio {
   timezone?: string;
   currency?: string;
   logo_url?: string | null;
+  account_type?: 'gym';
+  subscription_plan?: string;
 }
 
 interface AuthState {
@@ -41,6 +45,7 @@ interface AuthState {
   isAuthenticated: boolean;
   loading: boolean;
   _hasHydrated: boolean;
+  activeBranchId: string | null; // null = "All Branches"
   setAuth: (data: {
     user: User;
     studio: Studio | null;
@@ -51,13 +56,15 @@ interface AuthState {
   logout: () => void;
   updateStudio: (studio: Studio) => void;
   updateUser: (updates: Partial<User>) => void;
+  setActiveBranch: (branchId: string | null) => void;
   hasPermission: (module: PermissionModule, action: ModuleAction) => boolean;
   hasAnyPermission: (module: PermissionModule) => boolean;
 }
 
 function setAuthCookie(token: string) {
   if (typeof document === 'undefined') return;
-  document.cookie = `auth-token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+  const isSecure = window.location.protocol === 'https:';
+  document.cookie = `auth-token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${isSecure ? '; Secure' : ''}`;
 }
 
 function removeAuthCookie() {
@@ -75,6 +82,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       loading: false,
       _hasHydrated: false,
+      activeBranchId: null,
       setAuth: (data) => {
         setAuthCookie(data.access_token);
         set({
@@ -102,6 +110,7 @@ export const useAuthStore = create<AuthState>()(
       updateUser: (updates) => set((state) => ({
         user: state.user ? { ...state.user, ...updates } : null,
       })),
+      setActiveBranch: (branchId) => set({ activeBranchId: branchId }),
       hasPermission: (module, action) => {
         const state = get();
         if (!state.user) return false;
@@ -134,6 +143,7 @@ export const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
+        activeBranchId: state.activeBranchId,
       }),
       onRehydrateStorage: () => () => {
         useAuthStore.setState({ _hasHydrated: true });

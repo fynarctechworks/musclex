@@ -2,11 +2,25 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtPayload } from '../common';
 
+// Wave 10 revenue types live in revenue-intelligence.service.ts now.
+// Re-exported here for back-compat with any external import that still
+// reads them from this module.
+export type {
+  DateRange,
+  RevenueMixItem,
+  PaymentMethodItem,
+  RevenueSummary,
+} from './revenue-intelligence.service';
+
 @Injectable()
 export class DashboardService {
   constructor(private prisma: PrismaService) {}
 
-  private getBranchFilter(user?: JwtPayload) {
+  private getBranchFilter(
+    user?: JwtPayload,
+    branchId?: string,
+  ): { branch_id?: string | { in: string[] } } {
+    if (branchId) return { branch_id: branchId };
     if (!user || user.role === 'owner') return {};
     if (user.branch_ids?.length > 0) {
       return { branch_id: { in: user.branch_ids } };
@@ -14,11 +28,11 @@ export class DashboardService {
     return {};
   }
 
-  async getKpis(user?: JwtPayload) {
+  async getKpis(user?: JwtPayload, branchId?: string) {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 86400000);
-    const branchFilter = this.getBranchFilter(user);
+    const branchFilter = this.getBranchFilter(user, branchId);
 
     const [
       activeMembers,
@@ -86,10 +100,11 @@ export class DashboardService {
     };
   }
 
-  async getRevenueChart(user?: JwtPayload) {
+  async getRevenueChart(user?: JwtPayload, months = 12, branchId?: string) {
     const now = new Date();
-    const elevenMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-    const branchFilter = this.getBranchFilter(user);
+    const monthsBack = Math.min(Math.max(months || 12, 1), 24);
+    const earliest = new Date(now.getFullYear(), now.getMonth() - (monthsBack - 1), 1);
+    const branchFilter = this.getBranchFilter(user, branchId);
 
     // Single query: aggregate 12 months of revenue using Prisma groupBy
     const branchWhere = branchFilter.branch_id
@@ -100,16 +115,16 @@ export class DashboardService {
       by: ['paid_at'],
       where: {
         status: 'paid',
-        paid_at: { gte: elevenMonthsAgo },
+        paid_at: { gte: earliest },
         ...branchWhere,
       },
       _sum: { amount: true },
     });
 
-    // Build month map for the last 12 months
+    // Build month map for the requested window
     const monthMap = new Map<string, number>();
     const monthLabels: { key: string; label: string }[] = [];
-    for (let i = 11; i >= 0; i--) {
+    for (let i = monthsBack - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const label = d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
@@ -133,9 +148,11 @@ export class DashboardService {
     }));
   }
 
-  async getActivityFeed() {
+  async getActivityFeed(user?: JwtPayload, branchId?: string, limit = 10) {
+    const branchFilter = this.getBranchFilter(user, branchId);
+    const safeLimit = Math.min(Math.max(limit || 10, 1), 50);
     const checkIns = await this.prisma.checkIn.findMany({
-      where: { status: 'success' },
+      where: { status: 'success', ...branchFilter },
       include: {
         member: {
           select: { id: true, full_name: true, member_code: true, profile_photo_url: true },
@@ -143,7 +160,7 @@ export class DashboardService {
         branch: { select: { id: true, name: true } },
       },
       orderBy: { checked_in_at: 'desc' },
-      take: 10,
+      take: safeLimit,
     });
 
     return checkIns.map((ci) => ({
@@ -159,17 +176,18 @@ export class DashboardService {
     }));
   }
 
-  async getAlerts() {
+  async getAlerts(user?: JwtPayload, branchId?: string) {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 86400000);
+    const branchFilter = this.getBranchFilter(user, branchId);
 
     const [inactiveMembers, overduePayments, expiringMemberships] =
       await Promise.all([
-        // Members with no check-in in 30 days
         this.prisma.member.findMany({
           where: {
             status: 'active',
+            ...branchFilter,
             check_ins: {
               none: {
                 checked_in_at: { gte: thirtyDaysAgo },
@@ -186,11 +204,11 @@ export class DashboardService {
           take: 20,
         }),
 
-        // Pending payments older than 7 days
         this.prisma.payment.findMany({
           where: {
             status: 'pending',
             created_at: { lte: new Date(now.getTime() - 7 * 86400000) },
+            ...branchFilter,
           },
           include: {
             member: {
@@ -201,7 +219,6 @@ export class DashboardService {
           orderBy: { created_at: 'asc' },
         }),
 
-        // Memberships expiring within 7 days
         this.prisma.memberMembership.findMany({
           where: {
             status: 'active',
@@ -209,6 +226,7 @@ export class DashboardService {
               gte: now,
               lte: sevenDaysFromNow,
             },
+            ...branchFilter,
           },
           include: {
             member: {
@@ -253,12 +271,17 @@ export class DashboardService {
     return alerts;
   }
 
-  async getBranchComparison() {
+  async getBranchComparison(user?: JwtPayload) {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    // Owners see every branch; staff see only their assigned branches.
+    const branchScope =
+      user?.role === 'owner' || !user?.branch_ids?.length
+        ? {}
+        : { id: { in: user.branch_ids } };
 
     const branches = await this.prisma.branch.findMany({
-      where: { is_active: true },
+      where: { is_active: true, ...branchScope },
       select: { id: true, name: true },
     });
 
@@ -296,5 +319,44 @@ export class DashboardService {
     );
 
     return stats;
+  }
+
+  /**
+   * "First-run" checklist on the dashboard. Each flag is true once the
+   * studio has at least one row in the corresponding entity. Used by the
+   * SetupChecklist component to nudge owners through onboarding.
+   */
+  async getSetupStatus(user?: JwtPayload, branchId?: string) {
+    const branchFilter = this.getBranchFilter(user, branchId);
+
+    const [
+      branchCount,
+      planCount,
+      memberCount,
+      staffCount,
+      classTemplateCount,
+      gymRow,
+    ] = await Promise.all([
+      this.prisma.branch.count({ where: { is_active: true } }),
+      this.prisma.membershipPlan.count({ where: { is_active: true } }),
+      this.prisma.member.count({ where: { ...branchFilter } }),
+      this.prisma.staff.count({ where: { is_active: true } }),
+      // Tolerate older schemas where the table name might differ.
+      (this.prisma as { classTemplate?: { count: (a?: unknown) => Promise<number> } })
+        .classTemplate?.count?.()
+        .catch(() => 0) ?? Promise.resolve(0),
+      this.prisma.studio
+        .findFirst({ where: { id: user?.studio_id }, select: { id: true, name: true } })
+        .catch(() => null),
+    ]);
+
+    return {
+      has_branches: branchCount > 0,
+      has_plans: planCount > 0,
+      has_members: memberCount > 0,
+      has_staff: staffCount > 0,
+      has_classes: classTemplateCount > 0,
+      has_gym_setup: !!gymRow?.name,
+    };
   }
 }

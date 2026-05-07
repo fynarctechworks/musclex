@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Search, UserCheck, CheckCircle, XCircle } from "lucide-react";
 import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
+import { AccessDenied } from "@/components/shared/access-denied";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -22,6 +24,7 @@ interface CheckInResult {
 }
 
 export default function ManualCheckInPage() {
+  const { allowed, checked } = useRequirePermission("check_ins", "create", "deny");
   const { gymPath } = useGymSlug();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Member | null>(null);
@@ -60,6 +63,14 @@ export default function ManualCheckInPage() {
       toast.error(err.message);
     },
   });
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="check_ins" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

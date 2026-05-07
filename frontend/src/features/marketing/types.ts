@@ -69,7 +69,15 @@ export interface MessageTemplate {
 
 // ── Automation Workflow Types ─────────────────────────────
 
-export type TriggerEvent = 'membership_expiring' | 'member_inactive' | 'lead_created' | 'class_missed' | 'birthday' | 'payment_failed';
+export type TriggerEvent =
+  | 'member_registered'
+  | 'member_renewed'
+  | 'membership_expiring'
+  | 'member_inactive'
+  | 'lead_created'
+  | 'class_missed'
+  | 'birthday'
+  | 'payment_failed';
 export type WorkflowStatus = 'active' | 'paused' | 'archived';
 export type ActionType = 'send_email' | 'send_sms' | 'send_whatsapp' | 'send_push' | 'assign_task' | 'update_status';
 

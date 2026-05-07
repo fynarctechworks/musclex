@@ -3,8 +3,10 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
 import { AssignClientDto } from './dto/assign-client.dto';
 import { CreateTrainerSessionDto } from './dto/create-trainer-session.dto';
 import { UpdateTrainerSessionDto } from './dto/update-trainer-session.dto';
@@ -19,9 +21,9 @@ export class TrainerService {
 
   // ── Client Assignment ─────────────────────────────────────────
 
-  async assignClient(dto: AssignClientDto) {
-    // Verify trainer exists and IS a trainer
-    const trainer = await this.prisma.staff.findUnique({
+  async assignClient(studioId: string, dto: AssignClientDto) {
+    // Verify trainer exists, IS a trainer, and belongs to studio
+    const trainer = await this.prisma.staff.findFirst({
       where: { id: dto.trainer_id },
     });
     if (!trainer) throw new NotFoundException('Trainer not found');
@@ -29,8 +31,8 @@ export class TrainerService {
       throw new BadRequestException('Staff member is not a trainer');
     }
 
-    // Verify member exists
-    const member = await this.prisma.member.findUnique({
+    // Verify member exists and belongs to studio
+    const member = await this.prisma.member.findFirst({
       where: { id: dto.member_id },
     });
     if (!member) throw new NotFoundException('Member not found');
@@ -48,6 +50,7 @@ export class TrainerService {
 
     return this.prisma.trainerClient.create({
       data: {
+        gym_id: getTenantGymId()!,
         trainer_id: dto.trainer_id,
         member_id: dto.member_id,
         status: dto.status ?? 'active',
@@ -60,7 +63,13 @@ export class TrainerService {
     });
   }
 
-  async getTrainerClients(trainerId: string, status?: string) {
+  async getTrainerClients(studioId: string, trainerId: string, status?: string) {
+    // Verify trainer belongs to studio
+    const trainer = await this.prisma.staff.findFirst({
+      where: { id: trainerId },
+    });
+    if (!trainer) throw new NotFoundException('Trainer not found');
+
     const where: any = { trainer_id: trainerId };
     if (status) where.status = status;
 
@@ -82,11 +91,16 @@ export class TrainerService {
     });
   }
 
-  async updateClientAssignment(id: string, status: string) {
-    const assignment = await this.prisma.trainerClient.findUnique({
-      where: { id },
-    });
+  async updateClientAssignment(studioId: string, id: string, status: string) {
+    // Get assignment and verify it belongs to this studio's trainer
+    const assignment = await this.prisma.trainerClient.findUnique({ where: { id } });
     if (!assignment) throw new NotFoundException('Client assignment not found');
+
+    // Verify trainer belongs to studio
+    const trainer = await this.prisma.staff.findFirst({
+      where: { id: assignment.trainer_id },
+    });
+    if (!trainer) throw new ForbiddenException('Access denied to this assignment');
 
     return this.prisma.trainerClient.update({
       where: { id },
@@ -96,15 +110,15 @@ export class TrainerService {
 
   // ── Trainer Sessions ──────────────────────────────────────────
 
-  async createSession(dto: CreateTrainerSessionDto) {
-    // Verify trainer
-    const trainer = await this.prisma.staff.findUnique({
+  async createSession(studioId: string, dto: CreateTrainerSessionDto) {
+    // Verify trainer belongs to studio
+    const trainer = await this.prisma.staff.findFirst({
       where: { id: dto.trainer_id },
     });
     if (!trainer) throw new NotFoundException('Trainer not found');
 
-    // Verify member
-    const member = await this.prisma.member.findUnique({
+    // Verify member belongs to studio
+    const member = await this.prisma.member.findFirst({
       where: { id: dto.member_id },
     });
     if (!member) throw new NotFoundException('Member not found');
@@ -135,6 +149,7 @@ export class TrainerService {
 
     return this.prisma.trainerSession.create({
       data: {
+        gym_id: getTenantGymId()!,
         trainer_id: dto.trainer_id,
         member_id: dto.member_id,
         branch_id: dto.branch_id,
@@ -151,7 +166,7 @@ export class TrainerService {
     });
   }
 
-  async getSessions(filters: {
+  async getSessions(studioId: string, filters: {
     trainer_id?: string;
     member_id?: string;
     branch_id?: string;
@@ -165,7 +180,14 @@ export class TrainerService {
     const skip = (page - 1) * limit;
     const where: any = {};
 
-    if (trainer_id) where.trainer_id = trainer_id;
+    if (trainer_id) {
+      // Verify trainer belongs to studio
+      const trainer = await this.prisma.staff.findFirst({
+        where: { id: trainer_id },
+      });
+      if (!trainer) throw new NotFoundException('Trainer not found');
+      where.trainer_id = trainer_id;
+    }
     if (member_id) where.member_id = member_id;
     if (branch_id) where.branch_id = branch_id;
     if (status) where.status = status;
@@ -194,12 +216,17 @@ export class TrainerService {
     return { data, total, page, limit };
   }
 
-  async updateSession(id: string, dto: UpdateTrainerSessionDto) {
+  async updateSession(studioId: string, id: string, dto: UpdateTrainerSessionDto) {
     const session = await this.prisma.trainerSession.findUnique({
       where: { id },
-      include: { revenue: true },
+      include: { revenue: true, trainer: { select: { organization_id: true } } },
     });
     if (!session) throw new NotFoundException('Trainer session not found');
+
+    // Verify session belongs to this studio
+    if (session.trainer.organization_id !== studioId) {
+      throw new ForbiddenException('Access denied to this session');
+    }
 
     const updated = await this.prisma.trainerSession.update({
       where: { id },
@@ -325,8 +352,8 @@ export class TrainerService {
     });
   }
 
-  async getTrainerDashboard(trainerId: string) {
-    const trainer = await this.prisma.staff.findUnique({
+  async getTrainerDashboard(studioId: string, trainerId: string) {
+    const trainer = await this.prisma.staff.findFirst({
       where: { id: trainerId },
       include: { profile: true },
     });
@@ -390,8 +417,8 @@ export class TrainerService {
 
   // ── Performance Snapshots ─────────────────────────────────────
 
-  async recordPerformanceSnapshot(trainerId: string, periodStart: string, periodEnd: string) {
-    const trainer = await this.prisma.staff.findUnique({
+  async recordPerformanceSnapshot(studioId: string, trainerId: string, periodStart: string, periodEnd: string) {
+    const trainer = await this.prisma.staff.findFirst({
       where: { id: trainerId },
       include: { profile: true },
     });
@@ -428,6 +455,7 @@ export class TrainerService {
 
     return this.prisma.trainerPerformanceRecord.create({
       data: {
+        gym_id: getTenantGymId()!,
         trainer_id: trainerId,
         total_sessions: totalSessions,
         completed_sessions: completedSessions,
@@ -446,10 +474,16 @@ export class TrainerService {
     });
   }
 
-  async getPerformanceHistory(trainerId: string, filters?: {
+  async getPerformanceHistory(studioId: string, trainerId: string, filters?: {
     start_date?: string;
     end_date?: string;
   }) {
+    // Verify trainer belongs to studio
+    const trainer = await this.prisma.staff.findFirst({
+      where: { id: trainerId },
+    });
+    if (!trainer) throw new NotFoundException('Trainer not found');
+
     const where: any = { trainer_id: trainerId };
     if (filters?.start_date || filters?.end_date) {
       where.period_start = {};

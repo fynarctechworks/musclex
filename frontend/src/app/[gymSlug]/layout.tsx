@@ -17,15 +17,14 @@ export default function GymSlugLayout({
   const user = useAuthStore((s) => s.user);
   const studio = useAuthStore((s) => s.studio);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const [checked, setChecked] = useState(false);
+
+  // If auth is already loaded in the store, skip the spinner entirely
+  const alreadyReady = isAuthenticated && !!user && (user.onboarding_step === "complete" || !user.onboarding_step);
+  const [checked, setChecked] = useState(alreadyReady);
 
   useEffect(() => {
-    // Wait for hydration
-    if (!isAuthenticated || !user) {
-      return;
-    }
+    if (!isAuthenticated || !user) return;
 
-    // If onboarding not complete, redirect to onboarding
     const step = user.onboarding_step;
     if (step && step !== "complete") {
       const stepRoutes: Record<string, string> = {
@@ -37,8 +36,6 @@ export default function GymSlugLayout({
       return;
     }
 
-    // If the slug in the URL doesn't match the user's studio slug,
-    // redirect them to their own workspace
     if (studio?.slug && gymSlug !== studio.slug) {
       router.replace(`/${studio.slug}/dashboard`);
       return;

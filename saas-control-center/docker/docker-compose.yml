@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  scc-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - '4000:4000'
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@scc-db:5432/scc_db?schema=public
+      REDIS_HOST: scc-redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-refresh-secret}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-admin@musclex.com}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-admin123456}
+      NODE_ENV: production
+    depends_on:
+      scc-db:
+        condition: service_healthy
+      scc-redis:
+        condition: service_started
+    restart: unless-stopped
+
+  scc-db:
+    image: postgres:16-alpine
+    ports:
+      - '5433:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: scc_db
+    volumes:
+      - scc_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  scc-redis:
+    image: redis:7-alpine
+    ports:
+      - '6380:6379'
+    volumes:
+      - scc_redisdata:/data
+
+volumes:
+  scc_pgdata:
+  scc_redisdata:

@@ -1,6 +1,9 @@
 import { apiClient } from '@/services/api-client';
 
-// ── Classes (Core) ────────────────────────────────────────
+// ── Classes (Core) — LEGACY: migrate to ClassTemplate/ClassSession endpoints ──
+// TODO: Replace classesApi calls with classSessionsApi and classBookingsApi below.
+// The legacy /classes endpoints map to the old Class/ClassEnrollment models.
+// After migration, remove the classesApi object and ClassFilters interface.
 
 export interface ClassFilters {
   branch_id?: string;

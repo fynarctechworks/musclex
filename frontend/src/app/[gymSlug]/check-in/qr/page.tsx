@@ -5,6 +5,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, CheckCircle, XCircle, Camera, CameraOff } from "lucide-react";
 import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
+import { AccessDenied } from "@/components/shared/access-denied";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiClient } from "@/lib/api";
@@ -20,6 +22,7 @@ interface CheckInResult {
 }
 
 export default function QrCheckInPage() {
+  const { allowed, checked } = useRequirePermission("check_ins", "create", "deny");
   const { gymPath } = useGymSlug();
   const [qrCode, setQrCode] = useState("");
   const [result, setResult] = useState<CheckInResult | null>(null);
@@ -112,6 +115,14 @@ export default function QrCheckInPage() {
       }
     };
   }, []);
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="check_ins" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

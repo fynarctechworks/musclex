@@ -3,7 +3,7 @@
 import { AppLayout } from "@/components/layout/app-layout";
 import Image from "next/image";
 import { FormInput, FormSelect, FormTextarea } from "@/components/shared";
-import { LoadingSkeleton, PageHeader } from "@/components/shared";
+import { LoadingSkeleton, PageHeader, AccessDenied } from "@/components/shared";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useForm } from "react-hook-form";
@@ -27,6 +27,7 @@ import {
   Receipt,
   AlertCircle,
   BarChart3,
+  MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
@@ -40,7 +41,7 @@ import {
   getStateName,
   getStateOptions,
 } from "@/lib/location";
-
+import { useRequirePermission } from "@/hooks/use-require-permission";
 
 // ── Types ──────────────────────────────────────────────────────
 interface AccountOverview {
@@ -154,7 +155,7 @@ function fmtCurrency(amount: number, currency: string) {
 function StatusPill({ status }: { status: string }) {
   const color =
     status === "active"
-      ? "bg-emerald-500/10 text-emerald-500 ring-emerald-500/20"
+      ? "bg-success/10 text-success ring-success/20"
       : status === "trial"
         ? "bg-blue-500/10 text-blue-400 ring-blue-500/20"
         : status === "past_due"
@@ -173,6 +174,7 @@ function StatusPill({ status }: { status: string }) {
 
 // ── Component ──────────────────────────────────────────────────
 export default function SettingsPage() {
+  const { allowed, checked } = useRequirePermission("settings", "view", "deny");
   const { gymPath } = useGymSlug();
   const { updateStudio, studio: authStudio, user } = useAuthStore();
   const queryClient = useQueryClient();
@@ -259,6 +261,15 @@ export default function SettingsPage() {
     },
     onError: (err: Error) => toast.error(err.message),
   });
+
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="settings" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -370,16 +381,16 @@ export default function SettingsPage() {
                 </Link>
 
                 <Link
-                  href={gymPath("/settings/account")}
+                  href={gymPath("/settings/profile")}
                   className="flex items-center gap-4 px-6 py-5 hover:bg-muted/30 transition-colors group"
                 >
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                     <Phone className="w-5 h-5 text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h4 className="text-sm font-semibold text-foreground">Contact Information</h4>
+                    <h4 className="text-sm font-semibold text-foreground">Studio Profile</h4>
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {account.studio.email || account.studio.phone || "Manage contact details"}
+                      {account.studio.email || account.studio.phone || "Edit gym details, logo & contact info"}
                     </p>
                   </div>
                   <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
@@ -459,6 +470,22 @@ export default function SettingsPage() {
               </Link>
 
               <Link
+                href={gymPath("/settings/permissions")}
+                className="group bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
+              >
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
+                  <ShieldCheck className="w-5 h-5 text-primary" />
+                </div>
+                <h4 className="text-sm font-semibold text-foreground mb-1">
+                  Staff Permissions
+                </h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Per-staff overrides and branch access
+                </p>
+                <ArrowRight className="w-4 h-4 text-muted-foreground mt-3 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+              </Link>
+
+              <Link
                 href={gymPath("/settings/security")}
                 className="group bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
               >
@@ -486,6 +513,54 @@ export default function SettingsPage() {
                 </h4>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   Manage your studio locations and branches
+                </p>
+                <ArrowRight className="w-4 h-4 text-muted-foreground mt-3 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+              </Link>
+
+              <Link
+                href={gymPath("/settings/invoices")}
+                className="group bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
+              >
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
+                  <Receipt className="w-5 h-5 text-primary" />
+                </div>
+                <h4 className="text-sm font-semibold text-foreground mb-1">
+                  Invoice Templates
+                </h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Choose and preview invoice templates sent to members
+                </p>
+                <ArrowRight className="w-4 h-4 text-muted-foreground mt-3 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+              </Link>
+
+              <Link
+                href={gymPath("/settings/templates")}
+                className="group bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
+              >
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
+                  <MessageSquare className="w-5 h-5 text-primary" />
+                </div>
+                <h4 className="text-sm font-semibold text-foreground mb-1">
+                  Message Templates
+                </h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Manage WhatsApp, SMS &amp; email templates — enable or create new
+                </p>
+                <ArrowRight className="w-4 h-4 text-muted-foreground mt-3 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+              </Link>
+
+              <Link
+                href={gymPath("/settings/profile")}
+                className="group bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
+              >
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
+                  <Building2 className="w-5 h-5 text-primary" />
+                </div>
+                <h4 className="text-sm font-semibold text-foreground mb-1">
+                  Studio Profile
+                </h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Edit gym details, logo, contact info &amp; billing
                 </p>
                 <ArrowRight className="w-4 h-4 text-muted-foreground mt-3 group-hover:text-primary group-hover:translate-x-1 transition-all" />
               </Link>

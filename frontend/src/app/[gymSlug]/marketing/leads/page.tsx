@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
-import { PageHeader, LoadingSkeleton, EmptyState } from "@/components/shared";
+import { PageHeader, LoadingSkeleton, EmptyState , AccessDenied } from "@/components/shared";
 import { useLeads, useCreateLead, useLeadFunnel } from "@/features/marketing/hooks";
 import type { Lead, LeadSource, LeadFunnel } from "@/features/marketing/types";
 import {
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
+import { useAuthStore } from "@/stores/auth-store";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -30,6 +31,7 @@ import {
 import { useForm } from "react-hook-form";
 import { FormInput, FormSelect, FormTextarea } from "@/components/shared";
 import { format } from "date-fns";
+import { useRequirePermission } from "@/hooks/use-require-permission";
 
 const subNavItems = [
   { label: "Campaigns", href: "/marketing", icon: Megaphone },
@@ -60,7 +62,7 @@ const statusColors: Record<string, string> = {
   new: "bg-blue-500/10 text-blue-500",
   contacted: "bg-yellow-500/10 text-yellow-500",
   trial_scheduled: "bg-purple-500/10 text-purple-400",
-  converted: "bg-green-500/10 text-green-500",
+  converted: "bg-success/10 text-success",
   lost: "bg-red-500/10 text-red-400",
 };
 
@@ -73,7 +75,9 @@ interface CreateLeadForm {
 }
 
 export default function LeadsPage() {
+  const { allowed, checked } = useRequirePermission("marketing", "view", "deny");
   const { gymPath } = useGymSlug();
+  const { activeBranchId } = useAuthStore();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
@@ -85,16 +89,25 @@ export default function LeadsPage() {
     limit,
     status: statusFilter || undefined,
     search: search || undefined,
+    branch_id: activeBranchId || undefined,
   });
 
   const { data: funnelData } = useLeadFunnel();
-  const funnel = funnelData as LeadFunnel | undefined;
+  const funnel = (funnelData as { funnel?: LeadFunnel } | undefined)?.funnel;
 
   const leads: Lead[] = (data as { data?: Lead[] })?.data ?? [];
   const total = (data as { total?: number })?.total ?? 0;
   const totalPages = Math.ceil(total / limit);
 
   const createMutation = useCreateLead();
+
+  if (checked && !allowed) {
+    return (
+      <AppLayout>
+        <AccessDenied module="marketing" />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

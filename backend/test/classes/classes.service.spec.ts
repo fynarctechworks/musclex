@@ -34,7 +34,7 @@ describe('ClassesService', () => {
       prisma.class.findMany.mockResolvedValue([mockClass]);
       prisma.class.count.mockResolvedValue(1);
 
-      const result = await service.findAll({ page: 1, limit: 20 });
+      const result = await service.findAll('test-studio-id', { page: 1, limit: 20 });
       expect(result).toBeDefined();
       expect(result.data).toHaveLength(1);
       expect(result.total).toBe(1);
@@ -44,7 +44,7 @@ describe('ClassesService', () => {
       prisma.class.findMany.mockResolvedValue([]);
       prisma.class.count.mockResolvedValue(0);
 
-      await service.findAll({ category: 'yoga' });
+      await service.findAll('test-studio-id', { category: 'yoga' });
       const callArgs = prisma.class.findMany.mock.calls[0][0];
       expect(callArgs.where).toHaveProperty('category', 'yoga');
     });
@@ -53,7 +53,7 @@ describe('ClassesService', () => {
       prisma.class.findMany.mockResolvedValue([]);
       prisma.class.count.mockResolvedValue(0);
 
-      await service.findAll({ status: 'active' });
+      await service.findAll('test-studio-id', { status: 'active' });
       const callArgs = prisma.class.findMany.mock.calls[0][0];
       expect(callArgs.where).toHaveProperty('status', 'active');
     });
@@ -62,7 +62,7 @@ describe('ClassesService', () => {
       prisma.class.findMany.mockResolvedValue([]);
       prisma.class.count.mockResolvedValue(0);
 
-      await service.findAll({ trainer_id: mockClass.trainer_id });
+      await service.findAll('test-studio-id', { trainer_id: mockClass.trainer_id });
       const callArgs = prisma.class.findMany.mock.calls[0][0];
       expect(callArgs.where).toHaveProperty('trainer_id', mockClass.trainer_id);
     });
@@ -71,7 +71,7 @@ describe('ClassesService', () => {
       prisma.class.findMany.mockResolvedValue([]);
       prisma.class.count.mockResolvedValue(0);
 
-      await service.findAll({
+      await service.findAll('test-studio-id', {
         date_from: '2026-03-01',
         date_to: '2026-03-31',
       });
@@ -82,17 +82,17 @@ describe('ClassesService', () => {
 
   describe('findOne', () => {
     it('should return a class by id', async () => {
-      prisma.class.findUnique.mockResolvedValue(mockClass);
+      prisma.class.findFirst.mockResolvedValue(mockClass);
 
-      const result = await service.findOne(mockClass.id);
+      const result = await service.findOne('test-studio-id', mockClass.id);
       expect(result).toBeDefined();
       expect(result.id).toBe(mockClass.id);
     });
 
     it('should throw NotFoundException when class not found', async () => {
-      prisma.class.findUnique.mockResolvedValue(null);
+      prisma.class.findFirst.mockResolvedValue(null);
 
-      await expect(service.findOne('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('test-studio-id', 'nonexistent')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -106,7 +106,7 @@ describe('ClassesService', () => {
         substitute_trainer: null,
       });
 
-      const result = await service.create({
+      const result = await service.create('test-studio-id', {
         branch_id: mockClass.branch_id,
         trainer_id: mockClass.trainer_id,
         name: 'Morning Yoga',
@@ -127,7 +127,7 @@ describe('ClassesService', () => {
       });
 
       await expect(
-        service.create({
+        service.create('test-studio-id', {
           branch_id: mockClass.branch_id,
           trainer_id: mockClass.trainer_id,
           name: 'New Yoga',

@@ -29,6 +29,8 @@ export {
   useWorkflow,
   useCreateWorkflow,
   useUpdateWorkflow,
+  useDeleteWorkflow,
+  useSeedDefaultMessaging,
   useReferralPrograms,
   useReferralStats,
   useCreateReferralProgram,

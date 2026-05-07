@@ -103,7 +103,7 @@ export function ChangePlanDialog({
                     >
                       <div className="flex items-center gap-2">
                         {currentPlan && plan.price > currentPlan.price ? (
-                          <ArrowUpRight className="h-3 w-3 text-green-500" />
+                          <ArrowUpRight className="h-3 w-3 text-success" />
                         ) : (
                           <ArrowDownRight className="h-3 w-3 text-amber-500" />
                         )}
@@ -120,13 +120,13 @@ export function ChangePlanDialog({
             <div
               className={`rounded-lg border p-3 ${
                 isUpgrade
-                  ? 'border-green-500/30 bg-green-500/10'
+                  ? 'border-success/30 bg-success/10'
                   : 'border-amber-500/30 bg-amber-500/10'
               }`}
             >
               <div className="flex items-center gap-2">
                 {isUpgrade ? (
-                  <ArrowUpRight className="h-4 w-4 text-green-500" />
+                  <ArrowUpRight className="h-4 w-4 text-success" />
                 ) : (
                   <ArrowDownRight className="h-4 w-4 text-amber-500" />
                 )}
