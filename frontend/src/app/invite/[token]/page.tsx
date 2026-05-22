@@ -6,6 +6,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { toast } from "sonner";
 import { CheckCircle, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
+import { Spinner } from "@/components/shared";
 
 interface InviteInfo {
   email: string;
@@ -63,7 +64,7 @@ export default function AcceptInvitePage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <Spinner size="lg" label="Loading invite" />
       </div>
     );
   }
@@ -71,7 +72,7 @@ export default function AcceptInvitePage() {
   if (error || !invite) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="bg-card border border-border rounded-xl p-8 max-w-md text-center">
+        <div className="bg-card border border-border rounded-lg p-8 max-w-md text-center">
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <h1 className="text-xl font-semibold text-foreground mb-2">
             Invalid Invite
@@ -88,7 +89,7 @@ export default function AcceptInvitePage() {
   if (invite.status !== "pending" || invite.is_expired) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="bg-card border border-border rounded-xl p-8 max-w-md text-center">
+        <div className="bg-card border border-border rounded-lg p-8 max-w-md text-center">
           <AlertCircle className="w-12 h-12 text-warning mx-auto mb-4" />
           <h1 className="text-xl font-semibold text-foreground mb-2">
             {invite.is_expired ? "Invite Expired" : "Invite Already Used"}
@@ -106,8 +107,8 @@ export default function AcceptInvitePage() {
   if (acceptMutation.isSuccess) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="bg-card border border-border rounded-xl p-8 max-w-md text-center">
-          <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+        <div className="bg-card border border-border rounded-lg p-8 max-w-md text-center">
+          <CheckCircle className="w-12 h-12 text-success mx-auto mb-4" />
           <h1 className="text-xl font-semibold text-foreground mb-2">
             Account Created!
           </h1>
@@ -125,7 +126,7 @@ export default function AcceptInvitePage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="bg-card border border-border rounded-xl p-8 max-w-md w-full">
+      <div className="bg-card border border-border rounded-lg p-8 max-w-md w-full">
         {invite.studio_logo && (
           <img
             src={invite.studio_logo}

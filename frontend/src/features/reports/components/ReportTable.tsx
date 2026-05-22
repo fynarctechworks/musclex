@@ -230,7 +230,7 @@ export function ReportTable<T>({
               pageRows.map((row, i) => (
                 <tr
                   key={rowKey ? rowKey(row, i) : i}
-                  className="border-b border-border/40 transition-colors hover:bg-muted/30"
+                  className="border-b border-border/40 transition-colors hover:bg-canvas-soft"
                 >
                   {columns.map((c) => (
                     <td
@@ -246,7 +246,7 @@ export function ReportTable<T>({
               ))
             )}
             {!isLoading && !isError && totals && pageRows.length > 0 && page === totalPages && (
-              <tr className="bg-muted/20 font-semibold">
+              <tr className="bg-canvas-soft font-semibold">
                 {columns.map((c) => {
                   const v = totals[c.key as string];
                   return (

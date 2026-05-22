@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Branch } from "@/types";
+import { resolvePlanPrice, planMinPrice, planHasBranchPricing } from "@/lib/plan-pricing";
 
 const schema = z.object({
   plan_id: z.string().min(1, "Select a plan"),
@@ -111,14 +112,31 @@ export function AssignMembershipDialog({
                 <SelectValue placeholder="Select a plan" />
               </SelectTrigger>
               <SelectContent className="bg-card border-border">
-                {(plans ?? []).map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name} — ₹{Number(p.price).toLocaleString()}
-                  </SelectItem>
-                ))}
+                {(plans ?? []).map((p) => {
+                  const min = planMinPrice(p);
+                  const hasOverrides = planHasBranchPricing(p);
+                  return (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} — {hasOverrides ? 'from ' : ''}₹{min.toLocaleString()}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
             {errors.plan_id && <p className="mt-1 text-xs text-destructive">{errors.plan_id.message}</p>}
+            {/* Branch-aware preview once both selected */}
+            {(() => {
+              const planId = watch("plan_id");
+              const branchId = watch("branch_id");
+              const plan = (plans ?? []).find((p) => p.id === planId);
+              if (!plan || !branchId) return null;
+              const price = resolvePlanPrice(plan, branchId);
+              return (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Will charge <span className="font-medium text-foreground">₹{price.toLocaleString()}</span> at this branch.
+                </p>
+              );
+            })()}
           </div>
 
           {/* Branch */}

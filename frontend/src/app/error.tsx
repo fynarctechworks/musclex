@@ -20,13 +20,13 @@ export default function Error({
       style={{ background: "#0D1B2A", color: "#FFFFFF" }}
     >
       <div
-        className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl"
+        className="mb-6 flex h-16 w-16 items-center justify-center rounded-lg"
         style={{ background: "#1E3450", border: "1px solid #2A4A6A" }}
       >
-        <span className="text-2xl font-bold" style={{ color: "#EF4444" }}>!</span>
+        <span className="text-2xl font-semibold" style={{ color: "#EF4444" }}>!</span>
       </div>
 
-      <h1 className="mb-2 text-2xl font-bold">Something went wrong</h1>
+      <h1 className="mb-2 text-2xl font-semibold">Something went wrong</h1>
       <p className="mb-2 max-w-sm text-sm" style={{ color: "#B0C8E0" }}>
         An unexpected error occurred. Our team has been notified automatically.
       </p>

@@ -58,7 +58,7 @@ function BranchFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md mx-4">
+      <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">
             {branch ? "Edit Branch" : "Add Branch"}
@@ -199,7 +199,7 @@ export default function BranchesPage() {
         const branch = row.original;
         return (
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
               <Building2 className="w-4 h-4 text-primary" />
             </div>
             <div>
@@ -296,10 +296,10 @@ export default function BranchesPage() {
                   {canDelete && (
                     <button
                       onClick={() => setDeletingBranch(branch)}
-                      className="p-1.5 hover:bg-red-500/10 rounded-lg transition-colors"
+                      className="p-1.5 hover:bg-error/10 rounded-lg transition-colors"
                       title="Delete branch"
                     >
-                      <Trash2 className="w-4 h-4 text-red-500" />
+                      <Trash2 className="w-4 h-4 text-error" />
                     </button>
                   )}
                 </div>
@@ -376,10 +376,10 @@ export default function BranchesPage() {
       {/* Delete Confirmation Dialog */}
       {deletingBranch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md mx-4">
+          <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4">
             <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-red-500" />
+              <div className="w-10 h-10 rounded-full bg-error/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-error" />
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Delete Branch</h2>
@@ -389,8 +389,8 @@ export default function BranchesPage() {
               </div>
             </div>
 
-            <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 mb-5">
-              <p className="text-sm text-red-400 font-medium mb-1">This action cannot be undone.</p>
+            <div className="bg-error/5 border border-error/30 rounded-lg p-3 mb-5">
+              <p className="text-sm text-error font-medium mb-1">This action cannot be undone.</p>
               <p className="text-xs text-muted-foreground">
                 All data linked to this branch will be permanently deleted including:
                 members, check-ins, payments, classes, staff, and membership plans.
@@ -407,7 +407,7 @@ export default function BranchesPage() {
               <button
                 onClick={() => deleteMutation.mutate(deletingBranch.id)}
                 disabled={deleteMutation.isPending}
-                className="bg-red-500 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="bg-error text-on-primary px-5 py-2 rounded-lg text-sm font-medium hover:bg-error transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 {deleteMutation.isPending ? "Deleting..." : "Delete Branch"}

@@ -1,4 +1,4 @@
-import { IsString, IsUUID, IsOptional } from 'class-validator';
+import { IsString, IsUUID, IsOptional, IsBoolean, MaxLength } from 'class-validator';
 
 export class CreateCheckInDto {
   @IsUUID()
@@ -19,4 +19,24 @@ export class CreateCheckInDto {
   @IsUUID()
   @IsOptional()
   class_id?: string;
+
+  /** Idempotency key. If absent, the server generates one. */
+  @IsUUID()
+  @IsOptional()
+  client_event_id?: string;
+
+  /** Where the request originated. Defaults to 'staff_desktop'. */
+  @IsString()
+  @IsOptional()
+  source?: string;
+
+  /** Staff override flag — must be paired with a reason. Permission-gated upstream. */
+  @IsBoolean()
+  @IsOptional()
+  override_authorized?: boolean;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  override_reason?: string;
 }

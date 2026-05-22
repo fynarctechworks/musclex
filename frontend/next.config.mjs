@@ -20,6 +20,9 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
+  // Note: Permissions-Policy + security headers are owned by src/middleware.ts
+  // (the edge middleware runs after next.config headers and would override
+  // anything set here, so we keep a single source of truth).
   experimental: {
     serverComponentsExternalPackages: ['@opentelemetry/api', '@opentelemetry/core', '@opentelemetry/semantic-conventions'],
     optimizePackageImports: [

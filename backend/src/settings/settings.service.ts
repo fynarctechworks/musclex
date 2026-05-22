@@ -6,6 +6,7 @@ import {
   fetchAvailablePlans,
 } from '../common/plan-configs';
 import { SccSyncService } from '../common/services/scc-sync.service';
+import { SubscriptionPolicyService } from '../common/services/subscription-policy.service';
 import { DEFAULT_LOCALE } from '../common/defaults';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class SettingsService {
     private prisma: PrismaService,
     private queueService: QueueService,
     private sccSync: SccSyncService,
+    private subscriptionPolicy: SubscriptionPolicyService,
   ) {}
 
   async getStudio(studioId: string) {
@@ -32,6 +34,12 @@ export class SettingsService {
       include: { invoices: { orderBy: { created_at: 'desc' }, take: 1 } },
     });
     if (!studio) throw new NotFoundException('Studio not found');
+
+    // Use the LIVE-computed lifecycle status (active/grace_period/locked/
+    // suspended), not the stale studio.subscription_status column that's frozen
+    // at 'active' from onboarding. This is the same source the lock banner reads,
+    // so the Status chip and the banner can no longer disagree.
+    const subscriptionContext = await this.subscriptionPolicy.getContext(studioId);
 
     const planConfig = PLAN_CONFIGS[studio.subscription_plan] || PLAN_CONFIGS.free;
 
@@ -74,7 +82,7 @@ export class SettingsService {
       subscription: {
         plan: studio.subscription_plan,
         plan_description: planConfig.description,
-        status: studio.subscription_status,
+        status: subscriptionContext.status,
         billing_cycle: studio.billing_cycle,
         monthly_price: planConfig.monthly_price,
         annual_price: planConfig.annual_price,
@@ -85,6 +93,12 @@ export class SettingsService {
         subscription_start: studio.subscription_start,
         next_billing_date: studio.next_billing_date,
         trial_ends_at: studio.trial_ends_at,
+        // Grace/lock context so the UI can mirror the lock banner exactly.
+        grace_until: subscriptionContext.grace_until,
+        locked_at: subscriptionContext.locked_at,
+        days_until_expiry: subscriptionContext.days_until_expiry,
+        grace_days_remaining: subscriptionContext.grace_days_remaining,
+        can_mutate: subscriptionContext.can_mutate,
       },
       usage: {
         branches: { current: branchCount, max: effectivePlanConfig.max_branches },
@@ -100,6 +114,12 @@ export class SettingsService {
         billing_address: studio.billing_address,
         tax_id: studio.tax_id,
         currency: studio.currency,
+        // GST tax-invoice settings (India)
+        gstin: (studio as any).gstin ?? null,
+        gst_state_code: (studio as any).gst_state_code ?? null,
+        default_hsn: (studio as any).default_hsn ?? null,
+        invoice_prefix: (studio as any).invoice_prefix ?? null,
+        invoice_terms: (studio as any).invoice_terms ?? null,
       },
     };
   }
@@ -159,6 +179,11 @@ export class SettingsService {
       billing_email?: string;
       billing_address?: string;
       tax_id?: string;
+      gstin?: string;
+      gst_state_code?: string;
+      default_hsn?: string;
+      invoice_prefix?: string;
+      invoice_terms?: string;
       referral_free_days?: number;
       referral_reward_days?: number;
     },
@@ -173,7 +198,9 @@ export class SettingsService {
       data,
     });
 
-    // Sync name/contact changes to SCC
+    // Sync name/contact changes to SCC. Pass the persisted lifecycle_status
+    // (the source of truth, kept current by the daily recompute cron and
+    // renewal/cancel events) so the SCC dashboard reflects reality.
     await this.sccSync.upsertTenant({
       id: updated.id,
       name: updated.name,
@@ -182,6 +209,7 @@ export class SettingsService {
       phone: updated.phone,
       logo_url: updated.logo_url,
       subscription_plan: updated.subscription_plan,
+      lifecycle_status: updated.lifecycle_status ?? undefined,
       subscription_status: updated.subscription_status,
       trial_ends_at: updated.trial_ends_at,
     });

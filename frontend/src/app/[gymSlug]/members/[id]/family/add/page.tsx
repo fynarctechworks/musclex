@@ -13,6 +13,7 @@ import { apiClient } from "@/lib/api";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import { toast } from "sonner";
 import Link from "next/link";
+import { planMinPrice, planHasBranchPricing } from "@/lib/plan-pricing";
 
 interface Member {
   id: string;
@@ -126,10 +127,10 @@ export default function AddFamilyMemberPage() {
 
       <div className="max-w-lg mt-6">
         {/* Primary member card */}
-        <div className="rounded-xl border border-border bg-card p-4 mb-6">
+        <div className="rounded-lg border border-border bg-card p-4 mb-6">
           <p className="text-xs text-muted-foreground mb-1">Primary Member</p>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+            <div className="h-10 w-10 rounded-full bg-canvas-soft-2 flex items-center justify-center text-primary font-semibold">
               {member.full_name.charAt(0).toUpperCase()}
             </div>
             <div>
@@ -160,8 +161,8 @@ export default function AddFamilyMemberPage() {
                     key={plan.id}
                     className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors ${
                       selectedPlanId === plan.id
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-card hover:bg-muted/50"
+                        ? "border-primary bg-canvas-soft-2"
+                        : "border-border bg-card hover:bg-canvas-soft"
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -179,7 +180,8 @@ export default function AddFamilyMemberPage() {
                       </div>
                     </div>
                     <span className="text-sm font-semibold text-foreground">
-                      ₹{Number(plan.price).toLocaleString()}
+                      {planHasBranchPricing(plan as unknown as { branch_price_overrides?: unknown }) ? 'from ' : ''}
+                      ₹{planMinPrice(plan as unknown as { price: number; branch_price_overrides?: unknown }).toLocaleString()}
                     </span>
                   </label>
                 ))}

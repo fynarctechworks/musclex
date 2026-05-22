@@ -119,7 +119,7 @@ function Verify2FAForm() {
     >
       <div className="space-y-6">
         <div className="flex justify-center">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <div className="w-16 h-16 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
             {viewMode === 'recovery' ? (
               <Mail className="h-8 w-8 text-primary" />
             ) : (

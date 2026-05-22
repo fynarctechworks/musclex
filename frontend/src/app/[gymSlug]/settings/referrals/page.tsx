@@ -139,7 +139,7 @@ export default function ReferralSettingsPage() {
           <ChevronRight className="w-4 h-4 rotate-180" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2.5">
+          <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2.5">
             <Gift className="w-7 h-7 text-primary" /> Referral Program
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -151,32 +151,32 @@ export default function ReferralSettingsPage() {
       {statsLoading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-32 bg-muted animate-pulse rounded-2xl" />
+            <div key={i} className="h-32 bg-muted animate-pulse rounded-lg" />
           ))}
         </div>
       ) : statsError ? (
-        <div className="bg-card border border-red-500/20 rounded-xl p-6 flex items-center gap-4">
-          <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+        <div className="bg-card border border-error/30 rounded-lg p-6 flex items-center gap-4">
+          <AlertCircle className="w-5 h-5 text-error shrink-0" />
           <p className="text-sm text-muted-foreground">Unable to load referral data. Please try again.</p>
         </div>
       ) : (
         <div className="space-y-6">
 
           {/* ── Referral Code Card ───────────────────────── */}
-          <div className="bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border border-primary/20 rounded-2xl p-8">
+          <div className="bg-gradient-to-br from-primary/15 via-primary/5 to-transparent border border-primary/20 rounded-lg p-8">
             <div className="flex flex-col sm:flex-row items-center gap-6">
-              <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0">
+              <div className="w-16 h-16 rounded-lg bg-canvas-soft-2 flex items-center justify-center shrink-0">
                 <Gift className="w-8 h-8 text-primary" />
               </div>
               <div className="flex-1 text-center sm:text-left">
                 <p className="text-sm text-muted-foreground mb-2">Your Referral Code</p>
                 <div className="flex items-center gap-3 justify-center sm:justify-start">
-                  <span className="text-4xl font-black text-foreground tracking-widest font-mono">
+                  <span className="text-4xl font-semibold text-foreground tracking-widest font-mono">
                     {stats?.referral_code ?? "—"}
                   </span>
                   <button
                     onClick={handleCopy}
-                    className="p-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors text-primary"
+                    className="p-2.5 rounded-lg bg-canvas-soft-2 hover:bg-canvas-soft-2 transition-colors text-primary"
                     title="Copy code"
                   >
                     {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
@@ -192,16 +192,16 @@ export default function ReferralSettingsPage() {
           {/* ── Stats Row ────────────────────────────────── */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { label: "Total Referred", value: stats?.stats.total ?? 0, icon: Users, color: "text-blue-400", bg: "bg-blue-500/10" },
-              { label: "Pending Activation", value: stats?.stats.pending ?? 0, icon: Clock, color: "text-amber-400", bg: "bg-amber-500/10" },
+              { label: "Total Referred", value: stats?.stats.total ?? 0, icon: Users, color: "text-link", bg: "bg-link/10" },
+              { label: "Pending Activation", value: stats?.stats.pending ?? 0, icon: Clock, color: "text-warning", bg: "bg-warning/10" },
               { label: "Rewarded", value: stats?.stats.rewarded ?? 0, icon: TrendingUp, color: "text-success", bg: "bg-success/10" },
             ].map((stat) => (
-              <div key={stat.label} className="bg-card border border-border rounded-2xl p-5 flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl ${stat.bg} flex items-center justify-center shrink-0`}>
+              <div key={stat.label} className="bg-card border border-border rounded-lg p-5 flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-lg ${stat.bg} flex items-center justify-center shrink-0`}>
                   <stat.icon className={`w-6 h-6 ${stat.color}`} />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+                  <p className="text-2xl font-semibold text-foreground">{stat.value}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
                 </div>
               </div>
@@ -210,8 +210,8 @@ export default function ReferralSettingsPage() {
 
           {/* ── Subscription Extension Status ────────────── */}
           {stats?.subscription_expires_at && (
-            <div className="bg-card border border-border rounded-2xl p-5 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <div className="bg-card border border-border rounded-lg p-5 flex items-center gap-4">
+              <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center shrink-0">
                 <Calendar className="w-5 h-5 text-primary" />
               </div>
               <div>
@@ -226,9 +226,9 @@ export default function ReferralSettingsPage() {
 
           {/* ── Reward Rules (Earn section) ───────────────── */}
           {activeRules.length > 0 && (
-            <div className="bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="bg-card border border-border rounded-lg overflow-hidden">
               <div className="flex items-center gap-2.5 px-6 py-4 border-b border-border">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
                   <Sparkles className="w-5 h-5 text-primary" />
                 </div>
                 <div>
@@ -254,12 +254,12 @@ export default function ReferralSettingsPage() {
                       </div>
                       <div className="text-right shrink-0">
                         {reward?.type === "extend_subscription" || reward?.type === "trial_extension" ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 text-primary text-sm font-bold">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-canvas-soft-2 text-primary text-sm font-semibold">
                             <Gift className="w-3.5 h-3.5" />
                             +{reward.days} free days
                           </span>
                         ) : reward?.type === "account_credit" ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-success/10 text-success text-sm font-bold">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-success/10 text-success text-sm font-semibold">
                             ₹{reward.amount} credit
                           </span>
                         ) : null}
@@ -272,9 +272,9 @@ export default function ReferralSettingsPage() {
           )}
 
           {/* ── Reward History ────────────────────────────── */}
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="bg-card border border-border rounded-lg overflow-hidden">
             <div className="flex items-center gap-2.5 px-6 py-4 border-b border-border">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
                 <TrendingUp className="w-5 h-5 text-primary" />
               </div>
               <div>
@@ -285,7 +285,7 @@ export default function ReferralSettingsPage() {
 
             {!stats?.recent_rewards || stats.recent_rewards.length === 0 ? (
               <div className="px-6 py-12 text-center">
-                <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
+                <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center mx-auto mb-3">
                   <Gift className="w-6 h-6 text-muted-foreground" />
                 </div>
                 <p className="text-sm font-medium text-foreground">No rewards yet</p>
@@ -306,17 +306,17 @@ export default function ReferralSettingsPage() {
                   </thead>
                   <tbody className="divide-y divide-border/50">
                     {stats.recent_rewards.map((reward, i) => (
-                      <tr key={i} className="bg-card hover:bg-muted/50 transition-colors">
+                      <tr key={i} className="bg-card hover:bg-canvas-soft transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <div className="w-8 h-8 rounded-lg bg-canvas-soft-2 flex items-center justify-center shrink-0">
                               <Building2 className="w-4 h-4 text-primary" />
                             </div>
                             <span className="font-medium text-foreground">{reward.referred_gym}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-xs font-semibold">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-canvas-soft-2 text-primary text-xs font-semibold">
                             <Sparkles className="w-3 h-3" />
                             {rewardLabel(reward)}
                           </span>
@@ -342,9 +342,9 @@ export default function ReferralSettingsPage() {
           </div>
 
           {/* ── Referral Configuration (Owner Settings) ──── */}
-          <div className="bg-card border border-border rounded-2xl p-6">
+          <div className="bg-card border border-border rounded-lg p-6">
             <div className="flex items-center gap-2.5 mb-5">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
                 <Settings className="w-5 h-5 text-primary" />
               </div>
               <div>
@@ -418,7 +418,7 @@ export default function ReferralSettingsPage() {
           </div>
 
           {/* ── How It Works ──────────────────────────────── */}
-          <div className="bg-card border border-border rounded-2xl p-6">
+          <div className="bg-card border border-border rounded-lg p-6">
             <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary" /> How Referrals Work
             </h3>
@@ -430,7 +430,7 @@ export default function ReferralSettingsPage() {
                 { step: "4", text: "Your subscription expiry is automatically extended — no action needed" },
               ].map(({ step, text }) => (
                 <div key={step} className="flex items-start gap-3">
-                  <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="w-6 h-6 rounded-full bg-canvas-soft-2 text-primary text-xs font-semibold flex items-center justify-center shrink-0 mt-0.5">
                     {step}
                   </span>
                   <p className="text-sm text-muted-foreground">{text}</p>

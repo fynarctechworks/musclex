@@ -47,10 +47,10 @@ export function InventoryTile({ branchId }: InventoryTileProps) {
   const isEmpty = !isLoading && (noModule || (data?.categories.length ?? 0) === 0);
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5 shadow-sm transition-shadow hover:shadow-md flex flex-col gap-4">
+    <div className="bg-card border border-border rounded-lg p-5 shadow-level-2 transition-shadow hover:shadow-level-3 flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-canvas-soft-2 text-primary">
             <Boxes className="h-4 w-4" />
           </span>
           <div className="min-w-0">
@@ -73,14 +73,14 @@ export function InventoryTile({ branchId }: InventoryTileProps) {
       {isLoading && (
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-9 bg-muted/30 rounded animate-pulse" />
+            <div key={i} className="h-9 bg-canvas-soft rounded animate-pulse" />
           ))}
         </div>
       )}
 
       {!isLoading && isEmpty && (
         <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
-          <div className="rounded-full bg-muted/40 p-3">
+          <div className="rounded-full bg-canvas-soft p-3">
             <Boxes className="w-6 h-6 text-muted-foreground" />
           </div>
           <p className="text-[13px] font-medium text-foreground">
@@ -104,7 +104,7 @@ export function InventoryTile({ branchId }: InventoryTileProps) {
         <>
           <div className="overflow-hidden rounded-lg border border-border">
             <table className="w-full text-[13px]">
-              <thead className="bg-muted/40 text-muted-foreground">
+              <thead className="bg-canvas-soft text-muted-foreground">
                 <tr>
                   <th className="text-left font-medium py-2 px-3">Category</th>
                   <th className="text-right font-medium py-2 px-3">Items</th>
@@ -122,7 +122,7 @@ export function InventoryTile({ branchId }: InventoryTileProps) {
                   return (
                     <tr
                       key={cat.category_id ?? cat.category}
-                      className="border-t border-border hover:bg-muted/20 transition-colors"
+                      className="border-t border-border hover:bg-canvas-soft transition-colors"
                     >
                       <td className="py-2 px-3 text-foreground">
                         <Link href={drillHref} className="hover:underline">

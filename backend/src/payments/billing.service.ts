@@ -8,6 +8,8 @@ import { CreateInvoiceDto } from './dto';
 import { randomBytes } from 'crypto';
 import { getTenantGymId } from '../common/tenant-context';
 
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
 @Injectable()
 export class BillingService {
   constructor(private prisma: PrismaService) {}
@@ -28,12 +30,24 @@ export class BillingService {
       item_type: item.item_type,
       item_id: item.item_id,
       description: item.description,
+      hsn_sac: item.hsn_sac ?? null,
       quantity: item.quantity ?? 1,
       unit_price: item.unit_price,
       total_price: item.unit_price * (item.quantity ?? 1),
     }));
 
     const subtotal = items.reduce((sum, item) => sum + item.total_price, 0);
+
+    // Resolve place_of_supply: explicit DTO > member.state (if available) > branch.state
+    const branch = await this.prisma.branch.findUnique({
+      where: { id: dto.branch_id },
+      select: { state: true, gst_state_code: true },
+    });
+    const placeOfSupply =
+      dto.place_of_supply ||
+      branch?.gst_state_code ||
+      branch?.state ||
+      null;
 
     // Resolve discount code to ID if needed
     let discountId = dto.discount_id;
@@ -81,16 +95,51 @@ export class BillingService {
         }
       }
 
-      // Calculate tax
+      // Calculate tax + GST split
       let taxAmount = 0;
+      let taxRatePct = 0;
+      let isInterState = false;
       if (dto.tax_rate_id) {
         const taxRate = await tx.taxRate.findUnique({ where: { id: dto.tax_rate_id } });
         if (taxRate && taxRate.is_active) {
-          taxAmount = (subtotal - discountAmount) * (Number(taxRate.rate) / 100);
+          taxRatePct = Number(taxRate.rate);
+          taxAmount = (subtotal - discountAmount) * (taxRatePct / 100);
+
+          // Intra-state (CGST+SGST) vs inter-state (IGST) decision.
+          // Resolved by comparing buyer place_of_supply against seller (branch>studio).
+          const studio = await tx.studio.findFirst({
+            where: { id: getTenantGymId()! },
+            select: { gst_state_code: true, state: true },
+          });
+          const sellerState = branch?.gst_state_code || studio?.gst_state_code || studio?.state || null;
+          if (placeOfSupply && sellerState && placeOfSupply !== sellerState) {
+            isInterState = true;
+          }
         }
       }
 
-      const totalAmount = subtotal - discountAmount + taxAmount;
+      // Per-line GST split, proportional to line subtotal share (after discount)
+      const discountFactor = subtotal > 0 ? (subtotal - discountAmount) / subtotal : 0;
+      const lineRows = items.map((item) => {
+        const taxableLine = item.total_price * discountFactor;
+        const lineTax = taxableLine * (taxRatePct / 100);
+        const cgst = isInterState ? 0 : lineTax / 2;
+        const sgst = isInterState ? 0 : lineTax / 2;
+        const igst = isInterState ? lineTax : 0;
+        return {
+          ...item,
+          tax_rate: taxRatePct,
+          cgst_amount: round2(cgst),
+          sgst_amount: round2(sgst),
+          igst_amount: round2(igst),
+          gym_id: getTenantGymId()!,
+        };
+      });
+
+      const cgstTotal = round2(lineRows.reduce((s, l) => s + l.cgst_amount, 0));
+      const sgstTotal = round2(lineRows.reduce((s, l) => s + l.sgst_amount, 0));
+      const igstTotal = round2(lineRows.reduce((s, l) => s + l.igst_amount, 0));
+      const totalAmount = round2(subtotal - discountAmount + taxAmount);
 
       const inv = await tx.memberInvoice.create({
         data: {
@@ -101,16 +150,18 @@ export class BillingService {
           invoice_number: this.generateInvoiceNumber(),
           subtotal,
           tax_amount: taxAmount,
+          cgst_amount: cgstTotal,
+          sgst_amount: sgstTotal,
+          igst_amount: igstTotal,
           discount_amount: discountAmount,
           total_amount: totalAmount,
+          place_of_supply: placeOfSupply,
           status: 'pending',
           due_date: dto.due_date ? new Date(dto.due_date) : null,
           notes: dto.notes,
           discount_id: discountId,
           tax_rate_id: dto.tax_rate_id,
-          items: {
-            create: items.map((item) => ({ ...item, gym_id: getTenantGymId()! })),
-          },
+          items: { create: lineRows },
         },
         include: {
           items: true,

@@ -45,7 +45,7 @@ const sizeToColSpan: Record<TileSize, string> = {
 /**
  * Reusable wrapper every dashboard tile must use.
  * Visual contract matches the existing Revenue Trend block on the dashboard:
- *   bg-card border border-border rounded-xl p-5
+ *   bg-card border border-border rounded-lg p-5
  *
  * Provides loading / empty / error states inline so each tile file does not
  * have to re-implement them. Reuses tokens only — no new colors or radii.
@@ -69,7 +69,7 @@ export function TileCard({
   return (
     <section
       className={cn(
-        "flex flex-col gap-4 bg-card border border-border rounded-xl p-5 shadow-sm transition-shadow hover:shadow-md",
+        "flex flex-col gap-4 bg-card border border-hairline rounded-lg p-5 shadow-level-2 transition-shadow hover:shadow-level-3",
         sizeToColSpan[size],
         className,
       )}
@@ -78,11 +78,11 @@ export function TileCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             {Icon ? (
-              <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-canvas-soft-2 text-foreground">
                 <Icon className="h-4 w-4" />
               </span>
             ) : null}
-            <h2 className="text-[17px] font-semibold leading-tight text-foreground truncate">
+            <h2 className="text-base font-semibold tracking-[-0.01em] leading-tight text-foreground truncate">
               {title}
             </h2>
             {freshness ? (
@@ -94,7 +94,7 @@ export function TileCard({
             ) : null}
           </div>
           {subtitle && (
-            <p className="mt-1 text-[12px] text-muted-foreground truncate">
+            <p className="mt-1 text-xs text-muted-foreground truncate">
               {subtitle}
             </p>
           )}
@@ -108,7 +108,7 @@ export function TileCard({
         {loading ? (
           <LoadingSkeleton className="h-40 w-full" />
         ) : error ? (
-          <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-[13px] text-destructive">
+          <div className="flex items-start gap-2 rounded-md border border-error/30 bg-error-soft p-3 text-sm text-error-deep">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>

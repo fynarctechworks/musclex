@@ -105,13 +105,13 @@ export default function ClassDetailPage() {
       </Link>
 
       {/* Class Header */}
-      <div className="bg-card border border-border rounded-xl p-6 mb-6">
+      <div className="bg-card border border-border rounded-lg p-6 mb-6">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-xl font-semibold text-foreground">
               {classItem.name}
             </h1>
-            <span className="inline-block mt-1 px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">
+            <span className="inline-block mt-1 px-2 py-0.5 bg-canvas-soft-2 text-primary text-xs rounded-full">
               {classItem.category}
             </span>
           </div>
@@ -151,7 +151,7 @@ export default function ClassDetailPage() {
       </div>
 
       {/* Enroll Member */}
-      <div className="bg-card border border-border rounded-xl p-6 mb-6">
+      <div className="bg-card border border-border rounded-lg p-6 mb-6">
         <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
           <UserPlus className="w-5 h-5" /> Enroll Member
         </h2>
@@ -217,7 +217,7 @@ export default function ClassDetailPage() {
       </div>
 
       {/* Enrolled Members */}
-      <div className="bg-card border border-border rounded-xl p-6 mb-6">
+      <div className="bg-card border border-border rounded-lg p-6 mb-6">
         <h2 className="text-base font-semibold text-foreground mb-3">
           Enrolled ({enrolled.length})
         </h2>
@@ -254,7 +254,7 @@ export default function ClassDetailPage() {
 
       {/* Waitlist */}
       {waitlisted.length > 0 && (
-        <div className="bg-card border border-border rounded-xl p-6">
+        <div className="bg-card border border-border rounded-lg p-6">
           <h2 className="text-base font-semibold text-foreground mb-3">
             Waitlist ({waitlisted.length})
           </h2>

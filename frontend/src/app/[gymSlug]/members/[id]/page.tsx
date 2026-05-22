@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useParams } from "next/navigation";
-import { Activity, Clock, CreditCard, StickyNote, CreditCard as MembershipIcon, BarChart3, TrendingUp, FileText, UserPlus } from "lucide-react";
+import { Activity, Clock, CreditCard, StickyNote, CreditCard as MembershipIcon, BarChart3, TrendingUp, FileText, UserPlus, KeyRound, Wallet } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { AccessDenied } from "@/components/shared/access-denied";
 import { useRequirePermission } from "@/hooks/use-require-permission";
@@ -34,9 +34,14 @@ import {
   MemberVisitsTab,
   MemberProgressTab,
   MemberDocumentsTab,
+  EnrollBiometricDialog,
+  TransferDialog,
+  MemberAccessTab,
 } from "./components";
+import { useAuthStore } from "@/stores/auth-store";
 import { MemberReferralsTab } from "@/features/referrals";
 import { MemberSubscriptionCard } from "@/features/memberships";
+import { MemberWalletTab } from "@/features/wallet";
 
 export default function MemberProfilePage() {
   const { allowed, checked } = useRequirePermission("members", "view", "deny");
@@ -49,6 +54,11 @@ export default function MemberProfilePage() {
   const [freezeOpen, setFreezeOpen] = useState(false);
   const [unfreezeOpen, setUnfreezeOpen] = useState(false);
   const [renewOpen, setRenewOpen] = useState(false);
+  const [enrollBiometricOpen, setEnrollBiometricOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
+
+  const authUser = useAuthStore((s) => s.user);
+  const activeBranchId = useAuthStore((s) => s.activeBranchId);
 
   const { data: member, isLoading, isError } = useMember(memberId);
   const unfreezeMutation = useUnfreezeMember(memberId);
@@ -112,6 +122,8 @@ export default function MemberProfilePage() {
             onUnfreeze={() => setUnfreezeOpen(true)}
             onActivate={() => setActivateOpen(true)}
             onDeactivate={() => setDeactivateOpen(true)}
+            onEnrollBiometric={() => setEnrollBiometricOpen(true)}
+            onTransfer={() => setTransferOpen(true)}
           />
         </div>
 
@@ -131,6 +143,13 @@ export default function MemberProfilePage() {
             >
               <MembershipIcon className="mr-2 h-4 w-4" />
               Memberships
+            </TabsTrigger>
+            <TabsTrigger
+              value="access"
+              className="text-muted-foreground data-[state=active]:bg-card data-[state=active]:text-foreground"
+            >
+              <KeyRound className="mr-2 h-4 w-4" />
+              Access
             </TabsTrigger>
             <TabsTrigger
               value="visits"
@@ -175,6 +194,13 @@ export default function MemberProfilePage() {
               Payments
             </TabsTrigger>
             <TabsTrigger
+              value="wallet"
+              className="text-muted-foreground data-[state=active]:bg-card data-[state=active]:text-foreground"
+            >
+              <Wallet className="mr-2 h-4 w-4" />
+              Wallet
+            </TabsTrigger>
+            <TabsTrigger
               value="notes"
               className="text-muted-foreground data-[state=active]:bg-card data-[state=active]:text-foreground"
             >
@@ -201,6 +227,10 @@ export default function MemberProfilePage() {
             <MemberMembershipsTab member={member} />
           </TabsContent>
 
+          <TabsContent value="access" className="mt-4">
+            <MemberAccessTab memberId={memberId} member={member} />
+          </TabsContent>
+
           <TabsContent value="visits" className="mt-4">
             <MemberVisitsTab memberId={memberId} />
           </TabsContent>
@@ -223,6 +253,10 @@ export default function MemberProfilePage() {
 
           <TabsContent value="payments" className="mt-4">
             <MemberPayments payments={payments} />
+          </TabsContent>
+
+          <TabsContent value="wallet" className="mt-4">
+            <MemberWalletTab memberId={memberId} />
           </TabsContent>
 
           <TabsContent value="notes" className="mt-4">
@@ -281,6 +315,24 @@ export default function MemberProfilePage() {
         memberName={member.full_name}
         open={renewOpen}
         onClose={() => setRenewOpen(false)}
+      />
+
+      {/* Enroll Biometric (Face) Dialog */}
+      <EnrollBiometricDialog
+        memberId={memberId}
+        memberName={member.full_name}
+        branchId={activeBranchId || (authUser?.branch_ids?.[0] ?? (member as { branch_id?: string }).branch_id ?? "")}
+        open={enrollBiometricOpen}
+        onClose={() => setEnrollBiometricOpen(false)}
+      />
+
+      {/* Transfer (change home branch) Dialog */}
+      <TransferDialog
+        memberId={memberId}
+        memberName={member.full_name}
+        currentBranchId={(member as { branch_id?: string }).branch_id ?? ""}
+        open={transferOpen}
+        onClose={() => setTransferOpen(false)}
       />
     </AppLayout>
   );

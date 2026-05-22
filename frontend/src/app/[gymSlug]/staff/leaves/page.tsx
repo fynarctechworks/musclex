@@ -216,7 +216,7 @@ export default function LeavesPage() {
 
       {/* New Leave Request Form */}
       {showForm && (
-        <div className="bg-card border border-border rounded-xl p-6 mb-6">
+        <div className="bg-card border border-border rounded-lg p-6 mb-6">
           <h3 className="text-sm font-semibold text-foreground mb-4">Submit Leave Request</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {canReview ? (
@@ -308,7 +308,7 @@ export default function LeavesPage() {
                       }}
                       className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
                         selected
-                          ? "bg-primary/20 text-primary border-primary/40"
+                          ? "bg-canvas-soft-2 text-primary border-primary/40"
                           : "bg-background text-muted-foreground border-border hover:border-primary/30"
                       }`}
                     >
@@ -338,8 +338,8 @@ export default function LeavesPage() {
                       onClick={() => toggleStaffInList(s.id, notifyCc, setNotifyCc)}
                       className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
                         selected
-                          ? "bg-amber-500/20 text-amber-400 border-amber-500/40"
-                          : "bg-background text-muted-foreground border-border hover:border-amber-500/30"
+                          ? "bg-warning/20 text-warning border-warning/30"
+                          : "bg-background text-muted-foreground border-border hover:border-warning/30"
                       }`}
                     >
                       {s.full_name}
@@ -357,7 +357,7 @@ export default function LeavesPage() {
                 )}
                 {notifyTo.length > 0 && notifyCc.length > 0 && <span className="mx-2">|</span>}
                 {notifyCc.length > 0 && (
-                  <span className="text-amber-400">CC: {notifyCc.map((id) => staffList?.data?.find((s) => s.id === id)?.full_name).join(", ")}</span>
+                  <span className="text-warning">CC: {notifyCc.map((id) => staffList?.data?.find((s) => s.id === id)?.full_name).join(", ")}</span>
                 )}
               </div>
             )}
@@ -413,7 +413,7 @@ export default function LeavesPage() {
         <LoadingSkeleton className="h-64" />
       ) : (
         <>
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="bg-card border border-border rounded-lg overflow-hidden">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
@@ -430,7 +430,7 @@ export default function LeavesPage() {
               <tbody>
                 {leavesData?.data && leavesData.data.length > 0 ? (
                   leavesData.data.map((leave) => (
-                    <tr key={leave.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                    <tr key={leave.id} className="border-b border-border last:border-0 hover:bg-canvas-soft">
                       <td className="px-4 py-3">
                         <div>
                           <p className="text-sm text-foreground font-medium">{leave.staff?.full_name}</p>
@@ -438,7 +438,7 @@ export default function LeavesPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">
+                        <span className="px-2 py-0.5 bg-canvas-soft-2 text-primary text-xs rounded-full">
                           {LEAVE_TYPE_LABELS[leave.leave_type] || leave.leave_type}
                         </span>
                       </td>
@@ -468,14 +468,14 @@ export default function LeavesPage() {
                             <>
                               <button
                                 onClick={() => setReviewTarget({ id: leave.id, action: "approved" })}
-                                className="p-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors"
+                                className="p-1.5 rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors"
                                 title="Approve"
                               >
                                 <Check className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => setReviewTarget({ id: leave.id, action: "rejected" })}
-                                className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                                className="p-1.5 rounded-lg bg-error/10 text-error hover:bg-error/20 transition-colors"
                                 title="Reject"
                               >
                                 <X className="w-4 h-4" />
@@ -486,7 +486,7 @@ export default function LeavesPage() {
                             <button
                               onClick={() => cancelMutation.mutate(leave.id)}
                               disabled={cancelMutation.isPending}
-                              className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+                              className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:bg-canvas-soft-2 transition-colors"
                               title="Cancel"
                             >
                               <CalendarOff className="w-4 h-4" />
@@ -539,7 +539,7 @@ export default function LeavesPage() {
       {/* Review Dialog */}
       {reviewTarget && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md mx-4">
+          <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4">
             <h3 className="text-base font-semibold text-foreground mb-2">
               {reviewTarget.action === "approved" ? "Approve" : "Reject"} Leave Request
             </h3>
@@ -570,7 +570,7 @@ export default function LeavesPage() {
                 disabled={reviewMutation.isPending}
                 className={`px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 ${
                   reviewTarget.action === "approved"
-                    ? "bg-green-600 text-white hover:bg-green-700"
+                    ? "bg-success text-on-primary hover:bg-success"
                     : "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 }`}
               >

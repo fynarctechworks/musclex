@@ -213,7 +213,7 @@ export default function StaffProfilePage() {
       </Link>
 
       {/* Profile Header */}
-      <div className="bg-card border border-border rounded-xl p-6 mb-6">
+      <div className="bg-card border border-border rounded-lg p-6 mb-6">
         <div className="flex items-start justify-between">
           <div>
             {isEditing ? (
@@ -241,7 +241,7 @@ export default function StaffProfilePage() {
                 <option value="marketing_manager">Marketing Manager</option>
               </select>
             ) : (
-              <span className="inline-block mt-1 px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full capitalize">
+              <span className="inline-block mt-1 px-2 py-0.5 bg-canvas-soft-2 text-primary text-xs rounded-full capitalize">
                 {staff.role.replace("_", " ")}
               </span>
             )}
@@ -356,7 +356,7 @@ export default function StaffProfilePage() {
                 </div>
               )}
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Star className="w-4 h-4 text-amber-500" />
+                <Star className="w-4 h-4 text-warning" />
                 Performance: {staff.performance_score}/100
               </div>
               {staff.joined_at && (
@@ -372,11 +372,11 @@ export default function StaffProfilePage() {
 
       {/* Specializations (view mode only) */}
       {!isEditing && staff.specializations && staff.specializations.length > 0 && (
-        <div className="bg-card border border-border rounded-xl p-6 mb-6">
+        <div className="bg-card border border-border rounded-lg p-6 mb-6">
           <h2 className="text-base font-semibold text-foreground mb-3">Specializations</h2>
           <div className="flex flex-wrap gap-2">
             {staff.specializations.map((spec) => (
-              <span key={spec} className="px-3 py-1 bg-primary/10 text-primary text-sm rounded-full">
+              <span key={spec} className="px-3 py-1 bg-canvas-soft-2 text-primary text-sm rounded-full">
                 {spec}
               </span>
             ))}
@@ -385,7 +385,7 @@ export default function StaffProfilePage() {
       )}
 
       {/* Performance */}
-      <div className="bg-card border border-border rounded-xl p-6 mb-6">
+      <div className="bg-card border border-border rounded-lg p-6 mb-6">
         <h2 className="text-base font-semibold text-foreground mb-3">Performance Score</h2>
         <div className="w-full bg-background rounded-full h-4">
           <div
@@ -393,7 +393,7 @@ export default function StaffProfilePage() {
               staff.performance_score >= 70
                 ? "bg-primary"
                 : staff.performance_score >= 40
-                  ? "bg-amber-500"
+                  ? "bg-warning"
                   : "bg-destructive"
             }`}
             style={{ width: `${staff.performance_score}%` }}
@@ -404,7 +404,7 @@ export default function StaffProfilePage() {
 
       {/* Owner Actions: Invite, Password, Permissions */}
       {isOwner && (
-        <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+        <div className="bg-card border border-border rounded-lg p-6 space-y-4">
           <h2 className="text-base font-semibold text-foreground">Access Management</h2>
 
           {/* Send Invite */}
@@ -431,9 +431,9 @@ export default function StaffProfilePage() {
           )}
 
           {staff.user_id && (
-            <div className="flex items-center gap-2 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-              <div className="w-2 h-2 bg-green-500 rounded-full" />
-              <p className="text-sm text-green-400">Login account linked</p>
+            <div className="flex items-center gap-2 p-3 bg-success/10 rounded-lg border border-success/30">
+              <div className="w-2 h-2 bg-success rounded-full" />
+              <p className="text-sm text-success">Login account linked</p>
             </div>
           )}
 
@@ -500,13 +500,13 @@ export default function StaffProfilePage() {
                     setPermGrants(allCodes);
                     setPermDenials([]);
                   }}
-                  className="px-3 py-1 bg-green-500/10 text-green-400 text-xs rounded hover:bg-green-500/20"
+                  className="px-3 py-1 bg-success/10 text-success text-xs rounded hover:bg-success/20"
                 >
                   Grant All
                 </button>
                 <button
                   onClick={() => { setPermGrants([]); setPermDenials([]); }}
-                  className="px-3 py-1 bg-muted text-muted-foreground text-xs rounded hover:bg-muted/80"
+                  className="px-3 py-1 bg-muted text-muted-foreground text-xs rounded hover:bg-canvas-soft-2"
                 >
                   Clear All
                 </button>
@@ -528,7 +528,7 @@ export default function StaffProfilePage() {
                             setPermDenials((d) => d.filter((c) => !codes.includes(c)));
                             setPermGrants((g) => Array.from(new Set([...g, ...codes])));
                           }}
-                          className={`px-2 py-0.5 text-[10px] rounded ${allGranted ? "bg-green-500 text-white" : "bg-green-500/10 text-green-400 hover:bg-green-500/20"}`}
+                          className={`px-2 py-0.5 text-[10px] rounded ${allGranted ? "bg-success text-on-primary" : "bg-success/10 text-success hover:bg-success/20"}`}
                         >
                           +All
                         </button>
@@ -537,7 +537,7 @@ export default function StaffProfilePage() {
                             setPermGrants((g) => g.filter((c) => !codes.includes(c)));
                             setPermDenials((d) => Array.from(new Set([...d, ...codes])));
                           }}
-                          className={`px-2 py-0.5 text-[10px] rounded ${allDenied ? "bg-red-500 text-white" : "bg-red-500/10 text-red-400 hover:bg-red-500/20"}`}
+                          className={`px-2 py-0.5 text-[10px] rounded ${allDenied ? "bg-error text-on-primary" : "bg-error/10 text-error hover:bg-error/20"}`}
                         >
                           -All
                         </button>
@@ -546,7 +546,7 @@ export default function StaffProfilePage() {
                             setPermGrants((g) => g.filter((c) => !codes.includes(c)));
                             setPermDenials((d) => d.filter((c) => !codes.includes(c)));
                           }}
-                          className="px-2 py-0.5 text-[10px] rounded bg-muted text-muted-foreground hover:bg-muted/80"
+                          className="px-2 py-0.5 text-[10px] rounded bg-muted text-muted-foreground hover:bg-canvas-soft-2"
                         >
                           Clear
                         </button>
@@ -576,9 +576,9 @@ export default function StaffProfilePage() {
                             }}
                             className={`px-2 py-1 text-[11px] rounded transition-colors ${
                               isGranted
-                                ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                                ? "bg-success/20 text-success border border-success/30"
                                 : isDenied
-                                  ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                                  ? "bg-error/20 text-error border border-error/30"
                                   : "bg-muted text-muted-foreground border border-border hover:border-primary/30"
                             }`}
                           >

@@ -32,7 +32,7 @@ const METRIC_CONFIG = [
 ];
 
 const ALERT_STYLES: Record<string, string> = {
-  warning: "bg-amber-500",
+  warning: "bg-warning",
   danger: "bg-destructive",
   info: "bg-primary",
 };
@@ -63,7 +63,7 @@ export default function DailyBriefingPage() {
 
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
-          <Sparkles className="w-6 h-6 text-amber-500" /> Daily Briefing
+          <Sparkles className="w-6 h-6 text-warning" /> Daily Briefing
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           {b?.date
@@ -82,7 +82,7 @@ export default function DailyBriefingPage() {
       ) : b ? (
         <div className="space-y-6">
           {/* Summary */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="bg-card border border-border rounded-lg p-6">
             <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-primary" /> Summary
             </h2>
@@ -92,7 +92,7 @@ export default function DailyBriefingPage() {
           </div>
 
           {/* Key Metrics — mapped from named object */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="bg-card border border-border rounded-lg p-6">
             <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" /> Key Metrics
             </h2>
@@ -107,7 +107,7 @@ export default function DailyBriefingPage() {
                       <Icon className="w-4 h-4 text-muted-foreground" />
                       <p className="text-xs text-muted-foreground">{m.label}</p>
                     </div>
-                    <p className="text-xl font-bold text-foreground">
+                    <p className="text-xl font-semibold text-foreground">
                       {m.format(val)}
                     </p>
                   </div>
@@ -118,9 +118,9 @@ export default function DailyBriefingPage() {
 
           {/* Alerts — objects with type, title, message */}
           {b.alerts && b.alerts.length > 0 && (
-            <div className="bg-card border border-border rounded-xl p-6">
+            <div className="bg-card border border-border rounded-lg p-6">
               <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-amber-500" /> Alerts
+                <AlertTriangle className="w-5 h-5 text-warning" /> Alerts
               </h2>
               <ul className="space-y-3">
                 {b.alerts.map((alert: BriefingAlert, i: number) => (
@@ -143,7 +143,7 @@ export default function DailyBriefingPage() {
 
           {/* Recommendations */}
           {b.recommendations && b.recommendations.length > 0 && (
-            <div className="bg-card border border-border rounded-xl p-6">
+            <div className="bg-card border border-border rounded-lg p-6">
               <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-primary" />{" "}
                 Recommendations
@@ -163,7 +163,7 @@ export default function DailyBriefingPage() {
           )}
         </div>
       ) : (
-        <div className="bg-card border border-border rounded-xl p-12 text-center">
+        <div className="bg-card border border-border rounded-lg p-12 text-center">
           <p className="text-muted-foreground">
             No briefing available. Check back tomorrow morning.
           </p>

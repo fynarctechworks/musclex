@@ -12,44 +12,60 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-// Shared field wrapper
+/**
+ * Form field family — Design.md `form-input` chrome with label + error
+ * wrappers. The underlying Input/Select/Textarea primitives already follow
+ * the brand: 40 px height, hairline border, 6 px radius, ink focus ring.
+ * These wrappers only add the label / error layout.
+ */
+
 interface FieldWrapperProps {
   label?: string;
   error?: string;
+  hint?: string;
+  required?: boolean;
   children: React.ReactNode;
   className?: string;
 }
 
-export function FieldWrapper({ label, error, children, className }: FieldWrapperProps) {
+export function FieldWrapper({
+  label,
+  error,
+  hint,
+  required,
+  children,
+  className,
+}: FieldWrapperProps) {
   return (
     <div className={cn("space-y-1.5", className)}>
       {label && (
-        <label className="text-[13px] font-medium text-foreground">
+        <label className="block text-sm font-medium text-foreground leading-5">
           {label}
+          {required && <span className="ml-0.5 text-error">*</span>}
         </label>
       )}
       {children}
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {hint && !error && (
+        <p className="text-xs text-muted-foreground leading-4">{hint}</p>
+      )}
+      {error && <p className="text-xs text-error-deep leading-4">{error}</p>}
     </div>
   );
 }
 
-// Styled Input
 interface FormInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  hint?: string;
 }
 
 export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
-  ({ label, error, className, ...props }, ref) => (
-    <FieldWrapper label={label} error={error}>
+  ({ label, error, hint, required, className, ...props }, ref) => (
+    <FieldWrapper label={label} error={error} hint={hint} required={required}>
       <Input
         ref={ref}
-        className={cn(
-          "h-9 bg-secondary border-border text-foreground text-[13px] placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary/30",
-          error && "border-destructive",
-          className
-        )}
+        aria-invalid={!!error}
+        className={className}
         {...props}
       />
     </FieldWrapper>
@@ -57,10 +73,11 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
 );
 FormInput.displayName = "FormInput";
 
-// Styled Select
 interface FormSelectProps {
   label?: string;
   error?: string;
+  hint?: string;
+  required?: boolean;
   placeholder?: string;
   value?: string;
   onValueChange?: (value: string) => void;
@@ -71,6 +88,8 @@ interface FormSelectProps {
 export function FormSelect({
   label,
   error,
+  hint,
+  required,
   placeholder = "Select...",
   value,
   onValueChange,
@@ -78,49 +97,45 @@ export function FormSelect({
   className,
 }: FormSelectProps) {
   return (
-    <FieldWrapper label={label} error={error} className={className}>
+    <FieldWrapper
+      label={label}
+      error={error}
+      hint={hint}
+      required={required}
+      className={className}
+    >
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger
-          className={cn(
-            "h-9 bg-secondary border-border text-foreground text-[13px]",
-            error && "border-destructive"
-          )}
-        >
+        <SelectTrigger aria-invalid={!!error}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
-        <SelectContent className="bg-popover border-border">
-          {options.filter((opt) => opt.value !== "").map((opt) => (
-            <SelectItem
-              key={opt.value}
-              value={opt.value}
-              className="text-popover-foreground text-[13px] focus:bg-accent"
-            >
-              {opt.label}
-            </SelectItem>
-          ))}
+        <SelectContent>
+          {options
+            .filter((opt) => opt.value !== "")
+            .map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
         </SelectContent>
       </Select>
     </FieldWrapper>
   );
 }
 
-// Styled Textarea
 interface FormTextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   error?: string;
+  hint?: string;
 }
 
 export const FormTextarea = forwardRef<HTMLTextAreaElement, FormTextareaProps>(
-  ({ label, error, className, ...props }, ref) => (
-    <FieldWrapper label={label} error={error}>
+  ({ label, error, hint, required, className, ...props }, ref) => (
+    <FieldWrapper label={label} error={error} hint={hint} required={required}>
       <Textarea
         ref={ref}
-        className={cn(
-          "bg-secondary border-border text-foreground text-[13px] placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary/30 min-h-[80px]",
-          error && "border-destructive",
-          className
-        )}
+        aria-invalid={!!error}
+        className={className}
         {...props}
       />
     </FieldWrapper>
@@ -128,24 +143,21 @@ export const FormTextarea = forwardRef<HTMLTextAreaElement, FormTextareaProps>(
 );
 FormTextarea.displayName = "FormTextarea";
 
-// Date Picker (simple input type="date" styled for dark theme)
 interface FormDatePickerProps
   extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  hint?: string;
 }
 
 export const FormDatePicker = forwardRef<HTMLInputElement, FormDatePickerProps>(
-  ({ label, error, className, ...props }, ref) => (
-    <FieldWrapper label={label} error={error}>
+  ({ label, error, hint, required, className, ...props }, ref) => (
+    <FieldWrapper label={label} error={error} hint={hint} required={required}>
       <Input
         ref={ref}
         type="date"
-        className={cn(
-          "h-9 bg-secondary border-border text-foreground text-[13px] focus:border-primary focus:ring-1 focus:ring-primary/30",
-          error && "border-destructive",
-          className
-        )}
+        aria-invalid={!!error}
+        className={className}
         {...props}
       />
     </FieldWrapper>
@@ -153,22 +165,22 @@ export const FormDatePicker = forwardRef<HTMLInputElement, FormDatePickerProps>(
 );
 FormDatePicker.displayName = "FormDatePicker";
 
-// File Upload
 interface FormFileUploadProps
   extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  hint?: string;
 }
 
 export const FormFileUpload = forwardRef<HTMLInputElement, FormFileUploadProps>(
-  ({ label, error, className, ...props }, ref) => (
-    <FieldWrapper label={label} error={error}>
+  ({ label, error, hint, required, className, ...props }, ref) => (
+    <FieldWrapper label={label} error={error} hint={hint} required={required}>
       <Input
         ref={ref}
         type="file"
+        aria-invalid={!!error}
         className={cn(
-          "h-9 bg-secondary border-border text-foreground text-[13px] file:bg-muted file:text-muted-foreground file:border-0 file:mr-3 file:px-3 file:rounded-md cursor-pointer",
-          error && "border-destructive",
+          "file:bg-canvas-soft-2 file:text-foreground file:border-0 file:mr-3 file:px-3 file:rounded-sm file:py-1.5 cursor-pointer",
           className
         )}
         {...props}

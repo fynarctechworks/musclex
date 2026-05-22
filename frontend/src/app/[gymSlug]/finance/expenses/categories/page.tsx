@@ -104,7 +104,7 @@ export default function ExpenseCategoriesPage() {
         className="mb-5"
       />
 
-      <div className="rounded-xl border border-border bg-card">
+      <div className="rounded-lg border border-border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -146,7 +146,7 @@ export default function ExpenseCategoriesPage() {
                   </TableCell>
                   <TableCell>
                     {c.is_default ? (
-                      <span className="rounded bg-primary/15 px-2 py-0.5 text-[10px] uppercase text-primary">
+                      <span className="rounded bg-canvas-soft-2 px-2 py-0.5 text-[10px] uppercase text-primary">
                         Default
                       </span>
                     ) : (
@@ -157,8 +157,8 @@ export default function ExpenseCategoriesPage() {
                     <span
                       className={`rounded px-2 py-0.5 text-[10px] uppercase ${
                         c.is_active
-                          ? "bg-emerald-500/15 text-emerald-400"
-                          : "bg-rose-500/15 text-rose-400"
+                          ? "bg-success/15 text-success"
+                          : "bg-error/15 text-error"
                       }`}
                     >
                       {c.is_active ? "Active" : "Inactive"}
@@ -222,7 +222,7 @@ export default function ExpenseCategoriesPage() {
                   disabled={!activeBranchId}
                   className={`flex-1 rounded-md border px-3 py-2 text-xs ${
                     scope === "branch"
-                      ? "border-primary bg-primary/15 text-primary"
+                      ? "border-primary bg-canvas-soft-2 text-primary"
                       : "border-border bg-background text-muted-foreground"
                   }`}
                 >
@@ -233,7 +233,7 @@ export default function ExpenseCategoriesPage() {
                   onClick={() => setScope("gym")}
                   className={`flex-1 rounded-md border px-3 py-2 text-xs ${
                     scope === "gym"
-                      ? "border-primary bg-primary/15 text-primary"
+                      ? "border-primary bg-canvas-soft-2 text-primary"
                       : "border-border bg-background text-muted-foreground"
                   }`}
                 >

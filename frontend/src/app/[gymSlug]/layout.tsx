@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { Loader2 } from "lucide-react";
+import { SubscriptionProvider, SubscriptionRenewalModal } from "@/features/subscription";
 
 export default function GymSlugLayout({
   children,
@@ -52,5 +53,10 @@ export default function GymSlugLayout({
     );
   }
 
-  return <>{children}</>;
+  return (
+    <SubscriptionProvider>
+      {children}
+      <SubscriptionRenewalModal />
+    </SubscriptionProvider>
+  );
 }

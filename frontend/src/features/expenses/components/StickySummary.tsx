@@ -22,7 +22,7 @@ export function StickySummary({ branchId }: StickySummaryProps) {
 
   return (
     <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="rounded-lg border border-border bg-card p-4">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">
           Today
         </p>
@@ -34,7 +34,7 @@ export function StickySummary({ branchId }: StickySummaryProps) {
         </p>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="rounded-lg border border-border bg-card p-4">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">
           This Month
         </p>
@@ -46,7 +46,7 @@ export function StickySummary({ branchId }: StickySummaryProps) {
         </p>
       </div>
 
-      <div className="col-span-2 rounded-xl border border-border bg-card p-4 sm:col-span-1">
+      <div className="col-span-2 rounded-lg border border-border bg-card p-4 sm:col-span-1">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">
           Offline Queue
         </p>

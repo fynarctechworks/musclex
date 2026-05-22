@@ -276,7 +276,7 @@ export default function RecordPaymentPage() {
                 onClick={() => setBillingCycle((c) => c === "monthly" ? "yearly" : "monthly")}
                 className={`relative w-10 h-6 rounded-full transition-colors ${billingCycle === "yearly" ? "bg-primary" : "bg-muted"}`}
               >
-                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${billingCycle === "yearly" ? "translate-x-5" : "translate-x-1"}`} />
+                <span className={`absolute top-1 w-4 h-4 rounded-full bg-canvas transition-transform ${billingCycle === "yearly" ? "translate-x-5" : "translate-x-1"}`} />
               </button>
               <span className={`text-sm ${billingCycle === "yearly" ? "text-foreground font-medium" : "text-muted-foreground"}`}>
                 Yearly{billingCycle === "yearly" && selectedPlan.yearly_price != null
@@ -314,7 +314,7 @@ export default function RecordPaymentPage() {
                   className={cn(
                     "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors",
                     active
-                      ? "border-primary bg-primary/10 text-primary"
+                      ? "border-primary bg-canvas-soft-2 text-primary"
                       : "border-border bg-background text-foreground hover:bg-muted"
                   )}
                 >

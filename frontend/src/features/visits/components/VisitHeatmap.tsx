@@ -24,9 +24,9 @@ interface VisitHeatmapProps {
 }
 
 function getIntensityClass(value: number, max: number): string {
-  if (max === 0 || value === 0) return "bg-muted/30";
+  if (max === 0 || value === 0) return "bg-canvas-soft";
   const ratio = value / max;
-  if (ratio < 0.25) return "bg-primary/20";
+  if (ratio < 0.25) return "bg-canvas-soft-2";
   if (ratio < 0.5) return "bg-primary/40";
   if (ratio < 0.75) return "bg-primary/65";
   return "bg-primary";
@@ -40,7 +40,7 @@ export function VisitHeatmap({ data, className }: VisitHeatmapProps) {
 
   if (!data || data.length === 0) {
     return (
-      <div className={cn("rounded-xl border border-border bg-card p-5", className)}>
+      <div className={cn("rounded-lg border border-border bg-card p-5", className)}>
         <h3 className="text-base font-semibold text-foreground mb-4">Visit Heatmap</h3>
         <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
           No heatmap data available
@@ -50,14 +50,14 @@ export function VisitHeatmap({ data, className }: VisitHeatmapProps) {
   }
 
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-5", className)}>
+    <div className={cn("rounded-lg border border-border bg-card p-5", className)}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-foreground">Visit Heatmap</h3>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <span>Less</span>
           <div className="flex gap-0.5">
-            <div className="w-3 h-3 rounded-sm bg-muted/30" />
-            <div className="w-3 h-3 rounded-sm bg-primary/20" />
+            <div className="w-3 h-3 rounded-sm bg-canvas-soft" />
+            <div className="w-3 h-3 rounded-sm bg-canvas-soft-2" />
             <div className="w-3 h-3 rounded-sm bg-primary/40" />
             <div className="w-3 h-3 rounded-sm bg-primary/65" />
             <div className="w-3 h-3 rounded-sm bg-primary" />

@@ -59,11 +59,11 @@ const sourceOptions = [
 ];
 
 const statusColors: Record<string, string> = {
-  new: "bg-blue-500/10 text-blue-500",
-  contacted: "bg-yellow-500/10 text-yellow-500",
-  trial_scheduled: "bg-purple-500/10 text-purple-400",
+  new: "bg-link/10 text-link",
+  contacted: "bg-warning/10 text-warning",
+  trial_scheduled: "bg-foreground/10 text-foreground",
   converted: "bg-success/10 text-success",
-  lost: "bg-red-500/10 text-red-400",
+  lost: "bg-error/10 text-error",
 };
 
 interface CreateLeadForm {
@@ -152,8 +152,8 @@ export default function LeadsPage() {
       {funnel && (
         <div className="grid grid-cols-5 gap-3 mb-6">
           {Object.entries(funnel).map(([key, count]) => (
-            <div key={key} className="bg-card border border-border rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold text-foreground">{count as number}</p>
+            <div key={key} className="bg-card border border-border rounded-lg p-4 text-center">
+              <p className="text-2xl font-semibold text-foreground">{count as number}</p>
               <p className="text-xs text-muted-foreground capitalize">{key.replace("_", " ")}</p>
             </div>
           ))}
@@ -207,7 +207,7 @@ export default function LeadsPage() {
         />
       ) : (
         <>
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="bg-card border border-border rounded-lg overflow-hidden">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
@@ -221,7 +221,7 @@ export default function LeadsPage() {
               </thead>
               <tbody>
                 {leads.map((lead) => (
-                  <tr key={lead.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                  <tr key={lead.id} className="border-b border-border last:border-0 hover:bg-canvas-soft">
                     <td className="px-4 py-3">
                       <Link href={gymPath(`/marketing/leads/${lead.id}`)} className="hover:underline">
                         <p className="text-sm text-foreground font-medium">{lead.full_name}</p>

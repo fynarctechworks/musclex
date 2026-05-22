@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Package, Pencil, Search } from 'lucide-react';
+import { Package, Pencil, Search, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { StockBadge } from './StockBadge';
+import { BranchPriceDialog } from './BranchPriceDialog';
 import { useProducts, useCategories } from '../hooks';
 import type { Product, ProductFilters } from '../types';
 
@@ -22,6 +23,7 @@ interface ProductTableProps {
 }
 
 export function ProductTable({ branchId, onEdit }: ProductTableProps) {
+  const [priceProduct, setPriceProduct] = useState<Product | null>(null);
   const [filters, setFilters] = useState<ProductFilters>({
     branch_id: branchId,
     page: 1,
@@ -51,8 +53,8 @@ export function ProductTable({ branchId, onEdit }: ProductTableProps) {
   const statusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-success/20 text-success';
-      case 'inactive': return 'bg-gray-500/20 text-gray-400';
-      case 'discontinued': return 'bg-red-500/20 text-red-400';
+      case 'inactive': return 'bg-gray-500/20 text-muted-foreground';
+      case 'discontinued': return 'bg-error/20 text-error';
       default: return '';
     }
   };
@@ -105,7 +107,7 @@ export function ProductTable({ branchId, onEdit }: ProductTableProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-muted/50">
+              <tr className="border-b border-border bg-canvas-soft">
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Product</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">SKU</th>
                 <th className="text-right px-4 py-3 font-medium text-muted-foreground">Price</th>
@@ -135,9 +137,24 @@ export function ProductTable({ branchId, onEdit }: ProductTableProps) {
                 products.map((product) => {
                   const { stock, reorder } = getStockInfo(product);
                   return (
-                    <tr key={product.id} className="border-b border-border hover:bg-muted/30 transition-colors">
+                    <tr key={product.id} className="border-b border-border hover:bg-canvas-soft transition-colors">
                       <td className="px-4 py-3">
-                        <div className="font-medium text-foreground">{product.product_name}</div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-foreground">{product.product_name}</span>
+                          {product.track_batches && (
+                            <Badge className="bg-primary/15 text-primary text-[10px] px-1.5 py-0">
+                              Batch
+                            </Badge>
+                          )}
+                          {product.product_type && product.product_type !== 'physical' && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 capitalize">
+                              {product.product_type}
+                            </Badge>
+                          )}
+                        </div>
+                        {product.brand && (
+                          <div className="text-xs text-muted-foreground">{product.brand}</div>
+                        )}
                         {product.barcode && (
                           <div className="text-xs text-muted-foreground font-mono">{product.barcode}</div>
                         )}
@@ -149,7 +166,13 @@ export function ProductTable({ branchId, onEdit }: ProductTableProps) {
                         ₹{Number(product.price).toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <StockBadge stockQuantity={stock} reorderLevel={reorder} />
+                        {product.product_type === 'service' ||
+                        product.product_type === 'subscription' ||
+                        product.product_type === 'digital' ? (
+                          <span className="text-xs text-muted-foreground">N/A</span>
+                        ) : (
+                          <StockBadge stockQuantity={stock} reorderLevel={reorder} />
+                        )}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <Badge className={`text-xs ${statusColor(product.status)}`}>
@@ -160,14 +183,26 @@ export function ProductTable({ branchId, onEdit }: ProductTableProps) {
                         {product.category?.name || '—'}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                          onClick={() => onEdit(product)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
+                        <div className="flex justify-end gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Branch pricing"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={() => setPriceProduct(product)}
+                          >
+                            <Tag className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Edit product"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={() => onEdit(product)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -206,6 +241,12 @@ export function ProductTable({ branchId, onEdit }: ProductTableProps) {
           </div>
         </div>
       )}
+
+      <BranchPriceDialog
+        open={!!priceProduct}
+        onOpenChange={(o) => !o && setPriceProduct(null)}
+        product={priceProduct}
+      />
     </div>
   );
 }

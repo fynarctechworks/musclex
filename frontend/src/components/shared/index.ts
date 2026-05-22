@@ -1,10 +1,16 @@
+// Composite primitives
 export { KPICard } from "./kpi-card";
 export { StatusBadge } from "./status-badge";
 export { DataTable } from "./data-table";
 export { ConfirmDialog } from "./confirm-dialog";
 export { EmptyState } from "./empty-state";
 export { ErrorState } from "./error-state";
-export { LoadingSkeleton, CardSkeleton, TableSkeleton } from "./loading-skeleton";
+export {
+  LoadingSkeleton,
+  CardSkeleton,
+  TableSkeleton,
+} from "./loading-skeleton";
+export { Spinner, SpinnerOverlay } from "./spinner";
 export { PageHeader } from "./page-header";
 export { CommandPalette } from "./command-palette";
 export { Stepper } from "./stepper";
@@ -23,3 +29,36 @@ export { BackupCodesModal } from "./backup-codes-modal";
 export { TwoFactorSetupCard } from "./two-factor-setup-card";
 export { TwoFactorBanner } from "./two-factor-banner";
 export { AccessDenied } from "./access-denied";
+
+// Typography
+export {
+  Eyebrow,
+  DisplayXL,
+  DisplayLG,
+  DisplayMD,
+  DisplaySM,
+  BodyLG,
+  BodyMD,
+  BodySM,
+  Code,
+} from "./typography";
+
+// Section + Container
+export { Container, Section, SectionHeader } from "./section";
+
+// Page layout scaffolding
+export {
+  Page,
+  PageBody,
+  FormGrid,
+  DashboardGrid,
+  FilterRow,
+  CardGroup,
+} from "./page";
+
+// Unified state messaging
+export { Banner, BannerStack, BannerButton } from "./banner";
+
+// PDF preview
+export { PdfViewerModal } from "./pdf-viewer-modal";
+export type { PdfViewerModalProps } from "./pdf-viewer-modal";

@@ -1,8 +1,13 @@
 export { CheckinSearch } from './CheckinSearch';
+export { ActivityLogDrawer } from './ActivityLogDrawer';
 export { QRScanner } from './QRScanner';
 export { FaceScanner } from './FaceScanner';
 export { CheckinResult } from './CheckinResult';
+export { CheckinSuccessToastStack, type SuccessToastItem } from './CheckinSuccessToast';
 export { CheckinFeed } from './CheckinFeed';
 export { CapacityWidget } from './CapacityWidget';
 export { VisitAnalytics } from './VisitAnalytics';
 export { EntryAlerts } from './EntryAlerts';
+export { MemberHotkeyPalette, type PalettePickedMember } from './reception/MemberHotkeyPalette';
+export { OverrideDialog } from './reception/OverrideDialog';
+export { RecentMembersDock, type RecentMember } from './reception/RecentMembersDock';

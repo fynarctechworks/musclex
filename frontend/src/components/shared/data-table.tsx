@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -38,8 +39,22 @@ interface DataTableProps<TData, TValue> {
   searchPlaceholder?: string;
   pageSize?: number;
   onRowClick?: (row: TData) => void;
+  /**
+   * When true the table is wrapped in a fixed-height scroller and the header
+   * sticks to the top. Use for long-form data views (members, payments,
+   * leads) where the header should remain anchored as the user scrolls.
+   */
+  stickyHeader?: boolean;
+  /** Max height of the scroll body. Only relevant when stickyHeader is true. */
+  maxHeight?: string;
 }
 
+/**
+ * DataTable — Design.md `ex-data-table-cell` family.
+ * Hairline borders, mono-caps header, canvas hover row, level-2 chrome.
+ * Primitive Table + Input + Button now do the heavy lifting — wrapper just
+ * composes them.
+ */
 export function DataTable<TData, TValue>({
   columns,
   data,
@@ -47,6 +62,8 @@ export function DataTable<TData, TValue>({
   searchPlaceholder = "Search...",
   pageSize = 10,
   onRowClick,
+  stickyHeader = false,
+  maxHeight = "60vh",
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -60,23 +77,15 @@ export function DataTable<TData, TValue>({
     getFilteredRowModel: getFilteredRowModel(),
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
-    state: {
-      sorting,
-      columnFilters,
-    },
-    initialState: {
-      pagination: {
-        pageSize,
-      },
-    },
+    state: { sorting, columnFilters },
+    initialState: { pagination: { pageSize } },
   });
 
   return (
     <div className="space-y-4">
-      {/* Search bar */}
       {searchKey && (
         <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder={searchPlaceholder}
             value={
@@ -85,25 +94,24 @@ export function DataTable<TData, TValue>({
             onChange={(e) =>
               table.getColumn(searchKey)?.setFilterValue(e.target.value)
             }
-            className="h-9 bg-secondary border-border pl-9 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-primary"
+            className="pl-9"
           />
         </div>
       )}
 
-      {/* Table */}
-      <div className="rounded-lg border border-border overflow-hidden">
+      <div
+        className={cn(
+          "rounded-lg border border-hairline bg-card shadow-level-1",
+          stickyHeader ? "overflow-auto" : "overflow-hidden"
+        )}
+        style={stickyHeader ? { maxHeight } : undefined}
+      >
         <Table>
-          <TableHeader>
+          <TableHeader className={cn(stickyHeader && "sticky-thead")}>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow
-                key={headerGroup.id}
-                className="border-border bg-muted/50 hover:bg-muted/50"
-              >
+              <TableRow key={headerGroup.id} className="hover:bg-canvas-soft">
                 {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className="text-muted-foreground text-xs font-medium uppercase tracking-wider"
-                  >
+                  <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -120,14 +128,11 @@ export function DataTable<TData, TValue>({
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className={`border-border bg-card hover:bg-muted/30 transition-colors${onRowClick ? " cursor-pointer" : ""}`}
+                  className={cn(onRowClick && "cursor-pointer")}
                   onClick={() => onRowClick?.(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className="text-foreground text-[13px]"
-                    >
+                    <TableCell key={cell.id}>
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
@@ -140,7 +145,7 @@ export function DataTable<TData, TValue>({
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
-                  className="h-24 text-center text-muted-foreground text-[13px]"
+                  className="h-24 text-center text-muted-foreground"
                 >
                   No results found.
                 </TableCell>
@@ -150,9 +155,8 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
-      {/* Pagination */}
       <div className="flex items-center justify-between">
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           {table.getFilteredRowModel().rows.length} total row(s)
         </p>
         <div className="flex items-center gap-2">
@@ -160,16 +164,12 @@ export function DataTable<TData, TValue>({
             value={String(table.getState().pagination.pageSize)}
             onValueChange={(value) => table.setPageSize(Number(value))}
           >
-            <SelectTrigger className="h-8 w-[70px] bg-secondary border-border text-foreground text-[13px]">
+            <SelectTrigger className="h-8 w-[70px]">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-popover border-border">
+            <SelectContent>
               {[10, 20, 50, 100].map((size) => (
-                <SelectItem
-                  key={size}
-                  value={String(size)}
-                  className="text-popover-foreground text-[13px] focus:bg-accent"
-                >
+                <SelectItem key={size} value={String(size)}>
                   {size}
                 </SelectItem>
               ))}
@@ -177,23 +177,22 @@ export function DataTable<TData, TValue>({
           </Select>
           <Button
             variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            size="icon-sm"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
+            aria-label="Previous page"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-[13px] text-muted-foreground">
-            Page {table.getState().pagination.pageIndex + 1} of{" "}
-            {table.getPageCount()}
+          <span className="text-sm text-muted-foreground tabular-nums">
+            {table.getState().pagination.pageIndex + 1} / {table.getPageCount()}
           </span>
           <Button
             variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            size="icon-sm"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
+            aria-label="Next page"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>

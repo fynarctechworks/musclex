@@ -15,6 +15,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { HealthModule } from './modules/health/health.module';
+import { ReferralsModule } from './modules/referrals/referrals.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { HealthModule } from './modules/health/health.module';
     AnalyticsModule,
     AuditLogsModule,
     HealthModule,
+    ReferralsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

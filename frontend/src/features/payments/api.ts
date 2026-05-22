@@ -192,6 +192,7 @@ export const invoicesApi = {
     tax_rate_id?: string;
     due_date?: string;
     notes?: string;
+    place_of_supply?: string;
   }) => apiClient.post('/invoices', data),
 
   updateStatus: (id: string, status: 'pending' | 'paid' | 'partial' | 'cancelled' | 'refunded') =>
@@ -199,6 +200,32 @@ export const invoicesApi = {
 
   cancel: (id: string) =>
     apiClient.post(`/invoices/${id}/cancel`),
+
+  /** Returns { document_id, signed_url, storage_path } pointing at the rendered PDF. */
+  pdfLink: (id: string) =>
+    apiClient.get(`/invoices/${id}/pdf`, { params: { inline: 'false' } }),
+
+  /** Opens the inline PDF stream in a new tab — returns the URL with auth header preflight handled. */
+  pdfStreamUrl: (id: string) => `/invoices/${id}/pdf`,
+
+  send: (id: string, body: {
+    channels: Array<'email' | 'whatsapp'>;
+    email_override?: string;
+    phone_override?: string;
+  }) => apiClient.post(`/invoices/${id}/send`, body),
+};
+
+// ── POS receipts (document engine) ────────────────────────
+export const posReceiptsApi = {
+  pdfLink: (saleId: string, format: 'a4' | 'thermal_80mm' = 'a4') =>
+    apiClient.get(`/pos/sales/${saleId}/receipt`, { params: { inline: 'false', format } }),
+
+  send: (saleId: string, body: {
+    channels: Array<'email' | 'whatsapp'>;
+    format?: 'a4' | 'thermal_80mm';
+    email_override?: string;
+    phone_override?: string;
+  }) => apiClient.post(`/pos/sales/${saleId}/send-receipt`, body),
 };
 
 // ── Refunds ───────────────────────────────────────────────

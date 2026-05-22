@@ -95,7 +95,7 @@ export function PhotoUpload({ value, onChange, className }: PhotoUploadProps) {
           <img src={preview} alt="Preview" className="w-full h-full object-cover" />
           {uploading && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-              <Loader2 className="h-5 w-5 text-white animate-spin" />
+              <Loader2 className="h-5 w-5 text-on-primary animate-spin" />
             </div>
           )}
           {!uploading && (
@@ -104,7 +104,7 @@ export function PhotoUpload({ value, onChange, className }: PhotoUploadProps) {
               onClick={handleClear}
               className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 flex items-center justify-center hover:bg-black/80"
             >
-              <X className="h-3 w-3 text-white" />
+              <X className="h-3 w-3 text-on-primary" />
             </button>
           )}
         </div>

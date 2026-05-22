@@ -11,7 +11,7 @@ import Footer from './components/Footer';
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white text-gray-900 antialiased">
+    <div className="min-h-screen bg-canvas text-foreground antialiased">
       <Navbar />
       <main>
         <HeroSection />

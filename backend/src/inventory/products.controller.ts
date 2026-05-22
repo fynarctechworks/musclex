@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
+import { BatchService } from './batch.service';
 import {
   JwtAuthGuard,
   RolesGuard,
@@ -23,12 +24,17 @@ import {
   UpdateProductCategoryDto,
   AdjustInventoryDto,
   UpdateReorderLevelDto,
+  CreateBatchDto,
+  AdjustBatchDto,
 } from './dto';
 
 @Controller('api/v1')
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 export class ProductsController {
-  constructor(private readonly inventoryService: InventoryService) {}
+  constructor(
+    private readonly inventoryService: InventoryService,
+    private readonly batchService: BatchService,
+  ) {}
 
   // ── Categories ────────────────────────────────────────────────
 
@@ -85,14 +91,14 @@ export class ProductsController {
 
   @Get('products/barcode/:barcode')
   @Permissions({ module: 'inventory', action: 'view' })
-  findByBarcode(@Param('barcode') barcode: string) {
-    return this.inventoryService.findByBarcode(barcode);
+  findByBarcode(@Param('barcode') barcode: string, @Query('branch_id') branchId?: string) {
+    return this.inventoryService.findByBarcode(barcode, branchId);
   }
 
   @Get('products/sku/:sku')
   @Permissions({ module: 'inventory', action: 'view' })
-  findBySku(@Param('sku') sku: string) {
-    return this.inventoryService.findBySku(sku);
+  findBySku(@Param('sku') sku: string, @Query('branch_id') branchId?: string) {
+    return this.inventoryService.findBySku(sku, branchId);
   }
 
   @Get('products/:id')
@@ -166,5 +172,51 @@ export class ProductsController {
   @Permissions({ module: 'inventory', action: 'view' })
   getLowStockAlerts(@Query('branch_id') branchId?: string) {
     return this.inventoryService.getLowStockAlerts(branchId);
+  }
+
+  // ── Batches (FIFO / expiry tracking) ──────────────────────────
+
+  @Post('batches')
+  @Roles('owner', 'brand_owner', 'manager')
+  @Permissions({ module: 'inventory', action: 'create' })
+  createBatch(@Body() dto: CreateBatchDto) {
+    return this.batchService.createBatch(dto);
+  }
+
+  @Get('batches')
+  @Permissions({ module: 'inventory', action: 'view' })
+  findBatches(
+    @Query('product_id') productId?: string,
+    @Query('branch_id') branchId?: string,
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.batchService.findBatches({
+      product_id: productId,
+      branch_id: branchId,
+      status,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
+  }
+
+  @Get('batches/expiring')
+  @Permissions({ module: 'inventory', action: 'view' })
+  getExpiringBatches(
+    @Query('branch_id') branchId?: string,
+    @Query('days_ahead') daysAhead?: string,
+  ) {
+    return this.batchService.getExpiringBatches({
+      branch_id: branchId,
+      days_ahead: daysAhead ? parseInt(daysAhead, 10) : undefined,
+    });
+  }
+
+  @Patch('batches/:id/adjust')
+  @Roles('owner', 'brand_owner', 'manager')
+  @Permissions({ module: 'inventory', action: 'edit' })
+  adjustBatch(@Param('id') id: string, @Body() dto: AdjustBatchDto) {
+    return this.batchService.adjustBatch(id, dto);
   }
 }

@@ -30,6 +30,10 @@ export class CreateInvoiceItemDto {
   @IsNumber()
   @Min(0)
   unit_price: number;
+
+  @IsOptional()
+  @IsString()
+  hsn_sac?: string;
 }
 
 export class CreateInvoiceDto {
@@ -67,6 +71,11 @@ export class CreateInvoiceDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  /** 2-digit GST state code of buyer; if omitted, falls back to branch state */
+  @IsOptional()
+  @IsString()
+  place_of_supply?: string;
 }
 
 export class UpdateInvoiceStatusDto {

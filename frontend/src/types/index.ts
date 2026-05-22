@@ -13,7 +13,8 @@ export type PermissionModule =
   | 'ai'
   | 'settings'
   | 'branches'
-  | 'reports';
+  | 'reports'
+  | 'inventory';
 
 export type PermissionsMap = Partial<Record<PermissionModule, ModuleAction[]>>;
 
@@ -86,6 +87,14 @@ export interface MembershipPlan {
   organization_id?: string;
   branch_id?: string;
   branch?: { id: string; name: string };
+  // ── Multi-gym access scope (Phase 1 of cross-branch architecture) ──
+  access_type?: 'single_branch' | 'multi_branch' | 'all_access' | 'city_access' | 'time_based' | 'class_only';
+  tier?: 'basic' | 'pro' | 'elite' | 'vip';
+  allowed_branch_ids?: string[];
+  allowed_city?: string | null;
+  allowed_hours_json?: { start?: string; end?: string; days?: number[] } | null;
+  feature_flags?: Record<string, unknown>;
+  branch_price_overrides?: Record<string, number>;
   _count?: { memberships: number };
 }
 

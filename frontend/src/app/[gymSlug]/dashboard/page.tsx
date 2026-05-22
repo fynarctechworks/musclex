@@ -229,7 +229,7 @@ function OwnerManagerDashboard() {
             <FreshnessPill asOf={pulse?.generated_at ?? pulseUpdatedAt} />
             <Link
               href={gymPath("/dashboard/branches")}
-              className="text-[13px] text-primary hover:text-primary/80 flex items-center gap-1"
+              className="text-sm font-medium text-link hover:text-link-deep flex items-center gap-1 transition-colors"
             >
               Branch Comparison <ArrowRight className="w-4 h-4" />
             </Link>
@@ -359,11 +359,11 @@ function OwnerManagerDashboard() {
       )}
 
       {/* Working canvas — section heading establishes the second visual zone. */}
-      <header className="mt-8 mb-4 flex items-baseline justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+      <header className="mt-design-2xl mb-4 flex items-baseline justify-between">
+        <h2 className="font-mono text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
           Today
         </h2>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Action queue and trailing activity
         </p>
       </header>
@@ -374,17 +374,17 @@ function OwnerManagerDashboard() {
         </div>
 
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-card border border-border rounded-xl p-5 shadow-sm transition-shadow hover:shadow-md">
+          <div className="bg-card border border-hairline rounded-lg p-5 shadow-level-2 transition-shadow hover:shadow-level-3">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-canvas-soft-2 text-foreground">
                   <TrendingUp className="h-4 w-4" />
                 </span>
                 <div className="min-w-0">
-                  <h2 className="text-[17px] font-semibold leading-tight text-foreground truncate">
+                  <h2 className="text-base font-semibold tracking-[-0.01em] leading-tight text-foreground truncate">
                     Revenue Trend
                   </h2>
-                  <p className="text-[12px] text-muted-foreground mt-0.5 truncate">
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
                     Last 6 months of paid revenue
                   </p>
                 </div>
@@ -433,19 +433,20 @@ function OwnerManagerDashboard() {
             </div>
           </div>
 
-          <div className="bg-card border border-border rounded-xl p-5 shadow-sm transition-shadow hover:shadow-md">
+          <div className="bg-card border border-hairline rounded-lg p-5 shadow-level-2 transition-shadow hover:shadow-level-3">
             <div className="flex items-start justify-between mb-4 gap-3">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-canvas-soft-2 text-foreground">
                   <Activity className="h-4 w-4" />
                 </span>
                 <div className="min-w-0">
-                  <h2 className="text-[17px] font-semibold leading-tight text-foreground flex items-center gap-2 truncate">
+                  <h2 className="text-base font-semibold tracking-[-0.01em] leading-tight text-foreground flex items-center gap-2 truncate">
                     Recent Activity
                     <span
-                      className={`inline-block w-2 h-2 rounded-full shrink-0 ${
-                        isConnected ? "bg-success animate-pulse" : "bg-muted"
-                      }`}
+                      className={cn(
+                        "inline-block w-2 h-2 rounded-full shrink-0",
+                        isConnected ? "bg-success animate-pulse" : "bg-hairline-strong"
+                      )}
                       title={
                         isConnected
                           ? "Realtime connected"
@@ -453,35 +454,35 @@ function OwnerManagerDashboard() {
                       }
                     />
                     {checkInCount > 0 && (
-                      <span className="text-xs text-primary font-normal">
+                      <span className="text-xs text-link font-medium">
                         +{checkInCount} new
                       </span>
                     )}
                   </h2>
-                  <p className="text-[12px] text-muted-foreground mt-0.5 truncate">
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
                     Latest check-ins streamed live
                   </p>
                 </div>
               </div>
               <FreshnessPill asOf={activityUpdatedAt} />
             </div>
-            <div className="space-y-3">
+            <div className="space-y-1">
               {mergedActivity.length > 0 ? (
                 mergedActivity.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between py-2 border-b border-border last:border-0"
+                    className="flex items-center justify-between py-2 border-b border-hairline last:border-0"
                   >
-                    <p className="text-[13px] text-foreground">
+                    <p className="text-sm text-foreground">
                       {item.message}
                     </p>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap ml-4">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap ml-4 tabular-nums">
                       {new Date(item.timestamp).toLocaleString()}
                     </span>
                   </div>
                 ))
               ) : (
-                <p className="text-[13px] text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   No recent activity
                 </p>
               )}
@@ -609,10 +610,10 @@ function DashboardTileGrid({ branchId, onInspect: _onInspect, gymPath: _gymPath 
     <section className="mt-8" aria-label="Dashboard analytics">
       {/* Zone heading — sets context, anchors visual hierarchy below the Pulse + Action zone. */}
       <header className="mb-4 flex items-baseline justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        <h2 className="font-mono text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
           Deep Dive
         </h2>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Cards reflect the active branch and date range
         </p>
       </header>

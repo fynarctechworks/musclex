@@ -2,15 +2,44 @@
 
 import { cn } from "@/lib/utils";
 
-type StatusVariant = "active" | "expiring" | "expired" | "frozen" | "pending" | "inactive";
+type StatusVariant =
+  | "active"
+  | "expiring"
+  | "expired"
+  | "frozen"
+  | "pending"
+  | "inactive";
 
-const variantStyles: Record<StatusVariant, string> = {
-  active: "bg-primary/10 text-primary border-primary/20",
-  expiring: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-  expired: "bg-destructive/10 text-destructive border-destructive/20",
-  frozen: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  pending: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-  inactive: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20",
+/**
+ * StatusBadge — Design.md soft-pill semantic chips.
+ * Each variant uses the brand's *-soft background + *-deep text pairing.
+ * Adds a 1.5 px leading dot for at-a-glance status scanning.
+ */
+const variantStyles: Record<StatusVariant, { fill: string; dot: string }> = {
+  active: {
+    fill: "bg-success/12 text-success",
+    dot: "bg-success",
+  },
+  expiring: {
+    fill: "bg-warning-soft text-warning-deep",
+    dot: "bg-warning",
+  },
+  expired: {
+    fill: "bg-error-soft text-error-deep",
+    dot: "bg-error",
+  },
+  frozen: {
+    fill: "bg-link-soft text-link-deep",
+    dot: "bg-link",
+  },
+  pending: {
+    fill: "bg-warning-soft text-warning-deep",
+    dot: "bg-warning",
+  },
+  inactive: {
+    fill: "bg-canvas-soft-2 text-muted-foreground",
+    dot: "bg-hairline-strong",
+  },
 };
 
 const variantLabels: Record<StatusVariant, string> = {
@@ -46,21 +75,37 @@ export interface StatusBadgeProps {
   variant?: StatusVariant;
   status?: string;
   label?: string;
+  /** Hide the leading dot. */
+  hideDot?: boolean;
   className?: string;
 }
 
-export function StatusBadge({ variant, status, label, className }: StatusBadgeProps) {
-  const resolvedVariant = variant || statusToVariant[status || ""] || "pending";
-  const resolvedLabel = label || (status ? status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : variantLabels[resolvedVariant]);
+export function StatusBadge({
+  variant,
+  status,
+  label,
+  hideDot,
+  className,
+}: StatusBadgeProps) {
+  const resolvedVariant =
+    variant || statusToVariant[status || ""] || "pending";
+  const resolvedLabel =
+    label ||
+    (status
+      ? status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+      : variantLabels[resolvedVariant]);
+
+  const styles = variantStyles[resolvedVariant];
 
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
-        variantStyles[resolvedVariant],
+        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium leading-none h-6",
+        styles.fill,
         className
       )}
     >
+      {!hideDot && <span className={cn("h-1.5 w-1.5 rounded-full", styles.dot)} />}
       {resolvedLabel}
     </span>
   );

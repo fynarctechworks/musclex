@@ -14,13 +14,17 @@ import { CorporateMembershipService } from './corporate-membership.service';
 import { MembershipsController } from './memberships.controller';
 import { FamilyController } from './family.controller';
 import { CorporateController } from './corporate.controller';
+import { MembershipAccessController } from './membership-access.controller';
+import { MembershipAccessService } from './membership-access.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { EventsModule } from '../events/events.module';
+import { ReferralsModule } from '../referrals/referrals.module';
+import { AuditModule } from '../audit/audit.module';
 import { CronLockService } from '../common/services/cron-lock.service';
 import { ResourceLimitService } from '../common/services/resource-limit.service';
 
 @Module({
-  imports: [PrismaModule, EventsModule],
+  imports: [PrismaModule, EventsModule, ReferralsModule, AuditModule],
   controllers: [
     MembersController,
     MemberVisitsController,
@@ -28,6 +32,7 @@ import { ResourceLimitService } from '../common/services/resource-limit.service'
     MembershipsController,
     FamilyController,
     CorporateController,
+    MembershipAccessController,
   ],
   providers: [
     MembersService,
@@ -39,6 +44,7 @@ import { ResourceLimitService } from '../common/services/resource-limit.service'
     RenewalsService,
     FamilyMembershipService,
     CorporateMembershipService,
+    MembershipAccessService,
     CronLockService,
     ResourceLimitService,
   ],
@@ -52,6 +58,7 @@ import { ResourceLimitService } from '../common/services/resource-limit.service'
     RenewalsService,
     FamilyMembershipService,
     CorporateMembershipService,
+    MembershipAccessService,
   ],
 })
 export class MembersModule {}

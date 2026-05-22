@@ -19,7 +19,7 @@ export function StockBadge({ stockQuantity, reorderLevel, className }: StockBadg
   }
   if (stockQuantity <= reorderLevel) {
     return (
-      <Badge className={cn('bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 text-xs', className)}>
+      <Badge className={cn('bg-warning/20 text-warning hover:bg-warning/30 text-xs', className)}>
         Low Stock ({stockQuantity})
       </Badge>
     );

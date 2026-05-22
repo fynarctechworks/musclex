@@ -76,7 +76,7 @@ async function bootstrap() {
       .split(','),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'x-studio-id', 'x-branch-id', 'x-active-branch-id'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'x-studio-id', 'x-branch-id', 'x-active-branch-id', 'x-correlation-id'],
     maxAge: 86400,
   });
 

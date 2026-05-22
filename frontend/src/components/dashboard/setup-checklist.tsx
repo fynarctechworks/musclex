@@ -84,7 +84,7 @@ export function SetupChecklist({
   if (dismissed || allDone) return null;
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5 mb-6">
+    <div className="bg-card border border-border rounded-lg p-5 mb-6">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <h2 className="text-base font-semibold text-foreground">
@@ -97,7 +97,7 @@ export function SetupChecklist({
         <div className="flex items-center gap-1">
           <button
             onClick={() => setExpanded(!expanded)}
-            className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-canvas-soft hover:text-foreground transition-colors"
             aria-label={expanded ? "Collapse" : "Expand"}
           >
             {expanded ? (
@@ -108,7 +108,7 @@ export function SetupChecklist({
           </button>
           <button
             onClick={() => setDismissed(true)}
-            className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-canvas-soft hover:text-foreground transition-colors"
             aria-label="Dismiss checklist"
           >
             <X className="h-4 w-4" />
@@ -119,7 +119,7 @@ export function SetupChecklist({
       {/* Progress bar */}
       <div className="h-1.5 bg-muted rounded-full overflow-hidden mb-4">
         <div
-          className="h-full bg-primary rounded-full transition-all duration-500"
+          className="h-full bg-primary rounded-full transition-all duration-slow"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -134,7 +134,7 @@ export function SetupChecklist({
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors",
                 item.completed
                   ? "opacity-60"
-                  : "hover:bg-accent/60"
+                  : "hover:bg-canvas-soft/60"
               )}
             >
               {item.completed ? (

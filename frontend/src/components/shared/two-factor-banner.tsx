@@ -48,7 +48,7 @@ export function TwoFactorBanner() {
 
   return (
     <div className="relative bg-primary/5 border border-primary/20 rounded-lg mx-4 mt-4 lg:mx-6 lg:mt-6 mb-0 px-4 py-3 flex items-center gap-3">
-      <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+      <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
         <ShieldAlert className="h-4 w-4 text-primary" />
       </div>
       <div className="flex-1 min-w-0">

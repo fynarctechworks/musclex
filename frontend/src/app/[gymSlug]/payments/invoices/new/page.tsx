@@ -15,6 +15,7 @@ import { useCurrency } from "@/lib/hooks/use-currency";
 import { apiClient } from "@/lib/api";
 import { useCreateInvoice } from "@/features/payments";
 import type { Member, MembershipPlan, PaginatedResponse } from "@/lib/types";
+import { resolvePlanPrice } from "@/lib/plan-pricing";
 import { toast } from "sonner";
 
 type ItemType = "membership" | "class" | "personal_training" | "product";
@@ -140,7 +141,7 @@ export default function NewInvoicePage() {
 
       <form onSubmit={handleSubmit} className="max-w-3xl space-y-6 mt-6">
         {/* Member */}
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-lg border border-border bg-card p-5">
           <label className="text-sm font-medium text-foreground block mb-2">
             Member
           </label>
@@ -169,7 +170,7 @@ export default function NewInvoicePage() {
             </div>
           ) : null}
           {selectedMember && (
-            <div className="mt-3 flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3 py-2">
+            <div className="mt-3 flex items-center gap-2 rounded-md bg-canvas-soft-2 border border-primary/20 px-3 py-2">
               <span className="text-sm text-primary font-medium">
                 {selectedMember.full_name}
               </span>
@@ -188,7 +189,7 @@ export default function NewInvoicePage() {
         </div>
 
         {/* Line items */}
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-lg border border-border bg-card p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-foreground">Line Items</h2>
             <Button
@@ -240,7 +241,10 @@ export default function NewInvoicePage() {
                         );
                         updateItem(idx, {
                           description: e.target.value,
-                          unit_price: plan ? Number(plan.price) : item.unit_price,
+                          // Branch-aware price for this member's branch.
+                          unit_price: plan
+                            ? resolvePlanPrice(plan, selectedMember?.branch_id ?? null)
+                            : item.unit_price,
                         });
                       }}
                       className="w-full rounded-md border border-border bg-background text-foreground p-2 text-[13px]"
@@ -321,7 +325,7 @@ export default function NewInvoicePage() {
         </div>
 
         {/* Meta */}
-        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <div className="rounded-lg border border-border bg-card p-5 space-y-4">
           <div>
             <label className="text-sm font-medium text-foreground block mb-1">
               Due Date (optional)

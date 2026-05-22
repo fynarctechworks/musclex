@@ -22,6 +22,40 @@ interface ApiError extends Error {
   data?: unknown;
 }
 
+// ─── Subscription Write Gate ─────────────────────────────────
+// SubscriptionProvider keeps this in sync via setMutationAllowed().
+// When false (status != active), any POST/PUT/PATCH/DELETE is short-circuited
+// with a synthetic 403 SUBSCRIPTION_LOCKED — the modal opens and no network
+// request is sent. Backend stays authoritative; this just prevents wasted
+// round-trips and keeps the UX consistent across every page.
+let mutationAllowed = true;
+let lockedSubscription: Record<string, unknown> | null = null;
+
+export function setMutationAllowed(
+  allowed: boolean,
+  subscriptionPayload?: Record<string, unknown> | null,
+): void {
+  mutationAllowed = allowed;
+  lockedSubscription = subscriptionPayload ?? null;
+}
+
+// Endpoints that must work even when the tenant is locked/in-grace. Mirrors
+// the backend's ALWAYS_ALLOWED_PREFIXES in SubscriptionLockGuard.
+const ALWAYS_ALLOWED_PREFIXES = [
+  '/auth/',
+  '/subscription/',
+  '/settings/subscription',
+  '/settings/account',
+  '/settings/invoices',
+  '/settings/plans',
+];
+
+function isExemptEndpoint(endpoint: string): boolean {
+  return ALWAYS_ALLOWED_PREFIXES.some((p) => endpoint.startsWith(p));
+}
+
+const MUTATING_METHODS = new Set<HttpMethod>(['POST', 'PUT', 'PATCH', 'DELETE']);
+
 // ─── Auth State Helpers ──────────────────────────────────────
 
 function getAuthState(): { accessToken: string | null; refreshToken: string | null } {
@@ -65,6 +99,28 @@ function clearSession() {
   localStorage.removeItem('auth-storage');
   document.cookie = 'auth-token=; path=/; max-age=0';
   window.location.href = '/login?expired=true';
+}
+
+// ─── Correlation ID ──────────────────────────────────────────
+// One ID per request, echoed back from the backend in the response
+// X-Correlation-Id header. `lastCorrelationId` is intentionally a
+// module-global — callers (e.g. check-in mutations) can read it
+// immediately after an awaited request to attach to a Sentry breadcrumb.
+// This works because JavaScript is single-threaded; we never end up
+// with two awaits resolving between the assignment and the read.
+
+let lastCorrelationId: string | null = null;
+
+function generateCorrelationId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  // Fallback for environments without crypto.randomUUID (older Safari).
+  return 'cid-' + Math.random().toString(36).slice(2) + '-' + Date.now().toString(36);
+}
+
+export function getLastCorrelationId(): string | null {
+  return lastCorrelationId;
 }
 
 // ─── Token Refresh (singleton promise to prevent races) ──────
@@ -117,6 +173,29 @@ async function request<T = unknown>(
   config: RequestConfig = {},
 ): Promise<T> {
   const { method = 'GET', body, headers = {}, params, signal } = config;
+
+  // Short-circuit writes when the subscription doesn't allow mutations.
+  // Skip the network entirely and dispatch the same event the 403 handler
+  // would — SubscriptionProvider opens the renewal modal.
+  if (
+    !mutationAllowed &&
+    MUTATING_METHODS.has(method) &&
+    !isExemptEndpoint(endpoint) &&
+    typeof window !== 'undefined'
+  ) {
+    const payload = {
+      statusCode: 403,
+      error_code: 'SUBSCRIPTION_LOCKED',
+      message:
+        'Your subscription is not active. Renew to make changes — your data is safe and unchanged.',
+      subscription: lockedSubscription,
+    };
+    window.dispatchEvent(
+      new CustomEvent('subscription-locked', { detail: payload }),
+    );
+    throw createApiError(payload.message, 403, payload);
+  }
+
   const { accessToken } = getAuthState();
 
   const requestHeaders: Record<string, string> = {
@@ -134,6 +213,13 @@ async function request<T = unknown>(
     requestHeaders['X-Active-Branch-Id'] = activeBranchId;
   }
 
+  // Per-request correlation id. We generate one on the client, the
+  // backend stamps it on logs + events + WS payloads, and we echo it
+  // back as a Sentry breadcrumb so an error report carries the same
+  // key as the backend log line.
+  const correlationId = headers?.['X-Correlation-Id'] ?? generateCorrelationId();
+  requestHeaders['X-Correlation-Id'] = correlationId;
+
   const url = buildUrl(endpoint, params);
 
   let res = await fetch(url, {
@@ -142,6 +228,11 @@ async function request<T = unknown>(
     body: body ? JSON.stringify(body) : undefined,
     signal,
   });
+
+  // The backend may regenerate the id if it didn't trust ours (length
+  // bound / character whitelist). Trust the echo as authoritative.
+  const echoedCorrelationId = res.headers.get('X-Correlation-Id') ?? correlationId;
+  lastCorrelationId = echoedCorrelationId;
 
   // Token refresh on 401 — skip only for endpoints that don't require a valid session
   const skipRefresh = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/verify-email', '/auth/resend-verification', '/auth/forgot-password', '/auth/reset-password'].includes(endpoint);
@@ -169,9 +260,40 @@ async function request<T = unknown>(
     const errorData = await res.json().catch(() => ({ message: res.statusText }));
     const msg = errorData.message || 'API request failed';
 
+    // Sentry breadcrumb on failure — carries the same correlation id as
+    // the backend log line, so a support agent can paste it into Loki/
+    // CloudWatch and land on the exact request. Fire-and-forget; Sentry
+    // SDK is loaded lazily so we don't pull it into common bundles.
+    void emitSentryBreadcrumb({
+      level: res.status >= 500 ? 'error' : 'warning',
+      category: 'api',
+      message: `${method} ${endpoint} → ${res.status}`,
+      data: {
+        status: res.status,
+        endpoint,
+        method,
+        correlation_id: echoedCorrelationId,
+        error_code: (errorData as { error_code?: string })?.error_code,
+      },
+    });
+
     // Dispatch global event for plan limit errors → redirect to subscription page
     if (res.status === 403 && typeof window !== 'undefined' && (msg.includes('limit reached') || msg.includes('Upgrade'))) {
       window.dispatchEvent(new CustomEvent('plan-limit-reached', { detail: { message: msg } }));
+    }
+
+    // Subscription lock — let SubscriptionProvider show the modal. We still
+    // throw the error so the caller's mutation reports failure.
+    if (
+      res.status === 403 &&
+      typeof window !== 'undefined' &&
+      errorData?.error_code === 'SUBSCRIPTION_LOCKED'
+    ) {
+      window.dispatchEvent(
+        new CustomEvent('subscription-locked', {
+          detail: errorData,
+        }),
+      );
     }
 
     throw createApiError(msg, res.status, errorData);
@@ -212,6 +334,58 @@ export const apiClient = {
     request<T>(endpoint, { method: 'DELETE' }),
 };
 
+/**
+ * Fetch an authenticated binary resource (PDF, image, etc) and return a Blob.
+ * Used for in-app PDF previews where we need to feed an <iframe> src — the
+ * iframe can't send Authorization headers itself, so we fetch the blob and
+ * hand it a `URL.createObjectURL(blob)`.
+ */
+export async function fetchBlob(endpoint: string): Promise<Blob> {
+  const { accessToken } = getAuthState();
+  const url = endpoint.startsWith('http')
+    ? endpoint
+    : `${API_BASE_URL.replace(/\/api\/v1$/, '')}${endpoint}`;
+  const res = await fetch(url, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const err = new Error(`Request failed: ${res.status}`) as ApiError;
+    err.status = res.status;
+    throw err;
+  }
+  return await res.blob();
+}
+
 // Re-export for backward compatibility with existing pages
 export { request as api };
 export type { ApiError, RequestConfig };
+
+// ─── Sentry Breadcrumb (lazy) ────────────────────────────────
+// Lazy-imported so the bundler can tree-shake Sentry out of pages that
+// don't need it. We swallow every error here — a missing breadcrumb is
+// never worth crashing the user's request.
+
+interface BreadcrumbPayload {
+  level: 'info' | 'warning' | 'error';
+  category: string;
+  message: string;
+  data: Record<string, unknown>;
+}
+
+async function emitSentryBreadcrumb(crumb: BreadcrumbPayload): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    const Sentry = await import('@sentry/nextjs').catch(() => null);
+    if (!Sentry) return;
+    Sentry.addBreadcrumb({
+      level: crumb.level,
+      category: crumb.category,
+      message: crumb.message,
+      data: crumb.data,
+      timestamp: Date.now() / 1000,
+    });
+  } catch {
+    // Swallow — breadcrumb emission must never throw.
+  }
+}

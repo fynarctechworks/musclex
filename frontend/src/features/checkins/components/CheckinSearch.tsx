@@ -74,7 +74,10 @@ export function CheckinSearch({ branchId, isPending, onSubmit }: CheckinSearchPr
   return (
     <div className="space-y-3" onKeyDown={handleKeyDown}>
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <Search
+          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground"
+          aria-hidden="true"
+        />
         <Input
           ref={inputRef}
           placeholder="Search member name, phone, or ID..."
@@ -83,21 +86,21 @@ export function CheckinSearch({ branchId, isPending, onSubmit }: CheckinSearchPr
             setSearch(e.target.value);
             if (selectedMember) setSelectedMember(null);
           }}
-          className="pl-12 h-14 text-lg bg-muted border-border focus:border-primary"
+          className="h-14 w-full pl-12 pr-4 text-base bg-card border-hairline focus:border-primary"
           autoFocus
         />
       </div>
 
       {/* Search Results Dropdown */}
       {showDropdown && (
-        <div className="rounded-xl border border-border bg-card shadow-lg max-h-[320px] overflow-y-auto">
+        <div className="rounded-lg border border-border bg-card shadow-level-4 max-h-[320px] overflow-y-auto">
           {members.map((m) => (
             <button
               key={m.id}
               onClick={() => handleSelect(m)}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left border-b border-border last:border-b-0"
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-canvas-soft transition-colors text-left border-b border-border last:border-b-0"
             >
-              <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+              <div className="h-10 w-10 rounded-full bg-canvas-soft-2 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
                 {m.full_name.charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
@@ -106,8 +109,8 @@ export function CheckinSearch({ branchId, isPending, onSubmit }: CheckinSearchPr
               </div>
               <span className={`text-xs font-medium px-2 py-0.5 rounded ${
                 m.status === "active" ? "bg-success/10 text-success" :
-                m.status === "expiring_soon" ? "bg-yellow-500/10 text-yellow-500" :
-                "bg-red-500/10 text-red-500"
+                m.status === "expiring_soon" ? "bg-warning/10 text-warning" :
+                "bg-error/10 text-error"
               }`}>
                 {m.status.replace("_", " ")}
               </span>
@@ -118,9 +121,9 @@ export function CheckinSearch({ branchId, isPending, onSubmit }: CheckinSearchPr
 
       {/* Selected Member - Big Check-In Button */}
       {selectedMember && (
-        <div className="rounded-xl border-2 border-primary bg-card p-5">
+        <div className="rounded-lg border-2 border-primary bg-card p-5">
           <div className="flex items-center gap-4 mb-4">
-            <div className="h-14 w-14 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xl">
+            <div className="h-14 w-14 rounded-full bg-canvas-soft-2 flex items-center justify-center text-primary font-semibold text-xl">
               {selectedMember.full_name.charAt(0).toUpperCase()}
             </div>
             <div>

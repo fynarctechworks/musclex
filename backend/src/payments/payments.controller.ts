@@ -5,6 +5,7 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
   Headers,
   Req,
@@ -12,7 +13,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { Request } from 'express';
+import type { Request, Response } from 'express';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { PaymentsService } from './payments.service';
@@ -83,6 +84,37 @@ export class PaymentsController {
   @Permissions({ module: 'payments', action: 'view' })
   getInvoice(@Param('id') id: string) {
     return this.paymentsService.getInvoice(id);
+  }
+
+  /**
+   * Stream the member-payment receipt as a PDF. Inline by default so it
+   * renders inside an <iframe> preview; client adds ?download=1 to switch
+   * to attachment for download. Uses the same renderer as subscription
+   * invoices so receipts look identical across the product.
+   */
+  @Get(':id/pdf')
+  @Permissions({ module: 'payments', action: 'view' })
+  async getInvoicePdf(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Query('download') download: string | undefined,
+    @Res() res: Response,
+  ) {
+    const { buffer, filename } = await this.paymentsService.renderReceiptPdf(
+      user.studio_id,
+      id,
+    );
+    const disposition = download === '1' ? 'attachment' : 'inline';
+    // Set Content-Type explicitly — @Header() decorator is bypassed when
+    // @Res() is used directly, and without it the iframe renders blank.
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Length', String(buffer.length));
+    res.setHeader(
+      'Content-Disposition',
+      `${disposition}; filename="${filename}"`,
+    );
+    res.setHeader('Cache-Control', 'private, max-age=0, no-store');
+    res.end(buffer);
   }
 
   /**

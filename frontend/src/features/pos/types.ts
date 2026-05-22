@@ -21,6 +21,9 @@ export interface PosSale {
   total_amount: number;
   payment_method: 'cash' | 'card' | 'upi' | 'wallet';
   status: string;
+  points_earned?: number;
+  points_redeemed?: number;
+  wallet_amount?: number;
   created_at: string;
   updated_at: string;
   items?: PosSaleItem[];
@@ -45,13 +48,19 @@ export interface ProductReturn {
   sale?: { id: string; invoice_number: string };
 }
 
+// Each item is either a standalone product or a bundle (mutually exclusive).
+export type PosSaleItemPayload =
+  | { product_id: string; quantity: number; bundle_id?: never }
+  | { bundle_id: string; quantity: number; product_id?: never };
+
 export interface CreatePosSalePayload {
   branch_id: string;
   member_id?: string;
   staff_id: string;
-  items: { product_id: string; quantity: number }[];
+  items: PosSaleItemPayload[];
   payment_method: 'cash' | 'card' | 'upi' | 'wallet';
   discount_amount?: number;
+  redeem_points?: number;
 }
 
 export interface CreateReturnPayload {
@@ -98,12 +107,19 @@ export interface PaginatedSales {
   limit: number;
 }
 
-// Cart types for POS UI state
+// Cart types for POS UI state. A cart item is either a standalone product or
+// a bundle. `key` is the stable identity for cart operations (product id, or
+// `bundle:<id>` for bundles). One of product_id / bundle_id is set.
 export interface CartItem {
-  product_id: string;
-  product_name: string;
+  key: string;
+  kind: 'product' | 'bundle';
+  product_id?: string;
+  bundle_id?: string;
+  product_name: string; // display name (product or bundle)
   price: number;
   tax_rate: number;
   quantity: number;
+  // For products: branch stock. For bundles: max sellable units (min of component availability)
+  // or Infinity when we can't cheaply pre-compute it. UI uses this to cap +.
   stock_quantity: number;
 }

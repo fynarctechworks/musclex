@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { ArrowLeft, CheckCircle2, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Spinner } from '@/components/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabase';
@@ -137,8 +138,8 @@ function ResetPasswordContent() {
   if (exchanging) {
     return (
       <AuthLayout heading="Reset your password" subheading="Verifying your reset link...">
-        <div className="text-center py-8">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+        <div className="text-center py-8 flex justify-center">
+          <Spinner size="lg" label="Verifying reset link" />
         </div>
       </AuthLayout>
     );
@@ -262,7 +263,7 @@ export default function ResetPasswordPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-background">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <Spinner size="md" label="Loading" />
         </div>
       }
     >

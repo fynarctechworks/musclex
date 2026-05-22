@@ -62,7 +62,7 @@ export function VisitTrendChart({ checkIns, className }: VisitTrendChartProps) {
   }, [checkIns, range]);
 
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-5", className)}>
+    <div className={cn("rounded-lg border border-border bg-card p-5", className)}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-foreground">Visit Trends</h3>
         <div className="flex gap-1">
@@ -74,7 +74,7 @@ export function VisitTrendChart({ checkIns, className }: VisitTrendChartProps) {
                 "px-2.5 py-1 text-xs rounded-md transition-colors",
                 range === r.key
                   ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent"
+                  : "text-muted-foreground hover:bg-canvas-soft"
               )}
             >
               {r.label}

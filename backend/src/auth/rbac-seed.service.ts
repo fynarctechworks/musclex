@@ -26,6 +26,7 @@ const MODULES_ACTIONS: Record<string, string[]> = {
   organizations: ['view', 'create', 'edit', 'delete'],
   reports: ['view', 'export'],
   roles: ['view', 'create', 'edit', 'delete'],
+  inventory: ['view', 'create', 'edit', 'delete', 'export'],
 };
 
 function buildPermissionDefs(): PermissionDef[] {
@@ -77,6 +78,7 @@ export const ENTERPRISE_ROLES: Record<string, { description: string; permissions
       'organizations.view',
       'reports.view', 'reports.export',
       'roles.view',
+      'inventory.view', 'inventory.create', 'inventory.edit', 'inventory.export',
     ],
   },
   branch_manager: {
@@ -95,6 +97,7 @@ export const ENTERPRISE_ROLES: Record<string, { description: string; permissions
       'organizations.view',
       'reports.view', 'reports.export',
       'roles.view',
+      'inventory.view', 'inventory.create', 'inventory.edit', 'inventory.export',
     ],
   },
   trainer: {
@@ -108,6 +111,7 @@ export const ENTERPRISE_ROLES: Record<string, { description: string; permissions
       'ai.view', 'ai.create',
       'branches.view',
       'reports.view',
+      'inventory.view',
     ],
   },
   front_desk: {
@@ -121,6 +125,7 @@ export const ENTERPRISE_ROLES: Record<string, { description: string; permissions
       'staff.view',
       'branches.view',
       'reports.view',
+      'inventory.view', 'inventory.create',
     ],
   },
   accountant: {
@@ -131,6 +136,7 @@ export const ENTERPRISE_ROLES: Record<string, { description: string; permissions
       'payments.view', 'payments.create', 'payments.edit', 'payments.delete', 'payments.export',
       'branches.view',
       'reports.view', 'reports.export',
+      'inventory.view', 'inventory.export',
     ],
   },
   marketing_manager: {

@@ -205,8 +205,8 @@ export default function AddMemberPage() {
       <div className="mx-auto max-w-2xl space-y-6 pb-8">
         {/* No Plans Warning */}
         {plansLoaded && !hasPlans && (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-            <p className="text-sm font-medium text-amber-400">
+          <div className="rounded-lg border border-warning/30 bg-warning/10 p-4">
+            <p className="text-sm font-medium text-warning">
               You need at least one membership plan before adding members.
             </p>
             <Link href={gymPath("/settings/plans?create=true")} className="mt-2 inline-block text-sm text-primary underline">
@@ -237,7 +237,7 @@ export default function AddMemberPage() {
         </div>
 
         {/* Member ID Preview */}
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
             Auto-generated Member ID
           </p>
@@ -252,7 +252,7 @@ export default function AddMemberPage() {
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Personal Information */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="rounded-lg border border-border bg-card p-6 space-y-4">
             <h2 className="text-base font-semibold text-foreground">
               Personal Information
             </h2>
@@ -285,11 +285,11 @@ export default function AddMemberPage() {
               <p className="text-xs text-muted-foreground">Checking phone number...</p>
             )}
             {phoneCheck.status === 'duplicate' && phoneCheck.existingMember && (
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-2">
+              <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 space-y-2">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                  <AlertCircle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
                   <div className="text-sm">
-                    <p className="font-medium text-amber-400">Phone number already registered</p>
+                    <p className="font-medium text-warning">Phone number already registered</p>
                     <p className="text-muted-foreground">
                       {phoneCheck.existingMember.full_name} ({phoneCheck.existingMember.member_code})
                       {phoneCheck.existingMember.branch_name ? ` · ${phoneCheck.existingMember.branch_name}` : ''}
@@ -298,7 +298,7 @@ export default function AddMemberPage() {
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <Link href={gymPath(`/members/${phoneCheck.existingMember.id}/family/add`)}>
-                    <Button type="button" size="sm" variant="outline" className="text-xs border-amber-500/40 text-amber-400 hover:bg-amber-500/10">
+                    <Button type="button" size="sm" variant="outline" className="text-xs border-warning/30 text-warning hover:bg-warning/10">
                       <Users className="h-3 w-3 mr-1" />
                       Add as Family Member
                     </Button>
@@ -316,7 +316,7 @@ export default function AddMemberPage() {
               </div>
             )}
             {phoneCheck.status === 'clear' && (
-              <p className="text-xs text-green-500">✓ Phone number available</p>
+              <p className="text-xs text-success">✓ Phone number available</p>
             )}
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -352,7 +352,7 @@ export default function AddMemberPage() {
           </div>
 
           {/* Emergency Contact */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="rounded-lg border border-border bg-card p-6 space-y-4">
             <h2 className="text-base font-semibold text-foreground">
               Emergency Contact
             </h2>
@@ -373,7 +373,7 @@ export default function AddMemberPage() {
           </div>
 
           {/* Membership */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="rounded-lg border border-border bg-card p-6 space-y-4">
             <h2 className="text-base font-semibold text-foreground">
               Membership
             </h2>
@@ -447,13 +447,13 @@ export default function AddMemberPage() {
                     {selectedPlan?.price ?? 0}). Payment is recorded as paid.
                   </p>
                   {changeDue > 0 && (
-                    <p className="text-xs font-medium text-green-500">
+                    <p className="text-xs font-medium text-success">
                       Change to return: ₹{changeDue.toFixed(2)} (revenue
                       recorded as ₹{planPriceNum.toFixed(2)})
                     </p>
                   )}
                   {shortfall > 0 && (
-                    <p className="text-xs font-medium text-amber-500">
+                    <p className="text-xs font-medium text-warning">
                       Short by ₹{shortfall.toFixed(2)} — partial payment will
                       be recorded.
                     </p>
@@ -464,7 +464,7 @@ export default function AddMemberPage() {
           </div>
 
           {/* Notes */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="rounded-lg border border-border bg-card p-6 space-y-4">
             <h2 className="text-base font-semibold text-foreground">
               Notes
             </h2>

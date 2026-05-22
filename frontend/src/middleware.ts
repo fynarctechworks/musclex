@@ -49,7 +49,18 @@ function setSecurityHeaders(response: NextResponse) {
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  // The check-in module needs `camera` for QR / Face scanning and `microphone`
+  // is reserved for future RTC features. `geolocation` is used by the kiosk
+  // branch resolver on tablets. All three are granted to the top-level
+  // document only (`self`) — embedders cannot access them.
+  //
+  // IMPORTANT: this used to be `camera=()` (deny-all) which silently blocked
+  // every on-device scanner with a "Permissions policy violation" in the
+  // console. Be very careful about tightening this back to deny-all.
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(self), microphone=(self), geolocation=(self)"
+  );
 }
 
 export const config = {

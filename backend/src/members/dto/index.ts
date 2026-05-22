@@ -19,3 +19,5 @@ export { CreateFamilyMembershipDto } from './create-family-membership.dto';
 export { AddFamilyMemberDto } from './add-family-member.dto';
 export { CreateCorporateAccountDto, AddCorporateMemberDto } from './corporate.dto';
 export { CreateGlobalAccessPassDto } from './create-global-access.dto';
+export { TransferMemberDto } from './transfer-member.dto';
+export { GrantTemporaryAccessDto } from './grant-temporary-access.dto';

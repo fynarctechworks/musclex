@@ -100,7 +100,7 @@ export function QuickAddBar({
   return (
     <form
       onSubmit={handleSubmit}
-      className="sticky top-0 z-10 -mx-4 mb-4 border-b border-border bg-card/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-xl sm:border"
+      className="sticky top-0 z-10 -mx-4 mb-4 border-b border-border bg-card/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-lg sm:border"
     >
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
@@ -134,7 +134,7 @@ export function QuickAddBar({
               onClick={() => setMethod(m.value)}
               className={`shrink-0 rounded-full border px-3 py-1 text-xs transition ${
                 active
-                  ? "border-primary bg-primary/15 text-primary"
+                  ? "border-primary bg-canvas-soft-2 text-primary"
                   : "border-border bg-background text-muted-foreground"
               }`}
             >

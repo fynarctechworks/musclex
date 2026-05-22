@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/auth-store';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { Spinner } from '@/components/shared';
 import { Button } from '@/components/ui/button';
 
 export default function AuthCallbackPage() {
@@ -109,8 +110,8 @@ export default function AuthCallbackPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
-          <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-foreground">Verifying your email...</h1>
+          <div className="flex justify-center mb-4"><Spinner size="lg" label="Verifying email" /></div>
+          <h1 className="text-xl font-semibold text-foreground">Verifying your email...</h1>
           <p className="text-sm text-muted-foreground mt-2">
             Please wait while we confirm your account.
           </p>
@@ -123,10 +124,10 @@ export default function AuthCallbackPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
-          <div className="mx-auto w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+          <div className="mx-auto w-14 h-14 rounded-full bg-canvas-soft-2 flex items-center justify-center mb-4">
             <CheckCircle2 className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="text-xl font-bold text-foreground">Email verified!</h1>
+          <h1 className="text-xl font-semibold text-foreground">Email verified!</h1>
           <p className="text-sm text-muted-foreground mt-2">
             Redirecting to continue setup...
           </p>
@@ -142,7 +143,7 @@ export default function AuthCallbackPage() {
         <div className="mx-auto w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
           <XCircle className="h-8 w-8 text-destructive" />
         </div>
-        <h1 className="text-xl font-bold text-foreground">Verification failed</h1>
+        <h1 className="text-xl font-semibold text-foreground">Verification failed</h1>
         <p className="text-sm text-muted-foreground mt-2 mb-6">{errorMessage}</p>
         <div className="space-y-3">
           <Button

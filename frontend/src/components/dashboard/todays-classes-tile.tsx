@@ -24,9 +24,9 @@ function formatTimeChip(iso: string): string {
 
 function fillBarTone(pct: number): string {
   if (pct >= 100) return "bg-destructive";
-  if (pct >= 85) return "bg-amber-500";
+  if (pct >= 85) return "bg-warning";
   if (pct >= 60) return "bg-primary";
-  return "bg-emerald-500";
+  return "bg-success";
 }
 
 function statusPill(status: TodaysClass["status"]): {
@@ -37,17 +37,17 @@ function statusPill(status: TodaysClass["status"]): {
     case "in_progress":
       return {
         label: "Live",
-        cls: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
+        cls: "bg-success/15 text-success border-success/30",
       };
     case "completed":
       return {
         label: "Done",
-        cls: "bg-muted/40 text-muted-foreground border-border",
+        cls: "bg-canvas-soft text-muted-foreground border-border",
       };
     default:
       return {
         label: "Upcoming",
-        cls: "bg-primary/10 text-primary border-primary/30",
+        cls: "bg-canvas-soft-2 text-primary border-primary/30",
       };
   }
 }
@@ -65,7 +65,7 @@ export function TodaysClassesTile({ branchId }: TodaysClassesTileProps) {
   });
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5 shadow-sm transition-shadow hover:shadow-md">
+    <div className="bg-card border border-border rounded-lg p-5 shadow-level-2 transition-shadow hover:shadow-level-3">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
           <CalendarDays className="w-4 h-4 text-primary" />
@@ -84,7 +84,7 @@ export function TodaysClassesTile({ branchId }: TodaysClassesTileProps) {
           {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
-              className="h-12 rounded-lg bg-muted/40 animate-pulse"
+              className="h-12 rounded-lg bg-canvas-soft animate-pulse"
             />
           ))}
         </div>
@@ -110,10 +110,10 @@ export function TodaysClassesTile({ branchId }: TodaysClassesTileProps) {
                   href={gymPath(`/classes/${c.id}`)}
                   className={cn(
                     "flex items-center gap-3 py-2 px-2 rounded-lg",
-                    "hover:bg-accent/40 transition-colors",
+                    "hover:bg-canvas-soft/40 transition-colors",
                   )}
                 >
-                  <span className="text-[12px] font-medium tabular-nums text-foreground bg-muted/50 border border-border rounded-md px-2 py-0.5 whitespace-nowrap">
+                  <span className="text-[12px] font-medium tabular-nums text-foreground bg-canvas-soft border border-border rounded-md px-2 py-0.5 whitespace-nowrap">
                     {formatTimeChip(c.start_time)}
                   </span>
                   <div className="flex-1 min-w-0">
@@ -143,7 +143,7 @@ export function TodaysClassesTile({ branchId }: TodaysClassesTileProps) {
                         /{c.capacity || "—"}
                       </span>
                     </div>
-                    <div className="h-1.5 bg-muted/60 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-canvas-soft rounded-full overflow-hidden">
                       <div
                         className={cn("h-full rounded-full transition-all", tone)}
                         style={{ width: `${Math.min(100, c.fill_pct)}%` }}

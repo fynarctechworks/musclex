@@ -146,7 +146,7 @@ export default function StaffPage() {
         <LoadingSkeleton className="h-64" />
       ) : (
         <>
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="bg-card border border-border rounded-lg overflow-hidden">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
@@ -161,7 +161,7 @@ export default function StaffPage() {
               <tbody>
                 {data?.data && data.data.length > 0 ? (
                   data.data.map((staff) => (
-                    <tr key={staff.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                    <tr key={staff.id} className="border-b border-border last:border-0 hover:bg-canvas-soft">
                       <td className="px-4 py-3">
                         <Link href={gymPath(`/staff/${staff.id}`)} className="text-sm text-primary hover:text-primary/80 font-medium">
                           {staff.full_name}
@@ -188,7 +188,7 @@ export default function StaffPage() {
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1">
                           {staff.specializations?.slice(0, 2).map((s) => (
-                            <span key={s} className="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded">
+                            <span key={s} className="px-1.5 py-0.5 bg-canvas-soft-2 text-primary text-xs rounded">
                               {s}
                             </span>
                           ))}

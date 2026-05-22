@@ -126,7 +126,7 @@ export default function NewClassPage() {
           onSubmit={handleSubmit((data) => mutation.mutate(data))}
           className="space-y-4"
         >
-          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+          <div className="bg-card border border-border rounded-lg p-6 space-y-4">
             <FormInput
               label="Class Name"
               {...register("name", { required: "Class name is required" })}

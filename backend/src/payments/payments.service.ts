@@ -341,7 +341,14 @@ export class PaymentsService {
       this.prisma.payment.count({ where }),
     ]);
 
-    return { data, total, page, limit };
+    // Prisma Decimal serializes as an object over JSON; coerce to plain
+    // numbers so the frontend reads `.amount` as a Number, not NaN.
+    const serialized = data.map((p: any) => ({
+      ...p,
+      amount: p.amount === null || p.amount === undefined ? p.amount : Number(p.amount.toString()),
+    }));
+
+    return { data: serialized, total, page, limit };
   }
 
   async getInvoice(id: string) {
@@ -461,5 +468,146 @@ export class PaymentsService {
         await this.billingService.recalculateInvoiceStatus(payment.invoice_id);
       }
     });
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // PDF receipt rendering (member payments)
+  // ────────────────────────────────────────────────────────────
+
+  /**
+   * Render a payment receipt as a PDF. Uses the same renderer the
+   * subscription invoices use so receipts look identical across the
+   * product (gym sub + member payment).
+   *
+   * The "issuer" of a member-payment receipt is the gym (Studio + Branch),
+   * and the "billed-to" is the member.
+   */
+  async renderReceiptPdf(
+    studioId: string,
+    paymentId: string,
+  ): Promise<{ buffer: Buffer; filename: string }> {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        member: {
+          select: {
+            id: true,
+            full_name: true,
+            member_code: true,
+            phone: true,
+            email: true,
+          },
+        },
+        membership: { include: { plan: true } },
+        branch: true,
+      },
+    });
+    if (!payment) throw new NotFoundException('Payment not found');
+
+    const studio = await this.prisma.studio.findUnique({
+      where: { id: studioId },
+      select: {
+        name: true,
+        phone: true,
+        email: true,
+        address: true,
+        city: true,
+        state: true,
+        postal_code: true,
+        tax_id: true,
+      },
+    });
+
+    const branch = payment.branch;
+    // Issuer address: prefer branch (the location actually serving the
+    // member), fall back to studio HQ.
+    const issuerAddress = [
+      branch?.address ?? studio?.address,
+      branch?.city ?? studio?.city,
+      branch?.state ?? studio?.state,
+      branch?.postal_code ?? studio?.postal_code,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    const fmtDate = (d: Date) =>
+      d.toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+
+    const currency = payment.currency;
+    const money = (n: number) =>
+      `${currency === 'INR' ? '₹' : currency + ' '}${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+
+    const prettyMethod = (m: string) => {
+      const map: Record<string, string> = {
+        upi: 'UPI',
+        card: 'Card',
+        cash: 'Cash',
+        netbanking: 'Net Banking',
+        bank_transfer: 'Bank Transfer',
+        razorpay: 'Razorpay',
+        stripe: 'Stripe',
+        cheque: 'Cheque',
+      };
+      return map[m] || m.replace(/_/g, ' ');
+    };
+
+    const plan = payment.membership?.plan;
+    const lineDesc = plan
+      ? `${plan.name}${plan.plan_type ? ` (${plan.plan_type.replace(/_/g, ' ')})` : ''}`
+      : 'Membership payment';
+
+    const periodStart = payment.membership?.start_date ?? payment.created_at;
+    const periodEnd =
+      payment.membership?.end_date ??
+      payment.membership?.start_date ??
+      payment.created_at;
+
+    const amount = Number(payment.amount);
+    const paid = payment.status === 'paid';
+
+    const { renderInvoicePdfBuffer } = await import(
+      '../subscription/invoice-pdf.renderer'
+    );
+
+    const buffer = await renderInvoicePdfBuffer({
+      template: 'classic',
+      invoice_number: payment.receipt_number,
+      invoice_date: fmtDate(payment.paid_at ?? payment.created_at),
+      status_label: payment.status.toUpperCase(),
+      status_paid: paid,
+      issuer_name: studio?.name || 'Gym',
+      issuer_address: issuerAddress || undefined,
+      issuer_email: studio?.email || branch?.email || undefined,
+      billed_to_name: payment.member.full_name,
+      billed_to_email: payment.member.email ?? undefined,
+      billed_to_address: undefined,
+      billed_to_tax_id: payment.member.member_code,
+      items: [
+        {
+          description: lineDesc,
+          period_start: fmtDate(new Date(periodStart)),
+          period_end: fmtDate(new Date(periodEnd)),
+          amount: money(amount),
+        },
+      ],
+      subtotal: money(amount),
+      tax_label: 'Tax (0%)',
+      tax_amount: money(0),
+      total: money(amount),
+      payment_method: prettyMethod(payment.payment_method),
+      payment_reference:
+        payment.gateway_payment_id ??
+        payment.gateway_order_id ??
+        payment.receipt_number,
+      footer_note: studio?.name
+        ? `Thank you for being a member of ${studio.name}.`
+        : 'Thank you for your payment.',
+    });
+
+    return { buffer, filename: `${payment.receipt_number}.pdf` };
   }
 }

@@ -27,26 +27,31 @@ interface FilterChipProps {
 }
 
 /**
- * Filter chip — toggleable pill for quick filtering.
- * Active state uses primary color. Shows count badge.
+ * FilterChip — Design.md `tab-ghost` adapted for filter toggles.
+ * Active state inverts to ink polarity (canvas-on-ink), inactive sits on
+ * canvas-soft-2. Count badge mirrors the active polarity.
  */
 export function FilterChip({ label, active, count, onClick }: FilterChipProps) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-medium transition-colors",
+        "inline-flex items-center gap-1.5 rounded-full px-3 h-7 text-sm font-medium transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         active
-          ? "bg-primary/10 text-primary border border-primary/20"
-          : "bg-secondary text-muted-foreground border border-transparent hover:bg-accent hover:text-foreground"
+          ? "bg-primary text-primary-foreground"
+          : "bg-canvas-soft-2 text-muted-foreground hover:bg-canvas-soft-2/70 hover:text-foreground"
       )}
     >
       {label}
       {count !== undefined && (
         <span
           className={cn(
-            "inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-semibold",
-            active ? "bg-primary text-primary-foreground" : "bg-muted-foreground/20 text-muted-foreground"
+            "inline-flex h-4 min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-semibold tabular-nums",
+            active
+              ? "bg-canvas/20 text-on-primary"
+              : "bg-hairline text-muted-foreground"
           )}
         >
           {count}

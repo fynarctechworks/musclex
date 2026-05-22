@@ -214,10 +214,10 @@ export default function IntegrationsPage() {
                 return (
                   <div
                     key={integration.id}
-                    className="bg-card border border-border rounded-xl overflow-hidden"
+                    className="bg-card border border-border rounded-lg overflow-hidden"
                   >
                     <div
-                      className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+                      className="flex items-center justify-between p-4 cursor-pointer hover:bg-canvas-soft transition-colors"
                       onClick={() =>
                         setExpandedId(isExpanded ? null : integration.id)
                       }

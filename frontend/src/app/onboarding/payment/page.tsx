@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, CreditCard, Lock, CheckCircle2, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Spinner } from '@/components/shared';
 import { useAuthStore } from '@/stores/auth-store';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
@@ -138,10 +139,10 @@ export default function OnboardingPaymentPage() {
     return (
       <OnboardingLayout currentStep={6} maxWidth="480px" hideSidebar>
         <div className="flex flex-col items-center justify-center h-64 text-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
-            <CheckCircle2 className="h-8 w-8 text-green-600" />
+          <div className="h-16 w-16 rounded-full bg-success/12 flex items-center justify-center">
+            <CheckCircle2 className="h-8 w-8 text-success" />
           </div>
-          <h2 className="text-xl font-bold text-foreground">Payment Successful!</h2>
+          <h2 className="text-xl font-semibold text-foreground">Payment Successful!</h2>
           <p className="text-[13px] text-muted-foreground">
             Your <strong>{plan?.plan_display_name}</strong> plan is now active.
             <br />Setting up your studio…
@@ -156,7 +157,7 @@ export default function OnboardingPaymentPage() {
   if (!plan) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <Spinner size="lg" label="Loading" />
       </div>
     );
   }
@@ -166,8 +167,8 @@ export default function OnboardingPaymentPage() {
   return (
     <OnboardingLayout currentStep={6} maxWidth="480px" hideSidebar>
       <div className="mb-6">
-        <span className="text-primary text-4xl font-black leading-none">*</span>
-        <h1 className="mt-2 text-[22px] font-bold text-foreground tracking-tight">
+        <span className="text-primary text-4xl font-semibold leading-none">*</span>
+        <h1 className="mt-2 text-[22px] font-semibold text-foreground tracking-tight">
           Complete your payment
         </h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
@@ -176,23 +177,23 @@ export default function OnboardingPaymentPage() {
       </div>
 
       {/* Test mode banner */}
-      <div className="mb-5 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-3.5 py-2.5">
-        <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+      <div className="mb-5 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning-soft dark:border-amber-800 dark:bg-amber-950/40 px-3.5 py-2.5">
+        <AlertCircle className="h-4 w-4 text-warning dark:text-warning shrink-0 mt-0.5" />
         <div>
-          <p className="text-[12px] font-semibold text-amber-700 dark:text-amber-300">Test Mode</p>
-          <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">
-            Use <span className="font-mono font-bold">4242 4242 4242 4242</span>, any future expiry, any CVV.
+          <p className="text-[12px] font-semibold text-warning-deep dark:text-amber-300">Test Mode</p>
+          <p className="text-[11px] text-warning dark:text-warning mt-0.5">
+            Use <span className="font-mono font-semibold">4242 4242 4242 4242</span>, any future expiry, any CVV.
           </p>
         </div>
       </div>
 
       {/* Plan summary */}
-      <div className="mb-5 flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
+      <div className="mb-5 flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
         <div>
           <p className="text-[13px] font-semibold text-foreground">{plan.plan_display_name}</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">Monthly subscription</p>
         </div>
-        <p className="text-lg font-bold text-foreground">
+        <p className="text-lg font-semibold text-foreground">
           {fmtPrice(plan.amount, plan.currency)}
           <span className="text-[11px] font-normal text-muted-foreground">/mo</span>
         </p>

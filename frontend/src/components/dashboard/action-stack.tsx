@@ -96,7 +96,7 @@ const KIND_ICON: Record<ActionKind, LucideIcon> = {
 
 const SEVERITY_BAR: Record<ActionSeverity, string> = {
   high: "bg-destructive",
-  medium: "bg-amber-500",
+  medium: "bg-warning",
   low: "bg-primary",
 };
 
@@ -113,7 +113,7 @@ export function ActionStack({ items, loading, className }: ActionStackProps) {
   return (
     <div
       className={cn(
-        "rounded-xl border border-border bg-card p-5",
+        "rounded-lg border border-border bg-card p-5",
         className,
       )}
     >
@@ -134,7 +134,7 @@ export function ActionStack({ items, loading, className }: ActionStackProps) {
           {Array.from({ length: 3 }).map((_, i) => (
             <div
               key={i}
-              className="h-16 rounded-lg bg-muted/20 animate-pulse"
+              className="h-16 rounded-lg bg-canvas-soft animate-pulse"
             />
           ))}
         </div>
@@ -162,7 +162,7 @@ function ActionRow({ item }: { item: ActionItem }) {
       <div className="flex items-stretch">
       <span className={cn("w-1 shrink-0", severityBar)} aria-hidden />
       <div className="flex flex-1 items-center gap-3 p-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-canvas-soft-2">
           <Icon className="h-4 w-4 text-primary" />
         </div>
 
@@ -207,9 +207,9 @@ function ActionRow({ item }: { item: ActionItem }) {
               title="Why we said this"
               onClick={() => setShowWhy((v) => !v)}
               className={cn(
-                "rounded-md p-1 hover:bg-muted/50",
+                "rounded-md p-1 hover:bg-canvas-soft",
                 showWhy
-                  ? "text-primary bg-primary/10"
+                  ? "text-primary bg-canvas-soft-2"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -233,7 +233,7 @@ function ActionRow({ item }: { item: ActionItem }) {
               aria-label="Snooze 24 hours"
               title="Snooze 24h"
               onClick={() => item.on_snooze?.(item.id, 24)}
-              className="rounded-md p-1 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+              className="rounded-md p-1 text-muted-foreground hover:bg-canvas-soft hover:text-foreground"
             >
               <Clock className="h-3.5 w-3.5" />
             </button>
@@ -244,7 +244,7 @@ function ActionRow({ item }: { item: ActionItem }) {
               aria-label="Dismiss"
               title="Dismiss"
               onClick={() => item.on_dismiss?.(item.id)}
-              className="rounded-md p-1 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+              className="rounded-md p-1 text-muted-foreground hover:bg-canvas-soft hover:text-foreground"
             >
               <X className="h-3.5 w-3.5" />
             </button>

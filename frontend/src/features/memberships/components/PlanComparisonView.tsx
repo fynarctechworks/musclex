@@ -4,6 +4,7 @@ import { Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMembershipPlans } from '../hooks';
 import type { MembershipPlan } from '@/types';
+import { planMinPrice, planHasBranchPricing } from '@/lib/plan-pricing';
 
 interface PlanComparisonViewProps {
   currentPlanId?: string;
@@ -18,7 +19,7 @@ export function PlanComparisonView({ currentPlanId, onSelect }: PlanComparisonVi
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-72 rounded-xl bg-card border border-border animate-pulse" />
+          <div key={i} className="h-72 rounded-lg bg-card border border-border animate-pulse" />
         ))}
       </div>
     );
@@ -39,7 +40,7 @@ export function PlanComparisonView({ currentPlanId, onSelect }: PlanComparisonVi
         return (
           <div
             key={plan.id}
-            className={`relative rounded-xl border p-5 flex flex-col ${
+            className={`relative rounded-lg border p-5 flex flex-col ${
               isCurrent
                 ? 'border-primary bg-primary/5'
                 : 'border-border bg-card hover:border-primary/40'
@@ -60,12 +61,20 @@ export function PlanComparisonView({ currentPlanId, onSelect }: PlanComparisonVi
             </div>
 
             <div className="mb-4">
-              <span className="text-2xl font-bold text-foreground">
-                ₹{Number(plan.price).toLocaleString()}
+              {planHasBranchPricing(plan) && (
+                <span className="text-xs text-muted-foreground block">from</span>
+              )}
+              <span className="text-2xl font-semibold text-foreground">
+                ₹{planMinPrice(plan).toLocaleString()}
               </span>
               <span className="text-sm text-muted-foreground">
                 / {plan.duration_days} days
               </span>
+              {planHasBranchPricing(plan) && (
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Price varies by branch
+                </p>
+              )}
             </div>
 
             {plan.description && (

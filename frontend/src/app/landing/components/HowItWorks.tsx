@@ -39,13 +39,13 @@ export default function HowItWorks() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <p className="text-sm font-semibold text-blue-600 uppercase tracking-wider mb-3">
+          <p className="text-sm font-semibold text-link uppercase tracking-wider mb-3">
             How It Works
           </p>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
+          <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
             Get started in minutes
           </h2>
-          <p className="mt-4 text-lg text-gray-500">
+          <p className="mt-4 text-lg text-muted-foreground">
             Five simple steps to transform how you manage your fitness business.
           </p>
         </div>
@@ -59,17 +59,17 @@ export default function HowItWorks() {
                 <div className="hidden lg:block absolute top-10 left-[calc(50%+28px)] w-[calc(100%-56px)] h-px bg-gradient-to-r from-blue-200 to-blue-100" />
               )}
 
-              <div className="flex flex-col items-center text-center p-6 bg-white rounded-2xl border border-gray-100 hover:shadow-lg hover:shadow-gray-100/60 transition-all duration-300 hover:-translate-y-1">
+              <div className="flex flex-col items-center text-center p-6 bg-canvas rounded-lg border border-hairline hover:shadow-level-4 hover:shadow-gray-100/60 transition-all duration-medium hover:-translate-y-1">
                 <div className="relative mb-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-2xl flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:shadow-blue-500/40 transition-shadow">
-                    <s.icon className="w-6 h-6 text-white" />
+                  <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-lg flex items-center justify-center shadow-level-3 shadow-blue-500/20 group-hover:shadow-blue-500/40 transition-shadow">
+                    <s.icon className="w-6 h-6 text-on-primary" />
                   </div>
-                  <span className="absolute -top-2 -right-2 w-6 h-6 bg-blue-100 text-blue-700 text-xs font-bold rounded-full flex items-center justify-center">
+                  <span className="absolute -top-2 -right-2 w-6 h-6 bg-link-soft text-link-deep text-xs font-semibold rounded-full flex items-center justify-center">
                     {s.step}
                   </span>
                 </div>
-                <h3 className="text-base font-semibold text-gray-900 mb-2">{s.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{s.description}</p>
+                <h3 className="text-base font-semibold text-foreground mb-2">{s.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{s.description}</p>
               </div>
             </div>
           ))}

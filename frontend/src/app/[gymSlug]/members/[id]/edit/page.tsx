@@ -151,7 +151,7 @@ export default function EditMemberPage() {
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Personal Information */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="rounded-lg border border-border bg-card p-6 space-y-4">
             <h2 className="text-base font-semibold text-foreground">
               Personal Information
             </h2>
@@ -212,7 +212,7 @@ export default function EditMemberPage() {
           </div>
 
           {/* Emergency Contact */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="rounded-lg border border-border bg-card p-6 space-y-4">
             <h2 className="text-base font-semibold text-foreground">
               Emergency Contact
             </h2>
@@ -233,7 +233,7 @@ export default function EditMemberPage() {
           </div>
 
           {/* Preferences */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="rounded-lg border border-border bg-card p-6 space-y-4">
             <h2 className="text-base font-semibold text-foreground">
               Preferences
             </h2>
@@ -252,7 +252,7 @@ export default function EditMemberPage() {
           </div>
 
           {/* Notes */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="rounded-lg border border-border bg-card p-6 space-y-4">
             <h2 className="text-base font-semibold text-foreground">Notes</h2>
             <FormTextarea
               label="Additional Notes"

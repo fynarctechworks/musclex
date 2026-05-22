@@ -80,8 +80,8 @@ function Chip({ active, onClick, children, ariaLabel }: ChipProps) {
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] transition-colors",
         active
-          ? "border-primary bg-primary/10 text-primary"
-          : "border-border bg-card text-foreground hover:bg-muted/50",
+          ? "border-primary bg-canvas-soft-2 text-primary"
+          : "border-border bg-card text-foreground hover:bg-canvas-soft",
       )}
     >
       {children}
@@ -160,7 +160,7 @@ export function DashboardFilterBar() {
       className={cn(
         // Hidden on mobile — mobile dashboard uses the existing branch selector pattern.
         "hidden md:flex sticky top-0 z-30 mb-6 items-center gap-2 flex-wrap",
-        "bg-card/80 backdrop-blur border border-border rounded-xl px-4 py-3",
+        "bg-card/80 backdrop-blur border border-border rounded-lg px-4 py-3",
       )}
     >
       {/* Branch chip — read-only display; the source of truth is the workspace switcher in the app shell. */}
@@ -195,8 +195,8 @@ export function DashboardFilterBar() {
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] transition-colors",
               filters.dateRange.preset === "custom"
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border bg-card text-foreground hover:bg-muted/50",
+                ? "border-primary bg-canvas-soft-2 text-primary"
+                : "border-border bg-card text-foreground hover:bg-canvas-soft",
             )}
           >
             <CalendarRange className="h-3.5 w-3.5" />
@@ -253,13 +253,13 @@ export function DashboardFilterBar() {
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] transition-colors",
               filters.planTypes.length > 0
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border bg-card text-foreground hover:bg-muted/50",
+                ? "border-primary bg-canvas-soft-2 text-primary"
+                : "border-border bg-card text-foreground hover:bg-canvas-soft",
             )}
           >
             Plan
             {filters.planTypes.length > 0 ? (
-              <span className="rounded-full bg-primary/20 px-1.5 text-[11px]">
+              <span className="rounded-full bg-canvas-soft-2 px-1.5 text-[11px]">
                 {filters.planTypes.length}
               </span>
             ) : null}
@@ -275,7 +275,7 @@ export function DashboardFilterBar() {
             <ul className="space-y-1">
               {(plansData ?? []).map((p) => (
                 <li key={p.id}>
-                  <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[13px] hover:bg-muted/50">
+                  <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[13px] hover:bg-canvas-soft">
                     <Checkbox
                       checked={filters.planTypes.includes(p.id)}
                       onCheckedChange={() => togglePlan(p.id)}
@@ -311,13 +311,13 @@ export function DashboardFilterBar() {
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] transition-colors",
               filters.trainerIds.length > 0
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border bg-card text-foreground hover:bg-muted/50",
+                ? "border-primary bg-canvas-soft-2 text-primary"
+                : "border-border bg-card text-foreground hover:bg-canvas-soft",
             )}
           >
             Trainer
             {filters.trainerIds.length > 0 ? (
-              <span className="rounded-full bg-primary/20 px-1.5 text-[11px]">
+              <span className="rounded-full bg-canvas-soft-2 px-1.5 text-[11px]">
                 {filters.trainerIds.length}
               </span>
             ) : null}
@@ -333,7 +333,7 @@ export function DashboardFilterBar() {
             <ul className="space-y-1">
               {trainers.map((t) => (
                 <li key={t.id}>
-                  <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[13px] hover:bg-muted/50">
+                  <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[13px] hover:bg-canvas-soft">
                     <Checkbox
                       checked={filters.trainerIds.includes(t.id)}
                       onCheckedChange={() => toggleTrainer(t.id)}
@@ -380,7 +380,7 @@ export function DashboardFilterBar() {
                   <Link
                     href={href}
                     onClick={() => setQuickActionsOpen(false)}
-                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] hover:bg-muted/50"
+                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] hover:bg-canvas-soft"
                   >
                     <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                     <span>{action.label}</span>

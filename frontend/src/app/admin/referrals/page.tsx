@@ -27,9 +27,9 @@ const STATUS_CONFIG: Record<
   { label: string; color: string; bg: string }
 > = {
   pending:   { label: 'Pending',   color: 'text-warning',    bg: 'bg-warning/10' },
-  completed: { label: 'Completed', color: 'text-primary',    bg: 'bg-primary/10' },
+  completed: { label: 'Completed', color: 'text-primary',    bg: 'bg-canvas-soft-2' },
   rewarded:  { label: 'Rewarded',  color: 'text-success',    bg: 'bg-success/10' },
-  expired:   { label: 'Expired',   color: 'text-muted-foreground', bg: 'bg-muted/60' },
+  expired:   { label: 'Expired',   color: 'text-muted-foreground', bg: 'bg-canvas-soft' },
   fraud:     { label: 'Fraud',     color: 'text-destructive', bg: 'bg-destructive/10' },
   reversed:  { label: 'Reversed',  color: 'text-destructive', bg: 'bg-destructive/10' },
 };
@@ -62,7 +62,7 @@ function MetricCard({
   delta?: number;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
+    <div className="rounded-lg border border-border bg-card p-5">
       <div className="flex items-start justify-between">
         <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center', bg)}>
           <Icon className={cn('h-4 w-4', color)} />
@@ -80,7 +80,7 @@ function MetricCard({
         )}
       </div>
       <p className="mt-3 text-[12px] text-muted-foreground">{label}</p>
-      <p className="mt-0.5 text-2xl font-bold text-foreground tracking-tight">{value}</p>
+      <p className="mt-0.5 text-2xl font-semibold text-foreground tracking-tight">{value}</p>
     </div>
   );
 }
@@ -111,7 +111,7 @@ export default function AdminReferralsPage() {
       {/* Top bar */}
       <div className="border-b border-border bg-card/60 px-6 py-4 flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-foreground">Referral System</h1>
+          <h1 className="text-lg font-semibold text-foreground">Referral System</h1>
           <p className="text-[12px] text-muted-foreground">Platform-wide analytics & management</p>
         </div>
         <Link href="/admin/referrals/rules">
@@ -127,7 +127,7 @@ export default function AdminReferralsPage() {
         {analyticsLoading ? (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-28 animate-pulse rounded-xl bg-muted" />
+              <div key={i} className="h-28 animate-pulse rounded-lg bg-muted" />
             ))}
           </div>
         ) : analytics && (
@@ -137,7 +137,7 @@ export default function AdminReferralsPage() {
               value={analytics.total_referrals}
               icon={Users}
               color="text-primary"
-              bg="bg-primary/10"
+              bg="bg-canvas-soft-2"
             />
             <MetricCard
               label="Rewards Applied"
@@ -151,7 +151,7 @@ export default function AdminReferralsPage() {
               value={`${convRate}%`}
               icon={TrendingUp}
               color="text-primary"
-              bg="bg-primary/10"
+              bg="bg-canvas-soft-2"
             />
             <MetricCard
               label="Active Referrals"
@@ -167,7 +167,7 @@ export default function AdminReferralsPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Referral funnel */}
-          <div className="lg:col-span-2 rounded-xl border border-border bg-card p-5">
+          <div className="lg:col-span-2 rounded-lg border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <BarChart3 className="h-4 w-4 text-primary" />
@@ -208,7 +208,7 @@ export default function AdminReferralsPage() {
           </div>
 
           {/* Top Referrers */}
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-lg border border-border bg-card p-5">
             <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
               Top Referrers
@@ -217,8 +217,8 @@ export default function AdminReferralsPage() {
               <div className="space-y-3">
                 {analytics.top_referrers.slice(0, 5).map((tr, i) => (
                   <div key={tr.studio?.id} className="flex items-center gap-3">
-                    <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <span className="text-[10px] font-bold text-primary">
+                    <div className="h-6 w-6 rounded-full bg-canvas-soft-2 flex items-center justify-center shrink-0">
+                      <span className="text-[10px] font-semibold text-primary">
                         {i + 1}
                       </span>
                     </div>
@@ -243,7 +243,7 @@ export default function AdminReferralsPage() {
         </div>
 
         {/* Referrals table */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <h2 className="text-sm font-semibold text-foreground">All Referrals</h2>
             <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
@@ -270,7 +270,7 @@ export default function AdminReferralsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-[12px]">
                 <thead>
-                  <tr className="border-b border-border bg-muted/40">
+                  <tr className="border-b border-border bg-canvas-soft">
                     {['Referrer', 'Referred Gym', 'Code', 'Status', 'Rewards', 'Date'].map((h) => (
                       <th key={h} className="text-left px-4 py-2.5 text-[11px] font-medium text-muted-foreground">
                         {h}
@@ -288,7 +288,7 @@ export default function AdminReferralsPage() {
                     referred_studio?: { name: string } | null;
                     reward_logs?: unknown[];
                   }> ?? []).map((r) => (
-                    <tr key={r.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
+                    <tr key={r.id} className="border-b border-border/50 hover:bg-canvas-soft transition-colors">
                       <td className="px-4 py-3 font-medium text-foreground">
                         {r.referrer_studio?.name ?? '—'}
                       </td>
@@ -352,7 +352,7 @@ export default function AdminReferralsPage() {
         </div>
 
         {/* Recent Reward Logs */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Gift className="h-4 w-4 text-success" />

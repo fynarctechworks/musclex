@@ -109,7 +109,7 @@ export default function ClassSessionDetailPage() {
 
       {/* Meta cards */}
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-[12px] mb-1.5">
             <CalendarClock className="h-3.5 w-3.5" /> Time
           </div>
@@ -122,7 +122,7 @@ export default function ClassSessionDetailPage() {
               : ""}
           </p>
         </div>
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-[12px] mb-1.5">
             <User className="h-3.5 w-3.5" /> Trainer
           </div>
@@ -130,7 +130,7 @@ export default function ClassSessionDetailPage() {
             {session.trainer_name ?? "Unassigned"}
           </p>
         </div>
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-[12px] mb-1.5">
             <Building2 className="h-3.5 w-3.5" /> Studio
           </div>
@@ -138,7 +138,7 @@ export default function ClassSessionDetailPage() {
             {session.studio_name ?? "—"}
           </p>
         </div>
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-center gap-2 text-muted-foreground text-[12px] mb-1.5">
             <Users className="h-3.5 w-3.5" /> Booked
           </div>
@@ -152,7 +152,7 @@ export default function ClassSessionDetailPage() {
       <div className="mt-8">
         <h2 className="text-sm font-semibold text-foreground mb-3">Roster</h2>
         {bookings.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card">
+          <div className="rounded-lg border border-border bg-card">
             <EmptyState
               icon={Users}
               title="No bookings yet"
@@ -160,9 +160,9 @@ export default function ClassSessionDetailPage() {
             />
           </div>
         ) : (
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="rounded-lg border border-border bg-card overflow-hidden">
             <table className="w-full text-[13px]">
-              <thead className="bg-muted/40">
+              <thead className="bg-canvas-soft">
                 <tr className="text-left text-muted-foreground">
                   <th className="px-4 py-2.5 font-medium">Member</th>
                   <th className="px-4 py-2.5 font-medium">Booking Status</th>
@@ -173,7 +173,7 @@ export default function ClassSessionDetailPage() {
                 {bookings.map((b) => (
                   <tr
                     key={b.id}
-                    className="border-t border-border hover:bg-muted/30 transition-colors"
+                    className="border-t border-border hover:bg-canvas-soft transition-colors"
                   >
                     <td className="px-4 py-3 text-foreground">
                       {b.member_name ?? "—"}
@@ -200,7 +200,7 @@ export default function ClassSessionDetailPage() {
       </div>
 
       {session.notes && (
-        <div className="mt-6 rounded-xl border border-border bg-card p-4">
+        <div className="mt-6 rounded-lg border border-border bg-card p-4">
           <p className="text-[12px] uppercase tracking-wider text-muted-foreground mb-1.5">
             Notes
           </p>

@@ -26,7 +26,7 @@ export function ProgressSummaryCards({ summary, loading }: ProgressSummaryCardsP
     return (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-xl border border-border bg-card p-4 animate-pulse">
+          <div key={i} className="rounded-lg border border-border bg-card p-4 animate-pulse">
             <div className="h-4 w-20 bg-muted rounded mb-3" />
             <div className="h-7 w-16 bg-muted rounded" />
           </div>
@@ -73,12 +73,12 @@ export function ProgressSummaryCards({ summary, loading }: ProgressSummaryCardsP
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {cards.map((card) => (
-        <div key={card.label} className="rounded-xl border border-border bg-card p-4">
+        <div key={card.label} className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-center gap-2 mb-2">
             <card.icon className="h-4 w-4 text-primary" />
             <span className="text-xs text-muted-foreground">{card.label}</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">{card.value}</p>
+          <p className="text-2xl font-semibold text-foreground">{card.value}</p>
           {card.change && card.change.text !== "—" && (
             <div className="flex items-center gap-1 mt-1">
               {card.change.positive ? (

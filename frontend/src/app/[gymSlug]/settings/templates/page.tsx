@@ -32,7 +32,7 @@ export default function SettingsMessageTemplatesPage() {
           <ChevronRight className="w-4 h-4 rotate-180" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2.5">
+          <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2.5">
             <MessageSquare className="w-7 h-7 text-primary" /> Message Templates
           </h1>
           <p className="text-sm text-muted-foreground mt-1">

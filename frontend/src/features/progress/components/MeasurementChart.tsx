@@ -60,7 +60,7 @@ export function MeasurementChart({ data, className }: MeasurementChartProps) {
   };
 
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-5", className)}>
+    <div className={cn("rounded-lg border border-border bg-card p-5", className)}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-foreground">Progress Charts</h3>
         <div className="flex gap-2">
@@ -71,8 +71,8 @@ export function MeasurementChart({ data, className }: MeasurementChartProps) {
               className={cn(
                 "px-2.5 py-1 text-xs rounded-md border transition-colors",
                 activeMetrics.has(m.key)
-                  ? "border-primary bg-primary/10 text-foreground"
-                  : "border-border text-muted-foreground hover:bg-accent"
+                  ? "border-primary bg-canvas-soft-2 text-foreground"
+                  : "border-border text-muted-foreground hover:bg-canvas-soft"
               )}
             >
               <span

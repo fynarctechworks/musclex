@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Package, Plus, Tags, ArrowUpDown } from 'lucide-react';
+import { Package, Plus, Tags, ArrowUpDown, Layers, ArrowLeftRight, Package2 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/app-layout';
 import { AccessDenied } from '@/components/shared/access-denied';
 import { useRequirePermission } from '@/hooks/use-require-permission';
@@ -11,6 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProductTable } from '@/features/inventory/components/ProductTable';
 import { StockTable } from '@/features/inventory/components/StockTable';
 import { LowStockAlert } from '@/features/inventory/components/LowStockAlert';
+import { BatchTable } from '@/features/inventory/components/BatchTable';
+import { ExpiringBatchAlert } from '@/features/inventory/components/ExpiringBatchAlert';
+import { TransfersTable } from '@/features/inventory/components/TransfersTable';
+import { BundleTable } from '@/features/inventory/components/BundleTable';
 import { ProductDialog } from '@/features/inventory/components/ProductDialog';
 import { CategoryDialog } from '@/features/inventory/components/CategoryDialog';
 import { useCategories } from '@/features/inventory/hooks';
@@ -18,7 +22,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import type { Product, ProductCategory } from '@/features/inventory/types';
 
 export default function InventoryPage() {
-  const { allowed, checked } = useRequirePermission('settings', 'view', 'deny');
+  const { allowed, checked } = useRequirePermission('inventory', 'view', 'deny');
   const user = useAuthStore((s) => s.user);
   const activeBranchId = useAuthStore((s) => s.activeBranchId);
   const branchId = activeBranchId || user?.branch_ids?.[0];
@@ -53,7 +57,7 @@ export default function InventoryPage() {
   if (checked && !allowed) {
     return (
       <AppLayout>
-        <AccessDenied module="settings" />
+        <AccessDenied module="inventory" />
       </AppLayout>
     );
   }
@@ -85,8 +89,9 @@ export default function InventoryPage() {
           }
         />
 
-        {/* Low Stock Alert */}
-        <LowStockAlert />
+        {/* Alerts */}
+        <LowStockAlert branchId={branchId} />
+        <ExpiringBatchAlert branchId={branchId} />
 
         {/* Tabs */}
         <Tabs value={tab} onValueChange={setTab}>
@@ -98,6 +103,18 @@ export default function InventoryPage() {
             <TabsTrigger value="stock" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
               <ArrowUpDown className="h-4 w-4 mr-1.5" />
               Stock Levels
+            </TabsTrigger>
+            <TabsTrigger value="batches" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
+              <Layers className="h-4 w-4 mr-1.5" />
+              Batches
+            </TabsTrigger>
+            <TabsTrigger value="transfers" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
+              <ArrowLeftRight className="h-4 w-4 mr-1.5" />
+              Transfers
+            </TabsTrigger>
+            <TabsTrigger value="bundles" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
+              <Package2 className="h-4 w-4 mr-1.5" />
+              Bundles
             </TabsTrigger>
             <TabsTrigger value="categories" className="data-[state=active]:bg-background data-[state=active]:text-foreground">
               <Tags className="h-4 w-4 mr-1.5" />
@@ -111,6 +128,18 @@ export default function InventoryPage() {
 
           <TabsContent value="stock" className="mt-4">
             <StockTable />
+          </TabsContent>
+
+          <TabsContent value="batches" className="mt-4">
+            <BatchTable branchId={branchId} />
+          </TabsContent>
+
+          <TabsContent value="transfers" className="mt-4">
+            <TransfersTable />
+          </TabsContent>
+
+          <TabsContent value="bundles" className="mt-4">
+            <BundleTable branchId={branchId} />
           </TabsContent>
 
           <TabsContent value="categories" className="mt-4">
@@ -133,7 +162,7 @@ export default function InventoryPage() {
                 <div className="rounded-lg border border-border overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-border bg-muted/50">
+                      <tr className="border-b border-border bg-canvas-soft">
                         <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
                         <th className="text-left px-4 py-3 font-medium text-muted-foreground">Description</th>
                         <th className="text-center px-4 py-3 font-medium text-muted-foreground">Products</th>
@@ -142,7 +171,7 @@ export default function InventoryPage() {
                     </thead>
                     <tbody>
                       {categories.map((cat) => (
-                        <tr key={cat.id} className="border-b border-border hover:bg-muted/30 transition-colors">
+                        <tr key={cat.id} className="border-b border-border hover:bg-canvas-soft transition-colors">
                           <td className="px-4 py-3 font-medium text-foreground">{cat.name}</td>
                           <td className="px-4 py-3 text-muted-foreground">{cat.description || '—'}</td>
                           <td className="px-4 py-3 text-center text-muted-foreground">

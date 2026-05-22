@@ -54,8 +54,8 @@ export class RuleConditionsDto {
 // ── Reward Actions ────────────────────────────────────────────────
 
 export class RewardActionDto {
-  @IsIn(['extend_subscription', 'account_credit', 'trial_extension'])
-  type: 'extend_subscription' | 'account_credit' | 'trial_extension';
+  @IsIn(['extend_subscription', 'account_credit', 'trial_extension', 'wallet_credit'])
+  type: 'extend_subscription' | 'account_credit' | 'trial_extension' | 'wallet_credit';
 
   /** Days to add — required for extend_subscription and trial_extension */
   @IsInt()
@@ -63,16 +63,22 @@ export class RewardActionDto {
   @IsOptional()
   days?: number;
 
-  /** Amount — required for account_credit */
+  /** Amount — required for account_credit and wallet_credit */
   @IsNumber()
   @Min(0)
   @IsOptional()
   amount?: number;
 
-  /** Currency — required for account_credit */
+  /** Currency — required for account_credit and wallet_credit */
   @IsString()
   @IsOptional()
   currency?: string;
+
+  /** Days until wallet credit expires — wallet_credit only. Null = never. */
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  expires_in_days?: number;
 }
 
 // ── Create Rule ───────────────────────────────────────────────────

@@ -11,4 +11,8 @@ export { MembershipAnalytics } from "./MembershipAnalytics";
 export { MemberVisitsTab } from "./MemberVisitsTab";
 export { MemberProgressTab } from "./MemberProgressTab";
 export { MemberDocumentsTab } from "./MemberDocumentsTab";
+export { EnrollBiometricDialog } from "./EnrollBiometricDialog";
+export { TransferDialog } from "./TransferDialog";
+export { MemberAccessTab } from "./MemberAccessTab";
+export { AccessNetworkCard } from "./AccessNetworkCard";
 export { statusToVariant, statusLabels, paymentStatusVariant } from "./member-utils";

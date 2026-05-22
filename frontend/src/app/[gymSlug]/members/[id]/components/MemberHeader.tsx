@@ -37,7 +37,7 @@ export function MemberHeader({ member, backHref }: MemberHeaderProps) {
             className="h-14 w-14 rounded-full object-cover border-2 border-border"
           />
         ) : (
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/20 text-primary text-lg font-bold">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-canvas-soft-2 text-primary text-lg font-semibold">
             {member.full_name
               .split(" ")
               .map((n) => n[0])

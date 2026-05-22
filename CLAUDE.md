@@ -99,38 +99,8 @@ Before building any pages, create these shared components:
 - **Redis:** Upstash Redis
 - **Monitoring:** Sentry + Posthog
 
-## Design System (from PRD Section 13)
 
-### Color Palette
-```
---color-bg-primary:      #0D1B2A    (app background, nav bar)
---color-bg-surface:      #1A2F45    (card backgrounds, sidebars)
---color-bg-card:         #1E3450    (elevated cards, modals)
---color-accent-primary:  #4A9FD4    (CTAs, active states, links)
---color-accent-light:    #6BBFE8    (hover states, highlights)
---color-text-primary:    #FFFFFF    (primary body text)
---color-text-secondary:  #B0C8E0    (secondary text, captions)
---color-text-muted:      #5A7A9A    (placeholders, disabled)
---color-success:         #34C77A    (success, active badges)
---color-warning:         #F59E0B    (expiring soon, alerts)
---color-danger:          #EF4444    (errors, expired, high risk)
---color-border:          #2A4A6A    (card borders, dividers)
-```
 
-### Typography
-- **Font:** Inter (all text), JetBrains Mono (data/codes)
-- Display: 32px / 800 weight
-- Heading 1: 24px / 700
-- Heading 2: 18px / 600
-- Body: 14px / 400
-- Small: 12px / 400
-
-### Component Specs
-- **Buttons:** Primary bg #4A9FD4, border-radius 8px, padding 12px 24px
-- **Cards:** bg #1E3450, border 1px #2A4A6A, border-radius 12px, padding 20px, shadow 0 4px 16px rgba(0,0,0,0.3)
-- **Inputs:** bg #0D1B2A, border 1px #2A4A6A, border-radius 8px, focus border #4A9FD4
-- **Transitions:** all 0.2s ease
-- **Loading:** skeleton shimmer gradient #1A2F45 to #2A4A6A
 
 ## Database Rules (from TRD Section 4)
 

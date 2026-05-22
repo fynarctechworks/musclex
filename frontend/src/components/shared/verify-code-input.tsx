@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useCallback, useImperativeHandle, forwardRef, KeyboardEvent, ClipboardEvent } from 'react';
+import { useRef, useState, useCallback, useImperativeHandle, useEffect, forwardRef, KeyboardEvent, ClipboardEvent } from 'react';
 import { cn } from '@/lib/utils';
 
 export interface VerifyCodeInputRef {
@@ -110,6 +110,12 @@ export const VerifyCodeInput = forwardRef<VerifyCodeInputRef, VerifyCodeInputPro
 
   useImperativeHandle(ref, () => ({ reset }), [reset]);
 
+  useEffect(() => {
+    if (!disabled) {
+      focusInput(0);
+    }
+  }, [disabled, focusInput]);
+
   return (
     <div className={cn('flex gap-2 justify-center', className)}>
       {Array.from({ length }).map((_, i) => (
@@ -128,7 +134,7 @@ export const VerifyCodeInput = forwardRef<VerifyCodeInputRef, VerifyCodeInputPro
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={i === 0 ? handlePaste : undefined}
           className={cn(
-            'w-12 h-14 text-center text-xl font-mono rounded-lg border transition-all duration-200',
+            'w-12 h-14 text-center text-xl font-mono rounded-lg border transition-all duration-fast',
             'bg-background text-foreground placeholder:text-muted-foreground',
             'focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring',
             error

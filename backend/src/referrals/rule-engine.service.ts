@@ -18,10 +18,11 @@ export interface RuleConditions {
 }
 
 export interface RewardAction {
-  type: 'extend_subscription' | 'account_credit' | 'trial_extension';
+  type: 'extend_subscription' | 'account_credit' | 'trial_extension' | 'wallet_credit';
   days?: number;      // extend_subscription / trial_extension
-  amount?: number;    // account_credit
-  currency?: string;  // account_credit
+  amount?: number;    // account_credit / wallet_credit
+  currency?: string;  // account_credit / wallet_credit
+  expires_in_days?: number; // wallet_credit only — credit expiry
 }
 
 export interface MatchedRule {

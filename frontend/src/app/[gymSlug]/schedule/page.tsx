@@ -53,23 +53,26 @@ const categories = [
   { label: "Other", value: "other" },
 ];
 
+// Class category chips — Design.md `badge-secondary` soft semantic pills.
+// Categories map onto the brand's four semantic tones (success / warning /
+// error / link / neutral) rather than a freeform 8-color rainbow.
 const categoryColors: Record<string, string> = {
-  cardio: "bg-red-500/20 border-red-500/40 text-red-300",
-  strength: "bg-blue-500/20 border-blue-500/40 text-blue-300",
-  flexibility: "bg-green-500/20 border-green-500/40 text-green-300",
-  mind_body: "bg-purple-500/20 border-purple-500/40 text-purple-300",
-  dance: "bg-pink-500/20 border-pink-500/40 text-pink-300",
-  martial_arts: "bg-orange-500/20 border-orange-500/40 text-orange-300",
-  rehabilitation: "bg-teal-500/20 border-teal-500/40 text-teal-300",
-  other: "bg-gray-500/20 border-gray-500/40 text-gray-300",
+  cardio:         "bg-error-soft text-error-deep",
+  strength:       "bg-link-soft text-link-deep",
+  flexibility:    "bg-success/12 text-success",
+  mind_body:      "bg-canvas-soft-2 text-foreground",
+  dance:          "bg-canvas-soft-2 text-foreground",
+  martial_arts:   "bg-warning-soft text-warning-deep",
+  rehabilitation: "bg-link-soft text-link-deep",
+  other:          "bg-canvas-soft-2 text-muted-foreground",
   // Legacy categories
-  yoga: "bg-purple-500/20 border-purple-500/40 text-purple-300",
-  hiit: "bg-red-500/20 border-red-500/40 text-red-300",
-  pilates: "bg-green-500/20 border-green-500/40 text-green-300",
-  crossfit: "bg-orange-500/20 border-orange-500/40 text-orange-300",
-  zumba: "bg-pink-500/20 border-pink-500/40 text-pink-300",
-  spinning: "bg-yellow-500/20 border-yellow-500/40 text-yellow-300",
-  boxing: "bg-orange-500/20 border-orange-500/40 text-orange-300",
+  yoga:           "bg-canvas-soft-2 text-foreground",
+  hiit:           "bg-error-soft text-error-deep",
+  pilates:        "bg-success/12 text-success",
+  crossfit:       "bg-warning-soft text-warning-deep",
+  zumba:          "bg-canvas-soft-2 text-foreground",
+  spinning:       "bg-warning-soft text-warning-deep",
+  boxing:         "bg-warning-soft text-warning-deep",
 };
 
 interface CreateClassForm {
@@ -285,7 +288,7 @@ export default function SchedulePage() {
                   {HOURS.map((hour) => (
                     <div
                       key={hour}
-                      className="border-b border-border/30 hover:bg-muted/30 cursor-pointer transition-colors"
+                      className="border-b border-border/30 hover:bg-canvas-soft cursor-pointer transition-colors"
                       style={{ height: HOUR_HEIGHT }}
                       onClick={() => openAddModal(day, hour)}
                     />
@@ -339,8 +342,8 @@ function CurrentTimeIndicator() {
       style={{ top }}
     >
       <div className="flex items-center">
-        <div className="w-2 h-2 rounded-full bg-red-500 -ml-1" />
-        <div className="flex-1 h-[2px] bg-red-500" />
+        <div className="w-2 h-2 rounded-full bg-error -ml-1" />
+        <div className="flex-1 h-[2px] bg-error" />
       </div>
     </div>
   );
@@ -369,7 +372,7 @@ function ClassEvent({
 
   const colorClass =
     categoryColors[cls.category] ||
-    "bg-primary/20 border-primary/40 text-primary";
+    "bg-canvas-soft-2 border-primary/40 text-primary";
 
   return (
     <Link
@@ -482,7 +485,7 @@ function AddClassModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-card border border-border rounded-lg shadow-level-5 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-lg font-semibold text-foreground">Add Class</h2>

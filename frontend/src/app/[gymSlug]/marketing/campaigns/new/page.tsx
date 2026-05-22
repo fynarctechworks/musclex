@@ -84,7 +84,7 @@ export default function NewCampaignPage() {
           onSubmit={handleSubmit(onSubmit)}
           className="space-y-4"
         >
-          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+          <div className="bg-card border border-border rounded-lg p-6 space-y-4">
             <FormInput
               label="Campaign Name"
               {...register("name", { required: "Name is required" })}

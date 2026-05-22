@@ -26,7 +26,7 @@ export default function NotFound() {
     >
       {/* Logo mark */}
       <div
-        className="mb-8 flex h-20 w-20 items-center justify-center rounded-2xl"
+        className="mb-8 flex h-20 w-20 items-center justify-center rounded-lg"
         style={{ background: "#1E3450", border: "1px solid #2A4A6A", boxShadow: "0 4px 24px rgba(0,0,0,0.3)" }}
       >
         <Home className="h-9 w-9" style={{ color: "#4A9FD4" }} />
@@ -34,13 +34,13 @@ export default function NotFound() {
 
       {/* Error code */}
       <p
-        className="mb-2 text-8xl font-black tracking-tight"
+        className="mb-2 text-8xl font-semibold tracking-tight"
         style={{ color: "#4A9FD4", textShadow: "0 0 40px rgba(74,159,212,0.3)" }}
       >
         404
       </p>
 
-      <h1 className="mb-3 text-2xl font-bold" style={{ color: "#FFFFFF" }}>
+      <h1 className="mb-3 text-2xl font-semibold" style={{ color: "#FFFFFF" }}>
         Page not found
       </h1>
       <p className="mb-10 max-w-sm text-sm leading-relaxed" style={{ color: "#B0C8E0" }}>
@@ -51,7 +51,7 @@ export default function NotFound() {
       <div className="flex flex-col gap-3 sm:flex-row">
         <button
           onClick={() => router.back()}
-          className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all hover:opacity-80"
+          className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-all hover:opacity-80"
           style={{ background: "#1E3450", border: "1px solid #2A4A6A", color: "#B0C8E0" }}
         >
           <ArrowLeft className="h-4 w-4" />
@@ -59,7 +59,7 @@ export default function NotFound() {
         </button>
         <Link
           href={dashboardHref}
-          className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium transition-all hover:opacity-90"
+          className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium transition-all hover:opacity-90"
           style={{ background: "#4A9FD4", color: "#FFFFFF", boxShadow: "0 4px 12px rgba(74,159,212,0.3)" }}
         >
           <LayoutDashboard className="h-4 w-4" />

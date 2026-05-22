@@ -61,7 +61,7 @@ export default function StaffAnalyticsPage() {
       ) : (
         <>
           {/* Chart */}
-          <div className="bg-card border border-border rounded-xl p-6 mb-6">
+          <div className="bg-card border border-border rounded-lg p-6 mb-6">
             <h2 className="text-base font-semibold text-foreground mb-4">
               Avg Occupancy Rate by Trainer
             </h2>
@@ -100,7 +100,7 @@ export default function StaffAnalyticsPage() {
           </div>
 
           {/* Table */}
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="bg-card border border-border rounded-lg overflow-hidden">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
@@ -125,7 +125,7 @@ export default function StaffAnalyticsPage() {
                 {data?.map((trainer) => (
                   <tr
                     key={trainer.trainer_id}
-                    className="border-b border-border last:border-0 hover:bg-muted/50"
+                    className="border-b border-border last:border-0 hover:bg-canvas-soft"
                   >
                     <td className="p-4 text-sm text-foreground font-medium">
                       {trainer.trainer_name}

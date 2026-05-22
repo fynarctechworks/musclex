@@ -133,7 +133,7 @@ export function MobileDashboard() {
           </span>
         </div>
         {showOfflineBanner && (
-          <div className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2 py-1 text-[11px] text-amber-500">
+          <div className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-warning/10 px-2 py-1 text-[11px] text-warning">
             <WifiOff className="h-3 w-3" />
             Offline — last synced {cacheAgeMin}m ago
           </div>
@@ -246,12 +246,12 @@ export function MobileDashboard() {
             {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={i}
-                className="h-16 rounded-lg bg-muted/20 animate-pulse"
+                className="h-16 rounded-lg bg-canvas-soft animate-pulse"
               />
             ))}
           </div>
         ) : actions.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center">
+          <div className="rounded-lg border border-dashed border-border bg-card p-6 text-center">
             <p className="text-[14px] text-foreground font-medium">
               You're clear.
             </p>

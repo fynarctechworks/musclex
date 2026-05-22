@@ -30,14 +30,14 @@ function fillTone(pct: number): { stroke: string; text: string; bg: string } {
   if (pct >= 60) {
     return {
       stroke: "stroke-amber-500",
-      text: "text-amber-500",
-      bg: "bg-amber-500/10",
+      text: "text-warning",
+      bg: "bg-warning/10",
     };
   }
   return {
     stroke: "stroke-emerald-500",
-    text: "text-emerald-500",
-    bg: "bg-emerald-500/10",
+    text: "text-success",
+    bg: "bg-success/10",
   };
 }
 
@@ -88,7 +88,7 @@ export function OccupancyGauge({ branchId }: OccupancyGaugeProps) {
   const offset = circumference * (1 - fillPct / 100);
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5 shadow-sm transition-shadow hover:shadow-md">
+    <div className="bg-card border border-border rounded-lg p-5 shadow-level-2 transition-shadow hover:shadow-level-3">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
           <Activity className="w-4 h-4 text-primary" />
@@ -97,7 +97,7 @@ export function OccupancyGauge({ branchId }: OccupancyGaugeProps) {
         <span
           className={cn(
             "text-[11px] px-2 py-0.5 rounded-full border border-border",
-            "text-muted-foreground bg-muted/40",
+            "text-muted-foreground bg-canvas-soft",
           )}
           title={data?.as_of ? new Date(data.as_of).toLocaleString() : ""}
         >
@@ -139,7 +139,7 @@ export function OccupancyGauge({ branchId }: OccupancyGaugeProps) {
                   d={`M ${stroke / 2} ${radius + stroke / 2}
                       A ${radius} ${radius} 0 0 1 ${radius * 2 + stroke / 2} ${radius + stroke / 2}`}
                   fill="none"
-                  className={cn(tone.stroke, "transition-all duration-500")}
+                  className={cn(tone.stroke, "transition-all duration-slow")}
                   strokeWidth={stroke}
                   strokeLinecap="round"
                   strokeDasharray={circumference}
@@ -149,7 +149,7 @@ export function OccupancyGauge({ branchId }: OccupancyGaugeProps) {
               <div className="absolute inset-0 flex flex-col items-center justify-end pb-1">
                 <span
                   className={cn(
-                    "text-3xl font-bold tabular-nums",
+                    "text-3xl font-semibold tabular-nums",
                     tone.text,
                   )}
                 >

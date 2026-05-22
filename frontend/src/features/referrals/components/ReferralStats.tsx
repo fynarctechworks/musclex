@@ -25,7 +25,7 @@ export function ReferralStats() {
       {statCards.map(({ key, label, icon: Icon, color }) => (
         <div
           key={key}
-          className="rounded-xl border border-border bg-card p-4"
+          className="rounded-lg border border-border bg-card p-4"
         >
           <div className="flex items-center gap-2">
             <Icon className={`h-4 w-4 ${color}`} />
@@ -34,7 +34,7 @@ export function ReferralStats() {
           {isLoading ? (
             <div className="mt-2 h-7 w-12 animate-pulse rounded bg-muted" />
           ) : (
-            <p className="mt-2 text-2xl font-bold text-foreground">{getValue(key)}</p>
+            <p className="mt-2 text-2xl font-semibold text-foreground">{getValue(key)}</p>
           )}
         </div>
       ))}

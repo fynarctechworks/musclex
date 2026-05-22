@@ -38,8 +38,8 @@ export function MembershipAnalytics({ member }: MembershipAnalyticsProps) {
       </h3>
       <div className="grid gap-4 sm:grid-cols-3">
         {stats.map((stat) => (
-          <div key={stat.label} className="flex items-center gap-3 rounded-md bg-muted/50 border border-border p-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10">
+          <div key={stat.label} className="flex items-center gap-3 rounded-md bg-canvas-soft border border-border p-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-canvas-soft-2">
               <stat.icon className="h-4 w-4 text-primary" />
             </div>
             <div>

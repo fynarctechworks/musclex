@@ -156,14 +156,14 @@ export default function OnboardingBranchesPage() {
   return (
     <OnboardingLayout currentStep={3}>
       <div className="mb-7">
-        <span className="text-primary text-4xl font-black leading-none">*</span>
-        <h1 className="mt-2 text-[22px] font-bold text-foreground tracking-tight">
+        <span className="text-primary text-4xl font-semibold leading-none">*</span>
+        <h1 className="mt-2 text-[22px] font-semibold text-foreground tracking-tight">
           Add your first location
         </h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
           Step 4 of 7 — You must add at least one branch to continue.
         </p>
-        <p className="mt-1 text-[12px] text-amber-500 font-medium">
+        <p className="mt-1 text-[12px] text-warning font-medium">
           ⚠ Branch is required before you can create members, staff, or classes.
         </p>
       </div>
@@ -270,7 +270,7 @@ export default function OnboardingBranchesPage() {
             <div className="space-y-1.5">
               <label className="text-[13px] font-medium text-foreground">Phone</label>
               <div className="flex rounded-md border border-border bg-background focus-within:ring-1 focus-within:ring-ring overflow-hidden">
-                <span className="flex shrink-0 items-center justify-center border-r border-border bg-muted/40 px-3 text-[13px] text-muted-foreground whitespace-nowrap">
+                <span className="flex shrink-0 items-center justify-center border-r border-border bg-canvas-soft px-3 text-[13px] text-muted-foreground whitespace-nowrap">
                   {getPhoneMetadata(watchedBranches?.[index]?.country || '').dialCode || '--'}
                 </span>
                 <input

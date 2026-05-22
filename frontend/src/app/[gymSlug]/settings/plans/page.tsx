@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
-import { Plus, Pencil, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TableSkeleton } from "@/components/shared/loading-skeleton";
@@ -16,6 +16,7 @@ import {
 } from "@/components/shared/form-fields";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,8 @@ import { apiClient } from "@/lib/api";
 import type { MembershipPlan, Branch } from "@/lib/types";
 import { useRequirePermission } from "@/hooks/use-require-permission";
 import { AccessDenied } from "@/components/shared";
+import { AccessScopeSection } from "./AccessScopeSection";
+import { planMinPrice, planHasBranchPricing } from "@/lib/plan-pricing";
 
 interface PlanFormData {
   name: string;
@@ -39,6 +42,14 @@ interface PlanFormData {
   is_active: boolean;
   auto_renew_enabled: boolean;
   branch_id?: string;
+  // ── Multi-gym access scope ──
+  access_type: string;
+  tier: string;
+  allowed_branch_ids: string[];
+  allowed_city?: string;
+  allowed_hours_start?: string;
+  allowed_hours_end?: string;
+  branch_price_overrides: Record<string, number | string>;
 }
 
 const planTypeOptions = [
@@ -80,6 +91,7 @@ export default function MembershipPlansPage() {
     control,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<PlanFormData>({
     defaultValues: {
@@ -93,17 +105,49 @@ export default function MembershipPlansPage() {
       is_active: true,
       auto_renew_enabled: false,
       branch_id: "none",
+      access_type: "single_branch",
+      tier: "",
+      allowed_branch_ids: [],
+      allowed_city: "",
+      allowed_hours_start: "",
+      allowed_hours_end: "",
+      branch_price_overrides: {},
     },
   });
 
   const planType = watch("plan_type");
 
+  const buildPayload = (data: PlanFormData) => {
+    const overrides: Record<string, number> = {};
+    for (const [k, v] of Object.entries(data.branch_price_overrides ?? {})) {
+      const n = typeof v === "string" ? parseFloat(v) : v;
+      if (Number.isFinite(n) && (n as number) >= 0) overrides[k] = n as number;
+    }
+    const hours =
+      data.access_type === "time_based" &&
+      data.allowed_hours_start &&
+      data.allowed_hours_end
+        ? { start: data.allowed_hours_start, end: data.allowed_hours_end }
+        : null;
+    return {
+      ...data,
+      branch_id:
+        data.branch_id && data.branch_id !== "none" ? data.branch_id : undefined,
+      // Server-side fields only — drop UI scratch fields.
+      allowed_branch_ids:
+        data.access_type === "multi_branch" ? data.allowed_branch_ids : [],
+      allowed_city:
+        data.access_type === "city_access" ? data.allowed_city || null : null,
+      allowed_hours_json: hours,
+      branch_price_overrides: overrides,
+      allowed_hours_start: undefined,
+      allowed_hours_end: undefined,
+    };
+  };
+
   const createMutation = useMutation({
     mutationFn: (data: PlanFormData) => {
-      const payload = {
-        ...data,
-        branch_id: data.branch_id && data.branch_id !== "none" ? data.branch_id : undefined,
-      };
+      const payload = buildPayload(data);
       return apiClient.post<MembershipPlan>("/membership-plans", payload);
     },
     onSuccess: () => {
@@ -116,10 +160,7 @@ export default function MembershipPlansPage() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: PlanFormData }) => {
-      const payload = {
-        ...data,
-        branch_id: data.branch_id && data.branch_id !== "none" ? data.branch_id : undefined,
-      };
+      const payload = buildPayload(data);
       return apiClient.patch<MembershipPlan>(
         `/membership-plans/${id}`,
         payload
@@ -156,12 +197,23 @@ export default function MembershipPlansPage() {
       is_active: true,
       auto_renew_enabled: false,
       branch_id: "none",
+      access_type: "single_branch",
+      tier: "",
+      allowed_branch_ids: [],
+      allowed_city: "",
+      allowed_hours_start: "",
+      allowed_hours_end: "",
+      branch_price_overrides: {},
     });
     setDialogOpen(true);
   };
 
   const openEditDialog = (plan: MembershipPlan) => {
     setEditingPlan(plan);
+    const hours = plan.allowed_hours_json as
+      | { start?: string; end?: string }
+      | null
+      | undefined;
     reset({
       name: plan.name,
       description: plan.description || "",
@@ -173,6 +225,14 @@ export default function MembershipPlansPage() {
       is_active: plan.is_active,
       auto_renew_enabled: plan.auto_renew_enabled,
       branch_id: plan.branch_id || "none",
+      access_type: plan.access_type ?? "single_branch",
+      tier: plan.tier ?? "",
+      allowed_branch_ids: plan.allowed_branch_ids ?? [],
+      allowed_city: plan.allowed_city ?? "",
+      allowed_hours_start: hours?.start ?? "",
+      allowed_hours_end: hours?.end ?? "",
+      branch_price_overrides:
+        (plan.branch_price_overrides as Record<string, number>) ?? {},
     });
     setDialogOpen(true);
   };
@@ -189,11 +249,6 @@ export default function MembershipPlansPage() {
       createMutation.mutate(data);
     }
   };
-
-  const branchOptions = [
-    { label: "All Branches", value: "none" },
-    ...(branches ?? []).map((b) => ({ label: b.name, value: b.id })),
-  ];
 
   const isMutating = createMutation.isPending || updateMutation.isPending;
 
@@ -304,7 +359,15 @@ export default function MembershipPlansPage() {
                           : "--"}
                       </td>
                       <td className="px-4 py-3 font-medium text-foreground">
-                        ₹{Number(plan.price).toFixed(2)}
+                        {planHasBranchPricing(plan) && (
+                          <span className="text-xs text-muted-foreground font-normal mr-1">from</span>
+                        )}
+                        ₹{planMinPrice(plan).toFixed(2)}
+                        {planHasBranchPricing(plan) && (
+                          <span className="ml-1.5 inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                            branch pricing
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {plan.max_classes_per_week ?? "Unlimited"}
@@ -328,27 +391,21 @@ export default function MembershipPlansPage() {
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
+                          <Switch
+                            checked={plan.is_active}
+                            disabled={toggleActiveMutation.isPending}
+                            onCheckedChange={(checked) =>
                               toggleActiveMutation.mutate({
                                 id: plan.id,
-                                is_active: !plan.is_active,
+                                is_active: checked,
                               })
                             }
-                            className={`h-8 w-8 hover:bg-muted ${
+                            aria-label={
                               plan.is_active
-                                ? "text-primary hover:text-primary"
-                                : "text-muted-foreground hover:text-muted-foreground"
-                            }`}
-                          >
-                            {plan.is_active ? (
-                              <ToggleRight className="h-5 w-5" />
-                            ) : (
-                              <ToggleLeft className="h-5 w-5" />
-                            )}
-                          </Button>
+                                ? "Deactivate plan"
+                                : "Activate plan"
+                            }
+                          />
                         </div>
                       </td>
                     </tr>
@@ -362,7 +419,7 @@ export default function MembershipPlansPage() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-card border-border text-foreground sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-card border-border text-foreground sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">
               {editingPlan ? "Edit Plan" : "Create New Plan"}
@@ -426,28 +483,25 @@ export default function MembershipPlansPage() {
               )}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormInput
-                label="Max Classes/Week"
-                type="number"
-                placeholder="Leave empty for unlimited"
-                error={errors.max_classes_per_week?.message}
-                {...register("max_classes_per_week")}
-              />
-              <Controller
-                name="branch_id"
-                control={control}
-                render={({ field }) => (
-                  <FormSelect
-                    label="Branch Scope"
-                    value={field.value || "none"}
-                    onValueChange={field.onChange}
-                    options={branchOptions}
-                    error={errors.branch_id?.message}
-                  />
-                )}
-              />
-            </div>
+            <FormInput
+              label="Max Classes/Week"
+              type="number"
+              placeholder="Leave empty for unlimited"
+              error={errors.max_classes_per_week?.message}
+              {...register("max_classes_per_week")}
+            />
+
+            {/* Branch access + tier + per-branch pricing.
+                This section now owns branch selection (home branch for
+                single-branch plans, multi-select for multi-branch) — the old
+                standalone "Branch Scope" dropdown was redundant and removed. */}
+            <AccessScopeSection
+              register={register}
+              watch={watch}
+              setValue={setValue}
+              branches={branches}
+              basePrice={watch("price")}
+            />
 
             {/* Toggles */}
             <div className="space-y-3 rounded-lg border border-border bg-background p-4">
@@ -465,7 +519,7 @@ export default function MembershipPlansPage() {
                       }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        className={`inline-block h-4 w-4 transform rounded-full bg-canvas transition-transform ${
                           field.value ? "translate-x-6" : "translate-x-1"
                         }`}
                       />
@@ -489,7 +543,7 @@ export default function MembershipPlansPage() {
                       }`}
                     >
                       <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        className={`inline-block h-4 w-4 transform rounded-full bg-canvas transition-transform ${
                           field.value ? "translate-x-6" : "translate-x-1"
                         }`}
                       />

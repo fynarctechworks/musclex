@@ -86,16 +86,16 @@ export default function OnboardingCompletePage() {
       <div className="text-center py-6">
         <div className="flex justify-center mb-5">
           <div className="relative">
-            <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
+            <div className="h-20 w-20 rounded-full bg-canvas-soft-2 flex items-center justify-center">
               <CheckCircle2 className="h-10 w-10 text-primary" />
             </div>
             <div className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground text-xs font-bold">🎉</span>
+              <span className="text-primary-foreground text-xs font-semibold">🎉</span>
             </div>
           </div>
         </div>
 
-        <h1 className="text-[26px] font-bold text-foreground tracking-tight">
+        <h1 className="text-[26px] font-semibold text-foreground tracking-tight">
           Your gym is ready!
         </h1>
         <p className="mt-2 text-[13px] text-muted-foreground leading-relaxed max-w-xs mx-auto">

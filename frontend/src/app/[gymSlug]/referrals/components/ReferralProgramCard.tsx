@@ -27,7 +27,7 @@ export function ReferralProgramCard({ program }: ReferralProgramCardProps) {
   const config = statusConfig[status] ?? statusConfig.active;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
+    <div className="rounded-lg border border-border bg-card p-5">
       <div className="flex items-start justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-3">

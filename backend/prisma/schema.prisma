@@ -15,66 +15,93 @@ datasource db {
 // =============================================
 
 model Studio {
-  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name                String
-  slug                String    @unique
-  schema_name         String    @unique
-  owner_user_id       String    @db.Uuid
-  logo_url            String?
-  tagline             String?
-  phone               String?
-  email               String?
-  website             String?
-  address             String?
-  city                String?
-  state               String?
-  country             String?
-  postal_code         String?
-  business_name       String?
-  business_type       String?
-  timezone            String    @default("Asia/Kolkata")
-  currency            String    @default("INR")
-  subscription_plan   String    @default("free")
-  subscription_status String    @default("trial")
-  billing_cycle       String    @default("monthly")
-  billing_name        String?
-  billing_email       String?
-  billing_address     String?
-  tax_id              String?
-  subscription_start  DateTime? @db.Timestamptz()
-  next_billing_date   DateTime? @db.Timestamptz()
-  trial_ends_at       DateTime? @db.Timestamptz()
-  last_login_at       DateTime? @db.Timestamptz()
-  two_factor_enabled  Boolean   @default(false)
-  email_verified      Boolean   @default(false)
-  phone_verified      Boolean   @default(false)
-  account_type        String    @default("gym")
-  referral_code       String    @unique
-  referred_by_code    String?
-  referral_free_days  Int       @default(0)
-  referral_reward_days Int      @default(0)
-  created_at          DateTime  @default(now()) @db.Timestamptz()
-  updated_at          DateTime  @default(now()) @updatedAt @db.Timestamptz()
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                    String
+  slug                    String    @unique
+  schema_name             String    @unique
+  owner_user_id           String    @db.Uuid
+  logo_url                String?
+  tagline                 String?
+  phone                   String?
+  email                   String?
+  website                 String?
+  address                 String?
+  city                    String?
+  state                   String?
+  country                 String?
+  postal_code             String?
+  business_name           String?
+  business_type           String?
+  timezone                String    @default("Asia/Kolkata")
+  currency                String    @default("INR")
+  subscription_plan       String    @default("free")
+  subscription_status     String    @default("trial")
+  billing_cycle           String    @default("monthly")
+  billing_name            String?
+  billing_email           String?
+  billing_address         String?
+  tax_id                  String?
+  subscription_start      DateTime? @db.Timestamptz()
+  next_billing_date       DateTime? @db.Timestamptz()
+  trial_ends_at           DateTime? @db.Timestamptz()
+  subscription_expires_at DateTime? @db.Timestamptz() // hard expiry; reward engine extends this
+  // ── Subscription lifecycle (computed by SubscriptionPolicyService) ──
+  // active | grace_period | locked | suspended
+  lifecycle_status        String    @default("active")
+  grace_until             DateTime? @db.Timestamptz() // last second of grace; null when ACTIVE
+  locked_at               DateTime? @db.Timestamptz() // when LOCKED transition happened
+  suspended_at            DateTime? @db.Timestamptz() // manual admin suspension
+  last_status_computed_at DateTime? @db.Timestamptz()
+  last_login_at           DateTime? @db.Timestamptz()
+  two_factor_enabled      Boolean   @default(false)
+  email_verified          Boolean   @default(false)
+  phone_verified          Boolean   @default(false)
+  account_type            String    @default("gym")
+  // ── GST / tax-invoice settings (India) ──
+  gstin                   String?
+  gst_state_code          String? // 2-digit numeric, e.g. "27" for Maharashtra
+  default_hsn             String?
+  invoice_prefix          String?
+  invoice_terms           String?
+  referral_code           String    @unique
+  referred_by_code        String?
+  referral_free_days      Int       @default(0)
+  referral_reward_days    Int       @default(0)
+  created_at              DateTime  @default(now()) @db.Timestamptz()
+  updated_at              DateTime  @default(now()) @updatedAt @db.Timestamptz()
 
-  invoices Invoice[]
+  invoices            Invoice[]
+  subscription_events SubscriptionEvent[]
 
+  // ── Referral & Growth Engine relations ──
+  referrals_sent    Referral[]            @relation("ReferrerStudio")
+  referral_received Referral?             @relation("ReferredStudio")
+  reward_logs       RewardLog[]           @relation("RewardBeneficiary")
+  referral_wallet   ReferralWallet?
+  fraud_signals     ReferralFraudSignal[] @relation("FraudSubjectStudio")
+
+  @@index([lifecycle_status])
+  @@index([next_billing_date])
+  @@index([grace_until])
+  @@index([subscription_expires_at])
   @@map("studios")
   @@schema("public")
 }
 
 model SubscriptionPlan {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name             String   @unique
-  display_name     String
-  description      String?
-  monthly_price    Decimal  @db.Decimal(10, 2)
-  annual_price     Decimal  @db.Decimal(10, 2)
-  max_branches     Int      @default(1)
-  max_members      Int      @default(100)
-  max_staff        Int      @default(5)
-  storage_limit_gb Int      @default(1)
-  api_access       Boolean  @default(false)
-  features         Json     @default("{}") // { "multi_branch": true, ... }
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                String    @unique
+  display_name        String
+  description         String?
+  monthly_price       Decimal   @db.Decimal(10, 2)
+  annual_price        Decimal   @db.Decimal(10, 2)
+  max_branches        Int       @default(1)
+  max_members         Int       @default(100)
+  max_staff           Int       @default(5)
+  storage_limit_gb    Int       @default(1)
+  api_access          Boolean   @default(false)
+  features            Json      @default("{}") // { "multi_branch": true, ... }
+  grace_days          Int       @default(3) // days after expiry before LOCKED
   plan_type           String    @default("regular")
   is_active           Boolean   @default(true)
   is_featured         Boolean   @default(false)
@@ -106,6 +133,40 @@ model Invoice {
 
   @@index([studio_id, created_at])
   @@map("invoices")
+  @@schema("public")
+}
+
+// =============================================
+// Subscription Event Ledger (immutable, append-only)
+// Every lifecycle transition + billing action recorded here.
+// Never UPDATE/DELETE — only INSERT.
+// =============================================
+model SubscriptionEvent {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studio_id     String    @db.Uuid
+  // created | renewed | plan_changed | entered_grace | locked | unlocked |
+  // suspended | reactivated | payment_recorded | reminder_sent
+  event_type    String
+  from_status   String? // previous lifecycle_status (null on create)
+  to_status     String? // new lifecycle_status
+  plan_name     String? // plan in effect at event time
+  billing_cycle String?
+  amount        Decimal?  @db.Decimal(10, 2)
+  currency      String?
+  period_start  DateTime? @db.Timestamptz()
+  period_end    DateTime? @db.Timestamptz()
+  // who/what caused this — user_id for human action, "system" for cron, "webhook" for gateway
+  actor_id      String?   @db.Uuid
+  actor_type    String    @default("system") // system | user | webhook | admin
+  // free-form context (invoice_id, gateway txn id, reminder channel, etc)
+  metadata      Json      @default("{}")
+  created_at    DateTime  @default(now()) @db.Timestamptz()
+
+  studio Studio @relation(fields: [studio_id], references: [id])
+
+  @@index([studio_id, created_at])
+  @@index([studio_id, event_type])
+  @@map("subscription_events")
   @@schema("public")
 }
 
@@ -144,35 +205,53 @@ model PendingRegistration {
 // =============================================
 
 model UserIdentity {
-  id                  String    @id @db.Uuid // Same as Supabase Auth user ID
-  email               String    @unique
-  full_name           String
-  phone               String?
-  avatar_url          String?
-  status              String    @default("active") // active | suspended | deactivated
-  email_verified      Boolean   @default(false)
-  phone_verified      Boolean   @default(false)
-  last_login_at       DateTime? @db.Timestamptz()
-  login_count         Int       @default(0)
-  failed_login_count  Int       @default(0)
-  locked_until        DateTime? @db.Timestamptz()
-  password_changed_at DateTime? @db.Timestamptz()
-  two_factor_enabled  Boolean   @default(false)
-  two_factor_method   String? // totp | sms | email
-  two_factor_secret   String? // encrypted TOTP secret
-  two_factor_backup_codes String[] @default([]) // hashed backup codes
-  metadata            Json      @default("{}")
-  created_at          DateTime  @default(now()) @db.Timestamptz()
-  updated_at          DateTime  @default(now()) @updatedAt @db.Timestamptz()
+  id                      String    @id @db.Uuid // Same as Supabase Auth user ID
+  email                   String    @unique
+  full_name               String
+  phone                   String?
+  avatar_url              String?
+  status                  String    @default("active") // active | suspended | deactivated
+  email_verified          Boolean   @default(false)
+  phone_verified          Boolean   @default(false)
+  last_login_at           DateTime? @db.Timestamptz()
+  login_count             Int       @default(0)
+  failed_login_count      Int       @default(0)
+  locked_until            DateTime? @db.Timestamptz()
+  password_changed_at     DateTime? @db.Timestamptz()
+  two_factor_enabled      Boolean   @default(false)
+  two_factor_method       String? // totp | sms | email
+  two_factor_secret       String? // encrypted TOTP secret
+  two_factor_backup_codes String[]  @default([]) // hashed backup codes
+  metadata                Json      @default("{}")
+  created_at              DateTime  @default(now()) @db.Timestamptz()
+  updated_at              DateTime  @default(now()) @updatedAt @db.Timestamptz()
 
   devices       UserDevice[]
   login_history LoginHistory[]
   sessions      UserSession[]
   user_roles    UserRole[]
+  backup_codes  BackupCode[]
 
   @@index([email])
   @@index([status])
   @@map("user_identities")
+  @@schema("public")
+}
+
+// Single-use 2FA backup codes (hashed). Supersedes the deprecated
+// UserIdentity.two_factor_backup_codes array; one row per code so each can be
+// individually marked used.
+model BackupCode {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_identity_id String    @db.Uuid
+  code_hash        String
+  used_at          DateTime? @db.Timestamptz()
+  created_at       DateTime  @default(now()) @db.Timestamptz()
+
+  user UserIdentity @relation(fields: [user_identity_id], references: [id], onDelete: Cascade)
+
+  @@index([user_identity_id, used_at])
+  @@map("backup_codes")
   @@schema("public")
 }
 
@@ -290,19 +369,19 @@ model UserRole {
 }
 
 model StaffInvitation {
-  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  studio_id             String    @db.Uuid
-  staff_id              String    @db.Uuid
-  email                 String
-  token                 String    @unique
-  role_name             String
-  branch_id             String?   @db.Uuid
-  permission_overrides  Json      @default("{}")
-  status                String    @default("pending") // pending | accepted | revoked | expired
-  invited_by            String    @db.Uuid
-  expires_at            DateTime  @db.Timestamptz()
-  accepted_at           DateTime? @db.Timestamptz()
-  created_at            DateTime  @default(now()) @db.Timestamptz()
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studio_id            String    @db.Uuid
+  staff_id             String    @db.Uuid
+  email                String
+  token                String    @unique
+  role_name            String
+  branch_id            String?   @db.Uuid
+  permission_overrides Json      @default("{}")
+  status               String    @default("pending") // pending | accepted | revoked | expired
+  invited_by           String    @db.Uuid
+  expires_at           DateTime  @db.Timestamptz()
+  accepted_at          DateTime? @db.Timestamptz()
+  created_at           DateTime  @default(now()) @db.Timestamptz()
 
   @@index([studio_id])
   @@index([staff_id])
@@ -317,7 +396,7 @@ model StaffInvitation {
 
 model Organization {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id        String   @db.Uuid
   name          String
   slug          String   @unique
   logo_url      String?
@@ -362,7 +441,7 @@ model Organization {
 
 model OrganizationSettings {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id           String   @db.Uuid
   organization_id  String   @unique @db.Uuid
   default_timezone String   @default("Asia/Kolkata")
   default_currency String   @default("INR")
@@ -380,7 +459,7 @@ model OrganizationSettings {
 
 model Region {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String   @db.Uuid
   organization_id String   @db.Uuid
   name            String
   country         String?
@@ -404,7 +483,7 @@ model Region {
 
 model Branch {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String   @db.Uuid
   organization_id String?  @db.Uuid
   region_id       String?  @db.Uuid
   name            String
@@ -422,41 +501,54 @@ model Branch {
   is_active       Boolean  @default(true)
   opening_time    String? // "06:00" (HH:mm)
   closing_time    String? // "22:00" (HH:mm)
+  timezone        String   @default("Asia/Kolkata") // IANA tz; per-branch date math (duplicate-window, opening hours)
+  // ── GST overrides (fall back to studio.gstin / gst_state_code when null) ──
+  gstin           String?
+  gst_state_code  String?
   created_at      DateTime @default(now()) @db.Timestamptz()
   updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz()
 
-  organization           Organization?          @relation(fields: [organization_id], references: [id])
-  region                 Region?                @relation(fields: [region_id], references: [id])
-  settings               BranchSettings?
-  branch_franchises      BranchFranchise[]
-  staff_primary          Staff[]                @relation("StaffPrimaryBranch")
-  staff_attendance       StaffAttendance[]
-  trainer_sessions       TrainerSession[]
-  trainer_revenue        TrainerRevenue[]
-  members                Member[]
-  membership_plans       MembershipPlan[]
-  member_memberships     MemberMembership[]
-  check_ins              CheckIn[]
-  classes                Class[]
-  class_templates        ClassTemplate[]
-  class_sessions         ClassSession[]
-  studios                StudioRoom[]
-  payments               Payment[]
-  expenses               Expense[]
-  member_invoices        MemberInvoice[]
-  financial_transactions FinancialTransaction[]
-  staff_shifts           StaffShift[]
-  products               Product[]
-  inventory              Inventory[]
-  inventory_transactions InventoryTransaction[]
-  purchase_orders        PurchaseOrder[]
-  pos_sales              PosSale[]
-  leads                  Lead[]
-  daily_gym_metrics      DailyGymMetrics[]
-  membership_analytics   MembershipAnalytics[]
-  revenue_analytics      RevenueAnalytics[]
-  class_analytics        ClassAnalytics[]
-  trainer_analytics      TrainerAnalytics[]
+  organization             Organization?            @relation(fields: [organization_id], references: [id])
+  region                   Region?                  @relation(fields: [region_id], references: [id])
+  settings                 BranchSettings?
+  branch_franchises        BranchFranchise[]
+  staff_primary            Staff[]                  @relation("StaffPrimaryBranch")
+  staff_attendance         StaffAttendance[]
+  trainer_sessions         TrainerSession[]
+  trainer_revenue          TrainerRevenue[]
+  members                  Member[]
+  membership_plans         MembershipPlan[]
+  member_memberships       MemberMembership[]
+  membership_branch_access MembershipBranchAccess[]
+  check_ins                CheckIn[]
+  classes                  Class[]
+  class_templates          ClassTemplate[]
+  class_sessions           ClassSession[]
+  studios                  StudioRoom[]
+  payments                 Payment[]
+  expenses                 Expense[]
+  member_invoices          MemberInvoice[]
+  financial_transactions   FinancialTransaction[]
+  staff_shifts             StaffShift[]
+  products                 Product[]
+  inventory                Inventory[]
+  inventory_transactions   InventoryTransaction[]
+  purchase_orders          PurchaseOrder[]
+  pos_sales                PosSale[]
+  product_batches          ProductBatch[]
+  branch_product_prices    BranchProductPrice[]
+  transfers_from           StockTransfer[]          @relation("TransferFrom")
+  transfers_to             StockTransfer[]          @relation("TransferTo")
+  bundles                  Bundle[]
+  leads                    Lead[]
+  daily_gym_metrics        DailyGymMetrics[]
+  membership_analytics     MembershipAnalytics[]
+  revenue_analytics        RevenueAnalytics[]
+  class_analytics          ClassAnalytics[]
+  trainer_analytics        TrainerAnalytics[]
+  check_in_events          CheckInEvent[]
+  check_in_devices         CheckInDevice[]
+  dashboard_metrics        DashboardMetrics[]
 
   @@index([organization_id])
   @@index([region_id])
@@ -467,7 +559,7 @@ model Branch {
 
 model BranchSettings {
   id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id             String   @db.Uuid
   branch_id          String   @unique @db.Uuid
   currency           String   @default("INR")
   tax_percentage     Decimal  @default(0) @db.Decimal(5, 2)
@@ -489,7 +581,7 @@ model BranchSettings {
 
 model FranchiseOwner {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String   @db.Uuid
   organization_id String   @db.Uuid
   owner_name      String
   email           String
@@ -509,7 +601,7 @@ model FranchiseOwner {
 
 model BranchFranchise {
   id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id             String    @db.Uuid
   branch_id          String    @db.Uuid
   franchise_owner_id String    @db.Uuid
   revenue_share_pct  Decimal?  @db.Decimal(5, 2)
@@ -527,69 +619,76 @@ model BranchFranchise {
 }
 
 model Member {
-  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
-  member_code             String    @unique
-  organization_id         String?   @db.Uuid
-  branch_id               String    @db.Uuid
+  id                      String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id                  String                      @db.Uuid
+  member_code             String                      @unique
+  organization_id         String?                     @db.Uuid
+  branch_id               String                      @db.Uuid
   full_name               String
   phone                   String
   email                   String?
   gender                  String? // male | female | other | prefer_not_to_say
-  date_of_birth           DateTime? @db.Date
+  date_of_birth           DateTime?                   @db.Date
   emergency_contact_name  String?
   emergency_contact_phone String?
   profile_photo_url       String?
   face_descriptor         Float[]
-  checkin_method          String    @default("manual")
-  qr_code                 String?   @unique
-  status                  String    @default("active") // lead | trial | active | inactive | cancelled | frozen | expiring_soon | expired
-  engagement_score        Int       @default(0)
-  churn_risk              String    @default("low") // low | medium | high
-  referral_code           String?   @unique
-  referred_by_member_id   String?   @db.Uuid
+  face_vec                Unsupported("vector(128)")? // pgvector — indexed for 1:N facial matching; backfilled from face_descriptor
+  checkin_method          String                      @default("manual")
+  qr_code                 String?                     @unique
+  qr_version              Int                         @default(1) // increments on regenerate; old signed tokens become invalid
+  qr_regenerated_at       DateTime?                   @db.Timestamptz()
+  status                  String                      @default("active") // lead | trial | active | inactive | cancelled | frozen | expiring_soon | expired
+  engagement_score        Int                         @default(0)
+  churn_risk              String                      @default("low") // low | medium | high
+  referral_code           String?                     @unique
+  referred_by_member_id   String?                     @db.Uuid
   notes                   String?
-  join_date               DateTime? @db.Date
-  last_visit_at           DateTime? @db.Timestamptz()
-  created_at              DateTime  @default(now()) @db.Timestamptz()
-  updated_at              DateTime  @default(now()) @updatedAt @db.Timestamptz()
+  join_date               DateTime?                   @db.Date
+  last_visit_at           DateTime?                   @db.Timestamptz()
+  created_at              DateTime                    @default(now()) @db.Timestamptz()
+  updated_at              DateTime                    @default(now()) @updatedAt @db.Timestamptz()
 
-  organization       Organization?             @relation(fields: [organization_id], references: [id])
-  branch             Branch                    @relation(fields: [branch_id], references: [id])
-  referred_by        Member?                   @relation("MemberReferral", fields: [referred_by_member_id], references: [id])
-  referrals          Member[]                  @relation("MemberReferral")
-  profile            MemberProfile?
-  body_stats         MemberBodyStats[]
-  progress_photos    MemberProgressPhoto[]
-  member_notes       MemberNote[]
-  tag_assignments    MemberTagAssignment[]
-  documents          MemberDocument[]
-  referrals_given    MemberReferral[]          @relation("Referrer")
-  referrals_received MemberReferral[]          @relation("Referred")
-  memberships        MemberMembership[]
-  check_ins          CheckIn[]
-  payments           Payment[]
-  class_enrollments  ClassEnrollment[]
-  class_bookings     ClassBooking[]
-  class_waitlists    ClassWaitlist[]
-  class_attendance   ClassAttendance[]
-  notifications      NotificationLog[]
-  trainer_clients    TrainerClient[]
-  trainer_sessions   TrainerSession[]
-  family_primary     FamilyMembership[]        @relation("FamilyPrimary")
-  family_links       FamilyMember[]
-  corporate_links    CorporateMember[]
-  global_passes      GlobalAccessPass[]
-  member_invoices    MemberInvoice[]
-  refunds            Refund[]
-  payment_retries    PaymentRetryLog[]
-  pos_purchases      PosSale[]
-  campaign_audience  CampaignAudience[]
-  push_notifications PushNotification[]
-  leads_converted    Lead[]                    @relation("LeadConvertedMember")
-  behavior_analytics MemberBehaviorAnalytics[]
-  consent_logs       ConsentLog[]
-  data_requests      DataRequest[]
+  organization          Organization?             @relation(fields: [organization_id], references: [id])
+  branch                Branch                    @relation(fields: [branch_id], references: [id])
+  referred_by           Member?                   @relation("MemberReferral", fields: [referred_by_member_id], references: [id])
+  referrals             Member[]                  @relation("MemberReferral")
+  profile               MemberProfile?
+  body_stats            MemberBodyStats[]
+  progress_photos       MemberProgressPhoto[]
+  member_notes          MemberNote[]
+  tag_assignments       MemberTagAssignment[]
+  documents             MemberDocument[]
+  referrals_given       MemberReferral[]          @relation("Referrer")
+  referrals_received    MemberReferral[]          @relation("Referred")
+  memberships           MemberMembership[]
+  check_ins             CheckIn[]
+  payments              Payment[]
+  class_enrollments     ClassEnrollment[]
+  class_bookings        ClassBooking[]
+  class_waitlists       ClassWaitlist[]
+  class_attendance      ClassAttendance[]
+  notifications         NotificationLog[]
+  trainer_clients       TrainerClient[]
+  trainer_sessions      TrainerSession[]
+  family_primary        FamilyMembership[]        @relation("FamilyPrimary")
+  family_links          FamilyMember[]
+  corporate_links       CorporateMember[]
+  global_passes         GlobalAccessPass[]
+  member_invoices       MemberInvoice[]
+  refunds               Refund[]
+  payment_retries       PaymentRetryLog[]
+  pos_purchases         PosSale[]
+  campaign_audience     CampaignAudience[]
+  push_notifications    PushNotification[]
+  leads_converted       Lead[]                    @relation("LeadConvertedMember")
+  behavior_analytics    MemberBehaviorAnalytics[]
+  consent_logs          ConsentLog[]
+  data_requests         DataRequest[]
+  check_in_events       CheckInEvent[]
+  qr_token_audits       QrTokenAudit[]
+  biometric_enrollments BiometricEnrollment[]
+  wallet                Wallet?
 
   @@index([organization_id])
   @@index([branch_id])
@@ -629,7 +728,7 @@ model MemberProfile {
 
 model MemberBodyStats {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id      String   @db.Uuid
   member_id   String   @db.Uuid
   weight      Decimal? @db.Decimal(5, 2) // kg
   body_fat    Decimal? @db.Decimal(5, 2) // %
@@ -653,7 +752,7 @@ model MemberBodyStats {
 
 model MemberProgressPhoto {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id     String   @db.Uuid
   member_id  String   @db.Uuid
   photo_url  String
   caption    String?
@@ -670,7 +769,7 @@ model MemberProgressPhoto {
 
 model MemberNote {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id     String   @db.Uuid
   member_id  String   @db.Uuid
   staff_id   String?  @db.Uuid
   note       String
@@ -686,7 +785,7 @@ model MemberNote {
 
 model MemberTag {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id      String   @db.Uuid
   name        String   @unique
   color       String? // hex color for UI badge
   description String?
@@ -700,7 +799,7 @@ model MemberTag {
 
 model MemberTagAssignment {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id     String   @db.Uuid
   member_id  String   @db.Uuid
   tag_id     String   @db.Uuid
   created_at DateTime @default(now()) @db.Timestamptz()
@@ -716,12 +815,12 @@ model MemberTagAssignment {
 
 model MemberDocument {
   id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id        String    @db.Uuid
   member_id     String    @db.Uuid
-  document_type String    // medical_clearance | waiver | fitness_assessment | id_proof | other
+  document_type String // medical_clearance | waiver | fitness_assessment | id_proof | other
   file_url      String
   file_name     String?
-  file_size     Int?      // bytes
+  file_size     Int? // bytes
   description   String?
   expires_at    DateTime? @db.Timestamptz()
   uploaded_at   DateTime  @default(now()) @db.Timestamptz()
@@ -735,7 +834,7 @@ model MemberDocument {
 
 model MemberReferral {
   id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id             String    @db.Uuid
   referrer_member_id String    @db.Uuid
   referred_member_id String    @db.Uuid
   reward_status      String    @default("pending") // pending | awarded | expired
@@ -755,26 +854,40 @@ model MemberReferral {
 }
 
 model MembershipPlan {
-  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
-  organization_id      String?  @db.Uuid
-  branch_id            String?  @db.Uuid
-  name                 String
-  description          String?
-  plan_type            String // monthly | quarterly | half_yearly | yearly | class_pack | custom | day_pass | corporate | family | global_access
-  duration_days        Int?
-  total_classes        Int?
-  max_classes_per_week Int?
-  max_visits           Int? // for visit-based plans
-  price                Decimal  @db.Decimal(10, 2)
-  yearly_price         Decimal? @db.Decimal(10, 2)
-  currency             String   @default("INR")
-  multi_branch_access  Boolean  @default(false) // can be used across branches
-  grace_period_days    Int      @default(0) // days after expiry before full lockout
-  is_active            Boolean  @default(true)
-  auto_renew_enabled   Boolean  @default(false)
-  created_at           DateTime @default(now()) @db.Timestamptz()
-  updated_at           DateTime @default(now()) @updatedAt @db.Timestamptz()
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id                 String   @db.Uuid
+  organization_id        String?  @db.Uuid
+  branch_id              String?  @db.Uuid
+  name                   String
+  description            String?
+  plan_type              String // monthly | quarterly | half_yearly | yearly | class_pack | custom | day_pass | corporate | family | global_access
+  duration_days          Int?
+  total_classes          Int?
+  max_classes_per_week   Int?
+  max_visits             Int? // for visit-based plans
+  price                  Decimal  @db.Decimal(10, 2)
+  yearly_price           Decimal? @db.Decimal(10, 2)
+  currency               String   @default("INR")
+  multi_branch_access    Boolean  @default(false) // legacy boolean; superseded by access_type. kept for backward compat
+  // ── Multi-gym access scope (Phase 1 of cross-branch architecture) ──
+  // single_branch  : home branch only (legacy default)
+  // multi_branch   : allowlist via allowed_branch_ids / MembershipBranchAccess
+  // all_access     : every branch under the organization
+  // city_access    : every branch in allowed_city
+  // time_based     : restricted to allowed_hours_json window
+  // class_only     : class bookings only, no open-gym access
+  access_type            String   @default("single_branch")
+  tier                   String   @default("basic") // basic | pro | elite | vip
+  allowed_branch_ids     String[] @default([]) @db.Uuid // used when access_type=multi_branch
+  allowed_city           String? // used when access_type=city_access
+  allowed_hours_json     Json? // { "start": "06:00", "end": "10:00", "days": [1,2,3,4,5] }
+  feature_flags          Json     @default("{}") // { "personal_training": true, "spa": false, "guest_passes": 2 }
+  branch_price_overrides Json     @default("{}") // { "<branch_id>": 1499.00 }
+  grace_period_days      Int      @default(0) // days after expiry before full lockout
+  is_active              Boolean  @default(true)
+  auto_renew_enabled     Boolean  @default(false)
+  created_at             DateTime @default(now()) @db.Timestamptz()
+  updated_at             DateTime @default(now()) @updatedAt @db.Timestamptz()
 
   organization         Organization?         @relation(fields: [organization_id], references: [id])
   branch               Branch?               @relation(fields: [branch_id], references: [id])
@@ -785,13 +898,15 @@ model MembershipPlan {
 
   @@index([organization_id])
   @@index([plan_type])
+  @@index([access_type])
+  @@index([tier])
   @@map("membership_plans")
   @@schema("studio_template")
 }
 
 model MemberMembership {
   id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id               String    @db.Uuid
   member_id            String    @db.Uuid
   plan_id              String    @db.Uuid
   branch_id            String    @db.Uuid
@@ -809,14 +924,15 @@ model MemberMembership {
   created_at           DateTime  @default(now()) @db.Timestamptz()
   updated_at           DateTime  @default(now()) @updatedAt @db.Timestamptz()
 
-  member            Member             @relation(fields: [member_id], references: [id])
-  plan              MembershipPlan     @relation(fields: [plan_id], references: [id])
-  branch            Branch             @relation(fields: [branch_id], references: [id])
+  member            Member                   @relation(fields: [member_id], references: [id])
+  plan              MembershipPlan           @relation(fields: [plan_id], references: [id])
+  branch            Branch                   @relation(fields: [branch_id], references: [id])
   check_ins         CheckIn[]
   payments          Payment[]
   freezes           MembershipFreeze[]
   family_membership FamilyMembership?
   corporate_members CorporateMember[]
+  branch_access     MembershipBranchAccess[]
 
   @@index([member_id, status])
   @@index([status, end_date])
@@ -825,11 +941,58 @@ model MemberMembership {
   @@schema("studio_template")
 }
 
+// ── Multi-Branch Access (Phase 1 of cross-branch architecture) ─────────
+// Normalized join replacing GlobalAccessPass.allowed_branch_ids array scans.
+// Backfilled 1:1 from existing memberships so single_branch behavior is preserved.
+// expires_at supports temporary access (e.g. 7-day travel pass for an elite member).
+
+model MembershipBranchAccess {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id        String    @db.Uuid
+  membership_id String    @db.Uuid
+  branch_id     String    @db.Uuid
+  granted_at    DateTime  @default(now()) @db.Timestamptz()
+  granted_by    String?   @db.Uuid // staff/user who granted; null for system backfill
+  expires_at    DateTime? @db.Timestamptz() // null = no expiry; set for temporary guest/travel passes
+  reason        String? // free text — "travel pass", "promotional upgrade", etc.
+  created_at    DateTime  @default(now()) @db.Timestamptz()
+
+  membership MemberMembership @relation(fields: [membership_id], references: [id], onDelete: Cascade)
+  branch     Branch           @relation(fields: [branch_id], references: [id])
+
+  @@unique([membership_id, branch_id])
+  @@index([branch_id, expires_at])
+  @@index([membership_id])
+  @@map("membership_branch_access")
+  @@schema("studio_template")
+}
+
+// ── Member Branch Transfer Audit (Phase 4) ─────────────────────────────
+// Append-only history of home-branch transfers. We deliberately do NOT
+// touch existing memberships when transferring — they stay bound to their
+// original branch for revenue attribution; only Member.branch_id flips.
+
+model MemberTransferLog {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id         String   @db.Uuid
+  member_id      String   @db.Uuid
+  from_branch_id String   @db.Uuid
+  to_branch_id   String   @db.Uuid
+  reason         String?
+  transferred_by String?  @db.Uuid
+  created_at     DateTime @default(now()) @db.Timestamptz()
+
+  @@index([member_id, created_at])
+  @@index([to_branch_id, created_at])
+  @@map("member_transfer_logs")
+  @@schema("studio_template")
+}
+
 // ── Membership Freeze History ─────────────────────────────────
 
 model MembershipFreeze {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id         String    @db.Uuid
   membership_id  String    @db.Uuid
   start_date     DateTime  @db.Date
   end_date       DateTime? @db.Date
@@ -851,7 +1014,7 @@ model MembershipFreeze {
 
 model FamilyMembership {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id            String   @db.Uuid
   primary_member_id String   @db.Uuid
   membership_id     String   @unique @db.Uuid
   plan_id           String   @db.Uuid
@@ -870,7 +1033,7 @@ model FamilyMembership {
 
 model FamilyMember {
   id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id               String   @db.Uuid
   family_membership_id String   @db.Uuid
   member_id            String   @db.Uuid
   relation             String // spouse | child | parent | sibling | other
@@ -889,7 +1052,7 @@ model FamilyMember {
 
 model CorporateAccount {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id           String   @db.Uuid
   organization_id  String?  @db.Uuid
   company_name     String
   contact_person   String
@@ -913,7 +1076,7 @@ model CorporateAccount {
 
 model CorporateMember {
   id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id               String   @db.Uuid
   corporate_account_id String   @db.Uuid
   member_id            String   @db.Uuid
   membership_id        String?  @db.Uuid
@@ -934,7 +1097,7 @@ model CorporateMember {
 
 model GlobalAccessPass {
   id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id             String   @db.Uuid
   member_id          String   @db.Uuid
   plan_id            String   @db.Uuid
   allowed_branch_ids String[] @db.Uuid
@@ -953,13 +1116,14 @@ model GlobalAccessPass {
 
 model CheckIn {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id         String    @db.Uuid
   member_id      String    @db.Uuid
   membership_id  String    @db.Uuid
   branch_id      String    @db.Uuid
   class_id       String?   @db.Uuid
   checkin_method String
   checked_in_at  DateTime  @default(now()) @db.Timestamptz()
+  check_out_at   DateTime? @db.Timestamptz()
   status         String    @default("success")
   failure_reason String?
   synced_at      DateTime? @db.Timestamptz()
@@ -982,7 +1146,7 @@ model CheckIn {
 
 model ClassTemplate {
   id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id                   String   @db.Uuid
   organization_id          String?  @db.Uuid
   branch_id                String?  @db.Uuid
   name                     String
@@ -1065,7 +1229,7 @@ model ClassSession {
 
 model ClassBooking {
   id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id              String    @db.Uuid
   session_id          String    @db.Uuid
   member_id           String    @db.Uuid
   booking_status      String    @default("booked") // booked | cancelled | checked_in | no_show
@@ -1086,7 +1250,7 @@ model ClassBooking {
 
 model ClassWaitlist {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id     String   @db.Uuid
   session_id String   @db.Uuid
   member_id  String   @db.Uuid
   position   Int
@@ -1104,7 +1268,7 @@ model ClassWaitlist {
 
 model TrainerAssignment {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id      String   @db.Uuid
   trainer_id  String   @db.Uuid
   session_id  String   @db.Uuid
   role        String   @default("primary") // primary | substitute | assistant
@@ -1121,7 +1285,7 @@ model TrainerAssignment {
 
 model ClassAttendance {
   id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id            String    @db.Uuid
   session_id        String    @db.Uuid
   member_id         String    @db.Uuid
   check_in_time     DateTime? @db.Timestamptz()
@@ -1140,7 +1304,7 @@ model ClassAttendance {
 
 model ClassRecurringRule {
   id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id           String    @db.Uuid
   template_id      String    @db.Uuid
   days_of_week     Int[] // 0=Sun, 1=Mon ... 6=Sat
   start_time       String // "07:00" HH:mm
@@ -1164,7 +1328,7 @@ model ClassRecurringRule {
 
 model Class {
   id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id                String    @db.Uuid
   branch_id             String    @db.Uuid
   trainer_id            String    @db.Uuid
   substitute_trainer_id String?   @db.Uuid
@@ -1192,7 +1356,7 @@ model Class {
 
 model ClassEnrollment {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id            String   @db.Uuid
   class_id          String   @db.Uuid
   member_id         String   @db.Uuid
   status            String   @default("enrolled")
@@ -1208,7 +1372,7 @@ model ClassEnrollment {
 
 model Role {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id      String   @db.Uuid
   name        String
   description String?
   permissions Json     @default("{}") // Legacy: kept for backward compat during migration
@@ -1226,7 +1390,7 @@ model Role {
 
 model RolePermission {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String   @db.Uuid
   role_id         String   @db.Uuid
   permission_code String // references Permission.code (cross-schema, no FK)
   created_at      DateTime @default(now()) @db.Timestamptz()
@@ -1240,28 +1404,30 @@ model RolePermission {
 }
 
 model Staff {
-  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
-  user_id           String?   @db.Uuid
-  organization_id   String?   @db.Uuid
-  branch_id         String?   @db.Uuid
-  branch_ids        String[]  @db.Uuid
-  employee_code     String?   @unique
+  id                String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id            String                      @db.Uuid
+  user_id           String?                     @db.Uuid
+  organization_id   String?                     @db.Uuid
+  branch_id         String?                     @db.Uuid
+  branch_ids        String[]                    @db.Uuid
+  employee_code     String?                     @unique
   full_name         String
   role              String
-  role_id           String?   @db.Uuid
+  role_id           String?                     @db.Uuid
   job_title         String?
-  employment_type   String    @default("full_time")
+  employment_type   String                      @default("full_time")
   phone             String
   email             String?
   specializations   String[]
-  salary            Decimal?  @db.Decimal(10, 2)
-  performance_score Int       @default(0)
-  status            String    @default("active")
-  is_active         Boolean   @default(true)
-  joined_at         DateTime? @db.Date
-  created_at        DateTime  @default(now()) @db.Timestamptz()
-  updated_at        DateTime  @default(now()) @updatedAt @db.Timestamptz()
+  salary            Decimal?                    @db.Decimal(10, 2)
+  performance_score Int                         @default(0)
+  status            String                      @default("active")
+  is_active         Boolean                     @default(true)
+  joined_at         DateTime?                   @db.Date
+  face_descriptor   Float[]
+  face_vec          Unsupported("vector(128)")? // pgvector — indexed for 1:N staff face matching
+  created_at        DateTime                    @default(now()) @db.Timestamptz()
+  updated_at        DateTime                    @default(now()) @updatedAt @db.Timestamptz()
 
   organization          Organization?              @relation(fields: [organization_id], references: [id])
   primary_branch        Branch?                    @relation("StaffPrimaryBranch", fields: [branch_id], references: [id])
@@ -1269,6 +1435,7 @@ model Staff {
   profile               StaffProfile?
   availability          StaffAvailability[]
   attendance            StaffAttendance[]
+  biometric_enrollments StaffBiometricEnrollment[]
   trainer_clients       TrainerClient[]            @relation("TrainerToClients")
   trainer_sessions      TrainerSession[]           @relation("TrainerSessions")
   payroll_config        PayrollConfig?
@@ -1310,7 +1477,7 @@ model Staff {
 
 model StaffProfile {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id           String   @db.Uuid
   staff_id         String   @unique @db.Uuid
   bio              String?
   certifications   String[]
@@ -1346,7 +1513,7 @@ model StaffPermissionOverride {
 
 model StaffAvailability {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id            String   @db.Uuid
   staff_id          String   @db.Uuid
   day_of_week       Int // 0=Sunday, 1=Monday, ..., 6=Saturday
   start_time        String // "06:00" HH:mm
@@ -1364,7 +1531,7 @@ model StaffAvailability {
 
 model StaffAttendance {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id         String    @db.Uuid
   staff_id       String    @db.Uuid
   branch_id      String    @db.Uuid
   check_in_time  DateTime  @db.Timestamptz()
@@ -1388,7 +1555,7 @@ model StaffAttendance {
 
 model TrainerClient {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id        String   @db.Uuid
   trainer_id    String   @db.Uuid
   member_id     String   @db.Uuid
   assigned_date DateTime @default(now()) @db.Date
@@ -1409,7 +1576,7 @@ model TrainerClient {
 
 model TrainerSession {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id           String   @db.Uuid
   trainer_id       String   @db.Uuid
   member_id        String   @db.Uuid
   branch_id        String   @db.Uuid
@@ -1439,7 +1606,7 @@ model TrainerSession {
 
 model PayrollConfig {
   id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id                String   @db.Uuid
   staff_id              String   @unique @db.Uuid
   salary_type           String   @default("fixed") // fixed | commission | hybrid
   base_salary           Decimal  @default(0) @db.Decimal(10, 2)
@@ -1456,7 +1623,7 @@ model PayrollConfig {
 
 model TrainerRevenue {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id            String   @db.Uuid
   trainer_id        String   @db.Uuid
   branch_id         String   @db.Uuid
   session_id        String?  @unique @db.Uuid
@@ -1480,7 +1647,7 @@ model TrainerRevenue {
 
 model StaffShift {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id     String   @db.Uuid
   staff_id   String   @db.Uuid
   branch_id  String   @db.Uuid
   shift_date DateTime @db.Date
@@ -1502,7 +1669,7 @@ model StaffShift {
 
 model LeaveRequest {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id         String    @db.Uuid
   staff_id       String    @db.Uuid
   leave_type     String // sick | vacation | personal | unpaid
   start_date     DateTime  @db.Date
@@ -1530,7 +1697,7 @@ model LeaveRequest {
 
 model PayrollRecord {
   id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id              String    @db.Uuid
   staff_id            String    @db.Uuid
   salary_period_start DateTime  @db.Date
   salary_period_end   DateTime  @db.Date
@@ -1554,7 +1721,7 @@ model PayrollRecord {
 
 model TrainerPerformanceRecord {
   id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id             String   @db.Uuid
   trainer_id         String   @db.Uuid
   total_sessions     Int      @default(0)
   completed_sessions Int      @default(0)
@@ -1577,7 +1744,7 @@ model TrainerPerformanceRecord {
 
 model AuditLog {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id      String   @db.Uuid
   user_id     String   @db.Uuid
   action      String
   module      String
@@ -1596,7 +1763,7 @@ model AuditLog {
 
 model Payment {
   id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id             String    @db.Uuid
   member_id          String    @db.Uuid
   membership_id      String?   @db.Uuid
   branch_id          String    @db.Uuid
@@ -1631,21 +1798,82 @@ model Payment {
 
 model Expense {
   id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id               String   @db.Uuid
   branch_id            String   @db.Uuid
+  // Legacy slug retained for backward-compat reads; category_id is the new FK.
   category             String
+  category_id          String?  @db.Uuid
   description          String
   amount               Decimal  @db.Decimal(10, 2)
   currency             String   @default("INR")
   expense_date         DateTime @db.Date
   receipt_url          String?
+  vendor               String?
+  notes                String?
+  payment_method       String   @default("cash") // cash | card | upi | bank_transfer | razorpay | stripe
+  // confirmed | reversed — reversals are appended as new rows; the original is flipped to "reversed".
+  status               String   @default("confirmed")
+  // For a reversal row, points at the original expense it reverses (null on originals).
+  reference_id         String?  @db.Uuid
+  // Partial-unique with gym_id for safe retry/idempotent create.
+  idempotency_key      String?
   recorded_by_staff_id String   @db.Uuid
   created_at           DateTime @default(now()) @db.Timestamptz()
 
-  branch      Branch @relation(fields: [branch_id], references: [id])
-  recorded_by Staff  @relation(fields: [recorded_by_staff_id], references: [id])
+  branch       Branch           @relation(fields: [branch_id], references: [id])
+  recorded_by  Staff            @relation(fields: [recorded_by_staff_id], references: [id])
+  category_ref ExpenseCategory? @relation(fields: [category_id], references: [id])
+  // Self-relation for the immutable reversal ledger.
+  reversal_of  Expense?         @relation("ExpenseReversal", fields: [reference_id], references: [id])
+  reversed_by  Expense[]        @relation("ExpenseReversal")
 
+  @@unique([gym_id, idempotency_key], name: "gym_id_idempotency_key")
+  @@index([branch_id, expense_date])
+  @@index([category_id])
+  @@index([status])
   @@map("expenses")
+  @@schema("studio_template")
+}
+
+model ExpenseCategory {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id     String   @db.Uuid
+  // null = gym-wide category; set = branch-specific override.
+  branch_id  String?  @db.Uuid
+  name       String
+  slug       String
+  icon       String?
+  color      String?
+  is_default Boolean  @default(false)
+  is_active  Boolean  @default(true)
+  sort_order Int      @default(50)
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  expenses Expense[]
+
+  @@unique([gym_id, branch_id, slug], name: "gym_id_branch_id_slug")
+  @@index([gym_id, is_active])
+  @@map("expense_categories")
+  @@schema("studio_template")
+}
+
+model ExpenseMetric {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id        String   @db.Uuid
+  branch_id     String   @db.Uuid
+  period_type   String // day | month
+  period_key    String // 'yyyy-mm-dd' for day, 'yyyy-mm' for month
+  // null = "total across all categories" rollup row.
+  category_id   String?  @db.Uuid
+  total_amount  Decimal  @default(0) @db.Decimal(12, 2)
+  expense_count Int      @default(0)
+  created_at    DateTime @default(now()) @db.Timestamptz()
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  @@unique([gym_id, branch_id, period_type, period_key, category_id], name: "gym_id_branch_id_period_type_period_key_category_id")
+  @@index([branch_id, period_type, period_key])
+  @@map("expense_metrics")
   @@schema("studio_template")
 }
 
@@ -1669,9 +1897,61 @@ model NotificationLog {
   @@schema("studio_template")
 }
 
+// In-app notifications targeted at a platform user (staff/owner), as opposed
+// to NotificationLog which records outbound member messages (SMS/WhatsApp/email).
+model Notification {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id              String    @db.Uuid
+  user_id             String    @db.Uuid
+  type                String // leave_request | leave_reviewed | ...
+  title               String
+  message             String
+  data                Json      @default("{}")
+  related_entity_id   String?   @db.Uuid
+  related_entity_type String?
+  is_read             Boolean   @default(false)
+  read_at             DateTime? @db.Timestamptz()
+  created_at          DateTime  @default(now()) @db.Timestamptz()
+
+  @@index([gym_id, user_id, is_read])
+  @@index([created_at])
+  @@map("notifications")
+  @@schema("studio_template")
+}
+
+// Pre-computed dashboard counters maintained by the event projector for
+// fast reads. One row per (gym_id, branch_id); branch_id=null is the gym-wide
+// rollup. `version` + `last_event_id` track projection progress (0 = unbuilt).
+model DashboardMetrics {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id               String   @db.Uuid
+  branch_id            String?  @db.Uuid
+  total_members        Int      @default(0)
+  active_members       Int      @default(0)
+  total_staff          Int      @default(0)
+  active_staff         Int      @default(0)
+  monthly_revenue      Decimal  @default(0) @db.Decimal(12, 2)
+  total_revenue        Decimal  @default(0) @db.Decimal(14, 2)
+  check_ins_today      Int      @default(0)
+  check_ins_month      Int      @default(0)
+  expiring_memberships Int      @default(0)
+  revenue_month        String? // 'yyyy-mm' the monthly_revenue figure applies to
+  version              BigInt   @default(0)
+  last_event_id        String?  @db.Uuid
+  last_synced_at       DateTime @default(now()) @db.Timestamptz()
+  created_at           DateTime @default(now()) @db.Timestamptz()
+  updated_at           DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  branch Branch? @relation(fields: [branch_id], references: [id])
+
+  @@unique([gym_id, branch_id], name: "gym_id_branch_id")
+  @@map("dashboard_metrics")
+  @@schema("studio_template")
+}
+
 model Campaign {
   id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id              String    @db.Uuid
   name                String
   segment             String
   segment_filters     Json?
@@ -1734,7 +2014,7 @@ model Lead {
 
 model LeadActivity {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id        String   @db.Uuid
   lead_id       String   @db.Uuid
   staff_id      String?  @db.Uuid
   activity_type String // call | email | visit | trial_booking | note | status_change
@@ -1753,7 +2033,7 @@ model LeadActivity {
 
 model CampaignAudience {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id      String    @db.Uuid
   campaign_id String    @db.Uuid
   member_id   String    @db.Uuid
   status      String    @default("pending") // pending | sent | delivered | opened | clicked | bounced
@@ -1774,7 +2054,7 @@ model CampaignAudience {
 
 model MessageTemplate {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String   @db.Uuid
   organization_id String?  @db.Uuid
   template_name   String
   channel         String // email | sms | whatsapp | push_notification
@@ -1796,7 +2076,7 @@ model MessageTemplate {
 
 model AutomationWorkflow {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String   @db.Uuid
   organization_id String?  @db.Uuid
   workflow_name   String
   trigger_event   String // membership_expiring | member_inactive | lead_created | class_missed | birthday | payment_failed
@@ -1817,7 +2097,7 @@ model AutomationWorkflow {
 
 model WorkflowAction {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id        String   @db.Uuid
   workflow_id   String   @db.Uuid
   action_order  Int      @default(1)
   action_type   String // send_email | send_sms | send_whatsapp | send_push | assign_task | update_status
@@ -1837,7 +2117,7 @@ model WorkflowAction {
 
 model ReferralProgram {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String    @db.Uuid
   organization_id String?   @db.Uuid
   program_name    String
   reward_type     String // discount | free_days | cash | free_class
@@ -1860,7 +2140,7 @@ model ReferralProgram {
 
 model PushNotification {
   id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id     String    @db.Uuid
   member_id  String    @db.Uuid
   title      String
   message    String
@@ -1885,7 +2165,7 @@ model PushNotification {
 
 model ProductCategory {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String   @db.Uuid
   organization_id String?  @db.Uuid
   name            String
   description     String?
@@ -1902,45 +2182,267 @@ model ProductCategory {
 
 model Product {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String   @db.Uuid
   organization_id String?  @db.Uuid
   branch_id       String?  @db.Uuid
   category_id     String?  @db.Uuid
   product_name    String
   description     String?
-  sku             String?  @unique
-  barcode         String?  @unique
-  price           Decimal  @db.Decimal(10, 2)
+  // Phase 3: SKU/barcode unique PER gym (shared catalog), not globally — same SKU
+  // can legitimately recur across separate studios in the same template schema.
+  sku             String?  @db.VarChar(255)
+  barcode         String?  @db.VarChar(255)
+  price           Decimal  @db.Decimal(10, 2) // default/base price; per-branch overrides in branch_product_prices
   cost_price      Decimal  @default(0) @db.Decimal(10, 2)
   tax_rate        Decimal  @default(0) @db.Decimal(5, 2)
   image_url       String?
   status          String   @default("active") // active | inactive | discontinued
+  // Phase 2: enterprise product attributes
+  product_type    String   @default("physical") // physical | digital | service | subscription | consumable
+  brand           String?
+  unit_type       String? // e.g. piece | kg | g | litre | ml | pack
+  track_batches   Boolean  @default(false) // when true, stock is sourced FIFO from product_batches
   created_at      DateTime @default(now()) @db.Timestamptz()
   updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz()
 
   organization           Organization?          @relation(fields: [organization_id], references: [id])
   branch                 Branch?                @relation(fields: [branch_id], references: [id])
   category               ProductCategory?       @relation(fields: [category_id], references: [id])
-  inventory              Inventory?
+  inventory              Inventory[] // one row per branch
   inventory_transactions InventoryTransaction[]
   pos_sale_items         PosSaleItem[]
   purchase_order_items   PurchaseOrderItem[]
   product_returns        ProductReturn[]
+  batches                ProductBatch[]
+  branch_prices          BranchProductPrice[]
+  transfer_items         StockTransferItem[]
+  bundle_items           BundleItem[]
 
+  @@unique([gym_id, sku], map: "uq_products_gym_sku")
+  @@unique([gym_id, barcode], map: "uq_products_gym_barcode")
   @@index([organization_id])
   @@index([branch_id])
   @@index([category_id])
   @@index([sku])
   @@index([barcode])
   @@index([status])
+  @@index([product_type])
   @@map("products")
+  @@schema("studio_template")
+}
+
+model ProductBatch {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id       String    @db.Uuid
+  product_id   String    @db.Uuid
+  branch_id    String    @db.Uuid
+  batch_number String
+  quantity     Int       @default(0) // remaining quantity in this batch
+  cost_price   Decimal   @default(0) @db.Decimal(10, 2)
+  expiry_date  DateTime? @db.Date
+  received_at  DateTime  @default(now()) @db.Timestamptz()
+  supplier_id  String?   @db.Uuid
+  status       String    @default("active") // active | depleted | expired
+  created_at   DateTime  @default(now()) @db.Timestamptz()
+  updated_at   DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  product        Product             @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  branch         Branch              @relation(fields: [branch_id], references: [id])
+  pos_sale_items PosSaleItem[]
+  transfer_items StockTransferItem[]
+
+  // FIFO selection scans active batches for a product+branch ordered by expiry (NULLS LAST).
+  @@index([product_id, branch_id, status, expiry_date])
+  @@index([gym_id, status, expiry_date]) // expiring-soon alerts across branches
+  @@index([product_id])
+  @@map("product_batches")
+  @@schema("studio_template")
+}
+
+// Per-branch price/tax override. When absent for a (product, branch), POS falls back
+// to Product.price / Product.tax_rate. Enables independent pricing per branch/franchise.
+model BranchProductPrice {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id     String   @db.Uuid
+  product_id String   @db.Uuid
+  branch_id  String   @db.Uuid
+  price      Decimal  @db.Decimal(10, 2)
+  tax_rate   Decimal? @db.Decimal(5, 2) // null = inherit product tax_rate
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  branch  Branch  @relation(fields: [branch_id], references: [id])
+
+  @@unique([product_id, branch_id])
+  @@index([branch_id])
+  @@map("branch_product_prices")
+  @@schema("studio_template")
+}
+
+// Branch-to-branch stock transfer. Lifecycle: pending -> in_transit -> received
+// (or cancelled). Stock leaves source on dispatch, arrives at destination on receive.
+model StockTransfer {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id          String    @db.Uuid
+  transfer_number String    @unique // TRF-YYYYMMDD-XXXX
+  from_branch_id  String    @db.Uuid
+  to_branch_id    String    @db.Uuid
+  status          String    @default("pending") // pending | in_transit | received | cancelled
+  notes           String?
+  initiated_by    String?   @db.Uuid
+  received_by     String?   @db.Uuid
+  dispatched_at   DateTime? @db.Timestamptz()
+  received_at     DateTime? @db.Timestamptz()
+  created_at      DateTime  @default(now()) @db.Timestamptz()
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  from_branch Branch              @relation("TransferFrom", fields: [from_branch_id], references: [id])
+  to_branch   Branch              @relation("TransferTo", fields: [to_branch_id], references: [id])
+  items       StockTransferItem[]
+
+  @@index([from_branch_id, created_at])
+  @@index([to_branch_id, created_at])
+  @@index([status])
+  @@index([transfer_number])
+  @@map("stock_transfers")
+  @@schema("studio_template")
+}
+
+model StockTransferItem {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id          String    @db.Uuid
+  transfer_id     String    @db.Uuid
+  product_id      String    @db.Uuid
+  // For batch-tracked products, the source batch this line moves (preserves expiry).
+  source_batch_id String?   @db.Uuid
+  batch_number    String?
+  expiry_date     DateTime? @db.Date
+  quantity        Int
+  created_at      DateTime  @default(now()) @db.Timestamptz()
+
+  transfer     StockTransfer @relation(fields: [transfer_id], references: [id], onDelete: Cascade)
+  product      Product       @relation(fields: [product_id], references: [id])
+  source_batch ProductBatch? @relation(fields: [source_batch_id], references: [id])
+
+  @@index([transfer_id])
+  @@index([product_id])
+  @@map("stock_transfer_items")
+  @@schema("studio_template")
+}
+
+// ── Wallet & Loyalty (Phase 4) ──────────────────────────────────
+// Member stored-value wallet + loyalty points. One wallet per member.
+model Wallet {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id         String   @db.Uuid
+  member_id      String   @unique @db.Uuid
+  balance        Decimal  @default(0) @db.Decimal(10, 2) // stored money value
+  points_balance Int      @default(0) // loyalty points
+  created_at     DateTime @default(now()) @db.Timestamptz()
+  updated_at     DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  member       Member              @relation(fields: [member_id], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@index([gym_id])
+  @@map("wallets")
+  @@schema("studio_template")
+}
+
+// Append-only ledger for every wallet movement (money and/or points).
+model WalletTransaction {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id         String   @db.Uuid
+  wallet_id      String   @db.Uuid
+  // topup | purchase | refund | points_earn | points_redeem | cashback | adjustment
+  type           String
+  amount         Decimal  @default(0) @db.Decimal(10, 2) // money delta (+credit / -debit)
+  points         Int      @default(0) // points delta (+earn / -redeem)
+  balance_after  Decimal  @db.Decimal(10, 2)
+  points_after   Int
+  reference_id   String?  @db.Uuid // e.g. pos_sale id
+  reference_type String? // e.g. 'pos_sale'
+  notes          String?
+  created_by     String?  @db.Uuid
+  created_at     DateTime @default(now()) @db.Timestamptz()
+
+  wallet Wallet @relation(fields: [wallet_id], references: [id], onDelete: Cascade)
+
+  @@index([wallet_id, created_at])
+  @@index([type])
+  @@index([reference_id])
+  @@map("wallet_transactions")
+  @@schema("studio_template")
+}
+
+// Per-gym loyalty economics. Single active row per gym.
+model LoyaltyConfig {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id                 String   @unique @db.Uuid
+  is_active              Boolean  @default(false)
+  points_per_currency    Decimal  @default(1) @db.Decimal(10, 4) // points earned per 1 currency spent
+  redeem_value_per_point Decimal  @default(1) @db.Decimal(10, 4) // currency value of 1 point on redeem
+  min_redeem_points      Int      @default(0)
+  created_at             DateTime @default(now()) @db.Timestamptz()
+  updated_at             DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  @@map("loyalty_configs")
+  @@schema("studio_template")
+}
+
+// ── Bundles (Phase 5) ───────────────────────────────────────────
+// A bundle is a sellable composite — its own price independent of component sums.
+// Selling deducts each component's stock (FIFO if batch-tracked). Per-component
+// revenue is the proportional split of the bundle price by component list price.
+model Bundle {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id          String   @db.Uuid
+  organization_id String?  @db.Uuid
+  branch_id       String?  @db.Uuid // null = available at all branches
+  name            String
+  description     String?
+  sku             String?
+  price           Decimal  @db.Decimal(10, 2) // own price; can be less than component sum
+  tax_rate        Decimal  @default(0) @db.Decimal(5, 2)
+  image_url       String?
+  status          String   @default("active") // active | inactive | discontinued
+  created_at      DateTime @default(now()) @db.Timestamptz()
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  branch         Branch?       @relation(fields: [branch_id], references: [id])
+  items          BundleItem[]
+  pos_sale_items PosSaleItem[]
+
+  @@unique([gym_id, sku], map: "uq_bundles_gym_sku")
+  @@index([branch_id])
+  @@index([status])
+  @@map("bundles")
+  @@schema("studio_template")
+}
+
+model BundleItem {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id     String   @db.Uuid
+  bundle_id  String   @db.Uuid
+  product_id String   @db.Uuid
+  quantity   Int      @default(1)
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  bundle  Bundle  @relation(fields: [bundle_id], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [product_id], references: [id])
+
+  @@unique([bundle_id, product_id]) // a product appears at most once per bundle
+  @@index([bundle_id])
+  @@index([product_id])
+  @@map("bundle_items")
   @@schema("studio_template")
 }
 
 model Inventory {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
-  product_id        String   @unique @db.Uuid
+  gym_id            String   @db.Uuid
+  product_id        String   @db.Uuid
   branch_id         String   @db.Uuid
   stock_quantity    Int      @default(0)
   reserved_quantity Int      @default(0)
@@ -1950,6 +2452,8 @@ model Inventory {
   product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
   branch  Branch  @relation(fields: [branch_id], references: [id])
 
+  // One stock row per product PER branch (shared catalog, per-branch stock).
+  @@unique([product_id, branch_id])
   @@index([branch_id])
   @@index([product_id])
   @@map("inventory")
@@ -1958,7 +2462,7 @@ model Inventory {
 
 model InventoryTransaction {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id           String   @db.Uuid
   product_id       String   @db.Uuid
   branch_id        String   @db.Uuid
   transaction_type String // purchase | sale | adjustment | return | damage
@@ -1980,7 +2484,7 @@ model InventoryTransaction {
 
 model Supplier {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String   @db.Uuid
   organization_id String?  @db.Uuid
   supplier_name   String
   contact_person  String?
@@ -2001,7 +2505,7 @@ model Supplier {
 
 model PurchaseOrder {
   id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id       String    @db.Uuid
   supplier_id  String    @db.Uuid
   branch_id    String    @db.Uuid
   order_number String    @unique
@@ -2027,7 +2531,7 @@ model PurchaseOrder {
 
 model PurchaseOrderItem {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id            String   @db.Uuid
   purchase_order_id String   @db.Uuid
   product_id        String   @db.Uuid
   quantity          Int
@@ -2047,7 +2551,7 @@ model PurchaseOrderItem {
 
 model PosSale {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String   @db.Uuid
   branch_id       String   @db.Uuid
   member_id       String?  @db.Uuid
   staff_id        String   @db.Uuid
@@ -2058,6 +2562,15 @@ model PosSale {
   total_amount    Decimal  @db.Decimal(10, 2)
   payment_method  String // cash | card | upi | wallet
   status          String   @default("completed") // completed | refunded | partial_refund
+  // GST split (intra-state CGST+SGST or inter-state IGST)
+  cgst_amount     Decimal  @default(0) @db.Decimal(10, 2)
+  sgst_amount     Decimal  @default(0) @db.Decimal(10, 2)
+  igst_amount     Decimal  @default(0) @db.Decimal(10, 2)
+  place_of_supply String? // 2-digit GST state code of buyer
+  // Phase 4: loyalty + wallet on the sale
+  points_earned   Int      @default(0)
+  points_redeemed Int      @default(0)
+  wallet_amount   Decimal  @default(0) @db.Decimal(10, 2) // portion paid from wallet balance
   created_at      DateTime @default(now()) @db.Timestamptz()
 
   branch  Branch          @relation(fields: [branch_id], references: [id])
@@ -2077,27 +2590,41 @@ model PosSale {
 
 model PosSaleItem {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id      String   @db.Uuid
   sale_id     String   @db.Uuid
   product_id  String   @db.Uuid
+  batch_id    String?  @db.Uuid // primary batch this line drew from (FIFO); multi-batch splits logged in inventory_transactions
+  // Phase 5: when set, this line is one component of a bundle sale; all component
+  // rows from the same sale share a bundle_id. unit_price is the proportional split
+  // of the bundle's own price (sum of split prices == bundle price).
+  bundle_id   String?  @db.Uuid
   quantity    Int
   unit_price  Decimal  @db.Decimal(10, 2)
   tax_amount  Decimal  @default(0) @db.Decimal(10, 2)
   total_price Decimal  @db.Decimal(10, 2)
+  // GST split fields (mirrors invoice_items)
+  hsn_sac     String?
+  tax_rate    Decimal  @default(0) @db.Decimal(5, 2)
+  cgst_amount Decimal  @default(0) @db.Decimal(10, 2)
+  sgst_amount Decimal  @default(0) @db.Decimal(10, 2)
+  igst_amount Decimal  @default(0) @db.Decimal(10, 2)
   created_at  DateTime @default(now()) @db.Timestamptz()
 
-  sale    PosSale @relation(fields: [sale_id], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [product_id], references: [id])
+  sale    PosSale       @relation(fields: [sale_id], references: [id], onDelete: Cascade)
+  product Product       @relation(fields: [product_id], references: [id])
+  batch   ProductBatch? @relation(fields: [batch_id], references: [id])
+  bundle  Bundle?       @relation(fields: [bundle_id], references: [id])
 
   @@index([sale_id])
   @@index([product_id])
+  @@index([bundle_id])
   @@map("pos_sale_items")
   @@schema("studio_template")
 }
 
 model ProductReturn {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id        String   @db.Uuid
   sale_id       String   @db.Uuid
   product_id    String   @db.Uuid
   quantity      Int
@@ -2119,7 +2646,7 @@ model ProductReturn {
 
 model AiConversation {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id           String   @db.Uuid
   staff_id         String   @db.Uuid
   messages         Json
   context_snapshot Json?
@@ -2134,7 +2661,7 @@ model AiConversation {
 
 model SsoProvider {
   id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id                  String   @db.Uuid
   provider_type           String // google | microsoft | saml | oidc
   display_name            String
   client_id               String?
@@ -2158,7 +2685,7 @@ model SsoProvider {
 
 model ApiKey {
   id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id                String    @db.Uuid
   name                  String
   key_hash              String    @unique
   key_prefix            String // first 8 chars for display identification
@@ -2184,16 +2711,20 @@ model ApiKey {
 
 model MemberInvoice {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String    @db.Uuid
   organization_id String?   @db.Uuid
   branch_id       String    @db.Uuid
   member_id       String    @db.Uuid
   invoice_number  String    @unique // INV-YYYYMMDD-XXXX
   subtotal        Decimal   @db.Decimal(10, 2)
   tax_amount      Decimal   @default(0) @db.Decimal(10, 2)
+  cgst_amount     Decimal   @default(0) @db.Decimal(10, 2)
+  sgst_amount     Decimal   @default(0) @db.Decimal(10, 2)
+  igst_amount     Decimal   @default(0) @db.Decimal(10, 2)
   discount_amount Decimal   @default(0) @db.Decimal(10, 2)
   total_amount    Decimal   @db.Decimal(10, 2)
   currency        String    @default("INR")
+  place_of_supply String? // 2-digit state code of buyer; decides intra vs inter-state
   status          String    @default("pending") // pending | paid | partial | cancelled | refunded
   due_date        DateTime? @db.Date
   issued_at       DateTime  @default(now()) @db.Timestamptz()
@@ -2223,14 +2754,19 @@ model MemberInvoice {
 
 model InvoiceItem {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id      String   @db.Uuid
   invoice_id  String   @db.Uuid
   item_type   String // membership | class | personal_training | product
   item_id     String?  @db.Uuid // FK to the relevant entity (plan, class, etc.)
   description String
+  hsn_sac     String? // HSN (goods) or SAC (services) code
   quantity    Int      @default(1)
   unit_price  Decimal  @db.Decimal(10, 2)
   total_price Decimal  @db.Decimal(10, 2)
+  tax_rate    Decimal  @default(0) @db.Decimal(5, 2) // line-level rate (%); inherits invoice tax_rate
+  cgst_amount Decimal  @default(0) @db.Decimal(10, 2)
+  sgst_amount Decimal  @default(0) @db.Decimal(10, 2)
+  igst_amount Decimal  @default(0) @db.Decimal(10, 2)
   created_at  DateTime @default(now()) @db.Timestamptz()
 
   invoice MemberInvoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
@@ -2242,7 +2778,7 @@ model InvoiceItem {
 
 model PaymentGatewayConfig {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id         String   @db.Uuid
   gateway_name   String // razorpay | stripe
   api_key        String // encrypted in production
   secret_key     String // encrypted in production
@@ -2259,7 +2795,7 @@ model PaymentGatewayConfig {
 
 model Refund {
   id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id            String    @db.Uuid
   payment_id        String    @db.Uuid
   member_id         String    @db.Uuid
   refund_amount     Decimal   @db.Decimal(10, 2)
@@ -2283,7 +2819,7 @@ model Refund {
 
 model Discount {
   id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id        String    @db.Uuid
   name          String
   code          String?   @unique // coupon code e.g. NEWYEAR20
   discount_type String // percentage | fixed
@@ -2309,7 +2845,7 @@ model Discount {
 
 model TaxRate {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id     String   @db.Uuid
   country    String
   state      String?
   tax_name   String // GST | VAT | Sales Tax
@@ -2325,9 +2861,73 @@ model TaxRate {
   @@schema("studio_template")
 }
 
+// =============================================
+// PER-STUDIO SCHEMA — Document engine (PDF + delivery)
+// =============================================
+
+model Document {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id          String   @db.Uuid
+  branch_id       String?  @db.Uuid
+  // Polymorphic owner: invoice | pos_sale | refund
+  source_type     String
+  source_id       String   @db.Uuid
+  // tax_invoice (GST) | invoice | receipt | thermal_receipt | credit_note
+  doc_type        String
+  format          String   @default("a4") // a4 | thermal_80mm
+  storage_bucket  String   @default("documents")
+  storage_path    String // {gym_id}/{source_type}/{source_id}/{doc_id}.pdf
+  size_bytes      Int      @default(0)
+  checksum_sha256 String?
+  // optional cached short-lived signed URL (we always regenerate on demand)
+  status          String   @default("ready") // ready | generating | failed
+  error           String?
+  // Snapshot of issuer + buyer + line items at generation time (audit trail)
+  payload         Json     @default("{}")
+  // Invoice number embedded in the document (immutable copy)
+  invoice_number  String?
+  // Used to invalidate stale PDFs when underlying invoice changes
+  version         Int      @default(1)
+  generated_by    String?  @db.Uuid // staff id
+  generated_at    DateTime @default(now()) @db.Timestamptz()
+
+  // Polymorphic: no DB FK on source_id (source_type discriminates). Resolved in app code.
+  deliveries DocumentDelivery[]
+
+  @@index([source_type, source_id])
+  @@index([gym_id, generated_at])
+  @@index([status])
+  @@map("documents")
+  @@schema("studio_template")
+}
+
+model DocumentDelivery {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id          String    @db.Uuid
+  document_id     String    @db.Uuid
+  channel         String // email | whatsapp | sms | download
+  recipient       String // email address or E.164 phone
+  status          String    @default("queued") // queued | sent | failed | bounced
+  provider        String? // resend | meta_whatsapp | twilio
+  provider_msg_id String?
+  error           String?
+  attempts        Int       @default(0)
+  sent_at         DateTime? @db.Timestamptz()
+  created_at      DateTime  @default(now()) @db.Timestamptz()
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  document Document @relation(fields: [document_id], references: [id], onDelete: Cascade)
+
+  @@index([document_id])
+  @@index([status])
+  @@index([channel, status])
+  @@map("document_deliveries")
+  @@schema("studio_template")
+}
+
 model FinancialTransaction {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id           String   @db.Uuid
   branch_id        String   @db.Uuid
   reference_type   String // payment | refund | adjustment | chargeback
   reference_id     String   @db.Uuid // FK to Payment.id or Refund.id
@@ -2347,7 +2947,7 @@ model FinancialTransaction {
 
 model PaymentRetryLog {
   id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id        String    @db.Uuid
   payment_id    String    @db.Uuid
   member_id     String    @db.Uuid
   attempt       Int       @default(1) // 1, 2, 3
@@ -2372,7 +2972,7 @@ model PaymentRetryLog {
 
 model DailyGymMetrics {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String   @db.Uuid
   organization_id String?  @db.Uuid
   branch_id       String?  @db.Uuid
   date            DateTime @db.Date
@@ -2397,7 +2997,7 @@ model DailyGymMetrics {
 
 model MembershipAnalytics {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String   @db.Uuid
   organization_id String?  @db.Uuid
   branch_id       String?  @db.Uuid
   plan_id         String?  @db.Uuid
@@ -2424,7 +3024,7 @@ model MembershipAnalytics {
 
 model RevenueAnalytics {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id            String   @db.Uuid
   organization_id   String?  @db.Uuid
   branch_id         String?  @db.Uuid
   revenue_type      String // membership | personal_training | classes | retail | other
@@ -2448,7 +3048,7 @@ model RevenueAnalytics {
 
 model ClassAnalytics {
   id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id             String   @db.Uuid
   class_template_id  String?  @db.Uuid
   branch_id          String?  @db.Uuid
   total_sessions     Int      @default(0)
@@ -2473,7 +3073,7 @@ model ClassAnalytics {
 
 model MemberBehaviorAnalytics {
   id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id           String    @db.Uuid
   member_id        String    @db.Uuid
   branch_id        String?   @db.Uuid
   visit_frequency  Decimal   @default(0) @db.Decimal(5, 2) // visits per week
@@ -2498,7 +3098,7 @@ model MemberBehaviorAnalytics {
 
 model TrainerAnalytics {
   id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id             String   @db.Uuid
   trainer_id         String   @db.Uuid
   branch_id          String?  @db.Uuid
   sessions_conducted Int      @default(0)
@@ -2523,7 +3123,7 @@ model TrainerAnalytics {
 
 model CampaignAnalyticsRecord {
   id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id            String   @db.Uuid
   campaign_id       String   @db.Uuid
   sent              Int      @default(0)
   opened            Int      @default(0)
@@ -2548,7 +3148,7 @@ model CampaignAnalyticsRecord {
 
 model Webhook {
   id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id            String    @db.Uuid
   organization_id   String    @db.Uuid
   name              String
   url               String
@@ -2574,7 +3174,7 @@ model Webhook {
 
 model WebhookDelivery {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String    @db.Uuid
   webhook_id      String    @db.Uuid
   event           String
   payload         Json
@@ -2596,7 +3196,7 @@ model WebhookDelivery {
 
 model Integration {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String    @db.Uuid
   organization_id String    @db.Uuid
   provider        String // twilio | whatsapp | razorpay | stripe | resend | google_calendar | zapier
   display_name    String
@@ -2621,7 +3221,7 @@ model Integration {
 
 model FeatureFlag {
   id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String   @db.Uuid
   organization_id String   @db.Uuid
   key             String // e.g. "facial_recognition", "ai_advisor", "pos_module"
   is_enabled      Boolean  @default(false)
@@ -2640,7 +3240,7 @@ model FeatureFlag {
 
 model WhiteLabelConfig {
   id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id             String   @db.Uuid
   organization_id    String   @unique @db.Uuid
   custom_domain      String?  @unique
   logo_url           String?
@@ -2667,7 +3267,7 @@ model WhiteLabelConfig {
 
 model SystemNotification {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id          String    @db.Uuid
   organization_id String    @db.Uuid
   type            String // info | warning | critical | maintenance
   title           String
@@ -2690,7 +3290,7 @@ model SystemNotification {
 
 model ConsentLog {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id         String   @db.Uuid
   member_id      String   @db.Uuid
   consent_type   String // marketing_email | marketing_sms | marketing_whatsapp | data_processing | facial_recognition | analytics | third_party_sharing
   granted        Boolean
@@ -2709,7 +3309,7 @@ model ConsentLog {
 
 model DataRequest {
   id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gym_id              String   @db.Uuid
+  gym_id        String    @db.Uuid
   member_id     String    @db.Uuid
   type          String // export | deletion
   format        String?   @default("json") // json | csv
@@ -2770,4 +3370,460 @@ model UserDashboardLayout {
   @@index([user_id, studio_id])
   @@map("user_dashboard_layouts")
   @@schema("public")
+}
+
+// =============================================================
+// Wave 15 — Enterprise Check-In Module
+// =============================================================
+// Append-only event log for every check-in attempt (success, denial,
+// override, duplicate). CheckIn (legacy) becomes a read-side projection
+// kept in sync by a projector until callers migrate.
+//
+// outcome:        success | denied | overridden | duplicate
+// method:         qr_static | qr_dynamic | manual | facial | fingerprint | rfid | kiosk_search | override
+// source:         staff_desktop | kiosk | mobile_app | turnstile | api | offline_sync
+//
+// Idempotency: (gym_id, client_event_id) is UNIQUE — offline replays
+// land as duplicates without double-writing.
+
+model CheckInEvent {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id              String   @db.Uuid
+  member_id           String   @db.Uuid
+  membership_id       String?  @db.Uuid
+  branch_id           String   @db.Uuid
+  class_id            String?  @db.Uuid
+  device_id           String?  @db.Uuid
+  client_event_id     String   @db.Uuid
+  method              String
+  source              String
+  outcome             String
+  denial_reason       String?
+  override_reason     String?
+  override_by_user_id String?  @db.Uuid
+  qr_token_jti        String?
+  policy_snapshot     Json     @default("{}")
+  rule_trace          Json     @default("[]")
+  ip_address          String?
+  user_agent          String?
+  recorded_at         DateTime @default(now()) @db.Timestamptz()
+  created_at          DateTime @default(now()) @db.Timestamptz()
+
+  member Member         @relation(fields: [member_id], references: [id])
+  branch Branch         @relation(fields: [branch_id], references: [id])
+  device CheckInDevice? @relation(fields: [device_id], references: [id])
+
+  @@unique([gym_id, client_event_id])
+  @@index([branch_id, recorded_at(sort: Desc)])
+  @@index([member_id, recorded_at(sort: Desc)])
+  @@index([outcome, recorded_at(sort: Desc)])
+  @@index([device_id, recorded_at(sort: Desc)])
+  @@map("check_in_events")
+  @@schema("studio_template")
+}
+
+// Kiosk / turnstile / hardware-scanner registry. A device is bound to a
+// single branch and authenticates via a hashed device_secret presented at
+// POST /api/v1/check-ins/device/{id}/scan.
+//
+// kind:   ipad_kiosk | android_kiosk | web_kiosk | turnstile | usb_fingerprint | other
+// status: active | disabled | lost
+
+model CheckInDevice {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id        String    @db.Uuid
+  branch_id     String    @db.Uuid
+  device_name   String
+  kind          String
+  hardware_id   String?
+  device_secret String // bcrypt hashed
+  pin_hash      String // 4–6 digit staff PIN to exit kiosk mode
+  status        String    @default("active")
+  last_seen_at  DateTime? @db.Timestamptz()
+  registered_by String    @db.Uuid
+  registered_at DateTime  @default(now()) @db.Timestamptz()
+  created_at    DateTime  @default(now()) @db.Timestamptz()
+  updated_at    DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  branch          Branch         @relation(fields: [branch_id], references: [id])
+  check_in_events CheckInEvent[]
+
+  @@index([branch_id, status])
+  @@index([gym_id])
+  @@map("check_in_devices")
+  @@schema("studio_template")
+}
+
+// Replay-protection audit for signed QR tokens. The `jti` is the unique
+// id baked into the signed payload (dynamic) or hash(token) (static).
+// We SETEX in Redis for fast denial; this table is the durable forensic
+// trail.
+
+model QrTokenAudit {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id     String   @db.Uuid
+  jti        String   @unique
+  member_id  String   @db.Uuid
+  qr_version Int
+  token_kind String // 'static' | 'dynamic'
+  branch_id  String   @db.Uuid
+  used_at    DateTime @default(now()) @db.Timestamptz()
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  member Member @relation(fields: [member_id], references: [id])
+
+  @@index([member_id, used_at(sort: Desc)])
+  @@index([gym_id, used_at(sort: Desc)])
+  @@map("qr_token_audits")
+  @@schema("studio_template")
+}
+
+// Biometric enrollment registry. Separates the act of enrollment (with
+// consent + audit) from the storage of the biometric template itself.
+// Face descriptors today live on members.face_vec; future fingerprint
+// vendors store templates in their own provider-specific tables and
+// reference them via template_ref.
+//
+// modality: face | fingerprint | iris | palm
+
+model BiometricEnrollment {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id         String    @db.Uuid
+  member_id      String    @db.Uuid
+  provider       String // 'face-api' | 'zkteco' | 'mantra' | 'suprema' | ...
+  modality       String
+  template_ref   String // opaque pointer; never the raw template
+  consent_log_id String?   @db.Uuid
+  enrolled_by    String    @db.Uuid
+  enrolled_at    DateTime  @default(now()) @db.Timestamptz()
+  revoked_at     DateTime? @db.Timestamptz()
+  created_at     DateTime  @default(now()) @db.Timestamptz()
+
+  member Member @relation(fields: [member_id], references: [id])
+
+  @@unique([member_id, modality, provider])
+  @@index([gym_id, modality])
+  @@map("biometric_enrollments")
+  @@schema("studio_template")
+}
+
+// Mirror of BiometricEnrollment for staff — staff face/fingerprint identities
+// power the attendance (clock-in / clock-out) pipeline, not member check-ins.
+model StaffBiometricEnrollment {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id         String    @db.Uuid
+  staff_id       String    @db.Uuid
+  provider       String
+  modality       String
+  template_ref   String
+  consent_log_id String?   @db.Uuid
+  enrolled_by    String    @db.Uuid
+  enrolled_at    DateTime  @default(now()) @db.Timestamptz()
+  revoked_at     DateTime? @db.Timestamptz()
+  created_at     DateTime  @default(now()) @db.Timestamptz()
+
+  staff Staff @relation(fields: [staff_id], references: [id], onDelete: Cascade)
+
+  @@unique([staff_id, modality, provider])
+  @@index([gym_id, modality])
+  @@map("staff_biometric_enrollments")
+  @@schema("studio_template")
+}
+
+// =============================================
+// REFERRAL & GROWTH ENGINE — Phase 1 Foundation
+// =============================================
+//
+// Two parallel systems share these tables:
+//   • SaaS → Gym (B2B): Studio referrals, SaaS-admin-controlled policies
+//   • Gym  → Member (B2C): handled by separate studio_template models below
+//
+// Design rules:
+//   • Referrals are EVENT systems, not coupon fields.
+//   • RewardLog is APPEND-ONLY (immutable financial audit trail).
+//   • All state transitions logged in ReferralLifecycleEvent.
+//   • Policies live in ReferralRewardRule (conditions+rewards JSONB).
+//   • Wallet is a separate ledger (ReferralWalletEntry append-only).
+//   • Idempotency keys prevent double-rewarding on retries/replays.
+
+// ── Lifecycle status enums (string for forward compat) ───────────────
+// Referral.status:
+//   pending → invited → registered → trial_started → subscribed
+//          → payment_verified → reward_pending → rewarded
+//          [ → reversed | fraud | expired ]
+
+model Referral {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referrer_studio_id String    @db.Uuid
+  referred_studio_id String    @unique @db.Uuid // a studio can only be referred once
+  referral_code      String // immutable snapshot of the code used
+  referred_email     String?
+  campaign_id        String?   @db.Uuid // optional time-bounded campaign attribution
+  status             String    @default("pending") // see lifecycle above
+  risk_score         Int       @default(0) // 0–100; computed by fraud engine
+  rewarded_at        DateTime? @db.Timestamptz()
+  reversed_at        DateTime? @db.Timestamptz()
+  reversed_reason    String?
+  idempotency_key    String?   @unique // set once reward processing begins
+  metadata           Json      @default("{}") // utm, device, ip, etc.
+  created_at         DateTime  @default(now()) @db.Timestamptz()
+  updated_at         DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  referrer_studio Studio                   @relation("ReferrerStudio", fields: [referrer_studio_id], references: [id])
+  referred_studio Studio                   @relation("ReferredStudio", fields: [referred_studio_id], references: [id])
+  campaign        ReferralCampaign?        @relation(fields: [campaign_id], references: [id])
+  reward_logs     RewardLog[]
+  lifecycle       ReferralLifecycleEvent[]
+  fraud_signals   ReferralFraudSignal[]
+
+  @@index([referrer_studio_id])
+  @@index([status])
+  @@index([referral_code])
+  @@index([campaign_id])
+  @@map("referrals")
+  @@schema("public")
+}
+
+// SaaS-admin-controlled policy engine.
+// conditions/rewards are JSONB so policies evolve without migrations.
+model ReferralRewardRule {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  description   String?
+  // 'b2b_subscription_activated' | 'b2b_subscription_renewed' | 'b2b_yearly_upgrade' | ...
+  trigger_event String    @default("b2b_subscription_activated")
+  campaign_id   String?   @db.Uuid
+  conditions    Json      @default("{}")
+  rewards       Json      @default("[]")
+  priority      Int       @default(0)
+  is_active     Boolean   @default(true)
+  max_uses      Int?
+  uses_count    Int       @default(0)
+  valid_from    DateTime? @db.Timestamptz()
+  valid_until   DateTime? @db.Timestamptz()
+  created_by    String?   @db.Uuid
+  created_at    DateTime  @default(now()) @db.Timestamptz()
+  updated_at    DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  campaign    ReferralCampaign? @relation(fields: [campaign_id], references: [id])
+  reward_logs RewardLog[]
+
+  @@index([is_active, trigger_event])
+  @@index([priority])
+  @@index([campaign_id])
+  @@map("referral_reward_rules")
+  @@schema("public")
+}
+
+// Immutable, append-only financial audit log.
+// Never UPDATE rows here except to flip status to 'reversed'.
+model RewardLog {
+  id                         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referral_id                String    @db.Uuid
+  rule_id                    String    @db.Uuid
+  beneficiary_studio_id      String    @db.Uuid
+  event_type                 String // 'subscription_activated' | 'subscription_renewed' | ...
+  event_payload              Json // full payload snapshot at award time
+  reward_type                String // 'extend_subscription' | 'account_credit' | 'trial_extension' | 'wallet_credit'
+  reward_value               Json // shape depends on reward_type
+  idempotency_key            String    @unique
+  status                     String    @default("applied") // applied | failed | reversed
+  failure_reason             String?
+  // Snapshot of subscription extension for audit
+  subscription_extended_from DateTime? @db.Timestamptz()
+  subscription_extended_to   DateTime? @db.Timestamptz()
+  applied_at                 DateTime  @default(now()) @db.Timestamptz()
+  reversed_at                DateTime? @db.Timestamptz()
+  reversed_reason            String?
+
+  referral    Referral           @relation(fields: [referral_id], references: [id])
+  rule        ReferralRewardRule @relation(fields: [rule_id], references: [id])
+  beneficiary Studio             @relation("RewardBeneficiary", fields: [beneficiary_studio_id], references: [id])
+
+  @@index([beneficiary_studio_id, status])
+  @@index([referral_id])
+  @@index([applied_at])
+  @@map("reward_logs")
+  @@schema("public")
+}
+
+// Append-only state transition log. Never updated, only inserted.
+model ReferralLifecycleEvent {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referral_id String   @db.Uuid
+  from_status String?
+  to_status   String
+  actor_type  String   @default("system") // system | admin | webhook | gym_owner
+  actor_id    String?  @db.Uuid
+  payload     Json     @default("{}")
+  occurred_at DateTime @default(now()) @db.Timestamptz()
+
+  referral Referral @relation(fields: [referral_id], references: [id])
+
+  @@index([referral_id, occurred_at])
+  @@map("referral_lifecycle_events")
+  @@schema("public")
+}
+
+// Risk signals — never auto-ban; surface to admin review queue.
+model ReferralFraudSignal {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referral_id       String?   @db.Uuid // null = signal not yet bound to a referral
+  subject_studio_id String?   @db.Uuid // either subject studio
+  signal_type       String // 'duplicate_phone' | 'duplicate_gst' | 'duplicate_ip' | 'self_referral' | 'velocity' | 'device_fingerprint'
+  severity          String    @default("low") // low | medium | high | critical
+  evidence          Json      @default("{}") // raw matching data
+  review_status     String    @default("pending") // pending | reviewed_ok | confirmed_fraud
+  reviewed_by       String?   @db.Uuid
+  reviewed_at       DateTime? @db.Timestamptz()
+  reviewer_notes    String?
+  created_at        DateTime  @default(now()) @db.Timestamptz()
+
+  referral Referral? @relation(fields: [referral_id], references: [id])
+  subject  Studio?   @relation("FraudSubjectStudio", fields: [subject_studio_id], references: [id])
+
+  @@index([review_status, severity])
+  @@index([subject_studio_id])
+  @@map("referral_fraud_signals")
+  @@schema("public")
+}
+
+// One wallet per studio. Balance is DERIVED from sum of wallet_entries —
+// never stored as a mutable field. This guarantees immutability + audit.
+model ReferralWallet {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studio_id  String   @unique @db.Uuid
+  currency   String   @default("INR")
+  // Cached balance — recomputed by trigger / app code from entries.
+  // Authoritative source is the SUM of entries.
+  balance    Decimal  @default(0) @db.Decimal(14, 2)
+  status     String   @default("active") // active | frozen
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  studio  Studio                @relation(fields: [studio_id], references: [id])
+  entries ReferralWalletEntry[]
+
+  @@map("referral_wallets")
+  @@schema("public")
+}
+
+// Append-only ledger. Positive = credit, negative = debit.
+// Never UPDATE or DELETE — reversals are NEW entries with reverses_entry_id set.
+model ReferralWalletEntry {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wallet_id         String    @db.Uuid
+  entry_type        String // 'credit' | 'debit' | 'reversal' | 'expiry'
+  amount            Decimal   @db.Decimal(14, 2) // signed
+  currency          String    @default("INR")
+  source_type       String // 'referral_reward' | 'manual_adjustment' | 'subscription_payment' | 'addon_purchase' | 'expiry'
+  source_id         String?   @db.Uuid // FK target depends on source_type
+  reward_log_id     String?   @db.Uuid
+  reverses_entry_id String?   @db.Uuid
+  idempotency_key   String    @unique
+  expires_at        DateTime? @db.Timestamptz() // credits can expire
+  description       String?
+  metadata          Json      @default("{}")
+  created_at        DateTime  @default(now()) @db.Timestamptz()
+
+  wallet ReferralWallet @relation(fields: [wallet_id], references: [id])
+
+  @@index([wallet_id, created_at])
+  @@index([source_type, source_id])
+  @@map("referral_wallet_entries")
+  @@schema("public")
+}
+
+// Time-bounded campaigns (e.g. Summer 2026, Festival Offer).
+// A campaign's rule_overrides JSON can boost rewards for the duration.
+model ReferralCampaign {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  description    String?
+  scope          String    @default("global") // global | region | plan
+  scope_filters  Json      @default("{}") // { regions: [...], plan_ids: [...] }
+  rule_overrides Json      @default("[]") // RewardAction[] to apply on top of base rules
+  valid_from     DateTime? @db.Timestamptz()
+  valid_until    DateTime? @db.Timestamptz()
+  is_active      Boolean   @default(true)
+  max_total_uses Int?
+  uses_count     Int       @default(0)
+  created_by     String?   @db.Uuid
+  created_at     DateTime  @default(now()) @db.Timestamptz()
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  referrals Referral[]
+  rules     ReferralRewardRule[]
+
+  @@index([is_active, valid_from, valid_until])
+  @@map("referral_campaigns")
+  @@schema("public")
+}
+
+// =============================================
+// PER-STUDIO B2C REFERRAL — Gym → Member
+// =============================================
+// Extends existing MemberReferral + ReferralProgram with lifecycle + immutable rewards.
+
+// Append-only lifecycle events for member referrals.
+model MemberReferralEvent {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id             String   @db.Uuid
+  member_referral_id String   @db.Uuid
+  from_status        String?
+  to_status          String // link_shared | code_used | member_registered | payment_completed | active_membership | reward_unlocked | reward_claimed | cancelled
+  actor_type         String   @default("system")
+  actor_id           String?  @db.Uuid
+  payload            Json     @default("{}")
+  occurred_at        DateTime @default(now()) @db.Timestamptz()
+
+  @@index([member_referral_id, occurred_at])
+  @@index([gym_id])
+  @@map("member_referral_events")
+  @@schema("studio_template")
+}
+
+// Immutable reward log per member referral.
+model MemberReferralReward {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id                String    @db.Uuid
+  member_referral_id    String    @db.Uuid
+  program_id            String?   @db.Uuid // FK to ReferralProgram
+  beneficiary_member_id String    @db.Uuid // who gets the reward (usually the referrer)
+  reward_type           String // 'free_days' | 'wallet_credit' | 'pt_session' | 'merchandise' | 'plan_upgrade' | 'discount'
+  reward_value          Json
+  status                String    @default("applied") // applied | claimed | expired | reversed
+  idempotency_key       String    @unique
+  applied_at            DateTime  @default(now()) @db.Timestamptz()
+  claimed_at            DateTime? @db.Timestamptz()
+  expires_at            DateTime? @db.Timestamptz()
+  reversed_at           DateTime? @db.Timestamptz()
+  reversed_reason       String?
+  notes                 String?
+
+  @@index([gym_id, status])
+  @@index([beneficiary_member_id])
+  @@index([member_referral_id])
+  @@map("member_referral_rewards")
+  @@schema("studio_template")
+}
+
+// Per-gym fraud signals for member referrals.
+model MemberReferralFraudSignal {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id             String    @db.Uuid
+  member_referral_id String?   @db.Uuid
+  subject_member_id  String?   @db.Uuid
+  signal_type        String // duplicate_phone | duplicate_email | duplicate_device | self_referral | velocity | biometric_match
+  severity           String    @default("low")
+  evidence           Json      @default("{}")
+  review_status      String    @default("pending")
+  reviewed_by        String?   @db.Uuid
+  reviewed_at        DateTime? @db.Timestamptz()
+  reviewer_notes     String?
+  created_at         DateTime  @default(now()) @db.Timestamptz()
+
+  @@index([gym_id, review_status])
+  @@map("member_referral_fraud_signals")
+  @@schema("studio_template")
 }

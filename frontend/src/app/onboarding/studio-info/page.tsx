@@ -324,8 +324,8 @@ export default function StudioInfoPage() {
   return (
     <OnboardingLayout currentStep={2}>
       <div className="mb-7">
-        <span className="text-primary text-4xl font-black leading-none">*</span>
-        <h1 className="mt-2 text-[22px] font-bold text-foreground tracking-tight">
+        <span className="text-primary text-4xl font-semibold leading-none">*</span>
+        <h1 className="mt-2 text-[22px] font-semibold text-foreground tracking-tight">
           Tell us about your gym
         </h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
@@ -335,7 +335,7 @@ export default function StudioInfoPage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
-        <div className="rounded-md border border-border bg-muted/20 p-3 text-[12px] text-muted-foreground">
+        <div className="rounded-md border border-border bg-canvas-soft p-3 text-[12px] text-muted-foreground">
           {autoLocation.loading && 'Detecting your location...'}
           {!autoLocation.loading && autoLocation.countryName && (
             <span>
@@ -349,7 +349,7 @@ export default function StudioInfoPage() {
         {/* Logo Upload */}
         <div className="flex items-center gap-4">
           <div
-            className="h-16 w-16 rounded-xl border-2 border-dashed border-border bg-muted/30 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
+            className="h-16 w-16 rounded-lg border-2 border-dashed border-border bg-canvas-soft flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
             onClick={() => logoInputRef.current?.click()}
           >
             {logoPreview ? (
@@ -426,7 +426,7 @@ export default function StudioInfoPage() {
         <div className="space-y-1.5">
           <label className="text-[13px] font-medium text-foreground">Phone</label>
           <div className="flex rounded-md border border-border bg-background focus-within:ring-1 focus-within:ring-ring overflow-hidden">
-            <span className="flex shrink-0 items-center justify-center border-r border-border bg-muted/40 px-3 text-[13px] text-muted-foreground whitespace-nowrap">
+            <span className="flex shrink-0 items-center justify-center border-r border-border bg-canvas-soft px-3 text-[13px] text-muted-foreground whitespace-nowrap">
               {phoneMetadata.dialCode || '--'}
             </span>
             <input

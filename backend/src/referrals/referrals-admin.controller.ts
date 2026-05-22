@@ -22,7 +22,19 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CreateRuleDto } from './dto/create-rule.dto';
 import { UpdateRuleDto } from './dto/update-rule.dto';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
+import {
+  FraudQueueFilterDto,
+  ReviewSignalDto,
+  ForceTransitionDto,
+  RevokeRewardDto,
+  FreezeWalletDto,
+  ManualAdjustmentDto,
+} from './dto/admin-actions.dto';
 import { ReferralsService } from './referrals.service';
+import { ReferralAdminService } from './referral-admin.service';
+import { ReferralWalletService } from './referral-wallet.service';
+import { ReferralLifecycleService } from './referral-lifecycle.service';
+import { CurrentUser, JwtPayload } from '../common';
 
 @Controller('api/v1/admin/referrals')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -31,6 +43,9 @@ export class ReferralsAdminController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly referralsService: ReferralsService,
+    private readonly admin: ReferralAdminService,
+    private readonly wallet: ReferralWalletService,
+    private readonly lifecycle: ReferralLifecycleService,
   ) {}
 
   // ── Campaigns ─────────────────────────────────────────────────────
@@ -256,5 +271,136 @@ export class ReferralsAdminController {
         rule:     { select: { name: true, priority: true } },
       },
     });
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // Phase 3 — Admin manual control surface
+  // ════════════════════════════════════════════════════════════════
+
+  // ── Aggregate overview ──────────────────────────────────────────
+
+  @Get('overview')
+  getOverview() {
+    return this.admin.getOverview();
+  }
+
+  // ── Fraud review queue ──────────────────────────────────────────
+
+  @Get('fraud-queue')
+  listFraudQueue(@Query() filters: FraudQueueFilterDto) {
+    return this.admin.listFraudQueue(filters);
+  }
+
+  @Post('fraud-signals/:id/review')
+  @HttpCode(HttpStatus.OK)
+  reviewSignal(
+    @Param('id', ParseUUIDPipe) signalId: string,
+    @Body() dto: ReviewSignalDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.admin.reviewFraudSignal({
+      signalId,
+      reviewerId: user.user_id,
+      decision:   dto.decision,
+      notes:      dto.notes,
+    });
+  }
+
+  // ── Lifecycle history + force transition ────────────────────────
+
+  @Get(':id/lifecycle')
+  getLifecycle(@Param('id', ParseUUIDPipe) referralId: string) {
+    return this.lifecycle.getHistory(referralId);
+  }
+
+  @Post(':id/force-transition')
+  @HttpCode(HttpStatus.OK)
+  forceTransition(
+    @Param('id', ParseUUIDPipe) referralId: string,
+    @Body() dto: ForceTransitionDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.admin.forceTransition({
+      referralId,
+      toStatus: dto.to_status,
+      adminId:  user.user_id,
+      reason:   dto.reason,
+    });
+  }
+
+  // ── Reward revocation ───────────────────────────────────────────
+
+  @Post('reward-logs/:id/revoke')
+  @HttpCode(HttpStatus.OK)
+  revokeReward(
+    @Param('id', ParseUUIDPipe) rewardLogId: string,
+    @Body() dto: RevokeRewardDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.admin.revokeReward({
+      rewardLogId,
+      adminId: user.user_id,
+      reason:  dto.reason,
+    });
+  }
+
+  // ── Wallet operations ───────────────────────────────────────────
+
+  @Get('wallets/:studio_id')
+  async getWallet(@Param('studio_id', ParseUUIDPipe) studioId: string) {
+    const [balance, entries] = await Promise.all([
+      this.wallet.getBalance(studioId),
+      this.wallet.listEntries(studioId, { limit: 50 }),
+    ]);
+    return { ...balance, entries };
+  }
+
+  @Post('wallets/:studio_id/freeze')
+  @HttpCode(HttpStatus.OK)
+  freezeWallet(
+    @Param('studio_id', ParseUUIDPipe) studioId: string,
+    @Body() dto: FreezeWalletDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.admin.freezeWallet({
+      studioId,
+      adminId: user.user_id,
+      reason:  dto.reason,
+    });
+  }
+
+  @Post('wallets/:studio_id/unfreeze')
+  @HttpCode(HttpStatus.OK)
+  unfreezeWallet(
+    @Param('studio_id', ParseUUIDPipe) studioId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.admin.unfreezeWallet({
+      studioId,
+      adminId: user.user_id,
+    });
+  }
+
+  @Post('wallets/manual-adjustment')
+  @HttpCode(HttpStatus.OK)
+  manualAdjustment(
+    @Body() dto: ManualAdjustmentDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.admin.manualWalletAdjustment({
+      studioId: dto.studio_id,
+      amount:   dto.amount,
+      currency: dto.currency,
+      reason:   dto.reason,
+      adminId:  user.user_id,
+    });
+  }
+
+  // ── Risk-score reconciliation ───────────────────────────────────
+
+  @Post(':id/recompute-risk')
+  @HttpCode(HttpStatus.OK)
+  recomputeRisk(@Param('id', ParseUUIDPipe) referralId: string) {
+    return this.admin.recomputeRiskScore(referralId);
   }
 }

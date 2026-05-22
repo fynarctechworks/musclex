@@ -7,7 +7,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ActiveBranchInterceptor } from './common/interceptors/active-branch.interceptor';
 import { StripSecretsInterceptor } from './common/interceptors/strip-secrets.interceptor';
 import { AppController } from './app.controller';
-import { TenantMiddleware } from './common';
+import { TenantMiddleware, CorrelationIdMiddleware } from './common';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { MembersModule } from './members/members.module';
@@ -24,6 +24,7 @@ import { AuditModule } from './audit/audit.module';
 import { SettingsModule } from './settings/settings.module';
 import { OrganizationModule } from './organization/organization.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { WalletModule } from './wallet/wallet.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { PlatformModule } from './platform/platform.module';
 import { QueueModule } from './queue/queue.module';
@@ -32,7 +33,10 @@ import { ComplianceModule } from './compliance/compliance.module';
 import { ReferralsModule } from './referrals/referrals.module';
 import { OnboardingPlansModule } from './onboarding/onboarding-plans.module';
 import { InvoicesModule } from './invoices/invoices.module';
+import { DocumentsModule } from './documents/documents.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { SubscriptionModule } from './subscription/subscription.module';
+import { SubscriptionLockGuard } from './common/guards/subscription-lock.guard';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { RedisThrottlerStorage } from './common/throttler/redis-throttler-storage';
 import { EnhancedThrottlerGuard } from './common/throttler/enhanced-throttler.guard';
@@ -96,6 +100,7 @@ import { EnhancedThrottlerGuard } from './common/throttler/enhanced-throttler.gu
     SettingsModule,
     OrganizationModule,
     InventoryModule,
+    WalletModule,
     AnalyticsModule,
     PlatformModule,
     QueueModule.register(),
@@ -104,7 +109,9 @@ import { EnhancedThrottlerGuard } from './common/throttler/enhanced-throttler.gu
     ReferralsModule,
     OnboardingPlansModule,
     InvoicesModule,
+    DocumentsModule,
     UploadsModule,
+    SubscriptionModule,
   ],
   controllers: [AppController],
   providers: [
@@ -124,10 +131,23 @@ import { EnhancedThrottlerGuard } from './common/throttler/enhanced-throttler.gu
       provide: APP_INTERCEPTOR,
       useClass: StripSecretsInterceptor,
     },
+    // Global write-lock for LOCKED / SUSPENDED tenants.
+    // Runs AFTER each route's JwtAuthGuard (which populates request.user with
+    // the subscription block). For unauthenticated routes (auth/*), the guard
+    // is a no-op because request.user is undefined.
+    {
+      provide: APP_GUARD,
+      useClass: SubscriptionLockGuard,
+    },
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
+    // Correlation ID is request-scope and intentionally runs for EVERY
+    // route — auth failures, public webhooks, and tenant-less requests
+    // all benefit from a traceable ID echoed back in X-Correlation-Id.
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+
     // Apply tenant schema routing to all authenticated routes (non-auth endpoints)
     consumer
       .apply(TenantMiddleware)

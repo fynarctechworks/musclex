@@ -81,8 +81,8 @@ export default function RegisterPage() {
   return (
     <OnboardingLayout currentStep={0}>
       <div className="mb-7">
-        <span className="text-primary text-4xl font-black leading-none">*</span>
-        <h1 className="mt-2 text-[22px] font-bold text-foreground tracking-tight">
+        <span className="text-primary text-4xl font-semibold leading-none">*</span>
+        <h1 className="mt-2 text-[22px] font-semibold text-foreground tracking-tight">
           Create your account
         </h1>
         <p className="mt-1 text-[13px] text-muted-foreground">

@@ -44,6 +44,7 @@ import {
   REFERRAL_EVENTS,
   SubscriptionActivatedPayload,
 } from '../referrals/events/domain-events';
+import { SubscriptionPolicyService } from '../common/services/subscription-policy.service';
 
 /** Request context passed from the controller for tracking. */
 export interface LoginContext {
@@ -69,6 +70,7 @@ export class AuthService {
     private twoFactorService: TwoFactorService,
     private eventEmitter: EventEmitter2,
     private sccSync: SccSyncService,
+    private subscriptionPolicy: SubscriptionPolicyService,
   ) {
     this.supabase = createClient(
       this.configService.get<string>('SUPABASE_URL', ''),
@@ -80,6 +82,72 @@ export class AuthService {
     } else {
       this.logger.warn('RESEND_API_KEY not set — verification emails will only be logged to console');
     }
+  }
+
+  /**
+   * Reconcile the stored `onboarding_step` flag against actual database state.
+   *
+   * `onboarding_step` lives in Supabase `user_metadata` and is advanced manually
+   * by each onboarding step. That flag can drift from reality — e.g. a studio
+   * created via seed/SQL/admin/MCP writes the `studios` + `branches` tables but
+   * never touches the flag, leaving the owner stuck mid-wizard on every login.
+   *
+   * The source of truth is the data, not the flag: if the user already owns a
+   * studio with at least one branch, onboarding is effectively complete. When
+   * the flag disagrees, we repair it in metadata once (self-healing) so it stays
+   * in sync going forward and this misroute can never recur.
+   *
+   * Fresh users (no studio, or studio without a branch) keep their real step, so
+   * mandatory setup is still enforced.
+   *
+   * @returns the effective onboarding step the caller should act on.
+   */
+  private async reconcileOnboardingStep(
+    userId: string,
+    metadata: Record<string, any>,
+  ): Promise<string | undefined> {
+    const storedStep = metadata.onboarding_step;
+    const studioId = metadata.studio_id;
+
+    // No studio yet → genuinely still onboarding; trust the stored step.
+    if (!studioId) return storedStep;
+
+    // Already complete → nothing to reconcile.
+    if (storedStep === 'complete') return storedStep;
+
+    try {
+      const studio = await this.prisma.studio.findUnique({
+        where: { id: studioId },
+        select: { id: true },
+      });
+      if (!studio) return storedStep; // dangling studio_id — leave as-is.
+
+      const branchCount = await this.prisma.branch.count({
+        where: { gym_id: studioId },
+      });
+
+      // Studio + at least one branch = a usable gym. Treat as complete and
+      // heal the stale flag so the redirect loop ends permanently.
+      if (branchCount > 0) {
+        if (storedStep !== 'complete') {
+          await this.supabase.auth.admin.updateUserById(userId, {
+            user_metadata: { ...metadata, onboarding_step: 'complete' },
+          });
+          metadata.onboarding_step = 'complete';
+          this.logger.log(
+            `Reconciled onboarding_step → complete for user ${userId} (studio ${studioId} already set up)`,
+          );
+        }
+        return 'complete';
+      }
+    } catch (err) {
+      // Never block login on reconciliation failure — fall back to stored flag.
+      this.logger.warn(
+        `Onboarding reconciliation failed for user ${userId}: ${(err as Error).message}`,
+      );
+    }
+
+    return storedStep;
   }
 
   async login(dto: LoginDto, context?: LoginContext) {
@@ -167,7 +235,10 @@ export class AuthService {
     // ── Successful authentication ──
 
     const metadata = data.user.user_metadata || {};
-    const onboardingStep = metadata.onboarding_step;
+    // Derive the real onboarding step from data, healing a stale flag if a
+    // studio already exists (e.g. gym created via seed/SQL/admin). This prevents
+    // already-set-up owners from being bounced back into the onboarding wizard.
+    const onboardingStep = await this.reconcileOnboardingStep(data.user.id, metadata);
 
     // Sync identity to local table (persistent user record)
     await this.identityService.syncIdentity({
@@ -379,6 +450,11 @@ export class AuthService {
 
     // Return full user/studio payload so frontend can update state
     const metadata = data.user?.user_metadata || {};
+    // Heal a stale onboarding flag on token refresh as well, so the redirect
+    // decision stays consistent across login, refresh, and getMe.
+    if (data.user) {
+      await this.reconcileOnboardingStep(data.user.id, metadata);
+    }
     const studioId = metadata.studio_id;
     let studio = null;
     if (studioId) {
@@ -434,6 +510,9 @@ export class AuthService {
     if (!userData?.user) throw new UnauthorizedException('User not found');
 
     const metadata = userData.user.user_metadata || {};
+    // Heal a stale onboarding flag against real data so a profile refresh can't
+    // re-trigger the onboarding redirect for an already-set-up gym.
+    await this.reconcileOnboardingStep(userId, metadata);
     const studioId = metadata.studio_id;
     let studio = null;
     if (studioId) {
@@ -465,6 +544,19 @@ export class AuthService {
       }
     }
 
+    // Resolve current subscription lifecycle context — single source of truth
+    // for frontend banners, modals, and write-guards.
+    let subscription = null as
+      | Awaited<ReturnType<SubscriptionPolicyService['getContext']>>
+      | null;
+    if (studioId) {
+      try {
+        subscription = await this.subscriptionPolicy.getContext(studioId);
+      } catch (err) {
+        this.logger.warn(`Subscription context lookup failed: ${(err as Error).message}`);
+      }
+    }
+
     return {
       user: {
         id: userId,
@@ -478,6 +570,7 @@ export class AuthService {
         onboarding_step: metadata.onboarding_step,
       },
       studio,
+      subscription,
     };
   }
 
@@ -1198,7 +1291,10 @@ export class AuthService {
       },
     });
 
-    // Sync studio to SaaS Control Center
+    // Sync studio to SaaS Control Center.
+    // Pass the live-computed lifecycle_status so the SCC dashboard never shows
+    // a gym as "ACTIVE" while it's actually expired/locked. A brand-new studio
+    // has no lifecycle_status yet, so we fall back to the legacy column.
     await this.sccSync.upsertTenant({
       id: studio.id,
       name: studio.name,
@@ -1208,6 +1304,7 @@ export class AuthService {
       logo_url: studio.logo_url,
       account_type: (studio as any).account_type || 'gym',
       subscription_plan: studio.subscription_plan,
+      lifecycle_status: studio.lifecycle_status ?? undefined,
       subscription_status: studio.subscription_status,
       trial_ends_at: studio.trial_ends_at,
       owner_full_name: metadata.full_name as string | undefined,
@@ -1506,11 +1603,6 @@ export class AuthService {
       );
     }
 
-    // Lookup the SubscriptionPlan DB record for the rule engine
-    const subscriptionPlan = await this.prisma.subscriptionPlan.findFirst({
-      where: { name: planId, is_active: true },
-    });
-
     const now = new Date();
     const nextBilling = new Date(now);
     nextBilling.setDate(nextBilling.getDate() + (billingCycle === 'annual' ? 365 : 30));
@@ -1542,25 +1634,12 @@ export class AuthService {
       await this.sccSync.syncPlanChange(studioRow.slug, planId === DEFAULT_PLAN ? 'active' : 'trial', trialEndsAt, planId);
     }
 
-    // ── Emit domain event for referral reward system ───────────────
-    // Only fire for paid plans (free plan activations don't trigger rewards)
-    if (planId !== DEFAULT_PLAN && subscriptionPlan) {
-      const idempotencyKey = `onboarding_${studioId}_plan_${planId}_${now.getTime()}`;
-      const amountPaid = billingCycle === 'annual'
-        ? Number(subscriptionPlan.annual_price)
-        : Number(subscriptionPlan.monthly_price);
-      const eventPayload: SubscriptionActivatedPayload = {
-        studioId,
-        planId:         subscriptionPlan.id,
-        planName:       planId,
-        billingCycle,
-        amountPaid,
-        currency:       DEFAULT_CURRENCY,
-        idempotencyKey,
-        activatedAt:    now,
-      };
-      this.eventEmitter.emit(REFERRAL_EVENTS.SUBSCRIPTION_ACTIVATED, eventPayload);
-    }
+    // ── Referral reward: deliberately NOT emitted here ──────────────
+    // Selecting a paid plan is only an INTENT to pay — no money has moved.
+    // Emitting SUBSCRIPTION_ACTIVATED here let a referred gym click a plan,
+    // never pay, and still hand the referrer a +days extension (fraud hole).
+    // The reward is now emitted from onboardingRecordPayment AFTER a verified
+    // payment is recorded. See that method.
 
     return { plan: planId, billing_cycle: billingCycle, onboarding_step: nextStep };
   }
@@ -1578,31 +1657,31 @@ export class AuthService {
 
     const currency = dto.currency || studio.currency || DEFAULT_CURRENCY;
     const now = new Date();
-    const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-    // Generate invoice number: INV-YYYYMMDD-XXXX
-    const datePart = now.toISOString().slice(0, 10).replace(/-/g, '');
-    const rand = Math.floor(Math.random() * 9000 + 1000);
-    const invoiceNumber = `INV-${datePart}-${rand}`;
-
-    // Create billing invoice in public schema
-    const invoice = await this.prisma.invoice.create({
-      data: {
-        studio_id: studioId,
-        invoice_number: invoiceNumber,
-        amount: dto.amount,
-        currency,
-        status: 'paid',
-        billing_period_start: now,
-        billing_period_end: periodEnd,
-        paid_at: now,
-      },
-    });
-
-    // Upgrade subscription_status to active
+    // First real payment anchors the billing period from NOW — not from the
+    // trial-window date set during plan selection. recordRenewal() uses strict
+    // continuity (period_start = prior next_billing_date), so we reset
+    // next_billing_date to `now` first; the renewal then grants a full
+    // 30-/365-day period and persists next_billing_date, subscription_start,
+    // lifecycle_status, the invoice, and the ledger events in one transaction.
+    // Also clear trial_ends_at: the user just paid, so the trial is over even
+    // though its 14-day window may still be in the future.
     await this.prisma.studio.update({
       where: { id: studioId },
-      data: { subscription_status: 'active' },
+      data: { next_billing_date: now, trial_ends_at: null },
+    });
+
+    const renewal = await this.subscriptionPolicy.recordRenewal({
+      studio_id: studioId,
+      actor_id: userId,
+      actor_type: 'user',
+      amount: dto.amount,
+      currency,
+      now,
+      // Honor the plan the user paid for during onboarding.
+      new_plan: dto.plan_id || studio.subscription_plan,
+      new_billing_cycle: studio.billing_cycle,
+      metadata: { source: 'onboarding', card_brand: dto.card_brand, card_last4: dto.card_last4 },
     });
 
     // Complete onboarding
@@ -1613,23 +1692,48 @@ export class AuthService {
     // Sync payment + active status to SCC
     await this.sccSync.syncPlanChange(studio.slug, 'active', null, dto.plan_id);
     await this.sccSync.upsertPayment({
-      id: invoice.id,
+      id: renewal.invoice_id,
       studio_slug: studio.slug,
       amount: dto.amount,
       currency,
       status: 'paid',
-      invoice_number: invoiceNumber,
+      invoice_number: renewal.invoice_number,
       paid_at: now,
     });
 
+    // ── Emit referral reward event AFTER verified payment ────────────
+    // This is the ONLY place a B2B referral reward is triggered. We anchor
+    // idempotency on the invoice id so a replayed payment can't double-reward,
+    // and we pass the ACTUAL amount the referred gym paid (not a list price)
+    // so the rule engine's min_subscription_amount gate sees real money.
+    const paidPlanName = dto.plan_id || studio.subscription_plan;
+    if (paidPlanName && paidPlanName !== DEFAULT_PLAN) {
+      const subscriptionPlan = await this.prisma.subscriptionPlan.findFirst({
+        where: { name: paidPlanName, is_active: true },
+        select: { id: true },
+      });
+      const eventPayload: SubscriptionActivatedPayload = {
+        studioId,
+        planId:         subscriptionPlan?.id ?? paidPlanName,
+        planName:       paidPlanName,
+        billingCycle:   (studio.billing_cycle as 'monthly' | 'annual') ?? 'monthly',
+        amountPaid:     dto.amount,
+        currency,
+        idempotencyKey: renewal.invoice_id,
+        activatedAt:    now,
+      };
+      this.eventEmitter.emit(REFERRAL_EVENTS.SUBSCRIPTION_ACTIVATED, eventPayload);
+    }
+
     return {
-      invoice_id: invoice.id,
-      invoice_number: invoiceNumber,
+      invoice_id: renewal.invoice_id,
+      invoice_number: renewal.invoice_number,
       amount: dto.amount,
       currency,
       card_last4: dto.card_last4,
       card_brand: dto.card_brand,
       status: 'paid',
+      next_billing_date: renewal.period_end.toISOString(),
       onboarding_step: 'complete',
     };
   }

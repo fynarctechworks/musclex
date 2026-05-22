@@ -204,7 +204,7 @@ const INSIGHT_ICONS: Record<InsightType, typeof AlertTriangle> = {
 
 const SEVERITY_STYLES: Record<InsightSeverity, { bg: string; border: string; badge: string; text: string }> = {
   critical: { bg: "bg-destructive/5", border: "border-destructive/30", badge: "bg-destructive text-destructive-foreground", text: "text-destructive" },
-  high: { bg: "bg-amber-500/5", border: "border-amber-500/30", badge: "bg-amber-500 text-white", text: "text-amber-500" },
+  high: { bg: "bg-warning/5", border: "border-warning/30", badge: "bg-warning text-on-primary", text: "text-warning" },
   medium: { bg: "bg-primary/5", border: "border-primary/30", badge: "bg-primary text-primary-foreground", text: "text-primary" },
   low: { bg: "bg-success/5", border: "border-success/30", badge: "bg-success text-success-foreground", text: "text-success" },
 };
@@ -385,7 +385,7 @@ export default function AIAdvisorPage() {
               ) : insights.length > 0 ? (
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 pt-2">
-                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <Sparkles className="w-4 h-4 text-warning" />
                     <h3 className="text-sm font-medium text-foreground">
                       {insights.length} Insight{insights.length !== 1 ? "s" : ""} Generated
                     </h3>
@@ -409,14 +409,14 @@ export default function AIAdvisorPage() {
           <TabsContent value="chat">
             <div className="flex flex-col h-[calc(100vh-280px)]">
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto bg-card border border-border rounded-xl p-4 space-y-4">
+              <div className="flex-1 overflow-y-auto bg-card border border-border rounded-lg p-4 space-y-4">
                 {/* Welcome message */}
                 {messages.length === 0 && (
                   <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-canvas-soft-2 flex items-center justify-center flex-shrink-0">
                       <Bot className="w-4 h-4 text-primary" />
                     </div>
-                    <div className="max-w-[70%] rounded-xl px-4 py-3 text-sm bg-muted text-foreground">
+                    <div className="max-w-[70%] rounded-lg px-4 py-3 text-sm bg-muted text-foreground">
                       <p>
                         Hi! I&apos;m your AI gym advisor. Ask me about revenue trends,
                         member retention, class optimization, trainer performance, or any
@@ -432,12 +432,12 @@ export default function AIAdvisorPage() {
                     className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}
                   >
                     {msg.role === "assistant" && (
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-canvas-soft-2 flex items-center justify-center flex-shrink-0">
                         <Bot className="w-4 h-4 text-primary" />
                       </div>
                     )}
                     <div
-                      className={`max-w-[70%] rounded-xl px-4 py-3 text-sm ${
+                      className={`max-w-[70%] rounded-lg px-4 py-3 text-sm ${
                         msg.role === "user"
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted text-foreground"
@@ -455,10 +455,10 @@ export default function AIAdvisorPage() {
 
                 {chatMutation.isPending && (
                   <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-canvas-soft-2 flex items-center justify-center flex-shrink-0">
                       <Bot className="w-4 h-4 text-primary" />
                     </div>
-                    <div className="bg-muted rounded-xl px-4 py-3">
+                    <div className="bg-muted rounded-lg px-4 py-3">
                       <div className="flex gap-1">
                         <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
                         <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce [animation-delay:0.1s]" />

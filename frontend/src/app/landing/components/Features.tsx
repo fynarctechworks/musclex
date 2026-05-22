@@ -14,13 +14,13 @@ const features = [
     icon: Users,
     title: 'Member Management',
     description: 'Complete member profiles, plan tracking, and automated renewals in one place.',
-    color: 'text-blue-600 bg-blue-50 border-blue-100',
+    color: 'text-link bg-link-soft border-blue-100',
   },
   {
     icon: UserCog,
     title: 'Trainer Management',
     description: 'Assign trainers, manage schedules, and track performance effortlessly.',
-    color: 'text-purple-600 bg-purple-50 border-purple-100',
+    color: 'text-foreground bg-canvas-soft-2 border-purple-100',
   },
   {
     icon: CalendarCheck,
@@ -32,13 +32,13 @@ const features = [
     icon: CreditCard,
     title: 'Automated Billing',
     description: 'Razorpay & Stripe integration with invoices and payment reminders.',
-    color: 'text-amber-600 bg-amber-50 border-amber-100',
+    color: 'text-warning bg-warning-soft border-amber-100',
   },
   {
     icon: Dumbbell,
     title: 'Workout Plans',
     description: 'Create and assign personalized workout routines for every member.',
-    color: 'text-rose-600 bg-rose-50 border-rose-100',
+    color: 'text-error-deep bg-error-soft border-rose-100',
   },
   {
     icon: BarChart3,
@@ -50,7 +50,7 @@ const features = [
     icon: Smartphone,
     title: 'Mobile Friendly',
     description: 'Fully responsive interface that works beautifully on any device.',
-    color: 'text-indigo-600 bg-indigo-50 border-indigo-100',
+    color: 'text-link-deep bg-link-soft border-indigo-100',
   },
   {
     icon: Cloud,
@@ -62,17 +62,17 @@ const features = [
 
 export default function Features() {
   return (
-    <section id="features" className="py-20 lg:py-28 bg-white">
+    <section id="features" className="py-20 lg:py-28 bg-canvas">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <p className="text-sm font-semibold text-blue-600 uppercase tracking-wider mb-3">
+          <p className="text-sm font-semibold text-link uppercase tracking-wider mb-3">
             Features
           </p>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
+          <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
             Everything you need to run your gym
           </h2>
-          <p className="mt-4 text-lg text-gray-500">
+          <p className="mt-4 text-lg text-muted-foreground">
             A complete toolkit designed for fitness studio owners who want to
             focus on what matters — their members.
           </p>
@@ -83,15 +83,15 @@ export default function Features() {
           {features.map((f) => (
             <div
               key={f.title}
-              className="group p-6 bg-white rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-lg hover:shadow-gray-100/80 transition-all duration-300 hover:-translate-y-1"
+              className="group p-6 bg-canvas rounded-lg border border-hairline hover:border-hairline hover:shadow-level-4 hover:shadow-gray-100/80 transition-all duration-medium hover:-translate-y-1"
             >
               <div
-                className={`w-12 h-12 rounded-xl border flex items-center justify-center mb-4 ${f.color} transition-transform duration-300 group-hover:scale-110`}
+                className={`w-12 h-12 rounded-lg border flex items-center justify-center mb-4 ${f.color} transition-transform duration-medium group-hover:scale-110`}
               >
                 <f.icon className="w-6 h-6" />
               </div>
-              <h3 className="text-base font-semibold text-gray-900 mb-2">{f.title}</h3>
-              <p className="text-sm text-gray-500 leading-relaxed">{f.description}</p>
+              <h3 className="text-base font-semibold text-foreground mb-2">{f.title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{f.description}</p>
             </div>
           ))}
         </div>

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MembershipStatusBadge } from "./MembershipStatusBadge";
 import type { MemberMembership } from "@/types";
+import { resolvePlanPrice } from "@/lib/plan-pricing";
 
 interface MembershipHistoryTableProps {
   memberships: MemberMembership[];
@@ -58,12 +59,12 @@ export function MembershipHistoryTable({
             const canRenew = m.status === "expired" || m.status === "cancelled" || m.status === "active";
 
             return (
-              <tr key={m.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+              <tr key={m.id} className="border-b border-border last:border-0 hover:bg-canvas-soft transition-colors">
                 <td className="py-3 pr-4">
                   <div>
                     <span className="font-medium text-foreground">{m.plan.name}</span>
                     <span className="ml-2 text-xs text-muted-foreground">
-                      ₹{Number(m.plan.price).toLocaleString()}
+                      ₹{resolvePlanPrice(m.plan, m.branch_id).toLocaleString()}
                     </span>
                   </div>
                 </td>

@@ -3,7 +3,8 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Building2, ChevronRight, Loader2 } from 'lucide-react';
+import { Building2, ChevronRight } from 'lucide-react';
+import { Spinner } from '@/components/shared';
 import { useAuthStore } from '@/stores/auth-store';
 import { useWorkspaceStore } from '@/stores/workspace-store';
 import { useAuth } from '@/hooks/use-auth';
@@ -51,7 +52,7 @@ export default function WorkspaceSelectPage() {
     <AuthLayout heading="Select your workspace" subheading="Choose which studio to manage.">
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <Spinner size="md" label="Loading workspaces" />
         </div>
       ) : workspaces.length === 0 ? (
         <div className="text-center py-8">
@@ -68,9 +69,9 @@ export default function WorkspaceSelectPage() {
               key={ws.id}
               onClick={() => handleSelect(ws.id)}
               disabled={loading}
-              className="w-full flex items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary hover:bg-accent group disabled:opacity-50"
+              className="w-full flex items-center gap-4 rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-primary hover:bg-canvas-soft group disabled:opacity-50"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-canvas-soft-2 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                 {ws.logo_url ? (
                   <Image
                     src={ws.logo_url}

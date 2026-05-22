@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Mail, RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
+import { Spinner } from '@/components/shared';
 import { Button } from '@/components/ui/button';
 import { authApi } from '@/features/auth';
 import { useAuthStore } from '@/stores/auth-store';
@@ -128,8 +129,8 @@ function VerifyEmailContent() {
     return (
       <OnboardingLayout currentStep={1}>
         <div className="text-center space-y-5">
-          <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
-          <h1 className="text-[22px] font-bold text-foreground">Verifying your email...</h1>
+          <div className="flex justify-center"><Spinner size="xl" label="Verifying email" /></div>
+          <h1 className="text-[22px] font-semibold text-foreground">Verifying your email...</h1>
           <p className="text-[13px] text-muted-foreground">Please wait while we confirm your account.</p>
         </div>
       </OnboardingLayout>
@@ -144,7 +145,7 @@ function VerifyEmailContent() {
           <div className="mx-auto w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
             <CheckCircle2 className="h-8 w-8 text-success" />
           </div>
-          <h1 className="text-[22px] font-bold text-foreground">Email verified!</h1>
+          <h1 className="text-[22px] font-semibold text-foreground">Email verified!</h1>
           <p className="text-[13px] text-muted-foreground">Redirecting you to continue setup...</p>
           <Loader2 className="mx-auto h-5 w-5 animate-spin text-primary" />
         </div>
@@ -160,7 +161,7 @@ function VerifyEmailContent() {
           <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
             <XCircle className="h-8 w-8 text-destructive" />
           </div>
-          <h1 className="text-[22px] font-bold text-foreground">Verification failed</h1>
+          <h1 className="text-[22px] font-semibold text-foreground">Verification failed</h1>
           <p className="text-[13px] text-muted-foreground">{errorMessage}</p>
           <div className="space-y-3 pt-2">
             <Button onClick={handleResend} disabled={resending || cooldown > 0} className="w-full">
@@ -185,13 +186,13 @@ function VerifyEmailContent() {
   return (
     <OnboardingLayout currentStep={1}>
       <div className="mb-7">
-        <span className="text-primary text-4xl font-black leading-none">*</span>
-        <h1 className="mt-2 text-[22px] font-bold text-foreground tracking-tight">Check your email</h1>
+        <span className="text-primary text-4xl font-semibold leading-none">*</span>
+        <h1 className="mt-2 text-[22px] font-semibold text-foreground tracking-tight">Check your email</h1>
         <p className="mt-1 text-[13px] text-muted-foreground">Step 2 of 7 — Verify Email</p>
       </div>
 
       <div className="text-center space-y-5">
-        <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+        <div className="mx-auto w-16 h-16 rounded-full bg-canvas-soft-2 flex items-center justify-center">
           <Mail className="h-8 w-8 text-primary" />
         </div>
 
@@ -256,7 +257,7 @@ export default function VerifyEmailPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-background">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <Spinner size="md" label="Loading" />
         </div>
       }
     >

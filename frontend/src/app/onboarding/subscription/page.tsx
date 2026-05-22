@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Check, Loader2, Zap, Building2, Users, UserCog, HardDrive, Gift, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Spinner } from '@/components/shared';
 import { useAuthStore } from '@/stores/auth-store';
 import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
@@ -169,9 +170,9 @@ export default function OnboardingSubscriptionPage() {
   if (isLoading) {
     return (
       <OnboardingLayout currentStep={6} maxWidth="1180px" hideSidebar>
-        <div className="text-center py-12">
-          <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
-          <p className="text-[13px] text-muted-foreground mt-3">Loading plans...</p>
+        <div className="text-center py-12 flex flex-col items-center gap-3">
+          <Spinner size="lg" label="Loading plans" />
+          <p className="text-[13px] text-muted-foreground">Loading plans...</p>
         </div>
       </OnboardingLayout>
     );
@@ -180,8 +181,8 @@ export default function OnboardingSubscriptionPage() {
   return (
     <OnboardingLayout currentStep={6} maxWidth="1180px" hideSidebar>
       <div className="mb-7">
-        <span className="text-primary text-4xl font-black leading-none">*</span>
-        <h1 className="mt-2 text-[22px] font-bold text-foreground tracking-tight">
+        <span className="text-primary text-4xl font-semibold leading-none">*</span>
+        <h1 className="mt-2 text-[22px] font-semibold text-foreground tracking-tight">
           Choose your subscription
         </h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
@@ -191,7 +192,7 @@ export default function OnboardingSubscriptionPage() {
 
       {/* Error state */}
       {plansError && (
-        <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-center">
+        <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-center">
           <p className="text-sm text-destructive font-medium">Failed to load plans</p>
           <p className="text-xs text-muted-foreground mt-1">
             {plansError instanceof Error ? plansError.message : 'Please refresh the page'}
@@ -201,12 +202,12 @@ export default function OnboardingSubscriptionPage() {
 
       {/* Billing Cycle Toggle */}
       <div className="flex justify-center mb-6">
-        <div className="inline-flex items-center gap-1 rounded-xl border border-border bg-muted/60 p-1">
+        <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-canvas-soft p-1">
           <button
             onClick={() => setBillingCycle('monthly')}
             className={`px-5 py-1.5 rounded-lg text-[13px] font-semibold transition-all ${
               billingCycle === 'monthly'
-                ? 'bg-card text-foreground shadow-sm'
+                ? 'bg-card text-foreground shadow-level-2'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -216,12 +217,12 @@ export default function OnboardingSubscriptionPage() {
             onClick={() => setBillingCycle('annual')}
             className={`flex items-center gap-1.5 px-5 py-1.5 rounded-lg text-[13px] font-semibold transition-all ${
               billingCycle === 'annual'
-                ? 'bg-card text-foreground shadow-sm'
+                ? 'bg-card text-foreground shadow-level-2'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             Yearly
-            <span className="bg-success/20 text-success text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+            <span className="bg-success/20 text-success text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
               Save 20%
             </span>
           </button>
@@ -229,7 +230,7 @@ export default function OnboardingSubscriptionPage() {
       </div>
 
       {/* Referral Code Input */}
-      {<div className="mb-6 rounded-xl border border-border bg-card/60 p-4">
+      {<div className="mb-6 rounded-lg border border-border bg-card/60 p-4">
         <div className="flex items-center gap-2 mb-3">
           <Gift className="h-4 w-4 text-primary" />
           <p className="text-[13px] font-medium text-foreground">
@@ -247,7 +248,7 @@ export default function OnboardingSubscriptionPage() {
               }}
               placeholder="e.g. ABC123"
               maxLength={6}
-              className={`w-full h-9 rounded-lg border bg-muted/60 px-3 font-mono text-sm tracking-[0.3em] text-foreground placeholder:font-sans placeholder:tracking-normal placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
+              className={`w-full h-9 rounded-lg border bg-canvas-soft px-3 font-mono text-sm tracking-[0.3em] text-foreground placeholder:font-sans placeholder:tracking-normal placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
                 referralValidation?.valid ? 'border-success' : referralValidation?.valid === false ? 'border-destructive' : 'border-border'
               }`}
             />
@@ -290,15 +291,15 @@ export default function OnboardingSubscriptionPage() {
           return (
             <div
               key={plan.id}
-              className={`relative rounded-xl border p-5 flex flex-col transition-all ${
+              className={`relative rounded-lg border p-5 flex flex-col transition-all ${
                 isRecommended
-                  ? 'border-primary shadow-lg shadow-primary/10'
+                  ? 'border-primary shadow-level-4 shadow-primary/10'
                   : 'border-border hover:border-primary/40'
               }`}
             >
               {isRecommended && (
                 <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
-                  <span className="bg-primary text-primary-foreground text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                  <span className="bg-primary text-primary-foreground text-[10px] font-semibold px-3 py-1 rounded-full uppercase tracking-wider">
                     Recommended
                   </span>
                 </div>
@@ -306,7 +307,7 @@ export default function OnboardingSubscriptionPage() {
 
               {hasDiscount && plan.discount_label && (
                 <div className="absolute -top-2.5 right-4">
-                  <span className="bg-green-600 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                  <span className="bg-success text-on-primary text-[10px] font-semibold px-2.5 py-0.5 rounded-full">
                     {plan.discount_label}
                   </span>
                 </div>
@@ -314,17 +315,17 @@ export default function OnboardingSubscriptionPage() {
 
               <div className="flex items-center gap-2 mb-2">
                 <Zap className={`h-4 w-4 ${isRecommended ? 'text-primary' : 'text-muted-foreground'}`} />
-                <h3 className="text-sm font-bold text-foreground">{plan.display_name}</h3>
+                <h3 className="text-sm font-semibold text-foreground">{plan.display_name}</h3>
               </div>
 
               <div className="mb-1">
                 {hasDiscount ? (
                   <div className="flex items-baseline gap-2">
                     <span className="text-sm text-muted-foreground line-through">{fmtPrice(originalPrice)}</span>
-                    <span className="text-2xl font-bold text-foreground">{fmtPrice(displayPrice)}</span>
+                    <span className="text-2xl font-semibold text-foreground">{fmtPrice(displayPrice)}</span>
                   </div>
                 ) : (
-                  <span className="text-2xl font-bold text-foreground">{fmtPrice(displayPrice)}</span>
+                  <span className="text-2xl font-semibold text-foreground">{fmtPrice(displayPrice)}</span>
                 )}
                 {displayPrice > 0 && (
                   <span className="text-xs text-muted-foreground">{isAnnual ? '/yr' : '/mo'}</span>

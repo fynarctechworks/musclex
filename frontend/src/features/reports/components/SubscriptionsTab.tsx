@@ -44,7 +44,7 @@ export function SubscriptionsTab({ metrics, isLoading }: SubscriptionsTabProps) 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-28 rounded-xl bg-card border border-border animate-pulse" />
+          <div key={i} className="h-28 rounded-lg bg-card border border-border animate-pulse" />
         ))}
       </div>
     );
@@ -98,7 +98,7 @@ export function SubscriptionsTab({ metrics, isLoading }: SubscriptionsTabProps) 
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Plan Distribution Pie */}
-        <div className="bg-card border border-border rounded-xl p-5">
+        <div className="bg-card border border-border rounded-lg p-5">
           <h3 className="text-base font-semibold text-foreground mb-4">
             Plan Distribution
           </h3>
@@ -143,7 +143,7 @@ export function SubscriptionsTab({ metrics, isLoading }: SubscriptionsTabProps) 
         </div>
 
         {/* Plan Revenue Bar Chart */}
-        <div className="bg-card border border-border rounded-xl p-5">
+        <div className="bg-card border border-border rounded-lg p-5">
           <h3 className="text-base font-semibold text-foreground mb-4">
             Members by Plan
           </h3>

@@ -53,17 +53,17 @@ const plans = [
 
 export default function Pricing() {
   return (
-    <section id="pricing" className="py-20 lg:py-28 bg-white">
+    <section id="pricing" className="py-20 lg:py-28 bg-canvas">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <p className="text-sm font-semibold text-blue-600 uppercase tracking-wider mb-3">
+          <p className="text-sm font-semibold text-link uppercase tracking-wider mb-3">
             Pricing
           </p>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
+          <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
             Simple, transparent pricing
           </h2>
-          <p className="mt-4 text-lg text-gray-500">
+          <p className="mt-4 text-lg text-muted-foreground">
             No hidden fees. Start free and upgrade when you&apos;re ready.
           </p>
         </div>
@@ -73,43 +73,43 @@ export default function Pricing() {
           {plans.map((plan) => (
             <div
               key={plan.name}
-              className={`relative flex flex-col p-7 rounded-2xl border transition-all duration-300 hover:-translate-y-1 ${
+              className={`relative flex flex-col p-7 rounded-lg border transition-all duration-medium hover:-translate-y-1 ${
                 plan.popular
-                  ? 'border-blue-200 bg-gradient-to-b from-blue-50/60 to-white shadow-xl shadow-blue-100/40'
-                  : 'border-gray-100 bg-white hover:shadow-lg hover:shadow-gray-100/60'
+                  ? 'border-link/30 bg-gradient-to-b from-blue-50/60 to-white shadow-level-5 shadow-blue-100/40'
+                  : 'border-hairline bg-canvas hover:shadow-level-4 hover:shadow-gray-100/60'
               }`}
             >
               {plan.popular && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-xs font-semibold rounded-full shadow-md">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-blue-600 to-blue-700 text-on-primary text-xs font-semibold rounded-full shadow-level-3">
                   Most Popular
                 </span>
               )}
 
-              <h3 className="text-lg font-bold text-gray-900">{plan.name}</h3>
-              <p className="text-sm text-gray-500 mt-1 mb-5">{plan.description}</p>
+              <h3 className="text-lg font-semibold text-foreground">{plan.name}</h3>
+              <p className="text-sm text-muted-foreground mt-1 mb-5">{plan.description}</p>
 
               <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-4xl font-extrabold text-gray-900">{plan.price}</span>
+                <span className="text-4xl font-semibold text-foreground">{plan.price}</span>
                 {plan.period && (
-                  <span className="text-base text-gray-400 font-medium">{plan.period}</span>
+                  <span className="text-base text-muted-foreground font-medium">{plan.period}</span>
                 )}
               </div>
 
               <ul className="space-y-3 mb-8 flex-1">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-3">
-                    <Check className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-600">{feature}</span>
+                    <Check className="w-5 h-5 text-link flex-shrink-0 mt-0.5" />
+                    <span className="text-sm text-muted-foreground">{feature}</span>
                   </li>
                 ))}
               </ul>
 
               <Link
                 href={plan.name === 'Enterprise' ? '/onboarding' : '/onboarding'}
-                className={`block text-center px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-200 ${
+                className={`block text-center px-6 py-3 text-sm font-semibold rounded-lg transition-all duration-fast ${
                   plan.popular
-                    ? 'text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md shadow-blue-500/25 hover:shadow-blue-500/40'
-                    : 'text-gray-700 bg-gray-50 border border-gray-200 hover:bg-gray-100 hover:border-gray-300'
+                    ? 'text-on-primary bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-level-3 shadow-blue-500/25 hover:shadow-blue-500/40'
+                    : 'text-foreground bg-canvas-soft border border-hairline hover:bg-canvas-soft-2 hover:border-hairline-strong'
                 }`}
               >
                 {plan.cta}

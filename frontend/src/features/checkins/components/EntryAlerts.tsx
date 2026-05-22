@@ -17,9 +17,9 @@ const alertIcons: Record<EntryAlert["type"], React.ReactNode> = {
 };
 
 const severityStyles: Record<EntryAlert["severity"], string> = {
-  info: "border-blue-500/30 bg-blue-500/5 text-blue-400",
-  warning: "border-yellow-500/30 bg-yellow-500/5 text-yellow-400",
-  danger: "border-red-500/30 bg-red-500/5 text-red-400",
+  info: "border-link/30 bg-link/5 text-link",
+  warning: "border-warning/30 bg-warning/5 text-warning",
+  danger: "border-error/30 bg-error/5 text-error",
 };
 
 export function EntryAlerts({ alerts }: EntryAlertsProps) {

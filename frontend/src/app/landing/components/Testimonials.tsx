@@ -27,13 +27,13 @@ export default function Testimonials() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <p className="text-sm font-semibold text-blue-600 uppercase tracking-wider mb-3">
+          <p className="text-sm font-semibold text-link uppercase tracking-wider mb-3">
             Testimonials
           </p>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
+          <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
             Loved by gym owners everywhere
           </h2>
-          <p className="mt-4 text-lg text-gray-500">
+          <p className="mt-4 text-lg text-muted-foreground">
             Hear from fitness professionals who transformed their business.
           </p>
         </div>
@@ -43,26 +43,26 @@ export default function Testimonials() {
           {testimonials.map((t) => (
             <div
               key={t.name}
-              className="flex flex-col p-7 bg-white rounded-2xl border border-gray-100 hover:shadow-lg hover:shadow-gray-100/60 transition-all duration-300 hover:-translate-y-1"
+              className="flex flex-col p-7 bg-canvas rounded-lg border border-hairline hover:shadow-level-4 hover:shadow-gray-100/60 transition-all duration-medium hover:-translate-y-1"
             >
               {/* Stars */}
               <div className="flex gap-1 mb-5">
                 {Array.from({ length: t.rating }).map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
+                  <Star key={i} className="w-4 h-4 fill-amber-400 text-warning" />
                 ))}
               </div>
 
-              <blockquote className="text-base text-gray-600 leading-relaxed mb-6 flex-1">
+              <blockquote className="text-base text-muted-foreground leading-relaxed mb-6 flex-1">
                 &ldquo;{t.quote}&rdquo;
               </blockquote>
 
-              <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-full flex items-center justify-center text-white font-bold text-sm">
+              <div className="flex items-center gap-3 pt-4 border-t border-hairline">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-400 rounded-full flex items-center justify-center text-on-primary font-semibold text-sm">
                   {t.name.charAt(0)}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">{t.name}</p>
-                  <p className="text-xs text-gray-400">{t.role}</p>
+                  <p className="text-sm font-semibold text-foreground">{t.name}</p>
+                  <p className="text-xs text-muted-foreground">{t.role}</p>
                 </div>
               </div>
             </div>

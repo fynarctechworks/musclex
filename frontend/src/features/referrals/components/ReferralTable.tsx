@@ -50,10 +50,10 @@ export function ReferralTable({ referrals, memberId, perspective }: ReferralTabl
           {referrals.map((ref) => {
             const person = perspective === 'given' ? ref.referred : ref.referrer;
             return (
-              <tr key={ref.id} className="hover:bg-muted/50 transition-colors">
+              <tr key={ref.id} className="hover:bg-canvas-soft transition-colors">
                 <td className="py-3 pr-4">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary text-xs font-semibold">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-canvas-soft-2 text-primary text-xs font-semibold">
                       {person?.full_name
                         ?.split(' ')
                         .map((n) => n[0])

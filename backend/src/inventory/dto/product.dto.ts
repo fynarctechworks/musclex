@@ -4,6 +4,7 @@ import {
   IsUUID,
   IsNumber,
   IsIn,
+  IsBoolean,
   Min,
 } from 'class-validator';
 
@@ -54,6 +55,22 @@ export class CreateProductDto {
   image_url?: string;
 
   @IsOptional()
+  @IsIn(['physical', 'digital', 'service', 'subscription', 'consumable'])
+  product_type?: string;
+
+  @IsOptional()
+  @IsString()
+  brand?: string;
+
+  @IsOptional()
+  @IsString()
+  unit_type?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  track_batches?: boolean;
+
+  @IsOptional()
   @IsNumber()
   @Min(0)
   initial_stock?: number;
@@ -98,6 +115,22 @@ export class UpdateProductDto {
   @IsOptional()
   @IsString()
   image_url?: string;
+
+  @IsOptional()
+  @IsIn(['physical', 'digital', 'service', 'subscription', 'consumable'])
+  product_type?: string;
+
+  @IsOptional()
+  @IsString()
+  brand?: string;
+
+  @IsOptional()
+  @IsString()
+  unit_type?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  track_batches?: boolean;
 
   @IsOptional()
   @IsIn(['active', 'inactive', 'discontinued'])

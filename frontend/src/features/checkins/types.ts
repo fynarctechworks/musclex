@@ -3,8 +3,12 @@ import type { CheckIn } from '@/types';
 export interface CheckInResponse {
   success: boolean;
   check_in?: CheckIn;
-  member_name?: string;
-  membership_status?: string;
+  member_name?: string | null;
+  member_code?: string | null;
+  membership_status?: string | null;
+  membership_end_date?: string | null;
+  membership_days_remaining?: number | null;
+  membership_plan_name?: string | null;
   failure_reason?: string;
   message?: string;
 }

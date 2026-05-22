@@ -159,7 +159,7 @@ export default function MembersPage() {
       header: "Name",
       cell: ({ row }) => (
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary text-xs font-semibold">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-canvas-soft-2 text-primary text-xs font-semibold">
             {row.original.full_name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
           </div>
           <span className="font-medium">{row.original.full_name}</span>

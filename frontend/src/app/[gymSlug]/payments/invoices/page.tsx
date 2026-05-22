@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, FileText, ArrowLeft } from "lucide-react";
+import { Plus, FileText, ArrowLeft, Download, Mail, MessageCircle, Loader2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import {
   AccessDenied,
@@ -16,7 +16,7 @@ import { useRequirePermission } from "@/hooks/use-require-permission";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import { useAuthStore } from "@/stores/auth-store";
-import { useInvoices } from "@/features/payments";
+import { useInvoices, useInvoicePdfLink, useSendInvoice } from "@/features/payments";
 import { format } from "date-fns";
 
 interface InvoiceRow {
@@ -43,6 +43,29 @@ export default function InvoicesListPage() {
     status: status || undefined,
     limit: 50,
   });
+
+  const pdfMut = useInvoicePdfLink();
+  const sendMut = useSendInvoice();
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  const openPdf = async (id: string) => {
+    setPendingId(id);
+    try {
+      const res = (await pdfMut.mutateAsync(id)) as { signed_url?: string };
+      if (res?.signed_url) window.open(res.signed_url, "_blank", "noopener");
+    } finally {
+      setPendingId(null);
+    }
+  };
+
+  const send = async (id: string, channel: "email" | "whatsapp") => {
+    setPendingId(`${id}:${channel}`);
+    try {
+      await sendMut.mutateAsync({ id, channels: [channel] });
+    } finally {
+      setPendingId(null);
+    }
+  };
 
   if (checked && !allowed) {
     return (
@@ -104,7 +127,7 @@ export default function InvoicesListPage() {
       {isLoading ? (
         <TableSkeleton rows={6} />
       ) : invoices.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card">
+        <div className="rounded-lg border border-border bg-card">
           <EmptyState
             icon={FileText}
             title="No invoices yet"
@@ -119,9 +142,9 @@ export default function InvoicesListPage() {
           />
         </div>
       ) : (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
           <table className="w-full text-[13px]">
-            <thead className="bg-muted/40">
+            <thead className="bg-canvas-soft">
               <tr className="text-left text-muted-foreground">
                 <th className="px-4 py-2.5 font-medium">Invoice #</th>
                 <th className="px-4 py-2.5 font-medium">Member</th>
@@ -129,13 +152,14 @@ export default function InvoicesListPage() {
                 <th className="px-4 py-2.5 font-medium">Amount</th>
                 <th className="px-4 py-2.5 font-medium">Due Date</th>
                 <th className="px-4 py-2.5 font-medium">Created</th>
+                <th className="px-4 py-2.5 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {invoices.map((inv) => (
                 <tr
                   key={inv.id}
-                  className="border-t border-border hover:bg-muted/30 transition-colors"
+                  className="border-t border-border hover:bg-canvas-soft transition-colors"
                 >
                   <td className="px-4 py-3 font-mono text-foreground">
                     {inv.invoice_number ?? inv.id.slice(0, 8)}
@@ -164,6 +188,46 @@ export default function InvoicesListPage() {
                     {inv.created_at
                       ? format(new Date(inv.created_at), "dd MMM yyyy")
                       : "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => openPdf(inv.id)}
+                        disabled={pendingId === inv.id}
+                        title="Download PDF"
+                        className="p-1.5 rounded hover:bg-canvas-soft-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                      >
+                        {pendingId === inv.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => send(inv.id, "email")}
+                        disabled={pendingId === `${inv.id}:email`}
+                        title="Email invoice"
+                        className="p-1.5 rounded hover:bg-canvas-soft-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                      >
+                        {pendingId === `${inv.id}:email` ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Mail className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => send(inv.id, "whatsapp")}
+                        disabled={pendingId === `${inv.id}:whatsapp`}
+                        title="Send via WhatsApp"
+                        className="p-1.5 rounded hover:bg-canvas-soft-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                      >
+                        {pendingId === `${inv.id}:whatsapp` ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <MessageCircle className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

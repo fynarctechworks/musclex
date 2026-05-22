@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { getTenantGymId } from '../common/tenant-context';
@@ -9,10 +10,17 @@ import { AssignMembershipDto } from './dto/assign-membership.dto';
 import { FreezeMembershipDto } from './dto/freeze-membership.dto';
 import { randomBytes } from 'crypto';
 import { assertMemberTransition, assertMembershipTransition } from '../common/status-transitions';
+import { MemberReferralsService } from '../referrals/member-referrals.service';
+import { resolvePlanPrice } from './plan-pricing.util';
 
 @Injectable()
 export class MembershipService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(MembershipService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private readonly memberReferrals: MemberReferralsService,
+  ) {}
 
   // ── Assign Membership ───────────────────────────────────────
 
@@ -68,13 +76,15 @@ export class MembershipService {
     // Create payment record if payment_method specified
     if (dto.payment_method) {
       const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
+      // Branch-tier pricing: plan may override its base price per branch.
+      const chargeAmount = resolvePlanPrice(plan, dto.branch_id);
       const payment = await this.prisma.payment.create({
         data: {
           gym_id: getTenantGymId()!,
           member_id: memberId,
           membership_id: membership.id,
           branch_id: dto.branch_id,
-          amount: plan.price,
+          amount: chargeAmount,
           payment_method: dto.payment_method,
           status: 'paid',
           receipt_number: receiptNumber,
@@ -90,7 +100,7 @@ export class MembershipService {
           reference_type: 'payment',
           reference_id: payment.id,
           transaction_type: 'credit',
-          amount: plan.price,
+          amount: chargeAmount,
           description: `Membership payment: ${plan.name}`,
         },
       });
@@ -101,7 +111,77 @@ export class MembershipService {
       data: { status: 'active' },
     });
 
+    // ── B2C referral reward hook ───────────────────────────────────
+    // If this member was referred and just activated a PAID membership,
+    // ensure the MemberReferral exists and unlock the referrer's reward.
+    // Fire-and-forget: a referral failure must never block membership assignment.
+    if (member.referred_by_member_id && dto.payment_method) {
+      this.handleReferralReward(memberId, member.referred_by_member_id, membership.id).catch(
+        (err) =>
+          this.logger.warn(
+            `B2C referral reward hook failed for member ${memberId}: ${err.message}`,
+          ),
+      );
+    }
+
     return membership;
+  }
+
+  /**
+   * Idempotently create the member referral (if missing) and run the reward
+   * unlock pipeline. Safe to call on every membership assignment — the
+   * underlying services dedupe via unique constraints + idempotency keys.
+   */
+  private async handleReferralReward(
+    referredMemberId: string,
+    referrerMemberId: string,
+    membershipId: string,
+  ): Promise<void> {
+    // Create the referral link if it doesn't already exist.
+    let memberReferralId: string | null = null;
+    const existing = await this.prisma.memberReferral.findUnique({
+      where: {
+        referrer_member_id_referred_member_id: {
+          referrer_member_id: referrerMemberId,
+          referred_member_id: referredMemberId,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      memberReferralId = existing.id;
+    } else {
+      try {
+        const created = await this.memberReferrals.createMemberReferral({
+          referrerMemberId,
+          referredMemberId,
+        });
+        memberReferralId = created.member_referral_id;
+      } catch {
+        // Self-referral / cross-gym / duplicate — silently skip.
+        return;
+      }
+    }
+
+    if (!memberReferralId) return;
+
+    // Advance lifecycle and unlock the reward per the active program.
+    await this.memberReferrals.transition({
+      memberReferralId,
+      toStatus: 'payment_completed',
+      actorType: 'system',
+    });
+    await this.memberReferrals.transition({
+      memberReferralId,
+      toStatus: 'active_membership',
+      actorType: 'system',
+      payload: { membership_id: membershipId },
+    });
+    await this.memberReferrals.unlockReward({
+      memberReferralId,
+      paymentId: membershipId,
+    });
   }
 
   // ── Get Member's Memberships ────────────────────────────────
@@ -323,13 +403,14 @@ export class MembershipService {
     // Create payment if method provided
     if (paymentMethod) {
       const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
+      const chargeAmount = resolvePlanPrice(plan, membership.branch_id);
       const renewPayment = await this.prisma.payment.create({
         data: {
           gym_id: getTenantGymId()!,
           member_id: membership.member_id,
           membership_id: newMembership.id,
           branch_id: membership.branch_id,
-          amount: plan.price,
+          amount: chargeAmount,
           payment_method: paymentMethod,
           status: 'paid',
           receipt_number: receiptNumber,
@@ -344,7 +425,7 @@ export class MembershipService {
           reference_type: 'payment',
           reference_id: renewPayment.id,
           transaction_type: 'credit',
-          amount: plan.price,
+          amount: chargeAmount,
           description: `Membership renewal: ${plan.name}`,
         },
       });

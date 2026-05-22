@@ -90,9 +90,9 @@ export function TwoFactorSetupCard({ enabled, onStatusChange }: TwoFactorSetupCa
   // ── Enabled state ──
   if (enabled && step !== 'done') {
     return (
-      <div className="bg-card border border-border rounded-xl p-6">
+      <div className="bg-card border border-border rounded-lg p-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
             <ShieldCheck className="h-5 w-5 text-primary" />
           </div>
           <div>
@@ -157,9 +157,9 @@ export function TwoFactorSetupCard({ enabled, onStatusChange }: TwoFactorSetupCa
 
   // ── Setup flow ──
   return (
-    <div className="bg-card border border-border rounded-xl p-6">
+    <div className="bg-card border border-border rounded-lg p-6">
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
           <Shield className="h-5 w-5 text-primary" />
         </div>
         <div>
@@ -197,7 +197,7 @@ export function TwoFactorSetupCard({ enabled, onStatusChange }: TwoFactorSetupCa
           </p>
 
           <div className="flex justify-center">
-            <div className="bg-white p-3 rounded-lg">
+            <div className="bg-canvas p-3 rounded-lg">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={setup.qr_code}

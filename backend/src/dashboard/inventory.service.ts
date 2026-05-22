@@ -172,9 +172,11 @@ export class DashboardInventoryService {
     for (const p of products) {
       const catKey = p.category?.id ?? '__uncategorised';
       const catName = p.category?.name ?? 'Uncategorised';
-      const inv = p.inventory;
-      const qty = inv?.stock_quantity ?? 0;
-      const reorder = inv?.reorder_level ?? 0;
+      // Inventory is per-branch since Phase 3 — aggregate across all branch rows for the
+      // org-wide dashboard. Quantity sums across branches; reorder threshold uses the max.
+      const invRows = p.inventory ?? [];
+      const qty = invRows.reduce((s, r) => s + (r.stock_quantity ?? 0), 0);
+      const reorder = invRows.reduce((m, r) => Math.max(m, r.reorder_level ?? 0), 0);
       const cost = Number(p.cost_price ?? 0);
       const valueAtCost = qty * cost;
       totalValueInStock += valueAtCost;
@@ -209,7 +211,7 @@ export class DashboardInventoryService {
         row.in_stock += 1;
       }
 
-      if (inv && (qty === 0 || (reorder > 0 && qty <= reorder))) {
+      if (invRows.length > 0 && (qty === 0 || (reorder > 0 && qty <= reorder))) {
         lowStock.push({
           product_id: p.id,
           product_name: p.product_name,

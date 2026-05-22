@@ -105,7 +105,7 @@ export default function AtRiskMembersPage() {
         return (
           <span className={
             days > 60 ? "text-destructive font-medium" :
-            days > 30 ? "text-yellow-500 font-medium" :
+            days > 30 ? "text-warning font-medium" :
             "text-muted-foreground"
           }>
             {days > 900 ? "N/A" : `${days}d`}
@@ -161,7 +161,7 @@ export default function AtRiskMembersPage() {
             {risk === "high" ? (
               <Phone className="h-3.5 w-3.5 text-destructive shrink-0" />
             ) : risk === "medium" ? (
-              <MessageSquare className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
+              <MessageSquare className="h-3.5 w-3.5 text-warning shrink-0" />
             ) : (
               <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             )}
@@ -224,7 +224,7 @@ export default function AtRiskMembersPage() {
             className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
               riskFilter === r
                 ? "bg-primary text-primary-foreground border-primary"
-                : "border-border text-muted-foreground hover:bg-accent"
+                : "border-border text-muted-foreground hover:bg-canvas-soft"
             }`}
           >
             {r === "all" ? "All" : `${r.charAt(0).toUpperCase()}${r.slice(1)} Risk`}

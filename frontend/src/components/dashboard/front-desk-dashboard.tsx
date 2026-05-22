@@ -157,7 +157,7 @@ export function FrontDeskDashboard() {
       {/* Working canvas: live feed (left, big) | desk-action queue (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <div className="bg-card border border-border rounded-xl p-5">
+          <div className="bg-card border border-border rounded-lg p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
                 <Activity className="w-5 h-5 text-primary" />

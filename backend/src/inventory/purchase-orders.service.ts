@@ -231,14 +231,15 @@ export class PurchaseOrdersService {
           data: { received_quantity: newReceived },
         });
 
-        // Add to inventory
-        const existing = await tx.inventory.findUnique({
-          where: { product_id: orderItem.product_id },
-        });
+        // Add to inventory (per-branch row keyed by product + the PO's branch)
+        const invKey = {
+          product_id_branch_id: { product_id: orderItem.product_id, branch_id: order.branch_id },
+        };
+        const existing = await tx.inventory.findUnique({ where: invKey });
 
         if (existing) {
           await tx.inventory.update({
-            where: { product_id: orderItem.product_id },
+            where: invKey,
             data: {
               stock_quantity: { increment: receiveQty },
               last_updated: new Date(),

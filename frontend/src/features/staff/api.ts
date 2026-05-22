@@ -291,3 +291,57 @@ export const payrollApi = {
     end_date?: string;
   }) => apiClient.get('/payroll/revenue', { params: filters }),
 };
+
+// ── Staff biometrics ──────────────────────────────────────────
+export interface StaffBiometricEnrollmentRow {
+  id: string;
+  staff_id: string;
+  provider: string;
+  modality: 'face' | 'fingerprint' | 'iris' | 'palm';
+  enrolled_at: string;
+  revoked_at: string | null;
+  staff: {
+    id: string;
+    full_name: string;
+    employee_code: string | null;
+    role: string;
+    job_title: string | null;
+    status: string;
+  } | null;
+}
+
+export const staffBiometricsApi = {
+  listAll: (params?: { include_revoked?: boolean }) =>
+    apiClient.get<StaffBiometricEnrollmentRow[]>(
+      '/staff/biometric/enrollments',
+      { params: params?.include_revoked ? { include_revoked: 'true' } : undefined },
+    ),
+
+  listForStaff: (staffId: string) =>
+    apiClient.get(`/staff/biometric/staff/${staffId}`),
+
+  enrollFace: (data: {
+    staff_id: string;
+    descriptor: number[];
+    consent_log_id?: string;
+  }) => apiClient.post('/staff/biometric/enroll', data),
+
+  revoke: (enrollmentId: string) =>
+    apiClient.delete<{ success: boolean }>(
+      `/staff/biometric/enrollments/${enrollmentId}`,
+    ),
+
+  clockByFace: (data: { descriptor: number[]; branch_id: string }) =>
+    apiClient.post<{
+      success: boolean;
+      direction?: 'in' | 'out';
+      staff_id?: string;
+      full_name?: string;
+      duration_minutes?: number;
+      failure_reason?: string;
+      message?: string;
+    }>('/staff/biometric/clock-face', data),
+
+  clockManual: (data: { staff_id: string; branch_id: string; notes?: string }) =>
+    apiClient.post('/staff/biometric/clock-manual', data),
+};

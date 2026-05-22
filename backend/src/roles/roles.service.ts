@@ -18,6 +18,7 @@ const VALID_MODULES = [
   'branches',
   'reports',
   'roles',
+  'inventory',
 ];
 
 const VALID_ACTIONS = ['view', 'create', 'edit', 'delete', 'export'];

@@ -393,11 +393,11 @@ export default function ReportsPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
                   <DropdownMenuItem onClick={() => handleExport('xls')}>
-                    <FileSpreadsheet className="h-4 w-4 mr-2 text-emerald-500" />
+                    <FileSpreadsheet className="h-4 w-4 mr-2 text-success" />
                     Excel (.xls)
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleExport('csv')}>
-                    <FileText className="h-4 w-4 mr-2 text-blue-500" />
+                    <FileText className="h-4 w-4 mr-2 text-link" />
                     CSV
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleExport('print')}>

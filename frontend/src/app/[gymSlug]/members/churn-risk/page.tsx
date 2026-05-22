@@ -275,7 +275,7 @@ function SummaryCard({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-xl border p-4 text-left transition-all ${
+      className={`rounded-lg border p-4 text-left transition-all ${
         active
           ? "border-primary bg-card ring-1 ring-primary/30"
           : "border-border bg-card hover:border-primary/50"
@@ -288,7 +288,7 @@ function SummaryCard({
           style={{ backgroundColor: color }}
         />
       </div>
-      <p className="text-2xl font-bold text-foreground mt-1">{count}</p>
+      <p className="text-2xl font-semibold text-foreground mt-1">{count}</p>
     </button>
   );
 }

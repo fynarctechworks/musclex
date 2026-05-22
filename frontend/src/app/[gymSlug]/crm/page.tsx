@@ -165,7 +165,7 @@ export default function CrmPage() {
             <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full ${
-                  score >= 70 ? "bg-green-500" : score >= 40 ? "bg-amber-500" : "bg-red-500"
+                  score >= 70 ? "bg-success" : score >= 40 ? "bg-warning" : "bg-error"
                 }`}
                 style={{ width: `${Math.min(100, score)}%` }}
               />
@@ -227,33 +227,33 @@ export default function CrmPage() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 mb-6">
-        <div className="bg-card border border-border rounded-xl p-4">
+        <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
             <Users className="w-4 h-4" />
             <span className="text-xs">Total Customers</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">{total}</p>
+          <p className="text-2xl font-semibold text-foreground">{total}</p>
         </div>
-        <div className="bg-card border border-border rounded-xl p-4">
+        <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <UserCheck className="w-4 h-4 text-green-500" />
+            <UserCheck className="w-4 h-4 text-success" />
             <span className="text-xs">Active</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">{activeCount}</p>
+          <p className="text-2xl font-semibold text-foreground">{activeCount}</p>
         </div>
-        <div className="bg-card border border-border rounded-xl p-4">
+        <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <AlertTriangle className="w-4 h-4 text-red-500" />
+            <AlertTriangle className="w-4 h-4 text-error" />
             <span className="text-xs">High Churn Risk</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">{atRiskCount}</p>
+          <p className="text-2xl font-semibold text-foreground">{atRiskCount}</p>
         </div>
-        <div className="bg-card border border-border rounded-xl p-4">
+        <div className="bg-card border border-border rounded-lg p-4">
           <div className="flex items-center gap-2 text-muted-foreground mb-1">
             <TrendingUp className="w-4 h-4 text-primary" />
             <span className="text-xs">Avg Engagement</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">{avgEngagement}%</p>
+          <p className="text-2xl font-semibold text-foreground">{avgEngagement}%</p>
         </div>
       </div>
 
