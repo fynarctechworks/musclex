@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useCreateProduct, useUpdateProduct, useCategories } from '../hooks';
+import { ProductImageGallery } from './ProductImageGallery';
 import type { Product, ProductType } from '../types';
 
 const schema = z.object({
@@ -365,14 +366,21 @@ export function ProductDialog({ open, onOpenChange, product, branchId }: Product
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label className="text-foreground">Image URL</Label>
-            <Input
-              {...register('image_url')}
-              placeholder="https://..."
-              className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-            />
-          </div>
+          {isEdit && product ? (
+            <ProductImageGallery productId={product.id} />
+          ) : (
+            <div className="space-y-2">
+              <Label className="text-foreground">Image URL</Label>
+              <Input
+                {...register('image_url')}
+                placeholder="https://..."
+                className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+              />
+              <p className="text-xs text-muted-foreground">
+                Save the product to upload a multi-image gallery.
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label className="text-foreground">Description</Label>

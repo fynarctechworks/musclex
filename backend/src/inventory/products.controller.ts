@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -20,6 +21,8 @@ import {
 import {
   CreateProductDto,
   UpdateProductDto,
+  AddProductImageDto,
+  ReorderProductImagesDto,
   CreateProductCategoryDto,
   UpdateProductCategoryDto,
   AdjustInventoryDto,
@@ -112,6 +115,42 @@ export class ProductsController {
   @Permissions({ module: 'inventory', action: 'edit' })
   updateProduct(@Param('id') id: string, @Body() dto: UpdateProductDto) {
     return this.inventoryService.updateProduct(id, dto);
+  }
+
+  // ── Product Images ────────────────────────────────────────────
+
+  @Get('products/:id/images')
+  @Permissions({ module: 'inventory', action: 'view' })
+  listProductImages(@Param('id') id: string) {
+    return this.inventoryService.listProductImages(id);
+  }
+
+  @Post('products/:id/images')
+  @Roles('owner', 'brand_owner', 'manager')
+  @Permissions({ module: 'inventory', action: 'edit' })
+  addProductImage(@Param('id') id: string, @Body() dto: AddProductImageDto) {
+    return this.inventoryService.addProductImage(id, dto);
+  }
+
+  @Patch('products/:id/images/reorder')
+  @Roles('owner', 'brand_owner', 'manager')
+  @Permissions({ module: 'inventory', action: 'edit' })
+  reorderProductImages(@Param('id') id: string, @Body() dto: ReorderProductImagesDto) {
+    return this.inventoryService.reorderProductImages(id, dto);
+  }
+
+  @Patch('products/:id/images/:imageId/primary')
+  @Roles('owner', 'brand_owner', 'manager')
+  @Permissions({ module: 'inventory', action: 'edit' })
+  setPrimaryProductImage(@Param('id') id: string, @Param('imageId') imageId: string) {
+    return this.inventoryService.setPrimaryProductImage(id, imageId);
+  }
+
+  @Delete('products/:id/images/:imageId')
+  @Roles('owner', 'brand_owner', 'manager')
+  @Permissions({ module: 'inventory', action: 'edit' })
+  removeProductImage(@Param('id') id: string, @Param('imageId') imageId: string) {
+    return this.inventoryService.removeProductImage(id, imageId);
   }
 
   // ── Inventory ─────────────────────────────────────────────────

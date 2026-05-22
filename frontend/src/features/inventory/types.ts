@@ -16,6 +16,17 @@ export type ProductType =
   | 'subscription'
   | 'consumable';
 
+export interface ProductImage {
+  id: string;
+  product_id: string;
+  image_url: string;
+  alt_text: string | null;
+  sort_order: number;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Product {
   id: string;
   product_name: string;
@@ -39,6 +50,13 @@ export interface Product {
   category?: { id: string; name: string } | null;
   branch?: { id: string; name: string } | null;
   inventory?: InventoryRecord[] | InventoryRecord | null;
+  images?: ProductImage[];
+}
+
+export interface AddProductImagePayload {
+  image_url: string;
+  alt_text?: string;
+  is_primary?: boolean;
 }
 
 export type BatchStatus = 'active' | 'depleted' | 'expired';

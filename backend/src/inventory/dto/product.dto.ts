@@ -137,6 +137,24 @@ export class UpdateProductDto {
   status?: string;
 }
 
+export class AddProductImageDto {
+  @IsString()
+  image_url: string;
+
+  @IsOptional()
+  @IsString()
+  alt_text?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  is_primary?: boolean;
+}
+
+export class ReorderProductImagesDto {
+  @IsUUID('4', { each: true })
+  image_ids: string[];
+}
+
 export class CreateProductCategoryDto {
   @IsString()
   name: string;

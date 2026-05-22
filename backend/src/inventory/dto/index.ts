@@ -1,6 +1,8 @@
 export {
   CreateProductDto,
   UpdateProductDto,
+  AddProductImageDto,
+  ReorderProductImagesDto,
   CreateProductCategoryDto,
   UpdateProductCategoryDto,
 } from './product.dto';

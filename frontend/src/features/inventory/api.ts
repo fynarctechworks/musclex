@@ -1,6 +1,8 @@
 import { apiClient } from '@/services/api-client';
 import type {
   Product,
+  ProductImage,
+  AddProductImagePayload,
   ProductCategory,
   InventoryRecord,
   InventoryTransaction,
@@ -48,6 +50,24 @@ export const inventoryApi = {
 
   getBySku: (sku: string) =>
     apiClient.get<Product>(`/products/sku/${sku}`),
+
+  // ── Product images (gallery) ──────────────────────────────
+  getProductImages: (productId: string) =>
+    apiClient.get<ProductImage[]>(`/products/${productId}/images`),
+
+  addProductImage: (productId: string, data: AddProductImagePayload) =>
+    apiClient.post<ProductImage>(`/products/${productId}/images`, data),
+
+  setPrimaryProductImage: (productId: string, imageId: string) =>
+    apiClient.patch<ProductImage>(`/products/${productId}/images/${imageId}/primary`, {}),
+
+  reorderProductImages: (productId: string, imageIds: string[]) =>
+    apiClient.patch<ProductImage[]>(`/products/${productId}/images/reorder`, {
+      image_ids: imageIds,
+    }),
+
+  removeProductImage: (productId: string, imageId: string) =>
+    apiClient.delete<{ success: boolean }>(`/products/${productId}/images/${imageId}`),
 
   // ── Categories ────────────────────────────────────────────
   getCategories: (organizationId?: string) =>

@@ -9,6 +9,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateProductDto,
   UpdateProductDto,
+  AddProductImageDto,
+  ReorderProductImagesDto,
   CreateProductCategoryDto,
   UpdateProductCategoryDto,
   AdjustInventoryDto,
@@ -130,6 +132,7 @@ export class InventoryService {
           category: { select: { id: true, name: true } },
           branch: { select: { id: true, name: true } },
           inventory: { select: { stock_quantity: true, reserved_quantity: true, reorder_level: true } },
+          images: { orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }] },
         },
       }),
       this.prisma.product.count({ where }),
@@ -146,10 +149,140 @@ export class InventoryService {
         branch: { select: { id: true, name: true } },
         organization: { select: { id: true, name: true } },
         inventory: true,
+        images: { orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }] },
       },
     });
     if (!product) throw new NotFoundException('Product not found');
     return product;
+  }
+
+  // ── Product Images ────────────────────────────────────────────
+
+  private async assertProduct(productId: string) {
+    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    if (!product) throw new NotFoundException('Product not found');
+    return product;
+  }
+
+  async listProductImages(productId: string) {
+    await this.assertProduct(productId);
+    return this.prisma.productImage.findMany({
+      where: { product_id: productId },
+      orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }],
+    });
+  }
+
+  async addProductImage(productId: string, dto: AddProductImageDto) {
+    await this.assertProduct(productId);
+    const count = await this.prisma.productImage.count({ where: { product_id: productId } });
+    // First image of a product is implicitly primary.
+    const isPrimary = dto.is_primary ?? count === 0;
+
+    return this.prisma.$transaction(async (tx) => {
+      if (isPrimary) {
+        await tx.productImage.updateMany({
+          where: { product_id: productId, is_primary: true },
+          data: { is_primary: false },
+        });
+      }
+      const image = await tx.productImage.create({
+        data: {
+          gym_id: getTenantGymId()!,
+          product_id: productId,
+          image_url: dto.image_url,
+          alt_text: dto.alt_text,
+          sort_order: count,
+          is_primary: isPrimary,
+        },
+      });
+      if (isPrimary) {
+        // Keep the denormalized thumbnail on Product in sync.
+        await tx.product.update({
+          where: { id: productId },
+          data: { image_url: dto.image_url },
+        });
+      }
+      return image;
+    });
+  }
+
+  async setPrimaryProductImage(productId: string, imageId: string) {
+    await this.assertProduct(productId);
+    const image = await this.prisma.productImage.findFirst({
+      where: { id: imageId, product_id: productId },
+    });
+    if (!image) throw new NotFoundException('Image not found');
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.productImage.updateMany({
+        where: { product_id: productId, is_primary: true },
+        data: { is_primary: false },
+      });
+      const updated = await tx.productImage.update({
+        where: { id: imageId },
+        data: { is_primary: true },
+      });
+      await tx.product.update({
+        where: { id: productId },
+        data: { image_url: image.image_url },
+      });
+      return updated;
+    });
+  }
+
+  async removeProductImage(productId: string, imageId: string) {
+    await this.assertProduct(productId);
+    const image = await this.prisma.productImage.findFirst({
+      where: { id: imageId, product_id: productId },
+    });
+    if (!image) throw new NotFoundException('Image not found');
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.productImage.delete({ where: { id: imageId } });
+      if (image.is_primary) {
+        // Promote the next image (if any) and refresh the Product thumbnail.
+        const next = await tx.productImage.findFirst({
+          where: { product_id: productId },
+          orderBy: { sort_order: 'asc' },
+        });
+        if (next) {
+          await tx.productImage.update({
+            where: { id: next.id },
+            data: { is_primary: true },
+          });
+        }
+        await tx.product.update({
+          where: { id: productId },
+          data: { image_url: next?.image_url ?? null },
+        });
+      }
+      return { success: true };
+    });
+  }
+
+  async reorderProductImages(productId: string, dto: ReorderProductImagesDto) {
+    await this.assertProduct(productId);
+    const existing = await this.prisma.productImage.findMany({
+      where: { product_id: productId },
+      select: { id: true },
+    });
+    const existingIds = new Set(existing.map((i) => i.id));
+    if (
+      dto.image_ids.length !== existing.length ||
+      !dto.image_ids.every((id) => existingIds.has(id))
+    ) {
+      throw new BadRequestException('image_ids must list every image of this product exactly once');
+    }
+
+    await this.prisma.$transaction(
+      dto.image_ids.map((id, index) =>
+        this.prisma.productImage.update({
+          where: { id },
+          data: { sort_order: index },
+        }),
+      ),
+    );
+    return this.listProductImages(productId);
   }
 
   // sku/barcode are unique per gym (not global) since Phase 3, so use findFirst.

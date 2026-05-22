@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import type {
   CreateProductPayload,
   UpdateProductPayload,
+  AddProductImagePayload,
   AdjustInventoryPayload,
   CreateCategoryPayload,
   UpdateCategoryPayload,
@@ -60,6 +61,70 @@ export function useUpdateProduct() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
       toast.success('Product updated');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+// ── Product images (gallery) ──────────────────────────────────
+
+export function useProductImages(productId: string) {
+  return useQuery({
+    queryKey: queryKeys.inventory.productImages(productId),
+    queryFn: () => inventoryApi.getProductImages(productId),
+    enabled: !!productId,
+  });
+}
+
+export function useAddProductImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, data }: { productId: string; data: AddProductImagePayload }) =>
+      inventoryApi.addProductImage(productId, data),
+    onSuccess: (_res, { productId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.productImages(productId) });
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useSetPrimaryProductImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, imageId }: { productId: string; imageId: string }) =>
+      inventoryApi.setPrimaryProductImage(productId, imageId),
+    onSuccess: (_res, { productId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.productImages(productId) });
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+      toast.success('Primary image updated');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useReorderProductImages() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, imageIds }: { productId: string; imageIds: string[] }) =>
+      inventoryApi.reorderProductImages(productId, imageIds),
+    onSuccess: (_res, { productId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.productImages(productId) });
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useRemoveProductImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, imageId }: { productId: string; imageId: string }) =>
+      inventoryApi.removeProductImage(productId, imageId),
+    onSuccess: (_res, { productId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.productImages(productId) });
+      qc.invalidateQueries({ queryKey: queryKeys.inventory.all });
+      toast.success('Image removed');
     },
     onError: (err: Error) => toast.error(err.message),
   });

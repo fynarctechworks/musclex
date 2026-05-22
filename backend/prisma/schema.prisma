@@ -2217,6 +2217,7 @@ model Product {
   branch_prices          BranchProductPrice[]
   transfer_items         StockTransferItem[]
   bundle_items           BundleItem[]
+  images                 ProductImage[]
 
   @@unique([gym_id, sku], map: "uq_products_gym_sku")
   @@unique([gym_id, barcode], map: "uq_products_gym_barcode")
@@ -2228,6 +2229,25 @@ model Product {
   @@index([status])
   @@index([product_type])
   @@map("products")
+  @@schema("studio_template")
+}
+
+model ProductImage {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id     String   @db.Uuid
+  product_id String   @db.Uuid
+  image_url  String
+  alt_text   String?
+  sort_order Int      @default(0)
+  is_primary Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@index([product_id])
+  @@index([gym_id])
+  @@map("product_images")
   @@schema("studio_template")
 }
 

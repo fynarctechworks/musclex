@@ -227,6 +227,7 @@ export const queryKeys = {
     all: ['inventory'] as const,
     products: (filters?: unknown) => [...queryKeys.inventory.all, 'products', filters] as const,
     product: (id: string) => [...queryKeys.inventory.all, 'product', id] as const,
+    productImages: (productId: string) => [...queryKeys.inventory.all, 'product-images', productId] as const,
     categories: () => [...queryKeys.inventory.all, 'categories'] as const,
     stock: (filters?: unknown) => [...queryKeys.inventory.all, 'stock', filters] as const,
     lowStock: () => [...queryKeys.inventory.all, 'low-stock'] as const,

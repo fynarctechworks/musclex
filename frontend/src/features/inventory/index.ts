@@ -4,6 +4,11 @@ export {
   useProduct,
   useCreateProduct,
   useUpdateProduct,
+  useProductImages,
+  useAddProductImage,
+  useSetPrimaryProductImage,
+  useReorderProductImages,
+  useRemoveProductImage,
   useCategories,
   useCreateCategory,
   useUpdateCategory,
@@ -32,6 +37,8 @@ export {
 } from './hooks';
 export type {
   Product,
+  ProductImage,
+  AddProductImagePayload,
   ProductType,
   ProductCategory,
   InventoryRecord,

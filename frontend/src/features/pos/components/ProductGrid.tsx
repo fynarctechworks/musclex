@@ -160,6 +160,21 @@ export function ProductGrid({ cart, onAddToCart, onAddBundleToCart, branchId }: 
                     {cartQty}
                   </span>
                 )}
+                {(() => {
+                  const thumb = product.images?.[0]?.image_url || product.image_url;
+                  return thumb ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={thumb}
+                      alt={product.product_name}
+                      className="mb-2 h-20 w-full rounded-md object-cover bg-muted"
+                    />
+                  ) : (
+                    <div className="mb-2 flex h-20 w-full items-center justify-center rounded-md bg-muted">
+                      <Package className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  );
+                })()}
                 <div className="text-sm font-medium text-foreground line-clamp-2 mb-1">
                   {product.product_name}
                 </div>

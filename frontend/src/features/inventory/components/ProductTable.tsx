@@ -139,25 +139,54 @@ export function ProductTable({ branchId, onEdit }: ProductTableProps) {
                   return (
                     <tr key={product.id} className="border-b border-border hover:bg-canvas-soft transition-colors">
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-medium text-foreground">{product.product_name}</span>
-                          {product.track_batches && (
-                            <Badge className="bg-primary/15 text-primary text-[10px] px-1.5 py-0">
-                              Batch
-                            </Badge>
-                          )}
-                          {product.product_type && product.product_type !== 'physical' && (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 capitalize">
-                              {product.product_type}
-                            </Badge>
-                          )}
+                        <div className="flex items-start gap-2.5">
+                          {(() => {
+                            const thumb = product.images?.[0]?.image_url || product.image_url;
+                            const count = product.images?.length ?? 0;
+                            return (
+                              <div className="relative shrink-0">
+                                {thumb ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={thumb}
+                                    alt={product.product_name}
+                                    className="h-10 w-10 rounded-md object-cover bg-muted"
+                                  />
+                                ) : (
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted">
+                                    <Package className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                )}
+                                {count > 1 && (
+                                  <span className="absolute -bottom-1 -right-1 rounded bg-foreground px-1 text-[9px] font-semibold leading-tight text-background">
+                                    {count}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium text-foreground">{product.product_name}</span>
+                              {product.track_batches && (
+                                <Badge className="bg-primary/15 text-primary text-[10px] px-1.5 py-0">
+                                  Batch
+                                </Badge>
+                              )}
+                              {product.product_type && product.product_type !== 'physical' && (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 capitalize">
+                                  {product.product_type}
+                                </Badge>
+                              )}
+                            </div>
+                            {product.brand && (
+                              <div className="text-xs text-muted-foreground">{product.brand}</div>
+                            )}
+                            {product.barcode && (
+                              <div className="text-xs text-muted-foreground font-mono">{product.barcode}</div>
+                            )}
+                          </div>
                         </div>
-                        {product.brand && (
-                          <div className="text-xs text-muted-foreground">{product.brand}</div>
-                        )}
-                        {product.barcode && (
-                          <div className="text-xs text-muted-foreground font-mono">{product.barcode}</div>
-                        )}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground font-mono text-xs">
                         {product.sku || '—'}
