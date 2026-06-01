@@ -25,6 +25,7 @@ import {
 } from '../invoices/invoice-templates';
 import { EventStoreService } from '../events/event-store.service';
 import { EventProjectorService } from '../events/event-projector.service';
+import { MemberDirectoryService } from '../member/directory/member-directory.service';
 import { getTenantGymId } from '../common/tenant-context';
 import {
   DEFAULT_TIMEZONE,
@@ -42,6 +43,7 @@ export class MembersService {
     private queueService: QueueService,
     private eventStore: EventStoreService,
     private eventProjector: EventProjectorService,
+    private memberDirectory: MemberDirectoryService,
   ) {}
 
   private generateMemberCode(): string {
@@ -533,6 +535,22 @@ export class MembersService {
         );
       });
 
+    // ── Post-commit: maintain the member-app directory (phone → gym lookup) ──
+    // Fire-and-forget like the projection above; backfill() is the safety net
+    // if this misses. The member app's auth path reads this table.
+    this.memberDirectory
+      .syncMember({
+        memberId: member.id,
+        tenantId: getTenantGymId()!,
+        phone: member.phone,
+        status: member.status,
+      })
+      .catch((err) => {
+        this.logger.error(
+          `member_directory sync failed for member ${member.id}: ${(err as Error).message}`,
+        );
+      });
+
     if (payment && paymentEvent) {
       this.eventProjector
         .processEvent({
@@ -556,12 +574,20 @@ export class MembersService {
     // Apply referral free days (from Studio settings) if member was referred
     if (dto.referred_by_member_id && membership) {
       try {
-        // Read referral settings from Studio table (public schema)
-        const studioRow = await (this.prisma as any).$queryRaw`
-          SELECT referral_free_days, referral_reward_days FROM public.studios LIMIT 1
-        `
-          .then((rows: any[]) => rows[0])
-          .catch(() => null);
+        // Read referral settings from Studio table (public schema).
+        // MUST filter by the current studio id from trusted tenant context —
+        // a bare LIMIT 1 returns an arbitrary gym's settings (cross-tenant bleed).
+        const currentStudioId = getTenantGymId();
+        const studioRow = currentStudioId
+          ? await (this.prisma as any).$queryRaw`
+              SELECT referral_free_days, referral_reward_days
+              FROM public.studios
+              WHERE id = ${currentStudioId}::uuid
+              LIMIT 1
+            `
+              .then((rows: any[]) => rows[0])
+              .catch(() => null)
+          : null;
 
         const freeDays: number = Number(studioRow?.referral_free_days ?? 0);
         const rewardDays: number = Number(studioRow?.referral_reward_days ?? 0);
@@ -909,7 +935,8 @@ export class MembersService {
         data: { face_descriptor: descriptor },
       }),
       this.prisma.$executeRaw`
-        UPDATE studio_template.members SET face_vec = ${vecLiteral}::vector WHERE id = ${id}::uuid
+        UPDATE studio_template.members SET face_vec = ${vecLiteral}::vector
+        WHERE id = ${id}::uuid AND gym_id = ${studioId}::uuid
       `,
     ]);
 

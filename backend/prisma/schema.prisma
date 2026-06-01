@@ -72,6 +72,7 @@ model Studio {
 
   invoices            Invoice[]
   subscription_events SubscriptionEvent[]
+  member_directory    MemberDirectory[]
 
   // ── Referral & Growth Engine relations ──
   referrals_sent    Referral[]            @relation("ReferrerStudio")
@@ -85,6 +86,73 @@ model Studio {
   @@index([grace_until])
   @@index([subscription_expires_at])
   @@map("studios")
+  @@schema("public")
+}
+
+// =============================================
+// PUBLIC SCHEMA — Member App Directory (cross-tenant phone → gym lookup)
+// =============================================
+// The member mobile app authenticates by phone, but tenant data is isolated by
+// gym_id and a phone can't be resolved to a gym before login. This denormalized
+// public-schema lookup maps phone → (tenant_id = Studio UUID, member_id). It is
+// the ONLY cross-tenant table the member auth path reads. Maintained by the
+// member-create population hook (MemberDirectoryService). A phone may map to
+// more than one gym (multi-gym member), hence the composite uniqueness.
+model MemberDirectory {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phone      String // E.164
+  tenant_id  String   @db.Uuid // Studio UUID — drives gym_id scoping
+  member_id  String   @db.Uuid // PK of members row inside studio_template
+  status     String   @default("active") // active | inactive
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  studio Studio @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@unique([phone, tenant_id])
+  @@unique([tenant_id, member_id])
+  @@index([phone])
+  @@map("member_directory")
+  @@schema("public")
+}
+
+// Member app refresh tokens — opaque, rotating, revocable. Only the SHA-256
+// hash of the token is stored (never the raw value). Lives in public schema
+// because a session is keyed by (member_id, tenant_id), not gym-scoped data.
+model MemberRefreshToken {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id   String    @db.Uuid
+  tenant_id   String    @db.Uuid // Studio UUID
+  token_hash  String    @unique // sha256(refreshToken)
+  expires_at  DateTime  @db.Timestamptz()
+  revoked_at  DateTime? @db.Timestamptz()
+  replaced_by String?   @db.Uuid // rotation chain — id of the token that superseded this one
+  created_at  DateTime  @default(now()) @db.Timestamptz()
+
+  @@index([member_id, tenant_id])
+  @@map("member_refresh_tokens")
+  @@schema("public")
+}
+
+// Idempotency-Key store for member write endpoints (offline outbox replay).
+// Keyed per (tenant, member, key); a completed entry replays its stored
+// response, and reusing a key with a different body is a conflict.
+model MemberIdempotencyKey {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id       String   @db.Uuid
+  member_id       String   @db.Uuid
+  idempotency_key String
+  endpoint        String // method + route template, scopes a key to one operation
+  request_hash    String // sha256 of the request body — detects key reuse w/ different payload
+  status          String   @default("in_progress") // in_progress | completed
+  response_status Int?
+  response_body   Json?
+  created_at      DateTime @default(now()) @db.Timestamptz()
+  expires_at      DateTime @db.Timestamptz()
+
+  @@unique([tenant_id, member_id, idempotency_key])
+  @@index([expires_at])
+  @@map("member_idempotency_keys")
   @@schema("public")
 }
 
@@ -689,6 +757,9 @@ model Member {
   qr_token_audits       QrTokenAudit[]
   biometric_enrollments BiometricEnrollment[]
   wallet                Wallet?
+  assigned_workouts     AssignedWorkout[]
+  workout_logs          WorkoutLog[]
+  personal_records      PersonalRecord[]
 
   @@index([organization_id])
   @@index([branch_id])
@@ -747,6 +818,167 @@ model MemberBodyStats {
 
   @@index([member_id, recorded_at])
   @@map("member_body_stats")
+  @@schema("studio_template")
+}
+
+// =============================================
+// PER-STUDIO SCHEMA — Workout Domain (Member App Phase 1)
+// Trainer assigns plans in the SaaS; the member app reads the assignment
+// and writes back logged sets. Every table is gym_id-scoped (auto-injected).
+// =============================================
+
+model Exercise {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id       String   @db.Uuid
+  name         String
+  muscle_group String? // chest | back | legs | shoulders | arms | core | full_body | cardio
+  equipment    String?
+  media_url    String?
+  instructions String?
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now()) @db.Timestamptz()
+  updated_at   DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  plan_entries WorkoutPlanExercise[]
+  set_logs     WorkoutSetLog[]
+  records      PersonalRecord[]
+
+  @@index([gym_id])
+  @@index([gym_id, muscle_group])
+  @@map("exercises")
+  @@schema("studio_template")
+}
+
+model WorkoutPlan {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id              String   @db.Uuid
+  title               String
+  description         String?
+  goal                String? // weight_loss | muscle_gain | endurance | general_fitness
+  difficulty          String? // beginner | intermediate | advanced
+  created_by_staff_id String?  @db.Uuid
+  is_template         Boolean  @default(true) // prebuilt plan a member can self-select
+  is_active           Boolean  @default(true)
+  created_at          DateTime @default(now()) @db.Timestamptz()
+  updated_at          DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  created_by        Staff?                @relation(fields: [created_by_staff_id], references: [id])
+  exercises         WorkoutPlanExercise[]
+  assigned_workouts AssignedWorkout[]
+  workout_logs      WorkoutLog[]
+
+  @@index([gym_id])
+  @@index([gym_id, is_template, is_active])
+  @@map("workout_plans")
+  @@schema("studio_template")
+}
+
+model WorkoutPlanExercise {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id          String   @db.Uuid
+  workout_plan_id String   @db.Uuid
+  exercise_id     String   @db.Uuid
+  position        Int      @default(0) // ordering within the plan
+  target_sets     Int      @default(3)
+  target_reps     Int      @default(10)
+  target_weight   Decimal? @db.Decimal(6, 2)
+  rest_seconds    Int      @default(60)
+  notes           String?
+  created_at      DateTime @default(now()) @db.Timestamptz()
+
+  workout_plan WorkoutPlan @relation(fields: [workout_plan_id], references: [id], onDelete: Cascade)
+  exercise     Exercise    @relation(fields: [exercise_id], references: [id])
+
+  @@index([workout_plan_id, position])
+  @@map("workout_plan_exercises")
+  @@schema("studio_template")
+}
+
+model AssignedWorkout {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id              String    @db.Uuid
+  member_id           String    @db.Uuid
+  workout_plan_id     String    @db.Uuid
+  assigned_by_staff_id String?  @db.Uuid
+  scheduled_date      DateTime  @db.Date
+  status              String    @default("assigned") // assigned | completed | skipped
+  completed_at        DateTime? @db.Timestamptz()
+  created_at          DateTime  @default(now()) @db.Timestamptz()
+  updated_at          DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  member       Member       @relation(fields: [member_id], references: [id], onDelete: Cascade)
+  workout_plan WorkoutPlan  @relation(fields: [workout_plan_id], references: [id])
+  assigned_by  Staff?       @relation(fields: [assigned_by_staff_id], references: [id])
+  workout_logs WorkoutLog[]
+
+  @@index([member_id, scheduled_date])
+  @@index([member_id, status])
+  @@map("assigned_workouts")
+  @@schema("studio_template")
+}
+
+model WorkoutLog {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id              String   @db.Uuid
+  member_id           String   @db.Uuid
+  assigned_workout_id String?  @db.Uuid
+  workout_plan_id     String?  @db.Uuid
+  client_key          String? // client idempotency key (offline outbox); unique per gym
+  logged_at           DateTime @default(now()) @db.Timestamptz()
+  created_at          DateTime @default(now()) @db.Timestamptz()
+
+  member          Member           @relation(fields: [member_id], references: [id], onDelete: Cascade)
+  assigned_workout AssignedWorkout? @relation(fields: [assigned_workout_id], references: [id])
+  workout_plan    WorkoutPlan?     @relation(fields: [workout_plan_id], references: [id])
+  sets            WorkoutSetLog[]
+  records         PersonalRecord[]
+
+  @@unique([gym_id, client_key])
+  @@index([member_id, logged_at])
+  @@map("workout_logs")
+  @@schema("studio_template")
+}
+
+model WorkoutSetLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id        String   @db.Uuid
+  workout_log_id String  @db.Uuid
+  exercise_id   String   @db.Uuid
+  set_number    Int
+  reps          Int
+  weight        Decimal  @default(0) @db.Decimal(6, 2)
+  unit          String   @default("kg") // kg | lb
+  created_at    DateTime @default(now()) @db.Timestamptz()
+
+  workout_log WorkoutLog @relation(fields: [workout_log_id], references: [id], onDelete: Cascade)
+  exercise    Exercise   @relation(fields: [exercise_id], references: [id])
+
+  @@index([workout_log_id])
+  @@index([exercise_id])
+  @@map("workout_set_logs")
+  @@schema("studio_template")
+}
+
+model PersonalRecord {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id        String   @db.Uuid
+  member_id     String   @db.Uuid
+  exercise_id   String   @db.Uuid
+  weight        Decimal  @db.Decimal(6, 2)
+  reps          Int
+  unit          String   @default("kg")
+  achieved_at   DateTime @default(now()) @db.Timestamptz()
+  workout_log_id String? @db.Uuid
+  created_at    DateTime @default(now()) @db.Timestamptz()
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  member      Member      @relation(fields: [member_id], references: [id], onDelete: Cascade)
+  exercise    Exercise    @relation(fields: [exercise_id], references: [id])
+  workout_log WorkoutLog? @relation(fields: [workout_log_id], references: [id])
+
+  @@unique([member_id, exercise_id])
+  @@index([member_id])
+  @@map("personal_records")
   @@schema("studio_template")
 }
 
@@ -1461,6 +1693,8 @@ model Staff {
   leads_assigned        Lead[]                     @relation("LeadAssignedStaff")
   lead_activities       LeadActivity[]             @relation("LeadActivityStaff")
   trainer_analytics     TrainerAnalytics[]
+  workout_plans_created WorkoutPlan[]
+  workouts_assigned     AssignedWorkout[]
 
   @@index([organization_id])
   @@index([branch_id])

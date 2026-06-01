@@ -147,6 +147,13 @@ const TENANT_MODELS = new Set([
   'DashboardMetrics',
   'DomainEvent',
   'StaffPermissionOverride',
+  'Exercise',
+  'WorkoutPlan',
+  'WorkoutPlanExercise',
+  'AssignedWorkout',
+  'WorkoutLog',
+  'WorkoutSetLog',
+  'PersonalRecord',
 ]);
 
 function isTenantModel(model: string | undefined): boolean {

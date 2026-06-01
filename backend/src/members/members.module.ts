@@ -18,13 +18,14 @@ import { MembershipAccessController } from './membership-access.controller';
 import { MembershipAccessService } from './membership-access.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { EventsModule } from '../events/events.module';
+import { MemberModule } from '../member/member.module';
 import { ReferralsModule } from '../referrals/referrals.module';
 import { AuditModule } from '../audit/audit.module';
 import { CronLockService } from '../common/services/cron-lock.service';
 import { ResourceLimitService } from '../common/services/resource-limit.service';
 
 @Module({
-  imports: [PrismaModule, EventsModule, ReferralsModule, AuditModule],
+  imports: [PrismaModule, EventsModule, MemberModule, ReferralsModule, AuditModule],
   controllers: [
     MembersController,
     MemberVisitsController,

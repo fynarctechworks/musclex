@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, ForbiddenException } from '@nestjs/common';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { getTenantSchema, getTenantGymId } from '../common/tenant-context';
 import { createTenantExtension, TenantPrismaClient } from './tenant-prisma.extension';
@@ -37,6 +37,8 @@ const TENANT_MODELS_PRISMA: ReadonlySet<string> = new Set<string>([
   'ServiceCatalog', 'ServiceBooking', 'Review', 'Chat', 'ChatMessage',
   'Notification', 'ProviderSubscription', 'DashboardMetrics', 'DomainEvent',
   'StaffPermissionOverride', 'ExpenseCategory', 'ExpenseMetric',
+  'Exercise', 'WorkoutPlan', 'WorkoutPlanExercise', 'AssignedWorkout',
+  'WorkoutLog', 'WorkoutSetLog', 'PersonalRecord',
 ]);
 
 const READ_ACTIONS = new Set([
@@ -45,11 +47,41 @@ const READ_ACTIONS = new Set([
 const WHERE_MUTATION_ACTIONS = new Set([
   'update', 'updateMany', 'delete', 'deleteMany',
 ]);
+const WRITE_ACTIONS = new Set([
+  'create', 'createMany', 'update', 'updateMany', 'delete', 'deleteMany', 'upsert',
+]);
 
 function injectGymIdInWhere(where: any, gymId: string): any {
   if (!where || typeof where !== 'object') return { gym_id: gymId };
   if (where.gym_id !== undefined) return where; // respect caller-provided filter
   return { ...where, gym_id: gymId };
+}
+
+/**
+ * Does a write already carry its own explicit gym_id scoping? Such writes are
+ * trusted even without ALS context — they're how onboarding, seeds, and system
+ * jobs operate before/outside a request's tenant scope (e.g. creating the first
+ * branch with an explicit gym_id).
+ */
+function writeCarriesExplicitGymId(action: string, args: any): boolean {
+  if (!args) return false;
+  switch (action) {
+    case 'create':
+      return !!args.data?.gym_id;
+    case 'createMany':
+      return Array.isArray(args.data)
+        ? args.data.length > 0 && args.data.every((d: any) => d?.gym_id)
+        : !!args.data?.gym_id;
+    case 'upsert':
+      return !!args.create?.gym_id && !!args.where?.gym_id;
+    case 'update':
+    case 'updateMany':
+    case 'delete':
+    case 'deleteMany':
+      return !!args.where?.gym_id;
+    default:
+      return false;
+  }
 }
 
 @Injectable()
@@ -112,8 +144,35 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     // defense-in-depth for callers that opt in explicitly.
     // ────────────────────────────────────────────────────────────
     this.$use(async (params, next) => {
+      if (!params.model || !TENANT_MODELS_PRISMA.has(params.model)) {
+        return next(params);
+      }
+
       const gymId = getTenantGymId();
-      if (!gymId || !params.model || !TENANT_MODELS_PRISMA.has(params.model)) {
+
+      // ── No tenant context on a tenant model ──────────────────────────
+      // Reads are left untouched: some context-less flows legitimately read
+      // tenant models (e.g. RBAC resolution during login, which runs on the
+      // /auth routes that are excluded from TenantMiddleware). But WRITES must
+      // never touch tenant data without scoping — block them unless the payload
+      // carries an explicit gym_id (onboarding, seeds, system jobs scope
+      // manually). This turns the cryptic Prisma "Argument `gym_id` is missing"
+      // into a clear, fail-fast error and prevents accidental unscoped writes.
+      if (!gymId) {
+        if (
+          WRITE_ACTIONS.has(params.action) &&
+          !writeCarriesExplicitGymId(params.action, params.args)
+        ) {
+          this.logger.error(
+            `TENANT SAFETY: blocked ${params.action} on ${params.model} — no gym_id in ` +
+              `context and none in the payload. A tenant-scoped write reached the DB with ` +
+              `no authenticated studio (likely a stale/missing token or a missing guard).`,
+          );
+          throw new ForbiddenException(
+            'Tenant context missing: this action could not be scoped to your studio. ' +
+              'Please sign in again and retry.',
+          );
+        }
         return next(params);
       }
 
