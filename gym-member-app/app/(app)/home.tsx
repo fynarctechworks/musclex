@@ -4,6 +4,8 @@ import {
   Badge,
   Button,
   Card,
+  EmptyState,
+  ErrorState,
   Icon,
   MeshGradient,
   Screen,
@@ -26,7 +28,7 @@ const STATUS_TONE: Record<MembershipStatus, 'success' | 'warning' | 'error'> = {
 
 export default function Home() {
   const router = useRouter();
-  const { data, isLoading, refetch, isRefetching } = useHome();
+  const { data, isLoading, isError, refetch, isRefetching } = useHome();
   const profileName = useAuth((s) => s.profile?.name);
 
   const greeting =
@@ -80,6 +82,10 @@ export default function Home() {
             <SkeletonCard />
             <SkeletonCard />
           </>
+        ) : isError && !data ? (
+          <Card>
+            <ErrorState compact onRetry={refetch} retrying={isRefetching} />
+          </Card>
         ) : (
           <>
             {/* Membership status */}
@@ -124,12 +130,13 @@ export default function Home() {
               ) : null}
             </Card>
 
-            {/* Today's workout */}
-            <Card onPress={() => router.push('/workout')}>
-              <Txt variant="caption" className="text-mute">
-                {'TODAY’S WORKOUT'}
-              </Txt>
-              {today ? (
+            {/* Today's workout — pressable when assigned; designed empty state otherwise.
+               (Empty is the common case until trainer/admin authoring exists — see PRD.) */}
+            {today ? (
+              <Card onPress={() => router.push('/workout')}>
+                <Txt variant="caption" className="text-mute">
+                  {'TODAY’S WORKOUT'}
+                </Txt>
                 <View className="mt-sm flex-row items-center justify-between">
                   <View className="flex-1 pr-md">
                     <Txt variant="body-lg" weight="600" className="text-ink">
@@ -143,12 +150,22 @@ export default function Home() {
                   </View>
                   <Icon name="chevron-right" color={colors.mute} size={20} />
                 </View>
-              ) : (
-                <Txt variant="body-md" className="mt-sm text-body">
-                  No workout assigned. Tap to pick a plan.
+              </Card>
+            ) : (
+              <Card>
+                <Txt variant="caption" className="text-mute">
+                  {'TODAY’S WORKOUT'}
                 </Txt>
-              )}
-            </Card>
+                <EmptyState
+                  compact
+                  icon="dumbbell"
+                  title="No workout assigned yet"
+                  message="Your trainer hasn’t set today’s plan. Browse plans to get started."
+                  actionLabel="Browse plans"
+                  onAction={() => router.push('/workout')}
+                />
+              </Card>
+            )}
 
             {/* Next class (Phase 2 data; render only if present) */}
             {nextClass ? (

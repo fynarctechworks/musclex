@@ -5,6 +5,7 @@ import {
   Badge,
   Button,
   Card,
+  ErrorState,
   Screen,
   SkeletonCard,
   Txt,
@@ -18,7 +19,7 @@ import {
 import { RestTimer } from '../../src/features/workout/RestTimer';
 
 export default function WorkoutScreen() {
-  const { data: workout, isLoading, refetch, isRefetching } = useTodayWorkout();
+  const { data: workout, isLoading, isError, refetch, isRefetching } = useTodayWorkout();
   const qc = useQueryClient();
   const [logged, setLogged] = useState<Record<string, LoggedSet[]>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -47,6 +48,10 @@ export default function WorkoutScreen() {
             <SkeletonCard />
             <SkeletonCard />
           </View>
+        ) : isError && !workout ? (
+          <Card className="mt-lg">
+            <ErrorState compact onRetry={refetch} retrying={isRefetching} />
+          </Card>
         ) : !workout ? (
           <Card className="mt-lg">
             <Txt variant="body-lg" weight="600" className="text-ink">

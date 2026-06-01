@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   Button,
   Card,
+  ErrorState,
   Icon,
   Input,
   Screen,
@@ -32,7 +33,7 @@ function Stat({ label, value, unit }: { label: string; value?: number | null; un
 }
 
 export default function ProgressScreen() {
-  const { data, isLoading, refetch, isRefetching } = useProgress();
+  const { data, isLoading, isError, refetch, isRefetching } = useProgress();
   const logMetric = useLogMetric();
   const qc = useQueryClient();
 
@@ -115,6 +116,10 @@ export default function ProgressScreen() {
             <SkeletonCard />
             <SkeletonCard />
           </View>
+        ) : isError && !data ? (
+          <Card className="mt-lg">
+            <ErrorState compact onRetry={refetch} retrying={isRefetching} />
+          </Card>
         ) : (
           <>
             <View className="mt-md flex-row gap-sm">

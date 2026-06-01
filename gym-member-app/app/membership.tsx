@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Card,
+  ErrorState,
   Screen,
   SkeletonCard,
   Txt,
@@ -21,7 +22,7 @@ const STATUS_TONE: Record<MembershipStatus, 'success' | 'warning' | 'error'> = {
 
 export default function MembershipScreen() {
   const router = useRouter();
-  const { data, isLoading, refetch, isRefetching } = useMembership();
+  const { data, isLoading, isError, refetch, isRefetching } = useMembership();
   const renew = useRenew();
 
   async function onRenew() {
@@ -63,6 +64,10 @@ export default function MembershipScreen() {
             <SkeletonCard />
             <SkeletonCard />
           </View>
+        ) : isError && !data ? (
+          <Card className="mt-lg">
+            <ErrorState compact onRetry={refetch} retrying={isRefetching} />
+          </Card>
         ) : (
           <>
             <Card elevated className="mt-md">

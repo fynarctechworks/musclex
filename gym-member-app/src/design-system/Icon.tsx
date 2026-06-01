@@ -13,7 +13,8 @@ export type IconName =
   | 'flame'
   | 'users'
   | 'check'
-  | 'camera';
+  | 'camera'
+  | 'alert';
 
 export function Icon({
   name,
@@ -101,6 +102,16 @@ export function Icon({
         <>
           <Path d="M4 8h3l2-2h6l2 2h3v11H4z" {...common} />
           <Circle cx="12" cy="13" r="3.5" {...common} />
+        </>
+      )}
+      {name === 'alert' && (
+        <>
+          <Path
+            d="M10.3 4.8 2.8 17.5a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.8a2 2 0 0 0-3.4 0Z"
+            {...common}
+          />
+          <Line x1="12" y1="9.5" x2="12" y2="13.5" {...common} />
+          <Circle cx="12" cy="16.8" r="0.9" stroke={color as string} fill={color as string} />
         </>
       )}
     </Svg>
