@@ -8,6 +8,7 @@ export type IconName =
   | 'chart'
   | 'user'
   | 'calendar'
+  | 'flash'
   | 'qr'
   | 'bell'
   | 'chevron-right'
@@ -75,6 +76,9 @@ export function Icon({
           <Line x1="8" y1="3" x2="8" y2="6.5" {...common} />
           <Line x1="16" y1="3" x2="16" y2="6.5" {...common} />
         </>
+      )}
+      {name === 'flash' && (
+        <Path d="M13 2 5 13h5l-1 9 9-12h-5l1-8Z" {...common} />
       )}
       {name === 'qr' && (
         <>

@@ -247,9 +247,16 @@ gym-member-app/
    water, and weekly *attendance* history aren't exposed by the BFF, so those Samsung-Health
    widgets are intentionally NOT shown (no fabricated health data). They land when the BFF
    adds the endpoints (and/or wearable sync, Module 14).
-4. **Check-in** polish (QR done → occupancy, peak hours).
-5. **Workout** rebuild (templates, PR tracking, swipe-complete).
-6. **Classes** module (new).
+4. ~~**Check-in** polish.~~ **DONE:** premium scanner reticle (corner brackets +
+   animated scan line via RN `Animated`), torch toggle, and a streak `ProgressRing` on
+   the success screen. **Not done (need native/backend):** NFC, BLE auto-detect,
+   fingerprint, face verify, peak-hours / crowd prediction.
+5. ~~**Workout** rebuild.~~ **DONE:** mesh hero with a live session-progress ring
+   (completed/target sets), exercise media thumbnails (`mediaUrl`), and PR celebration via
+   the `Dialog` primitive. Existing set logging (steppers) + rest timer kept. **Not done
+   (need backend):** prebuilt templates, exercise-library link, recovery tracking.
+6. **Classes** module — real screen already shipped as the Classes tab; deeper features
+   (recurring booking, calendar sync, trainer detail) remain.
 7. **Membership** polish (freeze, upgrades, invoices, auto-renew).
 8. **Progress** rebuild (BMI, body-fat, measurements, before/after slider).
 9. Then V2 modules (Nutrition, AI Coach, Community, Trainer Chat, Exercise Library).

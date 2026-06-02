@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
 import { Card, Icon, Stepper, Txt, colors } from '../../design-system';
 import type { Exercise, SetLog } from '../../api/types';
 
@@ -47,13 +47,22 @@ export function ExerciseCard({
   return (
     <Card>
       <View className="flex-row items-center justify-between">
-        <View className="flex-1 pr-md">
-          <Txt variant="body-lg" weight="600" className="text-ink">
-            {exercise.name}
-          </Txt>
-          <Txt variant="caption" className="text-mute">
-            {target} sets {'×'} {exercise.targetReps ?? prefillReps} reps target
-          </Txt>
+        <View className="flex-1 flex-row items-center gap-sm pr-md">
+          {exercise.mediaUrl ? (
+            <Image
+              source={{ uri: exercise.mediaUrl }}
+              style={{ width: 44, height: 44, borderRadius: 8 }}
+              className="bg-surface-2"
+            />
+          ) : null}
+          <View className="flex-1">
+            <Txt variant="body-lg" weight="600" className="text-ink">
+              {exercise.name}
+            </Txt>
+            <Txt variant="caption" className="text-mute">
+              {target} sets {'×'} {exercise.targetReps ?? prefillReps} reps target
+            </Txt>
+          </View>
         </View>
         <Txt variant="caption" weight="500" className="text-success-fg">
           {doneCount}/{sets.length}
