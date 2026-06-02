@@ -5,9 +5,11 @@ import {
   Button,
   Card,
   ErrorState,
+  ListRow,
   Screen,
   SkeletonCard,
   Txt,
+  colors,
 } from '../src/design-system';
 import { useMembership, useRenew } from '../src/api/queries';
 import { formatDate, formatMoney } from '../src/lib/format';
@@ -19,6 +21,8 @@ const STATUS_TONE: Record<MembershipStatus, 'success' | 'warning' | 'error'> = {
   frozen: 'warning',
   expired: 'error',
 };
+
+const DAY = 86_400_000;
 
 export default function MembershipScreen() {
   const router = useRouter();
@@ -48,6 +52,18 @@ export default function MembershipScreen() {
 
   const status = data?.status;
 
+  // Real start→expiry timeline (computed from the dates the BFF returns).
+  const started = data?.startedOn ? new Date(data.startedOn).getTime() : null;
+  const expires = data?.expiresOn ? new Date(data.expiresOn).getTime() : null;
+  const now = Date.now();
+  const elapsed =
+    started != null && expires != null && expires > started
+      ? Math.max(0, Math.min(1, (now - started) / (expires - started)))
+      : null;
+  const daysLeft = expires != null ? Math.ceil((expires - now) / DAY) : null;
+  const barColor =
+    status === 'expired' ? colors.error : status === 'expiring' ? colors.warning : colors.cyan;
+
   return (
     <Screen scroll onRefresh={refetch} refreshing={isRefetching}>
       <View className="pt-md">
@@ -72,7 +88,7 @@ export default function MembershipScreen() {
           <>
             <Card elevated className="mt-md">
               <View className="flex-row items-center justify-between">
-                <View>
+                <View className="flex-1 pr-md">
                   <Txt variant="display-md" weight="600" className="text-ink">
                     {data?.plan?.name ?? 'Membership'}
                   </Txt>
@@ -87,39 +103,50 @@ export default function MembershipScreen() {
                 ) : null}
               </View>
 
-              <View className="mt-md h-[1px] bg-hairline" />
+              {/* Timeline bar */}
+              {elapsed != null ? (
+                <View className="mt-lg">
+                  <View className="flex-row items-center justify-between">
+                    <Txt variant="caption" className="text-mute">
+                      {daysLeft != null && daysLeft > 0
+                        ? `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`
+                        : 'Expired'}
+                    </Txt>
+                    <Txt variant="caption" className="text-mute">
+                      {`${Math.round(elapsed * 100)}% elapsed`}
+                    </Txt>
+                  </View>
+                  <View className="mt-xs h-[6px] overflow-hidden rounded-full bg-surface-2">
+                    <View
+                      style={{ width: `${elapsed * 100}%`, height: '100%', backgroundColor: barColor }}
+                    />
+                  </View>
+                </View>
+              ) : null}
 
-              <View className="mt-md flex-row justify-between">
-                <View>
-                  <Txt variant="caption" className="text-mute">STARTED</Txt>
-                  <Txt variant="body-md" className="text-ink">{formatDate(data?.startedOn)}</Txt>
-                </View>
-                <View className="items-end">
-                  <Txt variant="caption" className="text-mute">EXPIRES</Txt>
-                  <Txt variant="body-md" className="text-ink">{formatDate(data?.expiresOn)}</Txt>
-                </View>
+              <View className="mt-lg">
+                <Button
+                  title={status === 'expired' ? 'Renew membership' : 'Renew early'}
+                  variant={status === 'expired' || status === 'expiring' ? 'primary' : 'secondary'}
+                  fullWidth
+                  loading={renew.isPending}
+                  onPress={onRenew}
+                />
               </View>
+            </Card>
 
-              {status === 'expiring' || status === 'expired' ? (
-                <View className="mt-lg">
-                  <Button
-                    title={status === 'expired' ? 'Renew membership' : 'Renew early'}
-                    fullWidth
-                    loading={renew.isPending}
-                    onPress={onRenew}
-                  />
-                </View>
-              ) : (
-                <View className="mt-lg">
-                  <Button
-                    title="Manage / upgrade plan"
-                    variant="secondary"
-                    fullWidth
-                    loading={renew.isPending}
-                    onPress={onRenew}
-                  />
-                </View>
-              )}
+            {/* Details */}
+            <Txt variant="caption" className="mb-sm mt-lg text-mute">
+              DETAILS
+            </Txt>
+            <Card noPadding>
+              <ListRow label="Started" value={formatDate(data?.startedOn)} />
+              <ListRow label="Expires" value={formatDate(data?.expiresOn)} />
+              <ListRow
+                label="Auto-renew"
+                value={data?.autoRenew == null ? '—' : data.autoRenew ? 'On' : 'Off'}
+                last
+              />
             </Card>
 
             <Txt variant="caption" className="mb-sm mt-lg text-mute">

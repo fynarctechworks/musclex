@@ -257,8 +257,14 @@ gym-member-app/
    (need backend):** prebuilt templates, exercise-library link, recovery tracking.
 6. **Classes** module — real screen already shipped as the Classes tab; deeper features
    (recurring booking, calendar sync, trainer detail) remain.
-7. **Membership** polish (freeze, upgrades, invoices, auto-renew).
-8. **Progress** rebuild (BMI, body-fat, measurements, before/after slider).
+7. ~~**Membership** polish.~~ **DONE:** real start→expiry timeline bar + days-left,
+   auto-renew row (read-only — no toggle endpoint), details moved to ListRow, accurate
+   "Renew early/Renew membership" CTA. **Not done (no BFF endpoint):** freeze, plan
+   upgrade/downgrade, auto-renew toggle. (Razorpay checkout SDK still a stub → webhook.)
+8. ~~**Progress** rebuild.~~ **DONE:** mesh hero, 2×2 stats (weight/BMI/body-fat/waist),
+   range SegmentedControl (1M/3M/All) filtering the weight trend, real waist logging
+   (`waistCm`), before/after photo compare (earliest vs latest). **Not done (no data):**
+   body-fat *logging* (only weight+waist in `BodyMetricInput`), richer measurements.
 9. Then V2 modules (Nutrition, AI Coach, Community, Trainer Chat, Exercise Library).
 
 Each step: build behind the design system, run `tsc --noEmit`, show diff, stop for review.

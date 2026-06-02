@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Image, Pressable, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -7,7 +7,9 @@ import {
   ErrorState,
   Icon,
   Input,
+  MeshGradient,
   Screen,
+  SegmentedControl,
   SkeletonCard,
   Txt,
   colors,
@@ -15,6 +17,12 @@ import {
 import { useLogMetric, useProgress, qk } from '../../src/api/queries';
 import { WeightChart } from '../../src/features/progress/WeightChart';
 import { pickAndUploadPhoto } from '../../src/features/progress/upload';
+import { formatDate } from '../../src/lib/format';
+import type { BodyMetric, BodyMetricInput, ProgressPhoto } from '../../src/api/types';
+
+type Range = '1M' | '3M' | 'all';
+const RANGE_DAYS: Record<Range, number> = { '1M': 30, '3M': 90, all: Infinity };
+const DAY = 86_400_000;
 
 function Stat({ label, value, unit }: { label: string; value?: number | null; unit?: string }) {
   return (
@@ -38,14 +46,21 @@ export default function ProgressScreen() {
   const qc = useQueryClient();
 
   const [weight, setWeight] = useState('');
+  const [waist, setWaist] = useState('');
   const [logging, setLogging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [range, setRange] = useState<Range>('3M');
 
-  async function onLogWeight() {
+  async function onLog() {
     const w = parseFloat(weight);
-    if (!Number.isFinite(w) || w <= 0) return;
-    await logMetric.mutateAsync({ weightKg: w, recordedAt: new Date().toISOString() });
+    const ws = parseFloat(waist);
+    const body: BodyMetricInput = { recordedAt: new Date().toISOString() };
+    if (Number.isFinite(w) && w > 0) body.weightKg = w;
+    if (Number.isFinite(ws) && ws > 0) body.waistCm = ws;
+    if (body.weightKg == null && body.waistCm == null) return;
+    await logMetric.mutateAsync(body);
     setWeight('');
+    setWaist('');
     setLogging(false);
     qc.invalidateQueries({ queryKey: qk.progress });
   }
@@ -63,25 +78,56 @@ export default function ProgressScreen() {
   }
 
   const latest = data?.latest;
-  const series = data?.series ?? [];
+  const series = useMemo<BodyMetric[]>(() => data?.series ?? [], [data]);
   const photos = data?.photos ?? [];
 
-  return (
-    <Screen scroll onRefresh={refetch} refreshing={isRefetching}>
-      <View className="pt-md">
-        <View className="flex-row items-center justify-between">
-          <Txt variant="display-lg" weight="600" className="text-ink">
-            Progress
-          </Txt>
-          <Button
-            title="Log weight"
-            size="sm"
-            onPress={() => setLogging((v) => !v)}
-          />
-        </View>
+  // Range-filtered series for the trend chart.
+  const filteredSeries = useMemo(() => {
+    const span = RANGE_DAYS[range];
+    if (!Number.isFinite(span)) return series;
+    const cutoff = Date.now() - span * DAY;
+    return series.filter((m) => (m.recordedAt ? new Date(m.recordedAt).getTime() >= cutoff : true));
+  }, [series, range]);
 
+  // Latest recorded waist (BodyMetric carries waistCm; `latest` summary doesn't).
+  const latestWaist = useMemo(() => {
+    const withWaist = series
+      .filter((m) => m.waistCm != null && m.recordedAt)
+      .sort((a, b) => new Date(a.recordedAt as string).getTime() - new Date(b.recordedAt as string).getTime());
+    return withWaist.length ? (withWaist[withWaist.length - 1].waistCm as number) : null;
+  }, [series]);
+
+  // Before/after = earliest vs latest photo (real data, shown only with ≥2).
+  const compare = useMemo(() => {
+    const sorted = [...photos]
+      .filter((p) => p.url && p.takenAt)
+      .sort((a, b) => new Date(a.takenAt as string).getTime() - new Date(b.takenAt as string).getTime());
+    return sorted.length >= 2
+      ? { first: sorted[0], last: sorted[sorted.length - 1] }
+      : null;
+  }, [photos]);
+
+  return (
+    <Screen scroll padded={false} onRefresh={refetch} refreshing={isRefetching}>
+      {/* Hero header with the brand mesh gradient (design.md: hero scale only). */}
+      <View className="overflow-hidden px-md pb-lg pt-md">
+        <MeshGradient opacity={0.45} />
+        <View className="flex-row items-center justify-between">
+          <View>
+            <Txt variant="mono" className="text-ink/70">
+              YOUR BODY
+            </Txt>
+            <Txt variant="display-lg" weight="600" className="mt-xs text-ink">
+              Progress
+            </Txt>
+          </View>
+          <Button title="Log" size="sm" onPress={() => setLogging((v) => !v)} />
+        </View>
+      </View>
+
+      <View className="px-md">
         {logging ? (
-          <Card className="mt-md">
+          <Card className="mb-md">
             <Input
               label="Weight (kg)"
               keyboardType="decimal-pad"
@@ -90,49 +136,82 @@ export default function ProgressScreen() {
               onChangeText={setWeight}
               autoFocus
             />
+            <View className="mt-md">
+              <Input
+                label="Waist (cm) — optional"
+                keyboardType="decimal-pad"
+                placeholder="82"
+                value={waist}
+                onChangeText={setWaist}
+              />
+            </View>
             <View className="mt-md flex-row gap-sm">
               <View className="flex-1">
-                <Button
-                  title="Cancel"
-                  variant="ghost"
-                  onPress={() => setLogging(false)}
-                  fullWidth
-                />
+                <Button title="Cancel" variant="ghost" onPress={() => setLogging(false)} fullWidth />
               </View>
               <View className="flex-1">
-                <Button
-                  title="Save"
-                  loading={logMetric.isPending}
-                  onPress={onLogWeight}
-                  fullWidth
-                />
+                <Button title="Save" loading={logMetric.isPending} onPress={onLog} fullWidth />
               </View>
             </View>
           </Card>
         ) : null}
 
         {isLoading ? (
-          <View className="mt-lg gap-md">
+          <View className="gap-md">
             <SkeletonCard />
             <SkeletonCard />
           </View>
         ) : isError && !data ? (
-          <Card className="mt-lg">
+          <Card>
             <ErrorState compact onRetry={refetch} retrying={isRefetching} />
           </Card>
         ) : (
           <>
-            <View className="mt-md flex-row gap-sm">
-              <Stat label="WEIGHT" value={latest?.weightKg} unit="kg" />
-              <Stat label="BMI" value={latest?.bmi} />
-              <Stat label="BODY FAT" value={latest?.bodyFatPct} unit="%" />
+            {/* Stats (2×2) */}
+            <View className="gap-sm">
+              <View className="flex-row gap-sm">
+                <Stat label="WEIGHT" value={latest?.weightKg} unit="kg" />
+                <Stat label="BMI" value={latest?.bmi} />
+              </View>
+              <View className="flex-row gap-sm">
+                <Stat label="BODY FAT" value={latest?.bodyFatPct} unit="%" />
+                <Stat label="WAIST" value={latestWaist} unit="cm" />
+              </View>
             </View>
 
-            <Txt variant="caption" className="mb-sm mt-lg text-mute">
-              WEIGHT TREND
-            </Txt>
-            <WeightChart series={series} />
+            {/* Weight trend + range filter */}
+            <View className="mb-sm mt-lg flex-row items-center justify-between">
+              <Txt variant="caption" className="text-mute">
+                WEIGHT TREND
+              </Txt>
+              <View className="w-[180px]">
+                <SegmentedControl
+                  value={range}
+                  onChange={setRange}
+                  options={[
+                    { label: '1M', value: '1M' },
+                    { label: '3M', value: '3M' },
+                    { label: 'All', value: 'all' },
+                  ]}
+                />
+              </View>
+            </View>
+            <WeightChart series={filteredSeries} />
 
+            {/* Before / after */}
+            {compare ? (
+              <>
+                <Txt variant="caption" className="mb-sm mt-lg text-mute">
+                  BEFORE / AFTER
+                </Txt>
+                <View className="flex-row gap-sm">
+                  <ComparePhoto label="First" photo={compare.first} />
+                  <ComparePhoto label="Latest" photo={compare.last} />
+                </View>
+              </>
+            ) : null}
+
+            {/* Transformation photos */}
             <View className="mb-sm mt-lg flex-row items-center justify-between">
               <Txt variant="caption" className="text-mute">
                 TRANSFORMATION PHOTOS
@@ -160,11 +239,7 @@ export default function ProgressScreen() {
                   className="h-[120px] w-[92px] overflow-hidden rounded-md border border-hairline bg-surface-2"
                 >
                   {p.url ? (
-                    <Image
-                      source={{ uri: p.url }}
-                      style={{ width: '100%', height: '100%' }}
-                      resizeMode="cover"
-                    />
+                    <Image source={{ uri: p.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                   ) : null}
                 </View>
               ))}
@@ -174,5 +249,25 @@ export default function ProgressScreen() {
         <View className="h-2xl" />
       </View>
     </Screen>
+  );
+}
+
+function ComparePhoto({ label, photo }: { label: string; photo: ProgressPhoto }) {
+  return (
+    <View className="flex-1">
+      <View className="aspect-[3/4] overflow-hidden rounded-md border border-hairline bg-surface-2">
+        {photo.url ? (
+          <Image source={{ uri: photo.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+        ) : null}
+      </View>
+      <View className="mt-xs flex-row items-center justify-between">
+        <Txt variant="caption" weight="500" className="text-ink">
+          {label}
+        </Txt>
+        <Txt variant="caption" className="text-mute">
+          {formatDate(photo.takenAt)}
+        </Txt>
+      </View>
+    </View>
   );
 }
