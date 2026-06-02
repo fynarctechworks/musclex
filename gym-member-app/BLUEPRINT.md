@@ -239,9 +239,14 @@ gym-member-app/
 ### Sequencing (one concern per session)
 
 1. ~~**IA restructure** — tab bar → 5 tabs + FAB; move Profile to a stack route.~~ **DONE.**
-2. **Design-system completion** — Charts (ring/line), BottomSheet, Modal, ListRow,
-   Avatar, Chip, SegmentedControl (TabBar + FAB done).
-3. **Home dashboard** rebuild against blueprint widget set.
+2. ~~**Design-system completion** — Avatar, Chip, ListRow, SegmentedControl,
+   ProgressRing, BarChart, LineChart, BottomSheet, Dialog (TabBar + FAB done).~~ **DONE.**
+3. ~~**Home dashboard** rebuild against blueprint widget set.~~ **DONE (real-data subset):**
+   streak ProgressRing + "week ahead" BarChart (classes/day) on top of the existing
+   membership / workout / next-class / occupancy cards. **Backend gap:** calories, steps,
+   water, and weekly *attendance* history aren't exposed by the BFF, so those Samsung-Health
+   widgets are intentionally NOT shown (no fabricated health data). They land when the BFF
+   adds the endpoints (and/or wearable sync, Module 14).
 4. **Check-in** polish (QR done → occupancy, peak hours).
 5. **Workout** rebuild (templates, PR tracking, swipe-complete).
 6. **Classes** module (new).

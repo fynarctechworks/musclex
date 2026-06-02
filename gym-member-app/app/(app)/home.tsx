@@ -3,22 +3,25 @@ import { useRouter } from 'expo-router';
 import {
   Avatar,
   Badge,
+  BarChart,
   Button,
   Card,
   EmptyState,
   ErrorState,
   Icon,
   MeshGradient,
+  ProgressRing,
   Screen,
   SkeletonCard,
   Txt,
   colors,
 } from '../../src/design-system';
-import { useHome } from '../../src/api/queries';
+import type { BarDatum } from '../../src/design-system';
+import { useHome, useClasses } from '../../src/api/queries';
 import { useAuth } from '../../src/auth/auth-store';
 import { OccupancyCard } from '../../src/features/home/OccupancyCard';
 import { formatTime, relativeFromNow } from '../../src/lib/format';
-import type { MembershipStatus } from '../../src/api/types';
+import type { ClassListItem, MembershipStatus } from '../../src/api/types';
 
 const STATUS_TONE: Record<MembershipStatus, 'success' | 'warning' | 'error'> = {
   active: 'success',
@@ -27,9 +30,40 @@ const STATUS_TONE: Record<MembershipStatus, 'success' | 'warning' | 'error'> = {
   expired: 'error',
 };
 
+/**
+ * Bucket upcoming classes into the next 7 days (count per day) for the "week
+ * ahead" bar chart. Real data only — the series comes straight from the classes
+ * the member can see; today is highlighted.
+ */
+function weekAhead(classes: ClassListItem[]): { bars: BarDatum[]; total: number } {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const bars: BarDatum[] = [];
+  let total = 0;
+  for (let i = 0; i < 7; i++) {
+    const dayStart = new Date(start);
+    dayStart.setDate(start.getDate() + i);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayStart.getDate() + 1);
+    const value = classes.filter((c) => {
+      if (!c.startsAt) return false;
+      const t = new Date(c.startsAt).getTime();
+      return t >= dayStart.getTime() && t < dayEnd.getTime();
+    }).length;
+    total += value;
+    bars.push({
+      label: dayStart.toLocaleDateString(undefined, { weekday: 'narrow' }),
+      value,
+      highlight: i === 0,
+    });
+  }
+  return { bars, total };
+}
+
 export default function Home() {
   const router = useRouter();
   const { data, isLoading, isError, refetch, isRefetching } = useHome();
+  const { data: classData } = useClasses();
   const profileName = useAuth((s) => s.profile?.name);
 
   const greeting =
@@ -38,6 +72,7 @@ export default function Home() {
   const streak = data?.streak?.days ?? 0;
   const today = data?.todayWorkout;
   const nextClass = data?.nextClass;
+  const week = weekAhead(classData?.classes ?? []);
 
   return (
     <Screen scroll padded={false} onRefresh={refetch} refreshing={isRefetching}>
@@ -74,13 +109,6 @@ export default function Home() {
           </View>
         </View>
 
-        {/* Streak chip */}
-        <View className="mt-md flex-row items-center gap-xs self-start rounded-full border border-hairline bg-surface px-sm py-xs">
-          <Icon name="flame" color={streak > 0 ? colors.warning : colors.mute} size={16} />
-          <Txt variant="body-sm" weight="500" className="text-ink">
-            {streak > 0 ? `${streak}-day streak` : 'Start your streak today'}
-          </Txt>
-        </View>
       </View>
 
       <View className="gap-md px-md">
@@ -95,6 +123,69 @@ export default function Home() {
           </Card>
         ) : (
           <>
+            {/* Today summary — the signature streak ring (Samsung-Health style),
+               driven by real check-in streak data. */}
+            <Card elevated>
+              <View className="flex-row items-center">
+                <ProgressRing
+                  progress={Math.min(streak, 7) / 7}
+                  size={92}
+                  strokeWidth={9}
+                  color={streak > 0 ? colors.cyan : colors.surface2}
+                >
+                  <View className="items-center">
+                    <Txt variant="display-sm" weight="600" className="text-ink">
+                      {streak}
+                    </Txt>
+                    <Txt variant="caption" className="text-mute">
+                      {streak === 1 ? 'DAY' : 'DAYS'}
+                    </Txt>
+                  </View>
+                </ProgressRing>
+                <View className="ml-lg flex-1">
+                  <View className="flex-row items-center gap-xs">
+                    <Icon name="flame" color={streak > 0 ? colors.warning : colors.mute} size={16} />
+                    <Txt variant="caption" className="text-mute">
+                      WORKOUT STREAK
+                    </Txt>
+                  </View>
+                  <Txt variant="display-sm" weight="600" className="mt-xxs text-ink">
+                    {streak > 0 ? 'Keep it going' : 'Start today'}
+                  </Txt>
+                  <Txt variant="body-sm" className="mt-xxs text-body">
+                    {streak > 0
+                      ? `You've trained ${streak} day${streak === 1 ? '' : 's'} in a row.`
+                      : 'Check in at the gym to begin your streak.'}
+                  </Txt>
+                </View>
+              </View>
+            </Card>
+
+            {/* Week ahead — real classes bucketed per day (today highlighted). */}
+            <Card onPress={() => router.push('/classes')}>
+              <View className="flex-row items-center justify-between">
+                <Txt variant="caption" className="text-mute">
+                  YOUR WEEK AHEAD
+                </Txt>
+                <Icon name="chevron-right" color={colors.mute} size={18} />
+              </View>
+              {week.total > 0 ? (
+                <View className="mt-md">
+                  <BarChart data={week.bars} height={116} />
+                  <Txt variant="body-sm" className="mt-sm text-body">
+                    {`${week.total} class${week.total === 1 ? '' : 'es'} you can book this week`}
+                  </Txt>
+                </View>
+              ) : (
+                <EmptyState
+                  compact
+                  icon="calendar"
+                  title="No classes this week"
+                  message="Your gym hasn't scheduled classes for the next 7 days yet."
+                />
+              )}
+            </Card>
+
             {/* Membership status */}
             <Card elevated onPress={() => router.push('/membership')}>
               <View className="flex-row items-center justify-between">
