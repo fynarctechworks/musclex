@@ -21,10 +21,16 @@ The full Phase-1 surface, wired to the BFF contract:
 | Home dashboard | `(app)/home` — greeting, membership, streak, today's workout, next class, live occupancy |
 | QR check-in | `checkin` (modal) — camera scan → idempotent check-in, offline-queued |
 | Workout | `(app)/workout` — assigned plan, set logging (steppers), rest timer, PR celebration |
+| Classes | `(app)/classes` — upcoming sessions, live seats, book / waitlist / cancel |
 | Progress | `(app)/progress` — weight stats, SVG trend chart, log weight, private photos |
+| Community | `(app)/community` — scaffold (feed/challenges/leaderboards are V2) |
 | Membership | `membership` — plan, status, invoices, Razorpay renew (order create) |
-| Profile | `(app)/profile` — fitness profile, settings, biometric toggle, DPDP export/delete, sign out |
+| Profile | `profile` — fitness profile, settings, biometric toggle, DPDP export/delete, sign out (stack route, opened from the Home header) |
+| Gym locations | `locations` — nearest-branch finder with directions |
 | Notifications | `notifications` — push enable + empty feed |
+
+> **Bottom nav (BLUEPRINT.md §5):** Home · Workout · Classes · Progress · Community,
+> rendered by `src/navigation/TabBar.tsx`, with a floating QR check-in button.
 
 Cross-cutting:
 - **API client** (`src/api/`): typed endpoints, `{data,meta}` envelope unwrap,
@@ -44,12 +50,41 @@ Cross-cutting:
 ```bash
 npm install            # or: npm install --legacy-peer-deps
 cp .env.example .env   # set EXPO_PUBLIC_API_BASE_URL + Supabase keys
-npm run start          # then press a / i, or scan with Expo Go
 npm run typecheck      # tsc --noEmit
+npm run web            # fastest preview: opens in a browser, no device needed
 ```
+
+### Running on a phone — use a development build, NOT Expo Go
+
+This app **cannot run in the stock Expo Go app.** It declares native config
+plugins (camera, location, secure-store, biometrics permission strings), enables
+the New Architecture, and uses Reanimated 4 / `react-native-worklets`. Expo Go is
+a fixed prebuilt binary that ignores config plugins and is pinned to one SDK, so
+it will either refuse to open the project or silently break those native modules.
+The supported path is a **development build** (`expo-dev-client`, already a
+dependency):
+
+```bash
+# Option A — cloud build (no Android Studio/Xcode needed):
+npx eas login                  # one-time, free Expo account
+npm run build:dev:android      # eas build --profile development --platform android
+#  → scan the QR to install the .apk on your phone, then:
+npm run start                  # dev server (expo start --dev-client) → open the build → scan
+
+# Option B — local build (requires Android Studio / Xcode):
+npm run android                # expo run:android (builds + installs a dev build)
+npm run ios                    # expo run:ios
+```
+
+`npm run start:go` is kept only as an escape hatch for quick JS-only smoke tests;
+expect native features (check-in camera, biometrics, secure storage) to be broken
+under it.
 
 > **Device testing:** set `EXPO_PUBLIC_API_BASE_URL` to your machine's LAN IP
 > (e.g. `http://192.168.1.20:4000/member/v1`), not `localhost`.
+
+> **Web caveat:** the web target is for preview/design only. Tokens fall back to
+> `localStorage` there (no keychain), and camera/biometrics are unavailable.
 
 > **Staging only:** point Supabase at the staging project with fake tenants
 > (see `project_member_bff_phase0` memory). Never test against production gyms.
@@ -78,8 +113,10 @@ These depend on backend pieces noted as deferred/blocked in the BFF:
   rooms (TRD §7) are a follow-up.
 - **Push**: registers a device token via `expo-notifications`; FCM project config
   (google-services / APNs) must be added for real delivery.
-- **Fonts**: Geist substitutes (Inter / JetBrains Mono) are referenced in the
-  theme but not yet bundled via `expo-font`; falls back to system fonts.
+- ~~**Fonts**: Geist substitutes not bundled.~~ **Done** — Inter (400/500/600) +
+  JetBrains Mono are bundled via `@expo-google-fonts/*` and loaded in
+  `app/_layout.tsx`; each weight is its own family (`tailwind.config.js`) since RN
+  can't synthesise weights, and `Txt` picks the family from its `weight` prop.
 
 ## Regenerating the API client
 

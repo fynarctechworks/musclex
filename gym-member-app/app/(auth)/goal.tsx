@@ -21,17 +21,19 @@ function Option({
   selected,
   onPress,
   children,
+  className,
 }: {
   selected: boolean;
   onPress: () => void;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
       className={`rounded-lg border p-md ${
         selected ? 'border-cyan bg-surface-2' : 'border-hairline bg-surface'
-      }`}
+      } ${className ?? ''}`}
     >
       {children}
     </Pressable>
@@ -70,7 +72,11 @@ export default function GoalScreen() {
         <View className="mb-xl flex-row gap-sm">
           {GOALS.map((g) => (
             <View key={g.key} className="flex-1">
-              <Option selected={goal === g.key} onPress={() => setGoal(g.key)}>
+              <Option
+                selected={goal === g.key}
+                onPress={() => setGoal(g.key)}
+                className="h-full justify-center"
+              >
                 <Txt variant="display-sm" className="text-center">
                   {g.emoji}
                 </Txt>

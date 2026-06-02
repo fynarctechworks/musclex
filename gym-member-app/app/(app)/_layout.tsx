@@ -4,12 +4,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Tabs, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { colors, Icon } from '../../src/design-system';
+import { FitTabBar } from '../../src/navigation/TabBar';
 import { sync, vacuumDone } from '../../src/offline/outbox';
 
 /**
- * Phase-1 bottom nav: Home, Workout, Progress, Profile (Classes/Community hidden
- * until their phases ship — PRD §11). A persistent floating QR check-in button
- * sits above the bar, reachable from every tab.
+ * Blueprint bottom nav (BLUEPRINT.md §5): Home · Workout · Classes · Progress ·
+ * Community, rendered by the custom {@link FitTabBar}. A floating QR check-in
+ * button sits bottom-right above the bar, reachable from every tab.
  */
 export default function AppLayout() {
   const router = useRouter();
@@ -27,55 +28,17 @@ export default function AppLayout() {
   return (
     <View className="flex-1 bg-canvas">
       <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarStyle: {
-            backgroundColor: colors.canvasSoft,
-            borderTopColor: colors.hairline,
-            borderTopWidth: 1,
-            height: 58 + insets.bottom,
-            paddingBottom: insets.bottom + 6,
-            paddingTop: 8,
-          },
-          tabBarActiveTintColor: colors.ink,
-          tabBarInactiveTintColor: colors.mute,
-          tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
-          sceneStyle: { backgroundColor: colors.canvas },
-        }}
+        tabBar={(props) => <FitTabBar {...props} />}
+        screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.canvas } }}
       >
-        <Tabs.Screen
-          name="home"
-          options={{
-            title: 'Home',
-            tabBarIcon: ({ color }) => <Icon name="home" color={color} size={22} />,
-          }}
-        />
-        <Tabs.Screen
-          name="workout"
-          options={{
-            title: 'Workout',
-            tabBarIcon: ({ color }) => (
-              <Icon name="dumbbell" color={color} size={22} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="progress"
-          options={{
-            title: 'Progress',
-            tabBarIcon: ({ color }) => <Icon name="chart" color={color} size={22} />,
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: 'Profile',
-            tabBarIcon: ({ color }) => <Icon name="user" color={color} size={22} />,
-          }}
-        />
+        <Tabs.Screen name="home" options={{ title: 'Home' }} />
+        <Tabs.Screen name="workout" options={{ title: 'Workout' }} />
+        <Tabs.Screen name="classes" options={{ title: 'Classes' }} />
+        <Tabs.Screen name="progress" options={{ title: 'Progress' }} />
+        <Tabs.Screen name="community" options={{ title: 'Community' }} />
       </Tabs>
 
-      {/* Floating QR check-in — the highest-frequency action (PRD §6.3). */}
+      {/* Floating QR check-in — the highest-frequency action (BLUEPRINT.md §7). */}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Check in with QR"

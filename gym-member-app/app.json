@@ -15,12 +15,19 @@
       "infoPlist": {
         "NSCameraUsageDescription": "FitSync uses the camera to scan the gym QR code for instant check-in.",
         "NSFaceIDUsageDescription": "FitSync uses Face ID to unlock the app.",
-        "NSPhotoLibraryUsageDescription": "FitSync lets you attach transformation photos to your progress."
+        "NSPhotoLibraryUsageDescription": "FitSync lets you attach transformation photos to your progress.",
+        "NSLocationWhenInUseUsageDescription": "FitSync uses your location to show the gym branch nearest to you."
       }
     },
     "android": {
       "package": "pro.fitsync.member",
-      "permissions": ["CAMERA", "USE_BIOMETRIC", "USE_FINGERPRINT"]
+      "permissions": [
+        "CAMERA",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -34,6 +41,12 @@
         "expo-camera",
         {
           "cameraPermission": "FitSync uses the camera to scan the gym QR code for instant check-in."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "FitSync uses your location to show the gym branch nearest to you."
         }
       ]
     ],

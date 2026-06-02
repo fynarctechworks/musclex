@@ -6,6 +6,11 @@
 module.exports = {
   content: ['./app/**/*.{ts,tsx}', './src/**/*.{ts,tsx}'],
   presets: [require('nativewind/preset')],
+  // The app is dark-first via literal color tokens (no `dark:` variants). NativeWind's
+  // web runtime defaults darkMode to 'media' and throws when the forced-dark scheme is
+  // applied ("Cannot manually set color scheme, as dark mode is type 'media'"). 'class'
+  // lets us control the scheme without that crash; harmless on native (no dark: utilities).
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -86,10 +91,14 @@ module.exports = {
         code: ['13px', { lineHeight: '20px' }],
       },
       fontFamily: {
-        // Geist substitutes (design.md "Note on Font Substitutes"). Loaded via expo-font
-        // at runtime; falls back to system if unavailable.
-        sans: ['Inter', 'System'],
-        mono: ['JetBrainsMono', 'monospace'],
+        // Geist substitutes (design.md "Note on Font Substitutes"), bundled via
+        // @expo-google-fonts/inter + jetbrains-mono and loaded in app/_layout. RN can't
+        // synthesise weights for a custom family, so each weight is its own family; the
+        // Txt component picks the family from its `weight` prop. Falls back to System.
+        sans: ['Inter_400Regular', 'System'],
+        'sans-medium': ['Inter_500Medium', 'System'],
+        'sans-semibold': ['Inter_600SemiBold', 'System'],
+        mono: ['JetBrainsMono_400Regular', 'monospace'],
       },
     },
   },

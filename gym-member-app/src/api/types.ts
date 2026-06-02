@@ -87,6 +87,42 @@ export interface ClassSummary {
   seatsLeft?: number;
 }
 
+// ── Classes (browse / book / cancel) ──────────────────────────────
+export type ClassBookingStatus = 'enrolled' | 'waitlisted';
+
+export interface ClassListItem {
+  id?: string;
+  title?: string;
+  category?: string;
+  startsAt?: string;
+  durationMinutes?: number;
+  room?: string | null;
+  trainerName?: string | null;
+  capacity?: number;
+  seatsLeft?: number;
+  /** true when THIS member has an active booking on the class. */
+  booked?: boolean;
+  bookingStatus?: ClassBookingStatus | null;
+  waitlistPosition?: number | null;
+}
+
+export interface ClassList {
+  classes?: ClassListItem[];
+}
+
+export interface ClassBookingResult {
+  classId?: string;
+  status?: ClassBookingStatus;
+  waitlistPosition?: number | null;
+  seatsLeft?: number;
+  message?: string;
+}
+
+export interface ClassCancelResult {
+  cancelled?: boolean;
+  promotedMemberName?: string | null;
+}
+
 export interface HomeDashboard {
   greeting?: string;
   membership?: {
@@ -98,6 +134,29 @@ export interface HomeDashboard {
   todayWorkout?: WorkoutSummary | null;
   nextClass?: ClassSummary | null;
   occupancy?: Occupancy;
+}
+
+// ── Gym locations (branch finder) ─────────────────────────────────
+export type LocationStatus =
+  | 'active'
+  | 'inactive'
+  | 'temporarily_closed'
+  | 'coming_soon'
+  | 'provisioning';
+
+export interface GymLocation {
+  id?: string;
+  name?: string;
+  address?: string | null;
+  city?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  phone?: string | null;
+  status?: LocationStatus;
+}
+
+export interface GymLocations {
+  branches?: GymLocation[];
 }
 
 // ── Check-in ──────────────────────────────────────────────────────

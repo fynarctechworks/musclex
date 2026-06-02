@@ -1,10 +1,10 @@
-import { Alert, Pressable, Switch, View } from 'react-native';
+import { Alert, Switch, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Icon, Screen, Txt, colors } from '../../src/design-system';
-import { useAuth } from '../../src/auth/auth-store';
-import { usePrefs } from '../../src/auth/prefs-store';
-import { useMe } from '../../src/api/queries';
-import type { Goal } from '../../src/api/types';
+import { Avatar, Card, ListRow, Screen, Txt, colors } from '../src/design-system';
+import { useAuth } from '../src/auth/auth-store';
+import { usePrefs } from '../src/auth/prefs-store';
+import { useMe } from '../src/api/queries';
+import type { ExperienceLevel, Goal } from '../src/api/types';
 
 const GOAL_LABEL: Record<Goal, string> = {
   lose_fat: 'Lose fat',
@@ -12,39 +12,16 @@ const GOAL_LABEL: Record<Goal, string> = {
   general_fitness: 'Stay fit',
 };
 
-function Row({
-  label,
-  value,
-  onPress,
-  right,
-  destructive,
-}: {
-  label: string;
-  value?: string;
-  onPress?: () => void;
-  right?: React.ReactNode;
-  destructive?: boolean;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={!onPress}
-      className="flex-row items-center justify-between border-b border-hairline px-md py-md"
-    >
-      <Txt
-        variant="body-md"
-        className={destructive ? 'text-error' : 'text-ink'}
-      >
-        {label}
-      </Txt>
-      <View className="flex-row items-center gap-xs">
-        {value ? <Txt variant="body-sm" className="text-mute">{value}</Txt> : null}
-        {right ?? (onPress ? <Icon name="chevron-right" color={colors.mute} size={18} /> : null)}
-      </View>
-    </Pressable>
-  );
-}
+const EXPERIENCE_LABEL: Record<ExperienceLevel, string> = {
+  beginner: 'Beginner',
+  intermediate: 'Intermediate',
+  advanced: 'Advanced',
+};
 
+/**
+ * Profile (BLUEPRINT.md §5 — Profile section, off the tab bar, reached from the
+ * Home header). Hosts identity, fitness profile, settings, privacy and sign-out.
+ */
 export default function ProfileScreen() {
   const router = useRouter();
   const { data: me } = useMe();
@@ -78,11 +55,7 @@ export default function ProfileScreen() {
       <View className="pt-md">
         {/* Identity header */}
         <View className="items-center py-lg">
-          <View className="h-[72px] w-[72px] items-center justify-center rounded-full bg-surface-2">
-            <Txt variant="display-md" weight="600" className="text-ink">
-              {(profile?.name ?? '?').slice(0, 1).toUpperCase()}
-            </Txt>
-          </View>
+          <Avatar name={profile?.name} size={72} />
           <Txt variant="display-sm" weight="600" className="mt-md text-ink">
             {profile?.name ?? 'Member'}
           </Txt>
@@ -101,11 +74,11 @@ export default function ProfileScreen() {
           FITNESS PROFILE
         </Txt>
         <Card noPadding>
-          <Row
+          <ListRow
             label="Goal"
             value={goal ? GOAL_LABEL[goal] : profile?.goal ? GOAL_LABEL[profile.goal] : 'Not set'}
           />
-          <Row label="Experience" value={level ?? 'Not set'} />
+          <ListRow label="Experience" value={level ? EXPERIENCE_LABEL[level] : 'Not set'} last />
         </Card>
 
         {/* Settings */}
@@ -113,9 +86,11 @@ export default function ProfileScreen() {
           SETTINGS
         </Txt>
         <Card noPadding>
-          <Row label="Notifications" onPress={() => router.push('/notifications')} />
-          <Row
+          <ListRow label="Gym locations" onPress={() => router.push('/locations')} />
+          <ListRow label="Notifications" onPress={() => router.push('/notifications')} />
+          <ListRow
             label="Unlock with biometrics"
+            last
             right={
               <Switch
                 value={biometricEnabled}
@@ -131,13 +106,13 @@ export default function ProfileScreen() {
           PRIVACY
         </Txt>
         <Card noPadding>
-          <Row label="Export my data" onPress={() => dataRequest('export')} />
-          <Row label="Delete my account" destructive onPress={() => dataRequest('delete')} />
+          <ListRow label="Export my data" onPress={() => dataRequest('export')} />
+          <ListRow label="Delete my account" destructive onPress={() => dataRequest('delete')} last />
         </Card>
 
         <View className="mt-lg">
           <Card noPadding>
-            <Row label="Sign out" destructive onPress={confirmSignOut} />
+            <ListRow label="Sign out" destructive onPress={confirmSignOut} last />
           </Card>
         </View>
 

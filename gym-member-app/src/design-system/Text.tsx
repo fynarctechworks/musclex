@@ -15,16 +15,18 @@ type Variant =
   | 'caption'
   | 'mono';
 
+// Size + colour only. The font *family* is derived from `weight` (see FAMILY_CLASS)
+// so a custom-weight font is actually selected on native, where RN won't synthesise it.
 const VARIANT_CLASS: Record<Variant, string> = {
-  'display-xl': 'text-display-xl font-sans text-ink',
-  'display-lg': 'text-display-lg font-sans text-ink',
-  'display-md': 'text-display-md font-sans text-ink',
-  'display-sm': 'text-display-sm font-sans text-ink',
-  'body-lg': 'text-body-lg font-sans text-body',
-  'body-md': 'text-body-md font-sans text-body',
-  'body-sm': 'text-body-sm font-sans text-body',
-  caption: 'text-caption font-sans text-mute',
-  mono: 'text-code font-mono text-mute',
+  'display-xl': 'text-display-xl text-ink',
+  'display-lg': 'text-display-lg text-ink',
+  'display-md': 'text-display-md text-ink',
+  'display-sm': 'text-display-sm text-ink',
+  'body-lg': 'text-body-lg text-body',
+  'body-md': 'text-body-md text-body',
+  'body-sm': 'text-body-sm text-body',
+  caption: 'text-caption text-mute',
+  mono: 'text-code text-mute',
 };
 
 // Geist display weights cap at 600; body 400/500 (design.md).
@@ -43,10 +45,11 @@ export interface TxtProps extends TextProps {
   weight?: '400' | '500' | '600';
 }
 
-const WEIGHT_CLASS: Record<NonNullable<TxtProps['weight']>, string> = {
-  '400': 'font-normal',
-  '500': 'font-medium',
-  '600': 'font-semibold',
+// Weight → font family (each weight is a distinct bundled family — see tailwind.config).
+const FAMILY_CLASS: Record<NonNullable<TxtProps['weight']>, string> = {
+  '400': 'font-sans',
+  '500': 'font-sans-medium',
+  '600': 'font-sans-semibold',
 };
 
 export function Txt({
@@ -57,11 +60,10 @@ export function Txt({
   ...rest
 }: TxtProps) {
   const ls = VARIANT_TRACKING[variant];
+  const family = variant === 'mono' ? 'font-mono' : FAMILY_CLASS[weight ?? '400'];
   return (
     <RNText
-      className={[VARIANT_CLASS[variant], weight ? WEIGHT_CLASS[weight] : '', className]
-        .filter(Boolean)
-        .join(' ')}
+      className={[VARIANT_CLASS[variant], family, className].filter(Boolean).join(' ')}
       style={[ls != null ? { letterSpacing: ls } : null, style]}
       {...rest}
     />

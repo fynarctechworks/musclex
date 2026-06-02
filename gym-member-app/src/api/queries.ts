@@ -13,9 +13,11 @@ export const qk = {
   me: ['me'] as const,
   home: ['home'] as const,
   occupancy: ['occupancy'] as const,
+  locations: ['locations'] as const,
   membership: ['membership'] as const,
   progress: ['progress'] as const,
   todayWorkout: ['workout', 'today'] as const,
+  classes: ['classes'] as const,
 };
 
 // ── Reads ─────────────────────────────────────────────────────────
@@ -39,6 +41,14 @@ export function useOccupancy() {
   });
 }
 
+export function useLocations() {
+  return useQuery({
+    queryKey: qk.locations,
+    queryFn: api.locations,
+    staleTime: 5 * 60_000, // branch list rarely changes
+  });
+}
+
 export function useMembership() {
   return useQuery({ queryKey: qk.membership, queryFn: api.membership });
 }
@@ -49,6 +59,39 @@ export function useProgress() {
 
 export function useTodayWorkout() {
   return useQuery({ queryKey: qk.todayWorkout, queryFn: api.todayWorkout });
+}
+
+export function useClasses() {
+  return useQuery({
+    queryKey: qk.classes,
+    queryFn: api.classes,
+    staleTime: 30_000,
+  });
+}
+
+// Booking is interactive + capacity-dependent, so it runs online (not via the
+// offline outbox — you can't guarantee a seat while offline). A fresh
+// idempotency key per attempt makes a network retry safe.
+export function useBookClass() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (classId: string) => api.bookClass(classId, uuid()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.classes });
+      qc.invalidateQueries({ queryKey: qk.home });
+    },
+  });
+}
+
+export function useCancelClassBooking() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (classId: string) => api.cancelClassBooking(classId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.classes });
+      qc.invalidateQueries({ queryKey: qk.home });
+    },
+  });
 }
 
 // ── Writes (offline-first via outbox) ─────────────────────────────

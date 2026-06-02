@@ -7,6 +7,7 @@ export type IconName =
   | 'dumbbell'
   | 'chart'
   | 'user'
+  | 'calendar'
   | 'qr'
   | 'bell'
   | 'chevron-right'
@@ -14,7 +15,9 @@ export type IconName =
   | 'users'
   | 'check'
   | 'camera'
-  | 'alert';
+  | 'alert'
+  | 'pin'
+  | 'phone';
 
 export function Icon({
   name,
@@ -65,6 +68,14 @@ export function Icon({
           <Path d="M4 21c0-4 4-6 8-6s8 2 8 6" {...common} />
         </>
       )}
+      {name === 'calendar' && (
+        <>
+          <Rect x="3.5" y="5" width="17" height="16" rx="2" {...common} />
+          <Line x1="3.5" y1="9.5" x2="20.5" y2="9.5" {...common} />
+          <Line x1="8" y1="3" x2="8" y2="6.5" {...common} />
+          <Line x1="16" y1="3" x2="16" y2="6.5" {...common} />
+        </>
+      )}
       {name === 'qr' && (
         <>
           <Rect x="3" y="3" width="7" height="7" rx="1" {...common} />
@@ -103,6 +114,18 @@ export function Icon({
           <Path d="M4 8h3l2-2h6l2 2h3v11H4z" {...common} />
           <Circle cx="12" cy="13" r="3.5" {...common} />
         </>
+      )}
+      {name === 'pin' && (
+        <>
+          <Path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z" {...common} />
+          <Circle cx="12" cy="10" r="2.5" {...common} />
+        </>
+      )}
+      {name === 'phone' && (
+        <Path
+          d="M5 4h3l2 5-2.5 1.5a11 11 0 0 0 5 5L16 13l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"
+          {...common}
+        />
       )}
       {name === 'alert' && (
         <>

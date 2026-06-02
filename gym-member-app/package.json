@@ -4,15 +4,20 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "start": "expo start --dev-client",
+    "start:go": "expo start --go",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
+    "build:dev:android": "eas build --profile development --platform android",
+    "build:dev:ios": "eas build --profile development --platform ios",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "gen:api": "openapi-typescript \"../docs/Member api v1.openapi.yaml\" -o src/api/contract.ts"
   },
   "dependencies": {
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/jetbrains-mono": "^0.4.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@supabase/supabase-js": "^2.45.4",
     "@tanstack/react-query": "^5.59.0",
@@ -20,10 +25,12 @@
     "expo-camera": "~56.0.7",
     "expo-constants": "~56.0.16",
     "expo-crypto": "~56.0.4",
+    "expo-dev-client": "~56.0.18",
     "expo-haptics": "~56.0.3",
     "expo-image-picker": "~56.0.15",
     "expo-linking": "~56.0.13",
     "expo-local-authentication": "~56.0.4",
+    "expo-location": "~56.0.15",
     "expo-notifications": "~56.0.15",
     "expo-router": "~56.2.8",
     "expo-secure-store": "~56.0.4",
@@ -47,9 +54,9 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",
-    "@types/react": "~18.3.12",
+    "@types/react": "~19.2.14",
     "openapi-typescript": "^7.4.1",
     "tailwindcss": "^3.4.14",
-    "typescript": "^5.6.3"
+    "typescript": "~6.0.3"
   }
 }

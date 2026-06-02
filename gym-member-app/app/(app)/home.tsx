@@ -1,6 +1,7 @@
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
+  Avatar,
   Badge,
   Button,
   Card,
@@ -58,13 +59,19 @@ export default function Home() {
               {greeting}
             </Txt>
           </View>
-          <Pressable
-            onPress={() => router.push('/notifications')}
-            hitSlop={10}
-            className="mt-xs h-[40px] w-[40px] items-center justify-center rounded-full border border-hairline bg-surface"
-          >
-            <Icon name="bell" color={colors.body} size={20} />
-          </Pressable>
+          <View className="mt-xs flex-row items-center gap-xs">
+            <Pressable
+              onPress={() => router.push('/notifications')}
+              hitSlop={10}
+              accessibilityLabel="Notifications"
+              className="h-[40px] w-[40px] items-center justify-center rounded-full border border-hairline bg-surface"
+            >
+              <Icon name="bell" color={colors.body} size={20} />
+            </Pressable>
+            <Pressable onPress={() => router.push('/profile')} hitSlop={10} accessibilityLabel="Profile">
+              <Avatar name={profileName} size={40} />
+            </Pressable>
+          </View>
         </View>
 
         {/* Streak chip */}
@@ -167,14 +174,15 @@ export default function Home() {
               </Card>
             )}
 
-            {/* Next class (Phase 2 data; render only if present) */}
+            {/* Next class — taps through to the full schedule to book. Always
+               keep an entry point so members can browse even with none next. */}
             {nextClass ? (
-              <Card>
+              <Card onPress={() => router.push('/classes')}>
                 <Txt variant="caption" className="text-mute">
                   NEXT CLASS
                 </Txt>
                 <View className="mt-sm flex-row items-center justify-between">
-                  <View>
+                  <View className="flex-1 pr-md">
                     <Txt variant="body-lg" weight="600" className="text-ink">
                       {nextClass.title}
                     </Txt>
@@ -184,12 +192,32 @@ export default function Home() {
                       )}`}
                     </Txt>
                   </View>
-                  {nextClass.seatsLeft != null ? (
-                    <Badge label={`${nextClass.seatsLeft} seats`} tone="neutral" />
-                  ) : null}
+                  <View className="flex-row items-center gap-sm">
+                    {nextClass.seatsLeft != null ? (
+                      <Badge label={`${nextClass.seatsLeft} seats`} tone="neutral" />
+                    ) : null}
+                    <Icon name="chevron-right" color={colors.mute} size={20} />
+                  </View>
                 </View>
               </Card>
-            ) : null}
+            ) : (
+              <Card onPress={() => router.push('/classes')}>
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-1 pr-md">
+                    <Txt variant="caption" className="text-mute">
+                      CLASSES
+                    </Txt>
+                    <Txt variant="body-lg" weight="600" className="mt-xs text-ink">
+                      Browse the schedule
+                    </Txt>
+                    <Txt variant="body-sm" className="text-body">
+                      Book a spot in an upcoming class
+                    </Txt>
+                  </View>
+                  <Icon name="chevron-right" color={colors.mute} size={20} />
+                </View>
+              </Card>
+            )}
 
             {/* Live occupancy */}
             <OccupancyCard occupancy={data?.occupancy} />

@@ -8,6 +8,7 @@ import type {
   Membership,
   MemberProfile,
   Occupancy,
+  GymLocations,
   Progress,
   RazorpayOrder,
   SessionResult,
@@ -17,6 +18,9 @@ import type {
   SetLog,
   UploadTarget,
   OtpRequestResult,
+  ClassList,
+  ClassBookingResult,
+  ClassCancelResult,
 } from './types';
 
 /** Typed wrappers for every Phase-1 BFF endpoint. */
@@ -47,6 +51,7 @@ export const api = {
   me: () => request<MemberProfile>('/me'),
   home: () => request<HomeDashboard>('/home'),
   occupancy: () => request<Occupancy>('/gym/occupancy'),
+  locations: () => request<GymLocations>('/gym/locations'),
 
   // ── Check-in (idempotent) ──
   checkIn: (body: CheckInRequest, idempotencyKey: string) =>
@@ -72,6 +77,18 @@ export const api = {
       method: 'POST',
       body: { sets },
       idempotencyKey,
+    }),
+
+  // ── Classes (browse / book / cancel) ──
+  classes: () => request<ClassList>('/classes'),
+  bookClass: (classId: string, idempotencyKey: string) =>
+    request<ClassBookingResult>(`/classes/${classId}/book`, {
+      method: 'POST',
+      idempotencyKey,
+    }),
+  cancelClassBooking: (classId: string) =>
+    request<ClassCancelResult>(`/classes/${classId}/booking`, {
+      method: 'DELETE',
     }),
 
   // ── Progress ──
