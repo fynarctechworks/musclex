@@ -77,6 +77,10 @@ export class BiometricEnrollmentService {
           modality: input.modality,
           provider: provider.id,
         },
+        // Explicit tenant scope (Prisma extendedWhereUnique): the model is now a
+        // registered tenant model, and this makes the gym filter visible at the
+        // call site rather than relying solely on $use injection.
+        gym_id: gymId,
       },
       create: {
         gym_id: gymId,

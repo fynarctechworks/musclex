@@ -369,15 +369,18 @@ export class TransferService {
   // ── Per-branch pricing ────────────────────────────────────────
 
   async upsertBranchPrice(dto: UpsertBranchPriceDto) {
+    const gymId = getTenantGymId()!;
     const product = await this.prisma.product.findUnique({ where: { id: dto.product_id } });
     if (!product) throw new NotFoundException('Product not found');
 
     return this.prisma.branchProductPrice.upsert({
       where: {
         product_id_branch_id: { product_id: dto.product_id, branch_id: dto.branch_id },
+        // Explicit tenant scope (Prisma extendedWhereUnique) — registered tenant model.
+        gym_id: gymId,
       },
       create: {
-        gym_id: getTenantGymId()!,
+        gym_id: gymId,
         product_id: dto.product_id,
         branch_id: dto.branch_id,
         price: dto.price,

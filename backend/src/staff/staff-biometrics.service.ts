@@ -61,7 +61,8 @@ export class StaffBiometricsService {
         data: { face_descriptor: input.descriptor },
       }),
       this.prisma.$executeRaw`
-        UPDATE studio_template.staff SET face_vec = ${vecLiteral}::vector WHERE id = ${input.staff_id}::uuid
+        UPDATE studio_template.staff SET face_vec = ${vecLiteral}::vector
+        WHERE id = ${input.staff_id}::uuid AND gym_id = ${gymId}::uuid
       `,
     ]);
 
@@ -72,6 +73,8 @@ export class StaffBiometricsService {
           modality: 'face',
           provider: this.providerId,
         },
+        // Explicit tenant scope (Prisma extendedWhereUnique) — see biometric-enrollment.service.
+        gym_id: gymId,
       },
       create: {
         gym_id: gymId,
@@ -105,6 +108,9 @@ export class StaffBiometricsService {
 
   // ── Revoke ────────────────────────────────────────────────────────────────
   async revoke(enrollment_id: string, revoked_by: string) {
+    const gymId = getTenantGymId();
+    if (!gymId) throw new BadRequestException('Tenant context missing');
+
     const enrollment = await this.prisma.staffBiometricEnrollment.findUnique({
       where: { id: enrollment_id },
       select: {
@@ -126,7 +132,8 @@ export class StaffBiometricsService {
         data: { face_descriptor: [] },
       }),
       this.prisma.$executeRaw`
-        UPDATE studio_template.staff SET face_vec = NULL WHERE id = ${enrollment.staff_id}::uuid
+        UPDATE studio_template.staff SET face_vec = NULL
+        WHERE id = ${enrollment.staff_id}::uuid AND gym_id = ${gymId}::uuid
       `,
       this.prisma.staffBiometricEnrollment.update({
         where: { id: enrollment_id },
@@ -189,6 +196,8 @@ export class StaffBiometricsService {
     if (!Array.isArray(input.descriptor) || input.descriptor.length !== 128) {
       return null;
     }
+    const gymId = getTenantGymId();
+    if (!gymId) throw new BadRequestException('Tenant context missing');
     const vecLiteral = `[${input.descriptor
       .map((n) => (Number.isFinite(n) ? n : 0))
       .join(',')}]`;
@@ -204,6 +213,7 @@ export class StaffBiometricsService {
       SELECT id, full_name, (face_vec <=> ${vecLiteral}::vector)::float8 AS distance
       FROM studio_template.staff
       WHERE face_vec IS NOT NULL
+        AND gym_id = ${gymId}::uuid
         AND status = 'active'
       ORDER BY face_vec <=> ${vecLiteral}::vector
       LIMIT 1

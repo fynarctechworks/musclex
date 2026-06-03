@@ -3,43 +3,9 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { getTenantSchema, getTenantGymId } from '../common/tenant-context';
 import { createTenantExtension, TenantPrismaClient } from './tenant-prisma.extension';
 import { createBranchScopeExtension } from './branch-scope.extension';
-
-// ────────────────────────────────────────────────────────────────
-// Tenant models — must match TENANT_MODELS in tenant-prisma.extension.ts.
-// These are all models with a gym_id column. Any query against these models
-// is auto-filtered by gym_id at the $use middleware layer below.
-// ────────────────────────────────────────────────────────────────
-const TENANT_MODELS_PRISMA: ReadonlySet<string> = new Set<string>([
-  'Organization', 'OrganizationSettings', 'Region', 'Branch', 'BranchSettings',
-  'FranchiseOwner', 'BranchFranchise', 'Member', 'MemberProfile', 'MemberBodyStats',
-  'MemberProgressPhoto', 'MemberNote', 'MemberTag', 'MemberTagAssignment',
-  'MemberDocument', 'MemberReferral', 'MembershipPlan', 'MemberMembership',
-  'MembershipFreeze', 'FamilyMembership', 'FamilyMember', 'CorporateAccount',
-  'CorporateMember', 'GlobalAccessPass', 'CheckIn', 'ClassTemplate', 'StudioRoom',
-  'ClassSession', 'ClassBooking', 'ClassWaitlist', 'TrainerAssignment',
-  'ClassAttendance', 'ClassRecurringRule', 'Class', 'ClassEnrollment',
-  'Role', 'RolePermission', 'Staff', 'StaffProfile', 'StaffAvailability',
-  'StaffAttendance', 'TrainerClient', 'TrainerSession', 'PayrollConfig',
-  'TrainerRevenue', 'StaffShift', 'LeaveRequest', 'PayrollRecord',
-  'TrainerPerformanceRecord', 'AuditLog', 'Payment', 'Expense',
-  'NotificationLog', 'Campaign', 'Lead', 'LeadActivity', 'CampaignAudience',
-  'MessageTemplate', 'AutomationWorkflow', 'WorkflowAction', 'ReferralProgram',
-  'PushNotification', 'ProductCategory', 'Product', 'Inventory',
-  'InventoryTransaction', 'Supplier', 'PurchaseOrder', 'PurchaseOrderItem',
-  'PosSale', 'PosSaleItem', 'ProductReturn', 'AiConversation', 'SsoProvider',
-  'ApiKey', 'MemberInvoice', 'InvoiceItem', 'PaymentGatewayConfig', 'Refund',
-  'Discount', 'TaxRate', 'FinancialTransaction', 'PaymentRetryLog',
-  'DailyGymMetrics', 'MembershipAnalytics', 'RevenueAnalytics', 'ClassAnalytics',
-  'MemberBehaviorAnalytics', 'TrainerAnalytics', 'CampaignAnalyticsRecord',
-  'Webhook', 'WebhookDelivery', 'Integration', 'FeatureFlag', 'WhiteLabelConfig',
-  'SystemNotification', 'ConsentLog', 'DataRequest', 'BookingTransition',
-  'ProviderAvailabilitySlot', 'BookingDispute', 'ServiceProvider',
-  'ServiceCatalog', 'ServiceBooking', 'Review', 'Chat', 'ChatMessage',
-  'Notification', 'ProviderSubscription', 'DashboardMetrics', 'DomainEvent',
-  'StaffPermissionOverride', 'ExpenseCategory', 'ExpenseMetric',
-  'Exercise', 'WorkoutPlan', 'WorkoutPlanExercise', 'AssignedWorkout',
-  'WorkoutLog', 'WorkoutSetLog', 'PersonalRecord',
-]);
+// Single source of truth for gym_id models — shared with the $extends tenant
+// extension so the two layers can never drift (the drift previously leaked).
+import { TENANT_MODELS as TENANT_MODELS_PRISMA } from './tenant-models';
 
 const READ_ACTIONS = new Set([
   'findMany', 'findFirst', 'findFirstOrThrow', 'count', 'aggregate', 'groupBy',
