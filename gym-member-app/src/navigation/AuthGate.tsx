@@ -7,12 +7,14 @@ import { usePrefs } from '../auth/prefs-store';
 /**
  * Declarative auth/onboarding routing. Watches the active segment group and the
  * auth + onboarding state, redirecting to the right place:
- *   unauthenticated         → (auth) flow
- *   authenticated, !onboarded → goal screen
- *   authenticated, onboarded  → (app) tabs
+ *   unauthenticated              → (auth) flow
+ *   authenticated, !introSeen    → animated intro
+ *   authenticated, !onboarded    → goal screen
+ *   authenticated, onboarded     → (app) tabs
  */
 export function AuthGate({ children }: { children: ReactNode }) {
   const status = useAuth((s) => s.status);
+  const introSeen = usePrefs((s) => s.introSeen);
   const onboarded = usePrefs((s) => s.onboarded);
   const segments = useSegments();
   const router = useRouter();
@@ -30,14 +32,20 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
     // authenticated
     if (!onboarded) {
-      // Allow the goal screen itself; otherwise route to it.
+      const onIntro = segments.some((s) => s === 'onboarding');
       const onGoal = segments.some((s) => s === 'goal');
-      if (!onGoal) router.replace('/goal');
+      // First-run: the animated intro precedes the goal step.
+      if (!introSeen) {
+        if (!onIntro) router.replace('/onboarding/intro');
+        return;
+      }
+      // Intro done but goal not set yet — allow intro/goal, else route to goal.
+      if (!onGoal && !onIntro) router.replace('/goal');
       return;
     }
 
     if (inAuth) router.replace('/home');
-  }, [status, onboarded, segments, router]);
+  }, [status, introSeen, onboarded, segments, router]);
 
   return <View style={{ flex: 1 }}>{children}</View>;
 }

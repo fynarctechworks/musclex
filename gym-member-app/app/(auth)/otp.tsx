@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button, Input, Screen, Txt } from '../../src/design-system';
+import { BackButton } from '../../src/navigation/BackButton';
 import { useAuth } from '../../src/auth/auth-store';
 
 export default function OtpScreen() {
@@ -32,11 +33,12 @@ export default function OtpScreen() {
 
   return (
     <Screen edges={['top', 'bottom']}>
-      <View className="flex-1 justify-between pt-2xl pb-md">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="flex-1 justify-between pt-2xl pb-md"
+      >
         <View>
-          <Pressable onPress={() => router.back()} hitSlop={12} className="mb-lg">
-            <Txt variant="body-sm" className="text-body">{'←  Back'}</Txt>
-          </Pressable>
+          <BackButton />
           <Txt variant="display-lg" weight="600" className="text-ink">
             Enter the code
           </Txt>
@@ -75,7 +77,7 @@ export default function OtpScreen() {
           disabled={code.length < 4}
           onPress={onVerify}
         />
-      </View>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }

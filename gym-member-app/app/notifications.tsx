@@ -1,73 +1,109 @@
 import { useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Button, Card, Icon, Screen, Txt, colors } from '../src/design-system';
-import { enablePush } from '../src/features/notifications/push';
+import { Alert, Switch, View } from 'react-native';
+import { Card, ListRow, Screen, Txt, colors } from '../src/design-system';
+import { BackButton } from '../src/navigation/BackButton';
+import { usePrefs } from '../src/auth/prefs-store';
+import {
+  enablePush,
+  disablePush,
+  syncPushPrefs,
+  NOTIFICATION_CATEGORIES,
+  defaultNotificationPrefs,
+} from '../src/features/notifications/push';
 
 export default function NotificationsScreen() {
-  const router = useRouter();
-  const [enabling, setEnabling] = useState(false);
-  const [enabled, setEnabled] = useState(false);
+  const pushEnabled = usePrefs((s) => s.pushEnabled);
+  const notificationPrefs = usePrefs((s) => s.notificationPrefs);
+  const setPush = usePrefs((s) => s.setPush);
+  const [busy, setBusy] = useState(false);
 
-  async function onEnable() {
-    setEnabling(true);
-    const result = await enablePush();
-    setEnabling(false);
-    if (result === 'granted') {
-      setEnabled(true);
-    } else if (result === 'denied') {
-      Alert.alert('Permission needed', 'Enable notifications in your device settings.');
-    } else {
-      Alert.alert('Could not enable', 'Please try again.');
+  // Effective prefs: stored, or all-on the first time.
+  const prefs =
+    Object.keys(notificationPrefs).length > 0 ? notificationPrefs : defaultNotificationPrefs();
+
+  async function onToggleMaster(value: boolean) {
+    setBusy(true);
+    try {
+      if (value) {
+        const res = await enablePush(prefs);
+        if (res === 'granted') {
+          await setPush(true, prefs);
+        } else if (res === 'denied') {
+          Alert.alert('Permission needed', 'Enable notifications in your device settings.');
+        } else {
+          Alert.alert('Could not enable', 'Please try again.');
+        }
+      } else {
+        await disablePush();
+        await setPush(false);
+      }
+    } finally {
+      setBusy(false);
     }
+  }
+
+  async function onToggleCategory(key: string, value: boolean) {
+    const next = { ...prefs, [key]: value };
+    await setPush(true, next);
+    await syncPushPrefs(next);
   }
 
   return (
     <Screen scroll>
       <View className="pt-md">
-        <Pressable onPress={() => router.back()} hitSlop={12} className="mb-lg">
-          <Txt variant="body-sm" className="text-body">{'←  Back'}</Txt>
-        </Pressable>
+        <BackButton />
         <Txt variant="display-lg" weight="600" className="text-ink">
           Notifications
         </Txt>
 
-        {!enabled ? (
-          <Card elevated className="mt-md">
-            <Txt variant="body-lg" weight="600" className="text-ink">
-              Stay in the loop
-            </Txt>
-            <Txt variant="body-sm" className="mt-xs text-body">
-              Get reminders for class bookings, membership expiry, streak nudges
-              and trainer messages.
-            </Txt>
-            <View className="mt-md">
-              <Button title="Enable push notifications" loading={enabling} onPress={onEnable} />
-            </View>
-          </Card>
-        ) : (
-          <Card soft className="mt-md">
-            <View className="flex-row items-center gap-sm">
-              <Icon name="check" color={colors.successFg} size={20} />
-              <Txt variant="body-md" weight="500" className="text-ink">
-                Push notifications enabled
+        <Card elevated className="mt-md">
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1 pr-md">
+              <Txt variant="body-lg" weight="600" className="text-ink">
+                Push notifications
+              </Txt>
+              <Txt variant="body-sm" className="mt-xxs text-body">
+                Reminders for classes, meals, streaks, trainer messages and more.
               </Txt>
             </View>
-          </Card>
-        )}
-
-        {/* Empty feed — Phase 1 has no in-app notification history yet. */}
-        <View className="mt-2xl items-center py-2xl">
-          <View className="h-[64px] w-[64px] items-center justify-center rounded-full bg-surface">
-            <Icon name="bell" color={colors.mute} size={28} />
+            <Switch
+              value={pushEnabled}
+              onValueChange={onToggleMaster}
+              disabled={busy}
+              trackColor={{ true: colors.primary, false: colors.surface2 }}
+            />
           </View>
-          <Txt variant="body-md" weight="500" className="mt-md text-ink">
-            {'You’re all caught up'}
-          </Txt>
-          <Txt variant="body-sm" className="mt-xxs text-center text-mute">
-            New alerts will show up here.
-          </Txt>
-        </View>
+        </Card>
+
+        {pushEnabled ? (
+          <>
+            <Txt variant="caption" className="mb-sm mt-lg text-mute">
+              WHAT TO NOTIFY ME ABOUT
+            </Txt>
+            <Card noPadding>
+              {NOTIFICATION_CATEGORIES.map((c, i) => (
+                <ListRow
+                  key={c.key}
+                  label={c.label}
+                  last={i === NOTIFICATION_CATEGORIES.length - 1}
+                  right={
+                    <Switch
+                      value={prefs[c.key] !== false}
+                      onValueChange={(v) => onToggleCategory(c.key, v)}
+                      trackColor={{ true: colors.primary, false: colors.surface2 }}
+                    />
+                  }
+                />
+              ))}
+            </Card>
+          </>
+        ) : null}
+
+        <Txt variant="body-sm" className="mt-2xl text-center text-mute">
+          {pushEnabled
+            ? "You're all set — we'll only send what you've turned on."
+            : 'Turn on push to get timely nudges that keep your streak alive.'}
+        </Txt>
       </View>
     </Screen>
   );

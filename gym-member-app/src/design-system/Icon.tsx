@@ -18,19 +18,23 @@ export type IconName =
   | 'camera'
   | 'alert'
   | 'pin'
-  | 'phone';
+  | 'phone'
+  | 'heart';
 
 export function Icon({
   name,
   size = 24,
   color = colors.body,
   strokeWidth = 1.75,
+  filled = false,
 }: {
   name: IconName;
   size?: number;
   // Accept ColorValue so it can take react-navigation's tabBarIcon `color`.
   color?: ColorValue;
   strokeWidth?: number;
+  /** Fill the shape with `color` (used by `heart` for the favorited state). */
+  filled?: boolean;
 }) {
   const common = {
     stroke: color as string,
@@ -129,6 +133,16 @@ export function Icon({
         <Path
           d="M5 4h3l2 5-2.5 1.5a11 11 0 0 0 5 5L16 13l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"
           {...common}
+        />
+      )}
+      {name === 'heart' && (
+        <Path
+          d="M12 20s-7-4.35-9.33-8.64C1.4 9.27 2.36 6 5.5 6c1.94 0 3.2 1.2 4 2.3.8-1.1 2.06-2.3 4-2.3 3.14 0 4.1 3.27 2.83 5.36C19 15.65 12 20 12 20Z"
+          stroke={color as string}
+          strokeWidth={strokeWidth}
+          fill={filled ? (color as string) : 'none'}
+          strokeLinejoin="round"
+          strokeLinecap="round"
         />
       )}
       {name === 'alert' && (

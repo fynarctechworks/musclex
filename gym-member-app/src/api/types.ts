@@ -131,9 +131,22 @@ export interface HomeDashboard {
     daysLeft?: number;
   };
   streak?: { days?: number };
+  /** Today's ritual status — which streak-qualifying actions are already done today. */
+  today?: {
+    checkedIn?: boolean;
+    workoutLogged?: boolean;
+    mealLogged?: boolean;
+    streakAtRisk?: boolean;
+  };
   todayWorkout?: WorkoutSummary | null;
   nextClass?: ClassSummary | null;
   occupancy?: Occupancy;
+  nutrition?: {
+    kcal?: number;
+    kcalGoal?: number;
+    waterMl?: number;
+    waterGoal?: number;
+  };
 }
 
 // ── Gym locations (branch finder) ─────────────────────────────────
@@ -260,4 +273,310 @@ export interface UploadTarget {
   photoId?: string;
   uploadUrl?: string;
   expiresIn?: number;
+}
+
+// ── Nutrition (V2.1) ──────────────────────────────────────────────
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+export interface NutritionTotals {
+  kcal?: number;
+  proteinG?: number;
+  carbsG?: number;
+  fatG?: number;
+}
+
+export interface NutritionGoal {
+  kcal?: number;
+  proteinG?: number;
+  carbsG?: number;
+  fatG?: number;
+  waterMl?: number;
+}
+
+export interface FoodItem {
+  id?: string;
+  name?: string;
+  brand?: string | null;
+  barcode?: string | null;
+  servingSize?: number;
+  servingUnit?: string;
+  kcal?: number;
+  proteinG?: number;
+  carbsG?: number;
+  fatG?: number;
+  source?: 'custom' | 'catalog' | 'barcode';
+}
+
+export interface FoodSearch {
+  foods?: FoodItem[];
+}
+
+export interface NutritionMealItem {
+  id?: string;
+  foodItemId?: string | null;
+  name?: string;
+  quantity?: number;
+  unit?: string;
+  kcal?: number;
+  proteinG?: number;
+  carbsG?: number;
+  fatG?: number;
+}
+
+export interface NutritionMeal {
+  id?: string;
+  mealType?: MealType;
+  loggedAt?: string;
+  notes?: string | null;
+  totals?: NutritionTotals;
+  items?: NutritionMealItem[];
+}
+
+export interface NutritionDay {
+  date?: string;
+  goal?: NutritionGoal;
+  totals?: NutritionTotals;
+  waterMl?: number;
+  meals?: NutritionMeal[];
+}
+
+export interface MealLogItemInput {
+  foodItemId?: string | null;
+  name: string;
+  quantity?: number;
+  unit?: string;
+  kcal?: number;
+  proteinG?: number;
+  carbsG?: number;
+  fatG?: number;
+}
+
+export interface MealLogInput {
+  mealType: MealType;
+  loggedAt?: string;
+  notes?: string;
+  items: MealLogItemInput[];
+}
+
+export interface MealLogResult {
+  mealId?: string;
+}
+
+export interface WaterLogInput {
+  amountMl: number;
+  loggedAt?: string;
+}
+
+export interface WaterLogResult {
+  waterId?: string;
+  totalMl?: number;
+}
+
+export interface NutritionGoalInput {
+  kcal?: number;
+  proteinG?: number;
+  carbsG?: number;
+  fatG?: number;
+  waterMl?: number;
+}
+
+// ── Exercise library (V2.2) ───────────────────────────────────────
+export interface ExerciseListItem {
+  id?: string;
+  name?: string;
+  muscleGroup?: string | null;
+  equipment?: string | null;
+  mediaUrl?: string | null;
+  hasInstructions?: boolean;
+  favorited?: boolean;
+}
+
+export interface ExerciseList {
+  exercises?: ExerciseListItem[];
+}
+
+export interface ExerciseDetail {
+  id?: string;
+  name?: string;
+  muscleGroup?: string | null;
+  equipment?: string | null;
+  mediaUrl?: string | null;
+  instructions?: string | null;
+  favorited?: boolean;
+}
+
+export interface FavoriteResult {
+  favorited?: boolean;
+}
+
+// ── Trainer chat (V2.3) ───────────────────────────────────────────
+export interface ChatThread {
+  trainerId?: string;
+  trainerName?: string;
+  trainerAvatarUrl?: string | null;
+  lastMessage?: string | null;
+  lastMessageAt?: string | null;
+  unreadCount?: number;
+}
+
+export interface ChatThreadList {
+  threads?: ChatThread[];
+}
+
+export interface ChatMessage {
+  id?: string;
+  sender?: 'member' | 'trainer';
+  body?: string;
+  createdAt?: string;
+}
+
+export interface ChatMessageList {
+  trainerId?: string;
+  trainerName?: string;
+  messages?: ChatMessage[];
+}
+
+export interface SendMessageInput {
+  body: string;
+}
+
+// ── Health Data Platform (wearable telemetry) ─────────────────────
+export type HealthMetricType =
+  | 'steps'
+  | 'calories_active'
+  | 'calories_resting'
+  | 'distance_m'
+  | 'active_minutes'
+  | 'heart_rate'
+  | 'hr_resting'
+  | 'hrv'
+  | 'sleep_duration'
+  | 'sleep_deep'
+  | 'sleep_rem'
+  | 'spo2'
+  | 'stress'
+  | 'body_weight'
+  | 'body_fat'
+  | 'vo2max'
+  | 'respiratory_rate'
+  | 'mood';
+
+export type HealthSource =
+  | 'apple_health'
+  | 'health_connect'
+  | 'fitbit'
+  | 'garmin'
+  | 'scale'
+  | 'manual';
+
+export type WearableProvider = Exclude<HealthSource, 'manual'>;
+
+export interface HealthSampleInput {
+  type: HealthMetricType;
+  value: number;
+  unit: string;
+  startAt: string;
+  endAt: string;
+  source: HealthSource;
+  sourceUuid: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface HealthSampleBatchInput {
+  samples: HealthSampleInput[];
+}
+
+export interface HealthIngestResult {
+  accepted?: number;
+  duplicates?: number;
+  daysAffected?: number;
+}
+
+export interface HealthDailyPoint {
+  day?: string;
+  total?: number;
+  min?: number | null;
+  max?: number | null;
+  avg?: number | null;
+  sampleCount?: number;
+}
+
+export interface HealthMetricSeries {
+  type?: HealthMetricType;
+  unit?: string;
+  points?: HealthDailyPoint[];
+}
+
+export interface HealthSummary {
+  from?: string;
+  to?: string;
+  metrics?: HealthMetricSeries[];
+}
+
+export interface WearableConnection {
+  provider?: WearableProvider;
+  status?: 'connected' | 'revoked';
+  consentedAt?: string;
+  lastSyncedAt?: string | null;
+}
+
+export interface WearableConnectionList {
+  connections?: WearableConnection[];
+}
+
+export interface WearableConnectInput {
+  provider: WearableProvider;
+  externalUserId?: string | null;
+  scopes?: string[];
+}
+
+// ── Community (V2.5) ──────────────────────────────────────────────
+export interface LeaderboardEntry {
+  rank?: number;
+  name?: string;
+  value?: number;
+  isMe?: boolean;
+}
+
+export interface Leaderboard {
+  metric?: string;
+  periodDays?: number;
+  entries?: LeaderboardEntry[];
+  myRank?: number | null;
+  myValue?: number;
+}
+
+export interface ChallengeItem {
+  id?: string;
+  title?: string;
+  description?: string | null;
+  metric?: 'checkins' | 'workouts';
+  goal?: number;
+  startsAt?: string;
+  endsAt?: string;
+  joined?: boolean;
+  progress?: number;
+  completed?: boolean;
+  participantCount?: number;
+}
+
+export interface ChallengeList {
+  challenges?: ChallengeItem[];
+}
+
+export interface ChallengeJoinResult {
+  joined?: boolean;
+  progress?: number;
+}
+
+export interface CommunityBadge {
+  key?: string;
+  label?: string;
+  description?: string;
+  earned?: boolean;
+}
+
+export interface BadgeList {
+  badges?: CommunityBadge[];
+  earnedCount?: number;
 }

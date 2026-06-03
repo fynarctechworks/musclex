@@ -34,9 +34,11 @@ export function formatMoney(amount?: number, currency = 'INR'): string {
 export function relativeFromNow(iso?: string | null): string {
   if (!iso) return '';
   const diffMs = new Date(iso).getTime() - Date.now();
-  const mins = Math.round(diffMs / 60000);
-  if (Math.abs(mins) < 60) return mins <= 0 ? 'now' : `in ${mins} min`;
+  const past = diffMs < 0;
+  const mins = Math.round(Math.abs(diffMs) / 60000);
+  if (mins < 1) return 'now';
+  if (mins < 60) return past ? `${mins} min ago` : `in ${mins} min`;
   const hrs = Math.round(mins / 60);
-  if (Math.abs(hrs) < 24) return `in ${hrs}h`;
+  if (hrs < 24) return past ? `${hrs}h ago` : `in ${hrs}h`;
   return formatDate(iso);
 }

@@ -17,13 +17,45 @@ import { useAuth } from '../src/auth/auth-store';
 import { usePrefs } from '../src/auth/prefs-store';
 import { AuthGate } from '../src/navigation/AuthGate';
 import { colors } from '../src/design-system';
+import { useNotificationObservers } from '../src/features/notifications/setup';
+import { syncPushPrefs } from '../src/features/notifications/push';
+import { initMonitoring } from '../src/monitoring';
+import { identify, track } from '../src/analytics';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const hydrateAuth = useAuth((s) => s.hydrate);
   const hydratePrefs = usePrefs((s) => s.hydrate);
+  const authStatus = useAuth((s) => s.status);
+  const memberId = useAuth((s) => s.profile?.id ?? null);
+  const pushEnabled = usePrefs((s) => s.pushEnabled);
+  const notificationPrefs = usePrefs((s) => s.notificationPrefs);
   const [hydrated, setHydrated] = useState(false);
+
+  // Notification tap → deep link, badge clear.
+  useNotificationObservers();
+
+  // Analytics/monitoring: attach the real sink (no-op without a key) once, then
+  // identify the member + log the session open.
+  useEffect(() => {
+    initMonitoring();
+  }, []);
+  useEffect(() => {
+    if (authStatus === 'authenticated') {
+      identify(memberId);
+      track({ name: 'app_opened' });
+    } else if (authStatus === 'unauthenticated') {
+      identify(null);
+    }
+  }, [authStatus, memberId]);
+
+  // Refresh the device token + prefs on each authenticated launch (tokens rotate).
+  useEffect(() => {
+    if (authStatus === 'authenticated' && pushEnabled) {
+      void syncPushPrefs(notificationPrefs);
+    }
+  }, [authStatus, pushEnabled, notificationPrefs]);
 
   // Bundle the Geist-substitute fonts. `fontError` still lets us proceed (System
   // fallback) rather than hang the splash forever if a font file fails to load.
@@ -64,11 +96,20 @@ export default function RootLayout() {
               <Stack.Screen name="index" />
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="(app)" />
+              <Stack.Screen name="onboarding/intro" options={{ animation: 'fade' }} />
+              <Stack.Screen name="activity/index" options={{ presentation: 'card' }} />
+              <Stack.Screen name="settings/goals" options={{ presentation: 'card' }} />
+              <Stack.Screen name="mindfulness/index" options={{ presentation: 'card' }} />
               <Stack.Screen
                 name="checkin"
                 options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
               />
               <Stack.Screen name="membership" options={{ presentation: 'card' }} />
+              <Stack.Screen name="nutrition" options={{ presentation: 'card' }} />
+              <Stack.Screen name="exercises" options={{ presentation: 'card' }} />
+              <Stack.Screen name="exercise/[id]" options={{ presentation: 'card' }} />
+              <Stack.Screen name="messages" options={{ presentation: 'card' }} />
+              <Stack.Screen name="chat/[trainerId]" options={{ presentation: 'card' }} />
               <Stack.Screen name="profile" options={{ presentation: 'card' }} />
               <Stack.Screen name="locations" options={{ presentation: 'card' }} />
               <Stack.Screen name="notifications" options={{ presentation: 'card' }} />

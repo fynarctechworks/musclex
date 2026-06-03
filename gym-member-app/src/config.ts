@@ -18,7 +18,13 @@ export const config = {
   supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra.supabaseUrl ?? '',
   supabaseAnonKey:
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? extra.supabaseAnonKey ?? '',
+
+  // Analytics/monitoring (PostHog). Empty key → analytics is a no-op (dev console).
+  posthogKey: process.env.EXPO_PUBLIC_POSTHOG_KEY ?? '',
+  posthogHost: process.env.EXPO_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com',
 };
 
 export const isSupabaseConfigured = () =>
   !!config.supabaseUrl && !!config.supabaseAnonKey;
+
+export const isAnalyticsConfigured = () => !!config.posthogKey;

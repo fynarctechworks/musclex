@@ -1,5 +1,4 @@
-import { Alert, Pressable, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Alert, View } from 'react-native';
 import {
   Badge,
   Button,
@@ -11,6 +10,7 @@ import {
   Txt,
   colors,
 } from '../src/design-system';
+import { BackButton } from '../src/navigation/BackButton';
 import { useMembership, useRenew } from '../src/api/queries';
 import { formatDate, formatMoney } from '../src/lib/format';
 import type { MembershipStatus } from '../src/api/types';
@@ -25,7 +25,6 @@ const STATUS_TONE: Record<MembershipStatus, 'success' | 'warning' | 'error'> = {
 const DAY = 86_400_000;
 
 export default function MembershipScreen() {
-  const router = useRouter();
   const { data, isLoading, isError, refetch, isRefetching } = useMembership();
   const renew = useRenew();
 
@@ -67,9 +66,7 @@ export default function MembershipScreen() {
   return (
     <Screen scroll onRefresh={refetch} refreshing={isRefetching}>
       <View className="pt-md">
-        <Pressable onPress={() => router.back()} hitSlop={12} className="mb-lg">
-          <Txt variant="body-sm" className="text-body">{'←  Back'}</Txt>
-        </Pressable>
+        <BackButton />
 
         <Txt variant="display-lg" weight="600" className="text-ink">
           Membership

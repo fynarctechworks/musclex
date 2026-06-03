@@ -1,14 +1,54 @@
+import { useEffect } from 'react';
 import { View } from 'react-native';
-import { EmptyState, MeshGradient, Screen, Txt } from '../../src/design-system';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Icon,
+  MeshGradient,
+  Screen,
+  SkeletonCard,
+  Txt,
+  colors,
+} from '../../src/design-system';
+import {
+  useLeaderboard,
+  useCommunityChallenges,
+  useBadges,
+  useJoinChallenge,
+} from '../../src/api/queries';
+import { track } from '../../src/analytics';
+import type { ChallengeItem, LeaderboardEntry, CommunityBadge } from '../../src/api/types';
 
 /**
- * Community tab (BLUEPRINT.md Module 12 — Community). Scaffold: the feed,
- * challenges, leaderboards, badges and referral rewards are V2 work. The header +
- * designed empty state hold the IA slot so the five-tab nav is complete now.
+ * Community tab (BLUEPRINT.md Module 12 / V2.5). Everything here is REAL: the
+ * leaderboard ranks live gym check-ins, challenge progress is computed from the
+ * member's real activity, and badges are earned from real stats. No fake feeds.
  */
 export default function CommunityScreen() {
+  const challenges = useCommunityChallenges();
+  const leaderboard = useLeaderboard(30);
+  const badges = useBadges();
+  const join = useJoinChallenge();
+
+  useEffect(() => {
+    track({ name: 'community_viewed' });
+  }, []);
+
+  const loading = challenges.isLoading && leaderboard.isLoading && badges.isLoading;
+
   return (
-    <Screen scroll padded={false}>
+    <Screen
+      scroll
+      padded={false}
+      onRefresh={() => {
+        challenges.refetch();
+        leaderboard.refetch();
+        badges.refetch();
+      }}
+      refreshing={challenges.isRefetching}
+    >
       <View className="overflow-hidden px-md pb-lg pt-md">
         <MeshGradient opacity={0.5} />
         <Txt variant="mono" className="text-ink/70">
@@ -19,13 +59,218 @@ export default function CommunityScreen() {
         </Txt>
       </View>
 
-      <View className="px-md">
-        <EmptyState
-          icon="users"
-          title="Community is coming soon"
-          message="Challenges, leaderboards, badges and referral rewards to keep you motivated alongside your gym — arriving in a future release."
-        />
+      <View className="gap-lg px-md">
+        {loading ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : (
+          <>
+            {/* ── Challenges ── */}
+            <View className="gap-sm">
+              <Txt variant="caption" className="text-mute">
+                CHALLENGES
+              </Txt>
+              {(challenges.data?.challenges ?? []).length === 0 ? (
+                <Card>
+                  <EmptyState
+                    compact
+                    icon="flame"
+                    title="No active challenges"
+                    message="When your gym launches a challenge, you'll be able to join it here."
+                  />
+                </Card>
+              ) : (
+                challenges.data!.challenges!.map((c) => (
+                  <ChallengeCard
+                    key={c.id}
+                    challenge={c}
+                    pending={join.isPending && join.variables === c.id}
+                    onJoin={() => {
+                      if (c.id) {
+                        join.mutate(c.id);
+                        track({ name: 'challenge_joined', challengeId: c.id });
+                      }
+                    }}
+                  />
+                ))
+              )}
+            </View>
+
+            {/* ── Leaderboard ── */}
+            <View className="gap-sm">
+              <View className="flex-row items-center justify-between">
+                <Txt variant="caption" className="text-mute">
+                  ATTENDANCE LEADERBOARD
+                </Txt>
+                <Txt variant="caption" className="text-mute">
+                  LAST 30 DAYS
+                </Txt>
+              </View>
+              {(leaderboard.data?.entries ?? []).length === 0 ? (
+                <Card>
+                  <EmptyState
+                    compact
+                    icon="users"
+                    title="No check-ins yet"
+                    message="Check in at the gym to climb the leaderboard."
+                  />
+                </Card>
+              ) : (
+                <Card noPadding>
+                  {leaderboard.data!.entries!.map((e, i) => (
+                    <LeaderRow
+                      key={`${e.rank}-${e.name}-${i}`}
+                      entry={e}
+                      last={i === leaderboard.data!.entries!.length - 1}
+                    />
+                  ))}
+                </Card>
+              )}
+              {leaderboard.data?.myRank ? (
+                <Txt variant="body-sm" className="text-body">
+                  {`You're #${leaderboard.data.myRank} with ${leaderboard.data.myValue} check-in${
+                    leaderboard.data.myValue === 1 ? '' : 's'
+                  }.`}
+                </Txt>
+              ) : null}
+            </View>
+
+            {/* ── Badges ── */}
+            <View className="gap-sm">
+              <View className="flex-row items-center justify-between">
+                <Txt variant="caption" className="text-mute">
+                  BADGES
+                </Txt>
+                <Txt variant="caption" className="text-mute">
+                  {badges.data?.earnedCount ?? 0}/{badges.data?.badges?.length ?? 0}
+                </Txt>
+              </View>
+              <View className="flex-row flex-wrap gap-sm">
+                {(badges.data?.badges ?? []).map((b) => (
+                  <BadgeTile key={b.key} badge={b} />
+                ))}
+              </View>
+            </View>
+          </>
+        )}
+
+        <View className="h-2xl" />
       </View>
     </Screen>
+  );
+}
+
+function ChallengeCard({
+  challenge: c,
+  pending,
+  onJoin,
+}: {
+  challenge: ChallengeItem;
+  pending: boolean;
+  onJoin: () => void;
+}) {
+  const goal = c.goal ?? 0;
+  const progress = c.progress ?? 0;
+  const ratio = goal > 0 ? Math.min(1, progress / goal) : 0;
+  return (
+    <Card elevated>
+      <View className="flex-row items-start justify-between">
+        <View className="flex-1 pr-md">
+          <Txt variant="body-lg" weight="600" className="text-ink">
+            {c.title}
+          </Txt>
+          {c.description ? (
+            <Txt variant="body-sm" className="mt-xxs text-body">
+              {c.description}
+            </Txt>
+          ) : null}
+        </View>
+        {c.completed ? (
+          <Badge label="DONE" tone="success" />
+        ) : c.joined ? (
+          <Badge label="JOINED" tone="neutral" />
+        ) : null}
+      </View>
+
+      {c.joined ? (
+        <View className="mt-md">
+          <View className="flex-row items-center justify-between">
+            <Txt variant="caption" className="text-mute">
+              {progress}/{goal} {c.metric === 'workouts' ? 'workouts' : 'check-ins'}
+            </Txt>
+            <Txt variant="caption" className="text-mute">
+              {Math.round(ratio * 100)}%
+            </Txt>
+          </View>
+          <View className="mt-xs h-[6px] overflow-hidden rounded-full bg-surface-2">
+            <View
+              style={{
+                width: `${ratio * 100}%`,
+                height: '100%',
+                backgroundColor: c.completed ? colors.successFg : colors.cyan,
+              }}
+            />
+          </View>
+        </View>
+      ) : (
+        <View className="mt-md flex-row items-center justify-between">
+          <Txt variant="caption" className="text-mute">
+            {c.participantCount ?? 0} joined · goal {goal}
+          </Txt>
+          <Button title="Join" size="sm" loading={pending} onPress={onJoin} />
+        </View>
+      )}
+    </Card>
+  );
+}
+
+function LeaderRow({ entry, last }: { entry: LeaderboardEntry; last: boolean }) {
+  return (
+    <View
+      className={`flex-row items-center justify-between px-md py-sm ${
+        last ? '' : 'border-b border-hairline'
+      } ${entry.isMe ? 'bg-surface-2' : ''}`}
+    >
+      <View className="flex-row items-center gap-md">
+        <Txt
+          variant="body-md"
+          weight="600"
+          className={entry.rank && entry.rank <= 3 ? 'text-ink' : 'text-mute'}
+          style={{ width: 28 }}
+        >
+          {entry.rank}
+        </Txt>
+        <Txt variant="body-md" weight={entry.isMe ? '600' : '400'} className="text-ink">
+          {entry.name}
+          {entry.isMe ? ' (you)' : ''}
+        </Txt>
+      </View>
+      <Txt variant="body-sm" weight="500" className="text-body">
+        {entry.value}
+      </Txt>
+    </View>
+  );
+}
+
+function BadgeTile({ badge }: { badge: CommunityBadge }) {
+  const earned = !!badge.earned;
+  return (
+    <View className="items-center" style={{ width: '22%' }}>
+      <View
+        className="aspect-square w-full items-center justify-center rounded-xl border"
+        style={{
+          backgroundColor: earned ? colors.accentSoft : colors.surface,
+          borderColor: earned ? colors.cyan : colors.hairline,
+          opacity: earned ? 1 : 0.5,
+        }}
+      >
+        <Icon name={earned ? 'check' : 'flame'} color={earned ? colors.cyan : colors.mute} size={22} />
+      </View>
+      <Txt variant="caption" className="mt-xxs text-center text-mute" numberOfLines={2}>
+        {badge.label}
+      </Txt>
+    </View>
   );
 }

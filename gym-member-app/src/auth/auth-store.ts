@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { api } from '../api/endpoints';
 import { sessionBridge } from '../api/session-bridge';
+import { queryClient } from '../lib/query-client';
+import { closeChatSocket } from '../realtime/chat-socket';
 import type { MemberProfile, TenantChoice, TokenPair } from '../api/types';
 import { clearSession, loadSession, saveSession } from './secure-store';
 import { sendPhoneOtp, verifyPhoneOtp } from './supabase';
@@ -112,8 +114,12 @@ export const useAuth = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     sessionBridge.setTokens(null);
+    closeChatSocket();
     await clearSession();
     pendingSupabaseToken = null;
+    // Drop all cached member data so it can't leak to the next account signing in
+    // on the same device (multi-tenant safety).
+    queryClient.clear();
     set({
       status: 'unauthenticated',
       profile: null,

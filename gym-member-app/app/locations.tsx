@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { Linking, Platform, Pressable, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import {
   Badge,
   Button,
@@ -13,6 +12,7 @@ import {
   Txt,
   colors,
 } from '../src/design-system';
+import { BackButton } from '../src/navigation/BackButton';
 import { useLocations } from '../src/api/queries';
 import { useDeviceLocation } from '../src/features/locations/use-device-location';
 import { formatDistance, haversineKm } from '../src/lib/geo';
@@ -154,7 +154,6 @@ function LocationBanner({
 }
 
 export default function LocationsScreen() {
-  const router = useRouter();
   const { data, isLoading, isError, refetch, isRefetching } = useLocations();
   const { coords, status, request } = useDeviceLocation();
 
@@ -182,9 +181,7 @@ export default function LocationsScreen() {
   return (
     <Screen scroll onRefresh={refetch} refreshing={isRefetching}>
       <View className="pt-md">
-        <Pressable onPress={() => router.back()} hitSlop={12} className="mb-lg">
-          <Txt variant="body-sm" className="text-body">{'←  Back'}</Txt>
-        </Pressable>
+        <BackButton />
 
         <Txt variant="display-lg" weight="600" className="text-ink">
           Locations

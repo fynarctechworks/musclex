@@ -62,8 +62,8 @@ export function WeightChart({
         </Defs>
         <Path d={area} fill="url(#wfill)" />
         <Path d={line} stroke={colors.cyan} strokeWidth={2.5} fill="none" />
-        {points.map((p) => (
-          <Circle key={p.t} cx={x(p.t)} cy={y(p.v)} r={2.5} fill={colors.cyan} />
+        {points.map((p, i) => (
+          <Circle key={`${p.t}-${i}`} cx={x(p.t)} cy={y(p.v)} r={2.5} fill={colors.cyan} />
         ))}
         <Circle cx={x(last.t)} cy={y(last.v)} r={5} fill={colors.ink} />
       </Svg>

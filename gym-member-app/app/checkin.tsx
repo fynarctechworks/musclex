@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -24,6 +25,7 @@ const SCAN = 240; // reticle size
 export default function CheckInScreen() {
   const router = useRouter();
   const qc = useQueryClient();
+  const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const [phase, setPhase] = useState<Phase>('scan');
   const [streak, setStreak] = useState<number | null>(null);
@@ -31,8 +33,25 @@ export default function CheckInScreen() {
   const [torch, setTorch] = useState(false);
   const locked = useRef(false);
   const scanY = useRef(new Animated.Value(0)).current;
+  const pop = useRef(new Animated.Value(0)).current;
 
   const close = () => router.back();
+
+  // Celebratory pop when the result lands — the check-in is the daily emotional
+  // peak, so we give it a spring-in + (on a milestone streak) an extra haptic.
+  const isMilestone = streak != null && [3, 7, 14, 30, 50, 100].includes(streak);
+  useEffect(() => {
+    if (phase !== 'success' && phase !== 'queued') return;
+    pop.setValue(0);
+    Animated.spring(pop, { toValue: 1, friction: 6, tension: 90, useNativeDriver: true }).start();
+    if (phase === 'success' && isMilestone) {
+      const t = setTimeout(
+        () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}),
+        220,
+      );
+      return () => clearTimeout(t);
+    }
+  }, [phase, isMilestone, pop]);
 
   // Animated scan line — runs only while actively scanning.
   useEffect(() => {
@@ -82,6 +101,10 @@ export default function CheckInScreen() {
       <Screen padded={false} edges={['top', 'bottom']}>
         <View className="flex-1 items-center justify-center overflow-hidden px-lg">
           <MeshGradient opacity={0.6} />
+          <Animated.View
+            className="items-center"
+            style={{ opacity: pop, transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) }] }}
+          >
           {hasStreak ? (
             <ProgressRing
               progress={Math.min(streak as number, 7) / 7}
@@ -103,6 +126,13 @@ export default function CheckInScreen() {
               <Icon name="check" color={colors.onPrimary} size={44} />
             </View>
           )}
+          {phase === 'success' && isMilestone ? (
+            <View className="mt-md rounded-full bg-primary px-md py-xs">
+              <Txt variant="caption" weight="600" className="text-onPrimary">
+                {`${streak}-DAY MILESTONE 🔥`}
+              </Txt>
+            </View>
+          ) : null}
           <Txt variant="display-lg" weight="600" className="mt-lg text-center text-ink">
             {phase === 'success' ? "You're in." : 'Saved offline'}
           </Txt>
@@ -113,6 +143,7 @@ export default function CheckInScreen() {
                 : 'Have a great session.'
               : "We'll log this the moment you're back online."}
           </Txt>
+          </Animated.View>
           <View className="absolute inset-x-lg bottom-2xl">
             <Button title="Done" fullWidth onPress={close} />
           </View>
@@ -150,8 +181,14 @@ export default function CheckInScreen() {
     );
   }
 
+  // Permission status still resolving — show a neutral canvas rather than
+  // flashing the "Enable camera" gate before we know it's already granted.
+  if (!permission) {
+    return <Screen edges={['top', 'bottom']}><View className="flex-1" /></Screen>;
+  }
+
   // ── Permission gate ─────────────────────────────────────────────
-  if (!permission?.granted) {
+  if (!permission.granted) {
     return (
       <Screen edges={['top', 'bottom']}>
         <View className="flex-1 items-center justify-center px-lg">
@@ -220,7 +257,7 @@ export default function CheckInScreen() {
         onPress={close}
         hitSlop={12}
         accessibilityLabel="Close"
-        style={{ position: 'absolute', top: 56, left: 20 }}
+        style={{ position: 'absolute', top: insets.top + 8, left: 20 }}
         className="h-[40px] w-[40px] items-center justify-center rounded-full bg-black/50"
       >
         <Txt variant="body-lg" className="text-ink">
@@ -233,13 +270,13 @@ export default function CheckInScreen() {
         onPress={() => setTorch((t) => !t)}
         hitSlop={12}
         accessibilityLabel={torch ? 'Turn torch off' : 'Turn torch on'}
-        style={{ position: 'absolute', top: 56, right: 20 }}
+        style={{ position: 'absolute', top: insets.top + 8, right: 20 }}
         className="h-[40px] w-[40px] items-center justify-center rounded-full bg-black/50"
       >
         <Icon name="flash" color={torch ? colors.cyan : colors.ink} size={20} />
       </Pressable>
 
-      <View style={{ position: 'absolute', bottom: 48, left: 20, right: 20 }}>
+      <View style={{ position: 'absolute', bottom: insets.bottom + 24, left: 20, right: 20 }}>
         <Button
           title="Check in manually"
           variant="secondary"

@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button, Input, Screen, Txt } from '../../src/design-system';
+import { BackButton } from '../../src/navigation/BackButton';
 import { useAuth } from '../../src/auth/auth-store';
 import { isSupabaseConfigured } from '../../src/config';
 
@@ -47,9 +48,7 @@ export default function PhoneScreen() {
         className="flex-1 justify-between pt-2xl pb-md"
       >
         <View>
-          <Pressable onPress={() => router.back()} hitSlop={12} className="mb-lg">
-            <Txt variant="body-sm" className="text-body">{'←  Back'}</Txt>
-          </Pressable>
+          <BackButton />
           <Txt variant="display-lg" weight="600" className="text-ink">
             {'What’s your number?'}
           </Txt>

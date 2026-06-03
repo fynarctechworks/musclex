@@ -21,6 +21,30 @@ import type {
   ClassList,
   ClassBookingResult,
   ClassCancelResult,
+  NutritionDay,
+  FoodSearch,
+  MealLogInput,
+  MealLogResult,
+  WaterLogInput,
+  WaterLogResult,
+  NutritionGoal,
+  NutritionGoalInput,
+  ExerciseList,
+  ExerciseDetail,
+  FavoriteResult,
+  ChatThreadList,
+  ChatMessageList,
+  ChatMessage,
+  Leaderboard,
+  ChallengeList,
+  ChallengeJoinResult,
+  BadgeList,
+  HealthSampleInput,
+  HealthIngestResult,
+  HealthSummary,
+  WearableConnection,
+  WearableConnectionList,
+  WearableConnectInput,
 } from './types';
 
 /** Typed wrappers for every Phase-1 BFF endpoint. */
@@ -111,9 +135,102 @@ export const api = {
     }),
 
   // ── Notifications ──
-  registerDeviceToken: (token: string, platform: 'ios' | 'android') =>
+  registerDeviceToken: (
+    token: string,
+    platform: 'ios' | 'android',
+    prefs?: Record<string, boolean>,
+  ) =>
     request<void>('/notifications/device-tokens', {
       method: 'POST',
-      body: { token, platform },
+      body: { token, platform, prefs },
+    }),
+  deleteDeviceToken: (token: string) =>
+    request<void>('/notifications/device-tokens', {
+      method: 'DELETE',
+      body: { token },
+    }),
+
+  // ── Nutrition (idempotent writes) ──
+  nutritionToday: () => request<NutritionDay>('/nutrition/today'),
+  searchFoods: (q: string) =>
+    request<FoodSearch>(
+      `/nutrition/foods${q ? `?q=${encodeURIComponent(q)}` : ''}`,
+    ),
+  logMeal: (body: MealLogInput, idempotencyKey: string) =>
+    request<MealLogResult>('/nutrition/meals', {
+      method: 'POST',
+      body,
+      idempotencyKey,
+    }),
+  logWater: (body: WaterLogInput, idempotencyKey: string) =>
+    request<WaterLogResult>('/nutrition/water', {
+      method: 'POST',
+      body,
+      idempotencyKey,
+    }),
+  setNutritionGoal: (body: NutritionGoalInput) =>
+    request<NutritionGoal>('/nutrition/goal', { method: 'PUT', body }),
+
+  // ── Exercise library (read-only) ──
+  exercises: (q?: string, muscle?: string, favorites?: boolean) => {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (muscle) params.set('muscle', muscle);
+    if (favorites) params.set('favorites', 'true');
+    const qs = params.toString();
+    return request<ExerciseList>(`/exercises${qs ? `?${qs}` : ''}`);
+  },
+  exercise: (id: string) => request<ExerciseDetail>(`/exercises/${id}`),
+  setFavorite: (id: string) =>
+    request<FavoriteResult>(`/exercises/${id}/favorite`, { method: 'PUT' }),
+  removeFavorite: (id: string) =>
+    request<FavoriteResult>(`/exercises/${id}/favorite`, { method: 'DELETE' }),
+
+  // ── Trainer chat ──
+  chatThreads: () => request<ChatThreadList>('/trainer-chat/threads'),
+  chatMessages: (trainerId: string) =>
+    request<ChatMessageList>(`/trainer-chat/threads/${trainerId}/messages`),
+  sendChatMessage: (trainerId: string, body: string, idempotencyKey: string) =>
+    request<ChatMessage>(`/trainer-chat/threads/${trainerId}/messages`, {
+      method: 'POST',
+      body: { body },
+      idempotencyKey,
+    }),
+
+  // ── Community (V2.5) ──
+  leaderboard: (period?: number) =>
+    request<Leaderboard>(`/community/leaderboard${period ? `?period=${period}` : ''}`),
+  communityChallenges: () => request<ChallengeList>('/community/challenges'),
+  joinChallenge: (challengeId: string) =>
+    request<ChallengeJoinResult>(`/community/challenges/${challengeId}/join`, {
+      method: 'POST',
+    }),
+  badges: () => request<BadgeList>('/community/badges'),
+
+  // ── Health Data Platform (wearable telemetry) ──
+  ingestHealth: (samples: HealthSampleInput[], idempotencyKey: string) =>
+    request<HealthIngestResult>('/health/samples', {
+      method: 'POST',
+      body: { samples },
+      idempotencyKey,
+    }),
+  healthSummary: (from?: string, to?: string, types?: string) => {
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    if (types) params.set('types', types);
+    const qs = params.toString();
+    return request<HealthSummary>(`/health/summary${qs ? `?${qs}` : ''}`);
+  },
+  wearableConnections: () =>
+    request<WearableConnectionList>('/health/connections'),
+  connectWearable: (body: WearableConnectInput) =>
+    request<WearableConnection>('/health/connections', {
+      method: 'POST',
+      body,
+    }),
+  revokeWearable: (provider: string) =>
+    request<WearableConnection>(`/health/connections/${provider}`, {
+      method: 'DELETE',
     }),
 };

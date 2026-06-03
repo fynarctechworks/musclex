@@ -48,6 +48,7 @@ export default function ProgressScreen() {
   const [weight, setWeight] = useState('');
   const [waist, setWaist] = useState('');
   const [logging, setLogging] = useState(false);
+  const [logError, setLogError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [range, setRange] = useState<Range>('3M');
 
@@ -57,8 +58,17 @@ export default function ProgressScreen() {
     const body: BodyMetricInput = { recordedAt: new Date().toISOString() };
     if (Number.isFinite(w) && w > 0) body.weightKg = w;
     if (Number.isFinite(ws) && ws > 0) body.waistCm = ws;
-    if (body.weightKg == null && body.waistCm == null) return;
-    await logMetric.mutateAsync(body);
+    if (body.weightKg == null && body.waistCm == null) {
+      setLogError('Enter a weight or waist value above 0.');
+      return;
+    }
+    setLogError(null);
+    try {
+      await logMetric.mutateAsync(body);
+    } catch (e) {
+      setLogError(e instanceof Error ? e.message : 'Could not save. Try again.');
+      return;
+    }
     setWeight('');
     setWaist('');
     setLogging(false);
@@ -121,7 +131,14 @@ export default function ProgressScreen() {
               Progress
             </Txt>
           </View>
-          <Button title="Log" size="sm" onPress={() => setLogging((v) => !v)} />
+          <Button
+            title="Log"
+            size="sm"
+            onPress={() => {
+              setLogError(null);
+              setLogging((v) => !v);
+            }}
+          />
         </View>
       </View>
 
@@ -145,9 +162,22 @@ export default function ProgressScreen() {
                 onChangeText={setWaist}
               />
             </View>
+            {logError ? (
+              <Txt variant="body-sm" className="mt-md" style={{ color: colors.error }}>
+                {logError}
+              </Txt>
+            ) : null}
             <View className="mt-md flex-row gap-sm">
               <View className="flex-1">
-                <Button title="Cancel" variant="ghost" onPress={() => setLogging(false)} fullWidth />
+                <Button
+                  title="Cancel"
+                  variant="ghost"
+                  onPress={() => {
+                    setLogError(null);
+                    setLogging(false);
+                  }}
+                  fullWidth
+                />
               </View>
               <View className="flex-1">
                 <Button title="Save" loading={logMetric.isPending} onPress={onLog} fullWidth />

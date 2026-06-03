@@ -11,23 +11,24 @@ export function RestTimer() {
   const [running, setRunning] = useState(false);
   const interval = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Depend only on `running` so the interval is created once per run, not
+  // re-created every tick. The updater stops the run when it reaches zero.
   useEffect(() => {
-    if (running && remaining > 0) {
-      interval.current = setInterval(() => {
-        setRemaining((r) => {
-          if (r <= 1) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            setRunning(false);
-            return 0;
-          }
-          return r - 1;
-        });
-      }, 1000);
-    }
+    if (!running) return;
+    interval.current = setInterval(() => {
+      setRemaining((r) => {
+        if (r <= 1) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          setRunning(false);
+          return 0;
+        }
+        return r - 1;
+      });
+    }, 1000);
     return () => {
       if (interval.current) clearInterval(interval.current);
     };
-  }, [running, remaining]);
+  }, [running]);
 
   const start = (s: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

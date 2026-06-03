@@ -38,6 +38,10 @@ export function Screen({
           className={`flex-1 ${pad} ${className ?? ''}`}
           contentContainerStyle={{ paddingBottom: 32 }}
           showsVerticalScrollIndicator={false}
+          // Let taps on buttons fire even while the keyboard is open (otherwise the
+          // first tap only dismisses it), and dismiss the keyboard on drag.
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           refreshControl={
             onRefresh ? (
               <RefreshControl

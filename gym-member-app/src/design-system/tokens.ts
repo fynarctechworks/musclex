@@ -33,6 +33,23 @@ export const colors = {
 } as const;
 
 /**
+ * Per-category health accents — the one principle worth borrowing from One UI:
+ * each health domain gets a single saturated accent, used ONLY as a small
+ * vibrant mark (icon, ring, active indicator) against our calm dark surfaces —
+ * never as a fill on large areas (design.md: "vibrant small accents"). Tuned to
+ * read on `#0A0A0A`, not Samsung's light palette. Keyed loosely by metric family;
+ * `metrics.ts` maps each `HealthMetricType` to one of these.
+ */
+export const health = {
+  activity: '#FF7E36', // steps, distance, active minutes, calories — orange
+  heart: '#FF5A66', // heart rate, resting HR, HRV — red (lifted for dark bg)
+  sleep: '#8B6CFF', // sleep duration/stages — purple
+  body: '#FFC542', // weight, body fat, VO₂max — amber
+  oxygen: '#3DB9F5', // SpO₂, respiratory rate — sky
+  mind: '#2FD08A', // mood, stress — green
+} as const;
+
+/**
  * The brand mesh gradient — the ONE decorative element (design.md: "the gradient
  * is the entire decoration system"). Used at hero scale only (Home header,
  * check-in success, onboarding), never miniaturised, never reduced to one colour.

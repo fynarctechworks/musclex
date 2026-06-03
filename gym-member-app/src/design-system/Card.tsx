@@ -37,8 +37,10 @@ export function Card({
     return (
       <Pressable
         onPress={onPress}
+        accessibilityRole="button"
         className={classes}
         style={({ pressed }) => [shadow, pressed ? { opacity: 0.9 } : null, style]}
+        {...rest}
       >
         {children}
       </Pressable>

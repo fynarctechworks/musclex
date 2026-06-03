@@ -1,15 +1,34 @@
 import { api } from '../api/endpoints';
 import { MemberApiError, NetworkError } from '../api/client';
-import type { CheckInRequest, BodyMetricInput, SetLog } from '../api/types';
+import type {
+  CheckInRequest,
+  BodyMetricInput,
+  SetLog,
+  MealLogInput,
+  WaterLogInput,
+} from '../api/types';
 import { uuid } from '../lib/uuid';
-import { getDb } from './db';
+import {
+  insertOutbox,
+  listPendingOutbox,
+  markOutboxDone,
+  updateOutboxAttempt,
+  countPendingOutbox,
+  deleteDoneOutbox,
+} from './db';
 
 /**
  * Offline outbox (TRD §8). Writes are enqueued with a client idempotency key,
  * shown optimistically, and synced on reconnect/foreground. The server dedupes
  * by idempotency key so a retried action never double-counts.
  */
-export type OutboxKind = 'checkin' | 'metric' | 'workout_log';
+export type OutboxKind =
+  | 'checkin'
+  | 'metric'
+  | 'workout_log'
+  | 'meal'
+  | 'water'
+  | 'chat';
 
 interface CheckinPayload {
   kind: 'checkin';
@@ -24,16 +43,26 @@ interface WorkoutLogPayload {
   workoutId: string;
   sets: SetLog[];
 }
-export type OutboxPayload = CheckinPayload | MetricPayload | WorkoutLogPayload;
-
-export interface OutboxRow {
-  id: string;
-  kind: OutboxKind;
-  idempotencyKey: string;
-  status: 'pending' | 'done' | 'failed';
-  attempts: number;
-  createdAt: number;
+interface MealPayload {
+  kind: 'meal';
+  body: MealLogInput;
 }
+interface WaterPayload {
+  kind: 'water';
+  body: WaterLogInput;
+}
+interface ChatPayload {
+  kind: 'chat';
+  trainerId: string;
+  body: string;
+}
+export type OutboxPayload =
+  | CheckinPayload
+  | MetricPayload
+  | WorkoutLogPayload
+  | MealPayload
+  | WaterPayload
+  | ChatPayload;
 
 const MAX_ATTEMPTS = 8;
 
@@ -46,18 +75,16 @@ export async function enqueue(
   payload: OutboxPayload,
   key?: string,
 ): Promise<string> {
-  const db = await getDb();
-  const id = uuid();
   const idempotencyKey = key ?? uuid();
-  await db.runAsync(
-    `INSERT INTO outbox (id, kind, payload, idempotency_key, status, attempts, created_at)
-     VALUES (?, ?, ?, ?, 'pending', 0, ?)`,
-    id,
-    payload.kind,
-    JSON.stringify(payload),
+  await insertOutbox({
+    id: uuid(),
+    kind: payload.kind,
+    payload: JSON.stringify(payload),
     idempotencyKey,
-    Date.now(),
-  );
+    status: 'pending',
+    attempts: 0,
+    createdAt: Date.now(),
+  });
   return idempotencyKey;
 }
 
@@ -71,6 +98,15 @@ async function send(payload: OutboxPayload, idempotencyKey: string): Promise<voi
       return;
     case 'workout_log':
       await api.logWorkout(payload.workoutId, payload.sets, idempotencyKey);
+      return;
+    case 'meal':
+      await api.logMeal(payload.body, idempotencyKey);
+      return;
+    case 'water':
+      await api.logWater(payload.body, idempotencyKey);
+      return;
+    case 'chat':
+      await api.sendChatMessage(payload.trainerId, payload.body, idempotencyKey);
       return;
   }
 }
@@ -86,22 +122,13 @@ export async function sync(): Promise<number> {
   syncing = true;
   let done = 0;
   try {
-    const db = await getDb();
-    const rows = await db.getAllAsync<{
-      id: string;
-      payload: string;
-      idempotency_key: string;
-      attempts: number;
-    }>(
-      `SELECT id, payload, idempotency_key, attempts FROM outbox
-       WHERE status = 'pending' ORDER BY created_at ASC`,
-    );
+    const rows = await listPendingOutbox();
 
     for (const row of rows) {
       const payload = JSON.parse(row.payload) as OutboxPayload;
       try {
-        await send(payload, row.idempotency_key);
-        await db.runAsync(`UPDATE outbox SET status = 'done' WHERE id = ?`, row.id);
+        await send(payload, row.idempotencyKey);
+        await markOutboxDone(row.id);
         done++;
       } catch (err) {
         if (err instanceof NetworkError) {
@@ -112,12 +139,11 @@ export async function sync(): Promise<number> {
         const permanent =
           err instanceof MemberApiError && !err.retryable && err.status < 500;
         const status = permanent || attempts >= MAX_ATTEMPTS ? 'failed' : 'pending';
-        await db.runAsync(
-          `UPDATE outbox SET attempts = ?, status = ?, last_error = ? WHERE id = ?`,
+        await updateOutboxAttempt(
+          row.id,
           attempts,
           status,
           err instanceof Error ? err.message : String(err),
-          row.id,
         );
       }
     }
@@ -129,15 +155,10 @@ export async function sync(): Promise<number> {
 
 /** Count of rows not yet confirmed by the server (for a "syncing N" indicator). */
 export async function pendingCount(): Promise<number> {
-  const db = await getDb();
-  const r = await db.getFirstAsync<{ n: number }>(
-    `SELECT COUNT(*) as n FROM outbox WHERE status = 'pending'`,
-  );
-  return r?.n ?? 0;
+  return countPendingOutbox();
 }
 
 /** Remove rows already confirmed (housekeeping; call occasionally). */
 export async function vacuumDone(): Promise<void> {
-  const db = await getDb();
-  await db.runAsync(`DELETE FROM outbox WHERE status = 'done'`);
+  await deleteDoneOutbox();
 }

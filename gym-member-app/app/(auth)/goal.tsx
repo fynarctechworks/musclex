@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import { Button, Screen, Txt, colors } from '../../src/design-system';
 import { usePrefs } from '../../src/auth/prefs-store';
 import { useAuth } from '../../src/auth/auth-store';
@@ -52,8 +52,14 @@ export default function GoalScreen() {
   async function onFinish() {
     if (!goal || !level) return;
     setSaving(true);
-    await complete(goal, level);
-    // AuthGate redirects into the app once `onboarded` flips true.
+    try {
+      await complete(goal, level);
+      // AuthGate redirects into the app once `onboarded` flips true (this screen
+      // unmounts), so we intentionally leave `saving` true on success.
+    } catch {
+      setSaving(false);
+      Alert.alert('Could not save', 'Please try again.');
+    }
   }
 
   return (

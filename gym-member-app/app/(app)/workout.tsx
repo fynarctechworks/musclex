@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Badge,
@@ -23,6 +24,7 @@ import {
 import { RestTimer } from '../../src/features/workout/RestTimer';
 
 export default function WorkoutScreen() {
+  const router = useRouter();
   const { data: workout, isLoading, isError, refetch, isRefetching } = useTodayWorkout();
   const qc = useQueryClient();
   const [logged, setLogged] = useState<Record<string, LoggedSet[]>>({});
@@ -44,7 +46,16 @@ export default function WorkoutScreen() {
 
   async function onFinish() {
     if (!workout?.id || completedCount === 0) return;
-    await log.mutateAsync(sets);
+    try {
+      // Resolves to null when offline (queued) or the server result when online.
+      await log.mutateAsync(sets);
+    } catch (e) {
+      Alert.alert(
+        'Could not log workout',
+        e instanceof Error ? e.message : 'Please try again.',
+      );
+      return;
+    }
     setSubmitted(true);
     qc.invalidateQueries({ queryKey: qk.todayWorkout });
   }
@@ -75,10 +86,15 @@ export default function WorkoutScreen() {
                 {'Your trainer hasn’t set a plan for today. Browse prebuilt plans or start a free session.'}
               </Txt>
               <View className="mt-md">
-                <Button title="Browse plans" variant="secondary" size="md" disabled />
+                <Button
+                  title="Browse exercise library"
+                  variant="secondary"
+                  size="md"
+                  onPress={() => router.push('/exercises')}
+                />
               </View>
               <Txt variant="caption" className="mt-xs text-mute">
-                Prebuilt plans arrive in a later update.
+                Trainer-assigned plans arrive in a later update.
               </Txt>
             </Card>
           )}
