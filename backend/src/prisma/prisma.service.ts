@@ -222,6 +222,43 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
   }
 
   /**
+   * PHASE B (keystone) — run a unit of tenant work with a TRANSACTION-LOCAL
+   * `app.gym_id`. This is the propagation fix that must ship WITH the cutover to
+   * the non-BYPASSRLS role (see docs/RLS-PHASE-B-CUTOVER-RUNBOOK-2026-06-03.md §3):
+   *
+   *   - `set_config(..., true)` is transaction-local: it is bound to THIS
+   *     transaction's connection and auto-resets at COMMIT/ROLLBACK, so it can
+   *     never bleed onto the next request that reuses a pooled connection (the
+   *     session-scoped `$use` set is the racy hole the cutover closes).
+   *   - Raw queries (`tx.$queryRaw` / `tx.$executeRaw`) issued inside `work`
+   *     inherit the same local GUC, so the ~21 raw-SQL tenant sites become
+   *     correctly scoped under RLS without each re-setting it.
+   *
+   * Behavior-neutral TODAY: while the app still connects as a BYPASSRLS role the
+   * GUC is unused, so this is safe to land ahead of the maintenance window. It is
+   * intentionally NOT wired into request handling yet — the cutover task routes
+   * tenant request handlers through it and then repoints DATABASE_URL.
+   *
+   * SECURITY: `gymId` MUST originate from a verified token claim, never from
+   * client-supplied body/query/header input.
+   */
+  async forTenant<T>(
+    gymId: string,
+    work: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    if (!gymId) {
+      throw new ForbiddenException(
+        'forTenant requires a gym_id: this work could not be scoped to a studio.',
+      );
+    }
+    return this.$transaction(async (tx) => {
+      // Parameterized set_config — injection-safe; third arg `true` = tx-local.
+      await tx.$queryRaw`SELECT set_config('app.gym_id', ${gymId}, true)`;
+      return work(tx);
+    });
+  }
+
+  /**
    * Verify that the current connection's search_path matches the expected tenant.
    * Use in critical operations (payments, PII access) as defense-in-depth.
    */
