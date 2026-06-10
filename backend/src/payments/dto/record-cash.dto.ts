@@ -16,7 +16,7 @@ export class RecordCashDto {
   amount: number;
 
   @IsString()
-  @IsIn(['cash', 'card', 'upi', 'bank_transfer', 'razorpay', 'stripe'])
+  @IsIn(['cash', 'card', 'upi', 'bank_transfer', 'razorpay'])
   @IsOptional()
   payment_method?: string;
 

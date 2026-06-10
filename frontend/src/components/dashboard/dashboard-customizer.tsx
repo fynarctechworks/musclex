@@ -112,7 +112,7 @@ export function DashboardCustomizer() {
                       className={`px-1.5 py-0.5 text-[10px] rounded ${
                         tile.size === s
                           ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-muted-foreground hover:bg-muted/70"
+                          : "bg-muted text-muted-foreground hover:bg-canvas-soft-2"
                       }`}
                       aria-label={`Size ${s} columns`}
                     >

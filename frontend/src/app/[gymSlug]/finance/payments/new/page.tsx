@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowLeft, CreditCard, Smartphone, Banknote, Building2, Zap, ExternalLink } from "lucide-react";
+import { ArrowLeft, CreditCard, Smartphone, Banknote, Building2, Zap } from "lucide-react";
 import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
 import { AccessDenied } from "@/components/shared/access-denied";
@@ -25,15 +25,14 @@ interface PaymentForm {
   notes: string;
 }
 
-type PaymentMethod = "cash" | "card" | "upi" | "bank_transfer" | "razorpay" | "stripe";
+type PaymentMethod = "cash" | "card" | "upi" | "bank_transfer" | "razorpay";
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: React.ElementType; description: string }[] = [
   { value: "cash", label: "Cash", icon: Banknote, description: "Record cash payment" },
   { value: "card", label: "Card", icon: CreditCard, description: "POS card swipe" },
   { value: "upi", label: "UPI", icon: Smartphone, description: "UPI / QR transfer" },
   { value: "bank_transfer", label: "Bank Transfer", icon: Building2, description: "NEFT / IMPS" },
-  { value: "razorpay", label: "Razorpay", icon: Zap, description: "Online payment link" },
-  { value: "stripe", label: "Stripe", icon: ExternalLink, description: "International card" },
+  { value: "razorpay", label: "Razorpay", icon: Zap, description: "Card / UPI / netbanking / wallet" },
 ];
 
 declare global {
@@ -81,14 +80,19 @@ export default function RecordPaymentPage() {
   // Manual payment methods (cash/card/upi/bank_transfer)
   const manualMutation = useMutation({
     mutationFn: (data: PaymentForm & { payment_method: string }) =>
-      apiClient.post("/payments/cash", {
-        member_id: data.member_id,
-        branch_id: selectedMember?.branch_id,
-        amount: Number(data.amount),
-        payment_method: data.payment_method,
-        billing_cycle: billingCycle,
-        notes: data.notes,
-      }),
+      apiClient.post(
+        "/payments/cash",
+        {
+          member_id: data.member_id,
+          branch_id: selectedMember?.branch_id,
+          amount: Number(data.amount),
+          payment_method: data.payment_method,
+          billing_cycle: billingCycle,
+          notes: data.notes,
+        },
+        // One key per attempt → safe against client retries (401 refresh, network).
+        { headers: { "Idempotency-Key": crypto.randomUUID() } },
+      ),
     onSuccess: () => {
       toast.success("Payment recorded successfully");
       router.push(gymPath("/finance/payments"));
@@ -121,12 +125,16 @@ export default function RecordPaymentPage() {
         amount: number;
         currency: string;
         plan_name: string;
-      }>("/payments/create-order", {
-        member_id: selectedMember.id,
-        plan_id: data.plan_id,
-        branch_id: selectedMember.branch_id,
-        gateway: "razorpay",
-      });
+      }>(
+        "/payments/create-order",
+        {
+          member_id: selectedMember.id,
+          plan_id: data.plan_id,
+          branch_id: selectedMember.branch_id,
+          gateway: "razorpay",
+        },
+        { headers: { "Idempotency-Key": crypto.randomUUID() } },
+      );
 
       // Open Razorpay checkout modal
       await new Promise<void>((resolve, reject) => {
@@ -172,40 +180,12 @@ export default function RecordPaymentPage() {
     }
   };
 
-  // Stripe: create order and redirect to payment link (Stripe Checkout)
-  const handleStripePayment = async (data: PaymentForm) => {
-    if (!selectedMember || !data.plan_id) {
-      toast.error("Please select a member and plan");
-      return;
-    }
-    setGatewayLoading(true);
-    try {
-      const order = await apiClient.post<{ order_id: string; checkout_url?: string }>("/payments/create-order", {
-        member_id: selectedMember.id,
-        plan_id: data.plan_id,
-        branch_id: selectedMember.branch_id,
-        gateway: "stripe",
-      });
-      if (order.checkout_url) {
-        window.open(order.checkout_url, "_blank");
-        toast.info("Complete payment in the new tab — page will update automatically");
-      } else {
-        toast.info("Stripe order created. Share the payment link with the member.");
-      }
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to create Stripe order");
-    } finally {
-      setGatewayLoading(false);
-    }
-  };
-
   const onSubmit = (data: PaymentForm) => {
     if (selectedMethod === "razorpay") return handleRazorpayPayment(data);
-    if (selectedMethod === "stripe") return handleStripePayment(data);
     manualMutation.mutate({ ...data, payment_method: selectedMethod });
   };
 
-  const isGateway = selectedMethod === "razorpay" || selectedMethod === "stripe";
+  const isGateway = selectedMethod === "razorpay";
   const isLoading = manualMutation.isPending || gatewayLoading;
 
   if (checked && !allowed) {
@@ -276,7 +256,7 @@ export default function RecordPaymentPage() {
                 onClick={() => setBillingCycle((c) => c === "monthly" ? "yearly" : "monthly")}
                 className={`relative w-10 h-6 rounded-full transition-colors ${billingCycle === "yearly" ? "bg-primary" : "bg-muted"}`}
               >
-                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${billingCycle === "yearly" ? "translate-x-5" : "translate-x-1"}`} />
+                <span className={`absolute top-1 w-4 h-4 rounded-full bg-canvas transition-transform ${billingCycle === "yearly" ? "translate-x-5" : "translate-x-1"}`} />
               </button>
               <span className={`text-sm ${billingCycle === "yearly" ? "text-foreground font-medium" : "text-muted-foreground"}`}>
                 Yearly{billingCycle === "yearly" && selectedPlan.yearly_price != null
@@ -314,7 +294,7 @@ export default function RecordPaymentPage() {
                   className={cn(
                     "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors",
                     active
-                      ? "border-primary bg-primary/10 text-primary"
+                      ? "border-primary bg-canvas-soft-2 text-primary"
                       : "border-border bg-background text-foreground hover:bg-muted"
                   )}
                 >
@@ -330,11 +310,6 @@ export default function RecordPaymentPage() {
           {selectedMethod === "razorpay" && (
             <p className="mt-2 text-[12px] text-muted-foreground bg-muted rounded-md px-3 py-2">
               Razorpay checkout will open. The member can pay via card, UPI, netbanking, or wallet.
-            </p>
-          )}
-          {selectedMethod === "stripe" && (
-            <p className="mt-2 text-[12px] text-muted-foreground bg-muted rounded-md px-3 py-2">
-              A Stripe Checkout link will be created for international card payments.
             </p>
           )}
         </div>
@@ -360,7 +335,7 @@ export default function RecordPaymentPage() {
           {isLoading
             ? "Processing…"
             : isGateway
-              ? `Pay via ${selectedMethod === "razorpay" ? "Razorpay" : "Stripe"}`
+              ? "Pay via Razorpay"
               : "Record Payment"}
         </Button>
       </form>

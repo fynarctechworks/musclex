@@ -67,7 +67,7 @@ export function KpiInspector({ metric, branchId, onClose }: KpiInspectorProps) {
       onClick={onClose}
     >
       <div
-        className="w-full sm:max-w-lg max-h-[90vh] bg-card border border-border rounded-t-xl sm:rounded-xl flex flex-col overflow-hidden"
+        className="w-full sm:max-w-lg max-h-[90vh] bg-card border border-border rounded-t-xl sm:rounded-lg flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-border">
@@ -80,7 +80,7 @@ export function KpiInspector({ metric, branchId, onClose }: KpiInspectorProps) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+            className="rounded-md p-1 text-muted-foreground hover:bg-canvas-soft hover:text-foreground"
             aria-label="Close"
           >
             <X className="h-4 w-4" />
@@ -90,15 +90,15 @@ export function KpiInspector({ metric, branchId, onClose }: KpiInspectorProps) {
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {isLoading || !data ? (
             <div className="space-y-2">
-              <div className="h-4 w-3/4 rounded bg-muted/40 animate-pulse" />
-              <div className="h-4 w-1/2 rounded bg-muted/40 animate-pulse" />
-              <div className="h-24 w-full rounded bg-muted/30 animate-pulse" />
+              <div className="h-4 w-3/4 rounded bg-canvas-soft animate-pulse" />
+              <div className="h-4 w-1/2 rounded bg-canvas-soft animate-pulse" />
+              <div className="h-24 w-full rounded bg-canvas-soft animate-pulse" />
             </div>
           ) : (
             <>
               <Section label="Value">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold tabular-nums text-foreground">
+                  <span className="text-2xl font-semibold tabular-nums text-foreground">
                     {data.value.toLocaleString()}
                   </span>
                   <span className="text-[11px] text-muted-foreground">
@@ -118,7 +118,7 @@ export function KpiInspector({ metric, branchId, onClose }: KpiInspectorProps) {
                   {data.source_tables.map((t) => (
                     <code
                       key={t}
-                      className="px-1.5 py-0.5 rounded bg-muted/40 text-[11px] font-mono text-foreground"
+                      className="px-1.5 py-0.5 rounded bg-canvas-soft text-[11px] font-mono text-foreground"
                     >
                       {t}
                     </code>
@@ -127,7 +127,7 @@ export function KpiInspector({ metric, branchId, onClose }: KpiInspectorProps) {
               </Section>
 
               <Section label="Query (illustrative)">
-                <pre className="rounded-md bg-muted/30 p-2 text-[11px] font-mono text-foreground overflow-x-auto whitespace-pre-wrap">
+                <pre className="rounded-md bg-canvas-soft p-2 text-[11px] font-mono text-foreground overflow-x-auto whitespace-pre-wrap">
                   {data.query}
                 </pre>
               </Section>

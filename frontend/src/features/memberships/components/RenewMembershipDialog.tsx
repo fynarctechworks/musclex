@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRenewMembership, useMembershipPlans } from "../hooks";
+import { resolvePlanPrice, planMinPrice, planHasBranchPricing } from "@/lib/plan-pricing";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,9 @@ interface RenewMembershipDialogProps {
   memberId: string;
   memberName: string;
   currentPlanId?: string;
+  // Branch context for branch-tier pricing. When provided, the renewal preview
+  // shows the branch-specific price; otherwise it falls back to base.
+  branchId?: string | null;
   open: boolean;
   onClose: () => void;
 }
@@ -40,6 +44,7 @@ export function RenewMembershipDialog({
   memberId,
   memberName,
   currentPlanId,
+  branchId,
   open,
   onClose,
 }: RenewMembershipDialogProps) {
@@ -90,11 +95,19 @@ export function RenewMembershipDialog({
                 <SelectValue placeholder="Select plan" />
               </SelectTrigger>
               <SelectContent className="bg-card border-border">
-                {(plans ?? []).map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name} — ₹{Number(p.price).toLocaleString()}
-                  </SelectItem>
-                ))}
+                {(plans ?? []).map((p) => {
+                  // If we know the branch, show branch price; else show "from"
+                  // when there are any overrides.
+                  const price = branchId
+                    ? resolvePlanPrice(p, branchId)
+                    : planMinPrice(p);
+                  const fromLabel = !branchId && planHasBranchPricing(p) ? 'from ' : '';
+                  return (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} — {fromLabel}₹{price.toLocaleString()}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
             {errors.plan_id && <p className="mt-1 text-xs text-destructive">{errors.plan_id.message}</p>}
@@ -102,14 +115,19 @@ export function RenewMembershipDialog({
 
           {/* Summary */}
           {selectedPlan && (
-            <div className="rounded-md bg-muted/50 border border-border p-3 text-sm space-y-1">
+            <div className="rounded-md bg-canvas-soft border border-border p-3 text-sm space-y-1">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Duration</span>
                 <span className="text-foreground">{selectedPlan.duration_days ?? "--"} days</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Price</span>
-                <span className="font-medium text-foreground">₹{Number(selectedPlan.price).toLocaleString()}</span>
+                <span className="font-medium text-foreground">
+                  ₹{resolvePlanPrice(selectedPlan, branchId ?? null).toLocaleString()}
+                  {branchId && planHasBranchPricing(selectedPlan) && (
+                    <span className="ml-1 text-xs text-muted-foreground">(this branch)</span>
+                  )}
+                </span>
               </div>
             </div>
           )}
@@ -127,7 +145,6 @@ export function RenewMembershipDialog({
                 <SelectItem value="upi">UPI</SelectItem>
                 <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                 <SelectItem value="razorpay">Razorpay</SelectItem>
-                <SelectItem value="stripe">Stripe</SelectItem>
               </SelectContent>
             </Select>
             {errors.payment_method && <p className="mt-1 text-xs text-destructive">{errors.payment_method.message}</p>}

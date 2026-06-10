@@ -73,6 +73,56 @@ export class PlansService {
     };
   }
 
+  /**
+   * Mirror an onboarding (public.subscription_plans) plan into the SCC-owned
+   * scc.subscription_plans table — matched by `name`. The scc table is what
+   * `Tenant.plan_id` / `Subscription.plan_id` reference and what billing/MRR
+   * reads, so this keeps a single effective source of truth: admins edit the
+   * public catalog and billing follows. Best-effort; never blocks the edit.
+   */
+  private async syncToScc(plan: PublicPlan): Promise<void> {
+    const limits = {
+      max_members: plan.max_members,
+      max_branches: plan.max_branches,
+      max_staff: plan.max_staff,
+      storage_mb: (plan.storage_limit_gb ?? 0) * 1024,
+    };
+    const shared = {
+      description: plan.description ?? null,
+      price_monthly: Number(plan.monthly_price),
+      price_yearly: Number(plan.annual_price),
+      features: (plan.features ?? {}) as object,
+      limits,
+      sort_order: plan.sort_order ?? 0,
+      is_active: plan.is_active,
+    };
+    try {
+      await this.prisma.subscriptionPlan.upsert({
+        where: { name: plan.name },
+        update: shared,
+        create: { name: plan.name, ...shared },
+      });
+    } catch (err: any) {
+      this.logger.warn(
+        `SCC plan mirror sync failed (non-fatal) for "${plan.name}": ${err?.message}`,
+      );
+    }
+  }
+
+  /**
+   * Plans valid for tenant assignment — returned from the SCC table that the
+   * `Tenant.plan_id` foreign key actually references (NOT public). Used by the
+   * Add-Tenant picker so the selected id is always a valid FK target.
+   */
+  async findAssignable() {
+    const plans = await this.prisma.subscriptionPlan.findMany({
+      where: { is_active: true },
+      select: { id: true, name: true, price_monthly: true },
+      orderBy: { sort_order: 'asc' },
+    });
+    return plans.map((p) => ({ ...p, price_monthly: Number(p.price_monthly) }));
+  }
+
   private async invalidateOnboardingCache(): Promise<void> {
     const secret = process.env.INTERNAL_API_SECRET;
     const mainAppUrl =
@@ -170,6 +220,7 @@ export class PlansService {
       { new_value: created[0] },
     );
 
+    await this.syncToScc(created[0]);
     await this.invalidateOnboardingCache();
     return this.computeEffectivePrices(created[0]);
   }
@@ -259,6 +310,7 @@ export class PlansService {
       new_value: dto,
     });
 
+    await this.syncToScc(updated[0]);
     await this.invalidateOnboardingCache();
     return this.computeEffectivePrices(updated[0]);
   }
@@ -279,6 +331,7 @@ export class PlansService {
       new_value: { is_active: newStatus },
     });
 
+    await this.syncToScc(updated[0]);
     await this.invalidateOnboardingCache();
     return this.computeEffectivePrices(updated[0]);
   }
@@ -325,13 +378,18 @@ export class PlansService {
   }
 
   async remove(id: string, ctx: AuditContext): Promise<{ success: boolean }> {
-    await this.findOne(id);
+    const plan = await this.findOne(id);
 
     await this.prisma.$queryRaw`
       UPDATE public.subscription_plans
       SET is_active = false, updated_at = NOW()
       WHERE id = ${id}::uuid
     `;
+
+    // Deactivate the scc mirror too, so billing stops treating it as available.
+    await this.prisma.subscriptionPlan
+      .updateMany({ where: { name: plan.name }, data: { is_active: false } })
+      .catch(() => undefined);
 
     await this.audit.log(AuditAction.UPDATE, 'subscription_plan', id, ctx, {
       new_value: { is_active: false },

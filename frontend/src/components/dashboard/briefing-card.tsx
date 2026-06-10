@@ -58,7 +58,7 @@ export function BriefingCard({ branchId, className }: BriefingCardProps) {
 
   if (isLoading) {
     return (
-      <div className={cn("mb-6 h-9 w-44 animate-pulse rounded-full bg-muted/50", className)} />
+      <div className={cn("mb-6 h-9 w-44 animate-pulse rounded-full bg-canvas-soft", className)} />
     );
   }
   if (!data || (!data.summary && !data.headline)) return null;
@@ -96,7 +96,7 @@ export function BriefingCard({ branchId, className }: BriefingCardProps) {
           <DialogHeader>
             <div className="flex items-center justify-between gap-3 pr-6">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-canvas-soft-2">
                   <Sparkles className="h-4 w-4 text-primary" />
                 </div>
                 <div>
@@ -104,7 +104,7 @@ export function BriefingCard({ branchId, className }: BriefingCardProps) {
                   <p className="text-[11px] text-muted-foreground">
                     Generated {ageLabel}
                     {data.model === null && (
-                      <span className="ml-1 uppercase tracking-wide text-amber-500">
+                      <span className="ml-1 uppercase tracking-wide text-warning">
                         · fallback
                       </span>
                     )}
@@ -115,7 +115,7 @@ export function BriefingCard({ branchId, className }: BriefingCardProps) {
                 type="button"
                 onClick={() => regenerate.mutate()}
                 disabled={regenerate.isPending}
-                className="rounded-md p-1.5 text-muted-foreground hover:bg-muted/50 hover:text-foreground disabled:opacity-50"
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-canvas-soft hover:text-foreground disabled:opacity-50"
                 aria-label="Regenerate briefing"
                 title="Regenerate"
               >

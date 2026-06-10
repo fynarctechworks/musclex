@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import {
   Copy, Check, Share2, Gift, Users, Clock,
-  TrendingUp, ChevronRight, CalendarClock, Zap,
+  TrendingUp, ChevronRight, CalendarClock, Zap, Info,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/app-layout';
 import { AccessDenied } from '@/components/shared/access-denied';
@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EmptyState } from '@/components/shared/empty-state';
 import { useMyReferralStats } from '@/features/gym-referrals';
 import { ApplyCodeDialog } from './components/ApplyCodeDialog';
+import { HowItWorksDialog } from './components/HowItWorksDialog';
 import { format, formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -73,7 +74,7 @@ function ReferralCodeCard({
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6">
+    <div className="rounded-lg border border-border bg-card p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-sm font-semibold text-foreground">Your Referral Code</h2>
@@ -81,14 +82,14 @@ function ReferralCodeCard({
             Share this code with other gym owners
           </p>
         </div>
-        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+        <div className="h-10 w-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
           <Gift className="h-5 w-5 text-primary" />
         </div>
       </div>
 
       {/* Code display */}
-      <div className="flex items-center gap-3 bg-muted/60 rounded-lg px-4 py-3 mb-4">
-        <span className="font-mono text-2xl font-bold tracking-[0.3em] text-foreground flex-1">
+      <div className="flex items-center gap-3 bg-canvas-soft rounded-lg px-4 py-3 mb-4">
+        <span className="font-mono text-2xl font-semibold tracking-[0.3em] text-foreground flex-1">
           {code}
         </span>
         <Button
@@ -147,7 +148,7 @@ function StatsGrid({
       value: total,
       icon: Users,
       color: 'text-primary',
-      bg: 'bg-primary/10',
+      bg: 'bg-canvas-soft-2',
     },
     {
       label: 'Pending',
@@ -168,7 +169,7 @@ function StatsGrid({
       value: `${conversionRate}%`,
       icon: TrendingUp,
       color: 'text-primary',
-      bg: 'bg-primary/10',
+      bg: 'bg-canvas-soft-2',
     },
   ];
 
@@ -177,13 +178,13 @@ function StatsGrid({
       {stats.map((s) => (
         <div
           key={s.label}
-          className="rounded-xl border border-border bg-card p-4"
+          className="rounded-lg border border-border bg-card p-4"
         >
           <div className={cn('h-8 w-8 rounded-md flex items-center justify-center mb-3', s.bg)}>
             <s.icon className={cn('h-4 w-4', s.color)} />
           </div>
           <p className="text-[11px] text-muted-foreground">{s.label}</p>
-          <p className="text-xl font-bold text-foreground mt-0.5">{s.value}</p>
+          <p className="text-xl font-semibold text-foreground mt-0.5">{s.value}</p>
         </div>
       ))}
     </div>
@@ -215,7 +216,7 @@ function HowItWorksSection() {
   ];
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6">
+    <div className="rounded-lg border border-border bg-card p-6">
       <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
         <Zap className="h-4 w-4 text-primary" />
         How It Works
@@ -224,8 +225,8 @@ function HowItWorksSection() {
         {steps.map((step, i) => (
           <div key={step.n} className="flex gap-3">
             <div className="flex-none">
-              <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="text-[10px] font-bold text-primary">{step.n}</span>
+              <div className="h-7 w-7 rounded-full bg-canvas-soft-2 flex items-center justify-center">
+                <span className="text-[10px] font-semibold text-primary">{step.n}</span>
               </div>
               {i < steps.length - 1 && (
                 <div className="hidden xl:flex justify-center mt-1">
@@ -306,6 +307,7 @@ function RecentRewardsTab({
 export default function GymReferralsPage() {
   const { allowed, checked } = useRequirePermission('marketing', 'view', 'deny');
   const [applyOpen, setApplyOpen] = useState(false);
+  const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const { data: stats, isLoading } = useMyReferralStats();
 
   if (checked && !allowed) {
@@ -323,14 +325,25 @@ export default function GymReferralsPage() {
           title="Referral Program"
           description="Earn subscription extensions by referring other gyms to MuscleX"
           actions={
-            <Button
-              variant="outline"
-              onClick={() => setApplyOpen(true)}
-              className="border-border"
-            >
-              <Gift className="mr-2 h-4 w-4" />
-              Apply a Referral Code
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setHowItWorksOpen(true)}
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="How the referral program works"
+              >
+                <Info className="mr-2 h-4 w-4" />
+                How it works
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setApplyOpen(true)}
+                className="border-border"
+              >
+                <Gift className="mr-2 h-4 w-4" />
+                Apply a Referral Code
+              </Button>
+            </div>
           }
         />
 
@@ -340,7 +353,7 @@ export default function GymReferralsPage() {
               <div
                 key={i}
                 style={{ height: h }}
-                className="animate-pulse rounded-xl bg-muted"
+                className="animate-pulse rounded-lg bg-muted"
               />
             ))}
           </div>
@@ -390,6 +403,7 @@ export default function GymReferralsPage() {
       </div>
 
       <ApplyCodeDialog open={applyOpen} onOpenChange={setApplyOpen} />
+      <HowItWorksDialog open={howItWorksOpen} onOpenChange={setHowItWorksOpen} />
     </AppLayout>
   );
 }

@@ -113,7 +113,7 @@ export function CommandPalette() {
       <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
 
       {/* Palette */}
-      <div className="relative w-full max-w-lg rounded-xl border border-border bg-card shadow-xl">
+      <div className="relative w-full max-w-lg rounded-lg border border-border bg-card shadow-level-5">
         {/* Search input */}
         <div className="flex items-center gap-3 border-b border-border px-4">
           <Search className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -151,7 +151,7 @@ export function CommandPalette() {
                 className={cn(
                   "flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors",
                   i === selectedIndex
-                    ? "bg-accent text-foreground"
+                    ? "bg-canvas-soft text-foreground"
                     : "text-muted-foreground"
                 )}
               >

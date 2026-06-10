@@ -55,7 +55,7 @@ export default function PaymentsListPage() {
         ))}
       </div>
 
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
         <table className="w-full">
           <thead><tr className="border-b border-border">
             {["Receipt", "Member", "Amount", "Method", "Status", "Date"].map((h) => (

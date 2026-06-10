@@ -6,15 +6,12 @@ import { apiClient } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import dynamic from "next/dynamic";
+
+const TrainerOccupancyChart = dynamic(
+  () => import("./_chart").then((m) => ({ default: m.TrainerOccupancyChart })),
+  { ssr: false, loading: () => <LoadingSkeleton className="h-64 w-full" /> },
+);
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import { useRequirePermission } from "@/hooks/use-require-permission";
 
@@ -61,36 +58,13 @@ export default function StaffAnalyticsPage() {
       ) : (
         <>
           {/* Chart */}
-          <div className="bg-card border border-border rounded-xl p-6 mb-6">
+          <div className="bg-card border border-border rounded-lg p-6 mb-6">
             <h2 className="text-base font-semibold text-foreground mb-4">
               Avg Occupancy Rate by Trainer
             </h2>
             <div className="h-64">
               {data && data.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis
-                      dataKey="trainer_name"
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                    />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                        color: "hsl(var(--foreground))",
-                      }}
-                    />
-                    <Bar
-                      dataKey="avg_occupancy"
-                      fill="hsl(var(--primary))"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+                <TrainerOccupancyChart data={data} />
               ) : (
                 <div className="h-full flex items-center justify-center text-muted-foreground">
                   No trainer data available
@@ -100,7 +74,7 @@ export default function StaffAnalyticsPage() {
           </div>
 
           {/* Table */}
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="bg-card border border-border rounded-lg overflow-hidden">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
@@ -125,7 +99,7 @@ export default function StaffAnalyticsPage() {
                 {data?.map((trainer) => (
                   <tr
                     key={trainer.trainer_id}
-                    className="border-b border-border last:border-0 hover:bg-muted/50"
+                    className="border-b border-border last:border-0 hover:bg-canvas-soft"
                   >
                     <td className="p-4 text-sm text-foreground font-medium">
                       {trainer.trainer_name}

@@ -1,6 +1,6 @@
 🏋️
 
-**FITSYNC PRO**
+**MUSCLEX**
 
 Gym Owner Management Platform
 
@@ -12,7 +12,7 @@ Fitness Studio Owners · Staff Managers · Multi-Branch Operators
 
 **📊 Section 1: Project Overview**
 
-FitSync Pro is a cloud-native, AI-powered management platform built
+MuscleX is a cloud-native, AI-powered management platform built
 exclusively for fitness studio owners --- including yoga studios,
 CrossFit boxes, dance academies, and boutique gyms. It acts as a single
 digital command center, replacing fragmented spreadsheets, messaging
@@ -26,7 +26,7 @@ apps, and paper registers with one intelligent operating system.
   ---------------------- ------------------------------------------------
   **Attribute**          **Detail**
 
-  Product Name           FitSync Pro
+  Product Name           MuscleX
 
   Version                1.0 (Full Launch)
 
@@ -81,7 +81,7 @@ tools that create the following critical pain points:
 The global gym management software market is growing rapidly as fitness
 studios modernize. No dominant player combines operations, financials,
 AI analytics, and marketing in a single mobile-first platform designed
-for boutique studio owners. FitSync Pro captures this gap.
+for boutique studio owners. MuscleX captures this gap.
 
 **👤 Section 3: Target Users**
 
@@ -887,7 +887,7 @@ and Android.
 -   Member biometric data (facial recognition templates) stored locally
     on device --- never sent to cloud
 
--   Payment credentials: Zero card data stored on FitSync servers ---
+-   Payment credentials: Zero card data stored on MuscleX servers ---
     all handled by Razorpay/Stripe PCI-DSS vaults
 
 -   Passwords: bcrypt hashed, minimum 8 characters, enforced strength
@@ -1172,5 +1172,5 @@ are met:
 
 **END OF DOCUMENT**
 
-FitSync Pro PRD v1.0 \| Built with 💪 for fitness studio owners
+MuscleX PRD v1.0 \| Built with 💪 for fitness studio owners
 worldwide

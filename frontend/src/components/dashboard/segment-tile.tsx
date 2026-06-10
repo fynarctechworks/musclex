@@ -51,7 +51,7 @@ export function SegmentTile({
       ? "bg-success/10 text-success"
       : tone === "bad"
         ? "bg-destructive/10 text-destructive"
-        : "bg-primary/10 text-primary";
+        : "bg-canvas-soft-2 text-primary";
 
   const hasMembers = !!segment && segment.count > 0;
   const hasSamples = !!segment && segment.sample.length > 0;
@@ -64,8 +64,8 @@ export function SegmentTile({
         disabled={!hasSamples}
         aria-label={hasSamples ? `View ${segment?.count} ${title}` : title}
         className={cn(
-          "group flex w-full flex-col gap-3 rounded-xl border border-border bg-card p-5 text-left shadow-sm transition-all",
-          hasSamples && "cursor-pointer hover:border-border/80 hover:shadow-md",
+          "group flex w-full flex-col gap-3 rounded-lg border border-border bg-card p-5 text-left shadow-level-2 transition-all",
+          hasSamples && "cursor-pointer hover:border-border/80 hover:shadow-level-3",
           !hasSamples && "cursor-default",
           className,
         )}
@@ -98,7 +98,7 @@ export function SegmentTile({
             <LoadingSkeleton className="h-9 w-24" />
           ) : (
             <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-bold tabular-nums text-foreground">
+              <span className="text-3xl font-semibold tabular-nums text-foreground">
                 {segment.count.toLocaleString()}
               </span>
               <span className="text-[12px] text-muted-foreground">

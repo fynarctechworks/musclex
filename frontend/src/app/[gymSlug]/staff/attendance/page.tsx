@@ -168,7 +168,7 @@ export default function AttendancePage() {
 
       {/* Quick Check-In Form */}
       {showCheckIn && (
-        <div className="bg-card border border-border rounded-xl p-6 mb-6">
+        <div className="bg-card border border-border rounded-lg p-6 mb-6">
           <h3 className="text-sm font-semibold text-foreground mb-4">Record Staff Check-In</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
@@ -294,7 +294,7 @@ export default function AttendancePage() {
 
       {/* Content */}
       {!effectiveStaff ? (
-        <div className="bg-card border border-border rounded-xl p-12 text-center">
+        <div className="bg-card border border-border rounded-lg p-12 text-center">
           <UserCheck className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-40" />
           <p className="text-muted-foreground">Select a staff member to view their attendance records</p>
         </div>
@@ -305,21 +305,21 @@ export default function AttendancePage() {
           {/* Summary Cards */}
           {attendanceData && attendanceData.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <div className="bg-card border border-border rounded-xl p-4">
+              <div className="bg-card border border-border rounded-lg p-4">
                 <p className="text-xs text-muted-foreground">Total Records</p>
                 <p className="text-xl font-semibold text-foreground mt-1">{attendanceData.length}</p>
               </div>
-              <div className="bg-card border border-border rounded-xl p-4">
+              <div className="bg-card border border-border rounded-lg p-4">
                 <p className="text-xs text-muted-foreground">Currently Active</p>
-                <p className="text-xl font-semibold text-green-400 mt-1">{activeCount}</p>
+                <p className="text-xl font-semibold text-success mt-1">{activeCount}</p>
               </div>
-              <div className="bg-card border border-border rounded-xl p-4">
+              <div className="bg-card border border-border rounded-lg p-4">
                 <p className="text-xs text-muted-foreground">Completed</p>
                 <p className="text-xl font-semibold text-foreground mt-1">
                   {attendanceData.filter((r) => r.check_out_time).length}
                 </p>
               </div>
-              <div className="bg-card border border-border rounded-xl p-4">
+              <div className="bg-card border border-border rounded-lg p-4">
                 <p className="text-xs text-muted-foreground">Avg Duration</p>
                 <p className="text-xl font-semibold text-foreground mt-1">
                   {(() => {
@@ -337,7 +337,7 @@ export default function AttendancePage() {
           )}
 
           {/* Attendance Table */}
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="bg-card border border-border rounded-lg overflow-hidden">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
@@ -354,20 +354,20 @@ export default function AttendancePage() {
               <tbody>
                 {attendanceData && attendanceData.length > 0 ? (
                   attendanceData.map((record) => (
-                    <tr key={record.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                    <tr key={record.id} className="border-b border-border last:border-0 hover:bg-canvas-soft">
                       <td className="px-4 py-3 text-sm text-foreground">
                         {format(new Date(record.check_in_time), "MMM d, yyyy")}
                       </td>
                       <td className="px-4 py-3 text-sm text-foreground">
                         <div className="flex items-center gap-1.5">
-                          <LogIn className="w-3.5 h-3.5 text-green-400" />
+                          <LogIn className="w-3.5 h-3.5 text-success" />
                           {format(new Date(record.check_in_time), "hh:mm a")}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-foreground">
                         {record.check_out_time ? (
                           <div className="flex items-center gap-1.5">
-                            <LogOut className="w-3.5 h-3.5 text-red-400" />
+                            <LogOut className="w-3.5 h-3.5 text-error" />
                             {format(new Date(record.check_out_time), "hh:mm a")}
                           </div>
                         ) : (

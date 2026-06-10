@@ -61,7 +61,7 @@ export default function ClassesPage() {
           canCreate ? (
             <Link
               href={gymPath("/classes/new")}
-              className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all"
+              className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-all"
             >
               <Plus className="w-4 h-4" />
               New Class
@@ -80,7 +80,7 @@ export default function ClassesPage() {
             setSearch(e.target.value);
             setPage(1);
           }}
-          className="bg-background border border-border rounded-xl px-4 py-2.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+          className="bg-background border border-border rounded-lg px-4 py-2.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
         />
         <select
           value={statusFilter}
@@ -88,7 +88,7 @@ export default function ClassesPage() {
             setStatusFilter(e.target.value);
             setPage(1);
           }}
-          className="bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+          className="bg-background border border-border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
         >
           <option value="">All Statuses</option>
           <option value="active">Active</option>
@@ -102,7 +102,7 @@ export default function ClassesPage() {
             setCategoryFilter(e.target.value);
             setPage(1);
           }}
-          className="bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
+          className="bg-background border border-border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
         >
           <option value="">All Categories</option>
           <option value="yoga">Yoga</option>
@@ -118,7 +118,7 @@ export default function ClassesPage() {
       </div>
 
       {/* Classes Table */}
-      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+      <div className="bg-card border border-border rounded-lg overflow-hidden shadow-level-2 shadow-black/5">
         {isLoading ? (
           <div className="p-6 space-y-4">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -146,7 +146,7 @@ export default function ClassesPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {classes.map((cls) => (
-                <tr key={cls.id} className="hover:bg-muted/30 transition-colors">
+                <tr key={cls.id} className="hover:bg-canvas-soft transition-colors">
                   <td className="px-6 py-4">
                     <Link
                       href={gymPath(`/classes/${cls.id}`)}
@@ -192,7 +192,7 @@ export default function ClassesPage() {
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-1.5 rounded-lg hover:bg-muted/50 disabled:opacity-30 transition-colors"
+                className="p-1.5 rounded-lg hover:bg-canvas-soft disabled:opacity-30 transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -202,7 +202,7 @@ export default function ClassesPage() {
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="p-1.5 rounded-lg hover:bg-muted/50 disabled:opacity-30 transition-colors"
+                className="p-1.5 rounded-lg hover:bg-canvas-soft disabled:opacity-30 transition-colors"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>

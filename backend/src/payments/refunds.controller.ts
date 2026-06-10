@@ -6,17 +6,22 @@ import {
   Param,
   Query,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { RefundsService } from './refunds.service';
 import { ProcessRefundDto } from './dto';
 import { JwtAuthGuard, PermissionsGuard, Permissions } from '../common';
+import { Idempotent } from '../common/idempotency/idempotent.decorator';
+import { StaffIdempotencyInterceptor } from '../common/idempotency/staff-idempotency.interceptor';
 
 @Controller('api/v1/refunds')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseInterceptors(StaffIdempotencyInterceptor)
 export class RefundsController {
   constructor(private readonly refundsService: RefundsService) {}
 
   @Post()
+  @Idempotent()
   @Permissions({ module: 'payments', action: 'create' })
   processRefund(@Body() dto: ProcessRefundDto) {
     return this.refundsService.processRefund(dto);

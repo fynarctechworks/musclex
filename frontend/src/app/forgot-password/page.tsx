@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
   if (sent) {
     return (
       <AuthLayout heading="Check your email" subheading="We've sent a password reset link to your email.">
-        <div className="rounded-xl border border-border bg-card p-6 text-center">
+        <div className="rounded-lg border border-border bg-card p-6 text-center">
           <Mail className="mx-auto h-12 w-12 text-primary" />
           <p className="mt-4 text-sm text-muted-foreground">
             Follow the instructions in the email to create a new password.

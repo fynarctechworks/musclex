@@ -8,8 +8,8 @@ import type { CartItem } from '../types';
 
 interface CartPanelProps {
   cart: CartItem[];
-  onUpdateQty: (productId: string, qty: number) => void;
-  onRemove: (productId: string) => void;
+  onUpdateQty: (cartKey: string, qty: number) => void;
+  onRemove: (cartKey: string) => void;
   onClear: () => void;
   discountAmount: number;
   onDiscountChange: (amount: number) => void;
@@ -67,12 +67,15 @@ export function CartPanel({
         ) : (
           cart.map((item) => (
             <div
-              key={item.product_id}
-              className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-2.5"
+              key={item.key}
+              className="flex items-center gap-3 rounded-lg border border-border bg-canvas-soft p-2.5"
             >
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">
                   {item.product_name}
+                  {item.kind === 'bundle' && (
+                    <span className="ml-1.5 text-[10px] uppercase tracking-wide text-primary">bundle</span>
+                  )}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   ₹{item.price.toFixed(2)} × {item.quantity}
@@ -83,7 +86,7 @@ export function CartPanel({
                   variant="outline"
                   size="icon"
                   className="h-6 w-6 border-border"
-                  onClick={() => onUpdateQty(item.product_id, item.quantity - 1)}
+                  onClick={() => onUpdateQty(item.key, item.quantity - 1)}
                 >
                   <Minus className="h-3 w-3" />
                 </Button>
@@ -94,8 +97,8 @@ export function CartPanel({
                   variant="outline"
                   size="icon"
                   className="h-6 w-6 border-border"
-                  disabled={item.quantity >= item.stock_quantity}
-                  onClick={() => onUpdateQty(item.product_id, item.quantity + 1)}
+                  disabled={Number.isFinite(item.stock_quantity) && item.quantity >= item.stock_quantity}
+                  onClick={() => onUpdateQty(item.key, item.quantity + 1)}
                 >
                   <Plus className="h-3 w-3" />
                 </Button>
@@ -103,7 +106,7 @@ export function CartPanel({
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                  onClick={() => onRemove(item.product_id)}
+                  onClick={() => onRemove(item.key)}
                 >
                   <Trash2 className="h-3 w-3" />
                 </Button>

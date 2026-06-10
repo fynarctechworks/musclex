@@ -17,9 +17,24 @@ export { RolesGuard } from './guards/roles.guard';
 export { PermissionsGuard } from './guards/permissions.guard';
 export { BranchAccessGuard } from './guards/branch-access.guard';
 export { ApiKeyGuard } from './guards/api-key.guard';
+export { SubscriptionLockGuard } from './guards/subscription-lock.guard';
+export {
+  AllowWhenLocked,
+  ALLOW_WHEN_LOCKED_KEY,
+} from './decorators/allow-when-locked.decorator';
+export {
+  SubscriptionPolicyService,
+  ComputedStatus,
+} from './services/subscription-policy.service';
+export {
+  SubscriptionContext,
+  SubscriptionLifecycleStatus,
+} from './decorators/current-user.decorator';
 export { TenantMiddleware } from './middleware/tenant.middleware';
 export { TenantContextService } from './middleware/tenant-context.service';
 export { tenantContext, getTenantSchema, getTenantGymId } from './tenant-context';
+export { CorrelationIdMiddleware } from './middleware/correlation-id.middleware';
+export { correlationContext, getCorrelationId } from './correlation-context';
 export { resolveBranchScope, BranchScope, restrictedBranchIdsForUser } from './branch-scope.util';
 export { ResourceLimitService } from './services/resource-limit.service';
 

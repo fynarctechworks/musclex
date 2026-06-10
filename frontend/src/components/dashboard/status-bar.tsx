@@ -216,7 +216,7 @@ function Dot({ lane, tone, status, active, onToggle }: DotProps) {
       <button
         type="button"
         onClick={onToggle}
-        className="flex items-center gap-1.5 px-1.5 py-0.5 rounded hover:bg-muted/40 transition-colors"
+        className="flex items-center gap-1.5 px-1.5 py-0.5 rounded hover:bg-canvas-soft transition-colors"
         aria-label={`${lane.label} status: ${tone}`}
         aria-expanded={active}
       >
@@ -234,7 +234,7 @@ function Dot({ lane, tone, status, active, onToggle }: DotProps) {
       </button>
       {active && (
         <div
-          className="absolute bottom-full mb-2 left-0 min-w-[220px] rounded-lg border border-border bg-popover text-popover-foreground shadow-lg p-3 text-[12px] z-40"
+          className="absolute bottom-full mb-2 left-0 min-w-[220px] rounded-lg border border-border bg-popover text-popover-foreground shadow-level-4 p-3 text-[12px] z-40"
           role="dialog"
         >
           <div className="flex items-center gap-2 mb-1">

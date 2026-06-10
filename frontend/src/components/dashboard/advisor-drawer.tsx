@@ -164,7 +164,7 @@ export function AdvisorDrawer({ context }: AdvisorDrawerProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-[13px] font-medium text-primary-foreground shadow-lg hover:bg-primary/90"
+        className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-[13px] font-medium text-primary-foreground shadow-level-4 hover:bg-primary/90"
         aria-label="Open AI Advisor"
       >
         <Sparkles className="h-4 w-4" />
@@ -190,7 +190,7 @@ export function AdvisorDrawer({ context }: AdvisorDrawerProps) {
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-md p-1 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                className="rounded-md p-1 text-muted-foreground hover:bg-canvas-soft hover:text-foreground"
                 aria-label="Close"
               >
                 <X className="h-4 w-4" />
@@ -224,7 +224,7 @@ export function AdvisorDrawer({ context }: AdvisorDrawerProps) {
                     className={cn(
                       "rounded-lg px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap",
                       m.role === "user"
-                        ? "bg-primary/10 text-foreground ml-6"
+                        ? "bg-canvas-soft-2 text-foreground ml-6"
                         : "bg-background/50 text-foreground border border-border/40 mr-6",
                     )}
                   >
@@ -269,7 +269,7 @@ export function AdvisorDrawer({ context }: AdvisorDrawerProps) {
                     "inline-flex items-center justify-center rounded-md px-3 disabled:opacity-50",
                     listening
                       ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      : "bg-muted text-foreground hover:bg-muted/70",
+                      : "bg-muted text-foreground hover:bg-canvas-soft-2",
                   )}
                   aria-label={listening ? "Stop listening" : "Start voice input"}
                   title={listening ? "Stop listening" : "Voice input"}

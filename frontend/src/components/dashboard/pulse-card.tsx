@@ -69,10 +69,10 @@ export function PulseCard({
 
   const deltaClass =
     isGood === null
-      ? "text-muted-foreground bg-muted/30"
+      ? "text-muted-foreground bg-canvas-soft-2"
       : isGood
-      ? "text-success bg-success/10"
-      : "text-destructive bg-destructive/10";
+      ? "text-success bg-success/12"
+      : "text-error-deep bg-error-soft";
 
   const ArrowIcon =
     direction === "up"
@@ -84,15 +84,15 @@ export function PulseCard({
   const card = (
     <div
       className={cn(
-        "group relative flex h-full flex-col rounded-xl border border-border bg-card p-5 transition-colors",
-        href && "hover:border-primary/50 cursor-pointer",
+        "group relative flex h-full flex-col rounded-lg border border-hairline bg-card p-5 shadow-level-2 transition-[border-color,box-shadow] duration-fast ease-out",
+        href && "hover:border-hairline-strong/40 hover:shadow-level-3 cursor-pointer",
         className,
       )}
       data-as-of={asOf}
     >
       <div className="flex items-start justify-between">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10">
-          <Icon className="h-4 w-4 text-primary" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-sm bg-canvas-soft-2">
+          <Icon className="h-4 w-4 text-foreground" />
         </div>
         <div className="flex items-center gap-1">
         {on_inspect && (
@@ -105,7 +105,7 @@ export function PulseCard({
             }}
             aria-label="Show how this is calculated"
             title="Show your work"
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+            className="rounded-sm p-1 text-muted-foreground hover:bg-canvas-soft hover:text-foreground"
           >
             <Search className="h-3.5 w-3.5" />
           </button>
@@ -113,7 +113,7 @@ export function PulseCard({
         {hasDelta && (
           <span
             className={cn(
-              "inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-[11px] font-medium",
+              "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-medium",
               deltaClass,
             )}
             title={
@@ -132,7 +132,7 @@ export function PulseCard({
       </div>
 
       {restatement && (
-        <div className="mt-2 inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-500">
+        <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-warning-deep">
           <AlertCircle className="h-3 w-3" />
           ▴ Restated · was{" "}
           {restatement.prior_value.toLocaleString()} on{" "}
@@ -140,14 +140,14 @@ export function PulseCard({
         </div>
       )}
 
-      <p className="mt-3 text-[12px] uppercase tracking-wide text-muted-foreground">
+      <p className="mt-3 font-mono text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </p>
-      <p className="mt-1 text-2xl font-bold text-foreground tracking-tight tabular-nums">
+      <p className="mt-1 text-display-md text-foreground tabular-nums">
         {value}
       </p>
       {subtitle && (
-        <p className="mt-1 text-[12px] text-muted-foreground">{subtitle}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
       )}
 
       <div
@@ -157,7 +157,7 @@ export function PulseCard({
             ? "text-muted-foreground"
             : isGood
               ? "text-success"
-              : "text-destructive",
+              : "text-error-deep",
         )}
       >
         <Sparkline data={sparkline ?? []} />

@@ -11,6 +11,7 @@ import { PermissionsMap, UserRoleSummary } from '../decorators/current-user.deco
 import { DEFAULT_ROLE_PERMISSIONS } from './default-permissions';
 import { RbacService } from '../../auth/rbac.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SubscriptionPolicyService } from '../services/subscription-policy.service';
 import * as jose from 'jose';
 
 @Injectable()
@@ -23,6 +24,7 @@ export class JwtAuthGuard implements CanActivate {
     private configService: ConfigService,
     private rbacService: RbacService,
     private prisma: PrismaService,
+    private subscriptionPolicy: SubscriptionPolicyService,
   ) {
     this.supabase = createClient(
       this.configService.get<string>('SUPABASE_URL', ''),
@@ -142,6 +144,23 @@ export class JwtAuthGuard implements CanActivate {
         }
       }
 
+      // Resolve subscription lifecycle context (cached, ~1ms after warmup).
+      // Skipped during onboarding (no studio_id yet).
+      let subscription = undefined as
+        | Awaited<ReturnType<SubscriptionPolicyService['getContext']>>
+        | undefined;
+      if (studioId) {
+        try {
+          subscription = await this.subscriptionPolicy.getContext(studioId);
+        } catch (err) {
+          this.logger.warn(
+            `Failed to resolve subscription context for studio ${studioId}: ${
+              err instanceof Error ? err.message : err
+            }`,
+          );
+        }
+      }
+
       request.user = {
         user_id: user.id,
         studio_id: studioId,
@@ -153,6 +172,7 @@ export class JwtAuthGuard implements CanActivate {
         email: user.email,
         permissions,
         permission_codes: permissionCodes,
+        subscription,
       };
 
       return true;

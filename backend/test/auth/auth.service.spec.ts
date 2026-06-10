@@ -10,6 +10,9 @@ import { AuthSessionService } from '../../src/auth/auth-session.service';
 import { RbacService } from '../../src/auth/rbac.service';
 import { RbacSeedService } from '../../src/auth/rbac-seed.service';
 import { TwoFactorService } from '../../src/auth/two-factor.service';
+import { SccSyncService } from '../../src/common/services/scc-sync.service';
+import { SubscriptionPolicyService } from '../../src/common/services/subscription-policy.service';
+import { RazorpayService } from '../../src/payments/razorpay.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { createMockPrismaService, createMockConfigService } from '../test-utils';
 
@@ -64,6 +67,24 @@ describe('AuthService', () => {
     removeListener: jest.fn(),
   };
 
+  const mockSccSyncService = {
+    syncStudio: jest.fn().mockResolvedValue(undefined),
+    syncUser: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockSubscriptionPolicyService = {
+    enforce: jest.fn().mockResolvedValue(undefined),
+    isLocked: jest.fn().mockResolvedValue(false),
+  };
+
+  const mockRazorpayService = {
+    configured: true,
+    getKeyId: jest.fn().mockReturnValue('rzp_test_key'),
+    createOrder: jest.fn(),
+    getOrder: jest.fn(),
+    verifyCheckoutSignature: jest.fn().mockReturnValue(true),
+  };
+
   beforeEach(async () => {
     prisma = createMockPrismaService();
     mockConfigService = createMockConfigService({
@@ -84,6 +105,9 @@ describe('AuthService', () => {
         { provide: RbacSeedService, useValue: mockRbacSeedService },
         { provide: TwoFactorService, useValue: mockTwoFactorService },
         { provide: EventEmitter2, useValue: mockEventEmitter },
+        { provide: SccSyncService, useValue: mockSccSyncService },
+        { provide: SubscriptionPolicyService, useValue: mockSubscriptionPolicyService },
+        { provide: RazorpayService, useValue: mockRazorpayService },
       ],
     }).compile();
 
@@ -124,6 +148,98 @@ describe('AuthService', () => {
     it('should delegate RBAC resolution to RbacService', () => {
       expect(mockRbacService.getUserRoles).toBeDefined();
       expect(mockRbacService.resolvePermissions).toBeDefined();
+    });
+  });
+
+  describe('oauthSync', () => {
+    // Wire the post-auth collaborators the shared pipeline actually calls.
+    const wirePostAuthMocks = () => {
+      (mockIdentityService as any).syncIdentity = jest.fn().mockResolvedValue(undefined);
+      (mockDeviceService as any).trackDevice = jest
+        .fn()
+        .mockResolvedValue({ id: 'dev-1', is_new: false });
+      (mockLoginHistoryService as any).record = jest.fn().mockResolvedValue(undefined);
+      mockSessionService.createSession.mockResolvedValue('sess-1');
+      mockRbacService.getUserWorkspaces.mockResolvedValue([]);
+      // 2FA lookup → disabled (userIdentity isn't in the base mock prisma)
+      (prisma as any).userIdentity = {
+        findUnique: jest.fn().mockResolvedValue({ two_factor_enabled: false }),
+      };
+    };
+
+    it('rejects an invalid Supabase token', async () => {
+      (service as any).supabase = {
+        auth: { getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: { message: 'bad' } }) },
+      };
+      await expect(service.oauthSync('bad-access', 'bad-refresh')).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+    });
+
+    it('rejects when the email already belongs to a different account', async () => {
+      (prisma as any).userIdentity = {
+        findUnique: jest.fn().mockResolvedValue({ id: 'some-other-user' }),
+      };
+      (service as any).supabase = {
+        auth: {
+          getUser: jest.fn().mockResolvedValue({
+            data: {
+              user: {
+                id: 'user-google-1',
+                email: 'taken@studio.com',
+                user_metadata: {},
+              },
+            },
+            error: null,
+          }),
+          admin: { updateUserById: jest.fn() },
+        },
+      };
+      await expect(service.oauthSync('access-tok', 'refresh-tok')).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+    });
+
+    it('seeds a brand-new social user into the onboarding wizard and syncs identity', async () => {
+      wirePostAuthMocks();
+      // No prior account owns this email.
+      (prisma.userIdentity.findUnique as jest.Mock).mockResolvedValueOnce(null);
+      const updateUserById = jest.fn().mockResolvedValue({ data: {}, error: null });
+      (service as any).supabase = {
+        auth: {
+          getUser: jest.fn().mockResolvedValue({
+            data: {
+              user: {
+                id: 'user-google-1',
+                email: 'new@studio.com',
+                user_metadata: { full_name: 'New Owner' }, // no role / studio / step
+                email_confirmed_at: '2026-01-01T00:00:00Z',
+              },
+            },
+            error: null,
+          }),
+          admin: { updateUserById },
+        },
+      };
+
+      const res: any = await service.oauthSync('access-tok', 'refresh-tok');
+
+      // Brand-new user: seeded with owner role + start of the onboarding wizard.
+      expect(updateUserById).toHaveBeenCalledWith(
+        'user-google-1',
+        expect.objectContaining({
+          user_metadata: expect.objectContaining({
+            role: 'owner',
+            onboarding_step: 'studio_info',
+          }),
+        }),
+      );
+      expect(res.user.onboarding_step).toBe('studio_info');
+      expect(res.studio).toBeNull();
+      // Identity MUST be synced or the JWT guard would reject every later call.
+      expect((mockIdentityService as any).syncIdentity).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'user-google-1', email: 'new@studio.com' }),
+      );
     });
   });
 });

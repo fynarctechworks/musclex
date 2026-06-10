@@ -144,8 +144,8 @@ export default function OnboardingMembershipsPage() {
   return (
     <OnboardingLayout currentStep={4} maxWidth="480px">
       <div className="mb-7">
-        <span className="text-primary text-4xl font-black leading-none">*</span>
-        <h1 className="mt-2 text-[22px] font-bold text-foreground tracking-tight">
+        <span className="text-primary text-4xl font-semibold leading-none">*</span>
+        <h1 className="mt-2 text-[22px] font-semibold text-foreground tracking-tight">
           Create membership plans
         </h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
@@ -174,7 +174,7 @@ export default function OnboardingMembershipsPage() {
               >
                 <div className="text-[13px] font-semibold text-foreground">{t.name}</div>
                 <div className="text-[11px] text-muted-foreground mt-0.5">{t.description}</div>
-                <div className="text-[13px] font-bold text-primary mt-1">
+                <div className="text-[13px] font-semibold text-primary mt-1">
                   ₹{t.price.toLocaleString()}<span className="text-[10px] text-muted-foreground font-normal">/{t.plan_type}</span>
                 </div>
               </button>

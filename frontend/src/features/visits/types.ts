@@ -3,7 +3,7 @@ export interface VisitStats {
   visits_last_30_days: number;
   visits_last_90_days: number;
   avg_visits_per_week: number;
-  last_visit: string | null;
+  last_visit: { checked_in_at: string; branch?: { id: string; name: string } | null } | string | null;
 }
 
 export interface HeatmapCell {

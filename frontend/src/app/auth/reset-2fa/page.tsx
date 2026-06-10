@@ -60,7 +60,7 @@ function Reset2FAForm() {
       <div className="space-y-6">
         <div className="flex justify-center">
           <div
-            className={`w-16 h-16 rounded-2xl flex items-center justify-center ${
+            className={`w-16 h-16 rounded-lg flex items-center justify-center ${
               resetComplete ? 'bg-success/10' : 'bg-destructive/10'
             }`}
           >
@@ -75,9 +75,9 @@ function Reset2FAForm() {
         {!resetComplete ? (
           <form onSubmit={handleReset} className="space-y-4">
             {/* Security warning */}
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3.5">
+            <div className="rounded-lg border border-warning/30 bg-warning/5 p-3.5">
               <div className="flex gap-2.5">
-                <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
                 <p className="text-[13px] text-muted-foreground leading-relaxed">
                   This will disable two-factor authentication on your account. You will need to set it up again after logging in.
                 </p>

@@ -10,10 +10,10 @@ export function LowStockAlert({ branchId }: { branchId?: string }) {
   if (!items || items.length === 0) return null;
 
   return (
-    <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4">
+    <div className="rounded-lg border border-warning/30 bg-warning/10 p-4">
       <div className="flex items-center gap-2 mb-2">
-        <AlertTriangle className="h-4 w-4 text-yellow-400" />
-        <h3 className="text-sm font-semibold text-yellow-400">
+        <AlertTriangle className="h-4 w-4 text-warning" />
+        <h3 className="text-sm font-semibold text-warning">
           Low Stock Alerts ({items.length})
         </h3>
       </div>
@@ -24,7 +24,7 @@ export function LowStockAlert({ branchId }: { branchId?: string }) {
               {item.product?.product_name}
               {item.product?.sku ? ` (${item.product.sku})` : ''}
             </span>
-            <span className="text-yellow-400">
+            <span className="text-warning">
               {item.stock_quantity} left · reorder at {item.reorder_level}
             </span>
           </div>

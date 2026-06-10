@@ -70,7 +70,7 @@ export class CreateMemberDto {
 
   @IsString()
   @IsOptional()
-  @IsIn(['cash', 'card', 'upi', 'bank_transfer', 'razorpay', 'stripe'])
+  @IsIn(['cash', 'card', 'upi', 'bank_transfer', 'razorpay'])
   payment_method?: string;
 
   @IsNumber()

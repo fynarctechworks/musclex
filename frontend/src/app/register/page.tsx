@@ -11,6 +11,7 @@ import { authApi } from '@/features/auth';
 import { useAuthStore } from '@/stores/auth-store';
 import { toast } from 'sonner';
 import { OnboardingLayout } from '@/components/onboarding/onboarding-layout';
+import { SocialAuthButtons, AuthDivider } from '@/components/auth/social-auth-buttons';
 
 interface RegisterFormData {
   full_name: string;
@@ -81,14 +82,17 @@ export default function RegisterPage() {
   return (
     <OnboardingLayout currentStep={0}>
       <div className="mb-7">
-        <span className="text-primary text-4xl font-black leading-none">*</span>
-        <h1 className="mt-2 text-[22px] font-bold text-foreground tracking-tight">
+        <span className="text-primary text-4xl font-semibold leading-none">*</span>
+        <h1 className="mt-2 text-[22px] font-semibold text-foreground tracking-tight">
           Create your account
         </h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
           Step 1 of 7 — Create Account
         </p>
       </div>
+
+      <SocialAuthButtons providers={['google', 'apple']} disabled={loading} />
+      <AuthDivider label="or sign up with email" />
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="flex items-center gap-2 text-primary mb-2">

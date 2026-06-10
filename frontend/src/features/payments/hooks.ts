@@ -5,6 +5,7 @@ import {
   expensesApi,
   expenseCategoriesApi,
   invoicesApi,
+  posReceiptsApi,
   refundsApi,
   discountsApi,
   financialReportsApi,
@@ -16,6 +17,7 @@ import {
   type RefundFilters,
 } from './api';
 import { toast } from 'sonner';
+import { captureError, Source } from '@/lib/observability/capture';
 
 // ── Payments ──────────────────────────────────────────────
 
@@ -36,14 +38,20 @@ export function useRecordCashPayment() {
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Cash payment recorded');
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      toast.error(err.message);
+      captureError(Source.PAYMENT, err, { module: 'cash-payment', severity: 'HIGH' });
+    },
   });
 }
 
 export function useCreatePaymentOrder() {
   return useMutation({
     mutationFn: paymentsApi.createOrder,
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      toast.error(err.message);
+      captureError(Source.PAYMENT, err, { module: 'payment-order', severity: 'HIGH' });
+    },
   });
 }
 
@@ -57,7 +65,10 @@ export function useVerifyPayment() {
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Payment verified');
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      toast.error(err.message);
+      captureError(Source.PAYMENT, err, { module: 'payment-verify', severity: 'HIGH' });
+    },
   });
 }
 
@@ -255,6 +266,60 @@ export function useUpdateInvoiceStatus() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.finance.all });
       toast.success('Invoice status updated');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useInvoicePdfLink() {
+  return useMutation({
+    mutationFn: (id: string) => invoicesApi.pdfLink(id),
+    onError: (err: Error) => toast.error(`PDF failed: ${err.message}`),
+  });
+}
+
+export function useSendInvoice() {
+  return useMutation({
+    mutationFn: ({ id, ...body }: {
+      id: string;
+      channels: Array<'email' | 'whatsapp'>;
+      email_override?: string;
+      phone_override?: string;
+    }) => invoicesApi.send(id, body),
+    onSuccess: (data) => {
+      const deliveries = (data as { deliveries?: Array<{ channel: string; status: string }> })?.deliveries ?? [];
+      const ok = deliveries.filter((d) => d.status === 'sent').map((d) => d.channel);
+      const fail = deliveries.filter((d) => d.status !== 'sent').map((d) => d.channel);
+      if (ok.length) toast.success(`Sent via ${ok.join(', ')}`);
+      if (fail.length) toast.error(`Failed: ${fail.join(', ')}`);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function usePosReceiptPdfLink() {
+  return useMutation({
+    mutationFn: ({ saleId, format }: { saleId: string; format?: 'a4' | 'thermal_80mm' }) =>
+      posReceiptsApi.pdfLink(saleId, format ?? 'a4'),
+    onError: (err: Error) => toast.error(`Receipt failed: ${err.message}`),
+  });
+}
+
+export function useSendPosReceipt() {
+  return useMutation({
+    mutationFn: ({ saleId, ...body }: {
+      saleId: string;
+      channels: Array<'email' | 'whatsapp'>;
+      format?: 'a4' | 'thermal_80mm';
+      email_override?: string;
+      phone_override?: string;
+    }) => posReceiptsApi.send(saleId, body),
+    onSuccess: (data) => {
+      const deliveries = (data as { deliveries?: Array<{ channel: string; status: string }> })?.deliveries ?? [];
+      const ok = deliveries.filter((d) => d.status === 'sent').map((d) => d.channel);
+      const fail = deliveries.filter((d) => d.status !== 'sent').map((d) => d.channel);
+      if (ok.length) toast.success(`Receipt sent via ${ok.join(', ')}`);
+      if (fail.length) toast.error(`Failed: ${fail.join(', ')}`);
     },
     onError: (err: Error) => toast.error(err.message),
   });

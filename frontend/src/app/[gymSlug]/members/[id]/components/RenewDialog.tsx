@@ -45,7 +45,7 @@ export function RenewDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
+      <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-level-5">
         <h2 className="text-base font-semibold text-foreground mb-1">
           Renew Membership
         </h2>
@@ -85,7 +85,6 @@ export function RenewDialog({
               <option value="upi">UPI</option>
               <option value="bank_transfer">Bank Transfer</option>
               <option value="razorpay">Razorpay</option>
-              <option value="stripe">Stripe</option>
             </select>
           </div>
         </div>

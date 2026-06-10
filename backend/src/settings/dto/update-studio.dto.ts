@@ -73,6 +73,27 @@ export class UpdateStudioDto {
   @IsOptional()
   tax_id?: string;
 
+  // ── GST tax-invoice settings (India) ──
+  @IsString()
+  @IsOptional()
+  gstin?: string;
+
+  @IsString()
+  @IsOptional()
+  gst_state_code?: string;
+
+  @IsString()
+  @IsOptional()
+  default_hsn?: string;
+
+  @IsString()
+  @IsOptional()
+  invoice_prefix?: string;
+
+  @IsString()
+  @IsOptional()
+  invoice_terms?: string;
+
   @IsInt()
   @Min(0)
   @IsOptional()

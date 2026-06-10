@@ -2,6 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { MembersService } from '../../src/members/members.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { ResourceLimitService } from '../../src/common/services/resource-limit.service';
+import { QueueService } from '../../src/queue/queue.service';
+import { EventStoreService } from '../../src/events/event-store.service';
+import { EventProjectorService } from '../../src/events/event-projector.service';
+import { MemberDirectoryService } from '../../src/member/directory/member-directory.service';
+import { tenantContext } from '../../src/common/tenant-context';
 import { NotFoundException } from '@nestjs/common';
 import {
   createMockPrismaService,
@@ -19,6 +24,33 @@ const mockResourceLimitService = {
   checkBranchLimit: jest.fn().mockResolvedValue(undefined),
 };
 
+const mockQueueService = {
+  enqueueMemberWelcome: jest.fn().mockResolvedValue(undefined),
+  enqueue: jest.fn().mockResolvedValue(undefined),
+};
+
+const mockEventStoreService = {
+  emit: jest.fn().mockResolvedValue({ id: 'event-1' }),
+  appendEvent: jest.fn().mockResolvedValue({ id: 'event-1' }),
+};
+
+const mockEventProjectorService = {
+  // Service calls `this.eventProjector.processEvent(...)` post-commit.
+  processEvent: jest.fn().mockResolvedValue(undefined),
+};
+
+const mockMemberDirectoryService = {
+  // Post-commit fire-and-forget directory sync (phone → gym lookup).
+  syncMember: jest.fn().mockResolvedValue(undefined),
+  backfill: jest.fn().mockResolvedValue(undefined),
+};
+
+// Wrap async ops requiring tenant context (create uses getTenantGymId()).
+const TENANT_GYM_ID = '11111111-1111-1111-1111-111111111111';
+function withTenant<T>(fn: () => Promise<T> | T): Promise<T> {
+  return tenantContext.run({ gymId: TENANT_GYM_ID } as any, fn) as Promise<T>;
+}
+
 describe('MembersService', () => {
   let service: MembersService;
   let prisma: ReturnType<typeof createMockPrismaService>;
@@ -31,6 +63,10 @@ describe('MembersService', () => {
         MembersService,
         { provide: PrismaService, useValue: prisma },
         { provide: ResourceLimitService, useValue: mockResourceLimitService },
+        { provide: QueueService, useValue: mockQueueService },
+        { provide: EventStoreService, useValue: mockEventStoreService },
+        { provide: EventProjectorService, useValue: mockEventProjectorService },
+        { provide: MemberDirectoryService, useValue: mockMemberDirectoryService },
       ],
     }).compile();
 
@@ -127,7 +163,20 @@ describe('MembersService', () => {
   });
 
   describe('create', () => {
+    // create() runs a pre-flight (membershipPlan.count > 0, org lookup,
+    // branch lookup, dup-phone/email checks) and then a $transaction that
+    // calls tx.member.create + eventStore.emit. Wire enough of the mock
+    // for the happy path.
+    function wireCreateHappyPath() {
+      prisma.membershipPlan.count.mockResolvedValue(1);
+      prisma.organization.findFirst.mockResolvedValue({ id: 'org-1' });
+      prisma.branch.findFirst.mockResolvedValue({ id: mockMember.branch_id });
+      // No duplicates
+      prisma.member.findFirst.mockResolvedValue(null);
+    }
+
     it('should create a new member', async () => {
+      wireCreateHappyPath();
       const createData = {
         branch_id: mockMember.branch_id,
         full_name: 'New Member',
@@ -144,29 +193,139 @@ describe('MembersService', () => {
         face_descriptor: null,
       });
 
-      const result = await service.create('test-studio-id', createData);
+      const result = await withTenant(() =>
+        service.create('test-studio-id', createData as any),
+      );
       expect(result).toBeDefined();
       expect(prisma.member.create).toHaveBeenCalled();
     });
 
     it('should generate a member code with FS- prefix', async () => {
+      wireCreateHappyPath();
       prisma.member.create.mockImplementation(async (args: any) => ({
         id: 'new-id',
         ...args.data,
         face_descriptor: null,
       }));
 
-      const result = await service.create('test-studio-id', {
-        branch_id: mockMember.branch_id,
-        full_name: 'Test',
-        email: 'test@test.com',
-        phone: '+911234567890',
-        gender: 'male',
-      });
+      await withTenant(() =>
+        service.create('test-studio-id', {
+          branch_id: mockMember.branch_id,
+          full_name: 'Test',
+          email: 'test@test.com',
+          phone: '+911234567890',
+          gender: 'male',
+        } as any),
+      );
 
       expect(prisma.member.create).toHaveBeenCalled();
       const callArgs = prisma.member.create.mock.calls[0][0];
-      expect(callArgs.data.member_code).toMatch(/^FS-\d{8}-\d{4}$/);
+      // members.service.generateMemberCode():
+      //   `FS-${YYYYMMDD}-${randomBytes(4).toString('hex').toUpperCase()}`
+      // i.e. 8 uppercase-hex chars, not 4 digits.
+      expect(callArgs.data.member_code).toMatch(/^FS-\d{8}-[0-9A-F]{8}$/);
+    });
+  });
+
+  describe('create — referral settings tenant isolation', () => {
+    // Two studios with DIFFERENT referral settings. Bug: the raw query in
+    // members.service.ts (~line 560) does `SELECT ... FROM public.studios LIMIT 1`
+    // with no WHERE — so it returns an arbitrary studio's row. Under gym A's
+    // tenant context we MUST get gym A's settings, not gym B's.
+    const GYM_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    const GYM_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+    const PLAN_DURATION_DAYS = 30;
+    const PLAN_ID = '99999999-9999-9999-9999-999999999999';
+    const REFERRER_ID = '77777777-7777-7777-7777-777777777777';
+    const START_DATE = new Date('2026-01-01T00:00:00.000Z');
+
+    function withTenantA<T>(fn: () => Promise<T> | T): Promise<T> {
+      return tenantContext.run({ gymId: GYM_A } as any, fn) as Promise<T>;
+    }
+
+    function wireReferralPath() {
+      // Pre-flight passes
+      prisma.membershipPlan.count.mockResolvedValue(1);
+      prisma.organization.findFirst.mockResolvedValue({ id: 'org-1' });
+      prisma.branch.findFirst.mockResolvedValue({ id: mockMember.branch_id });
+      prisma.member.findFirst.mockResolvedValue(null);
+
+      // Inside the transaction
+      prisma.membershipPlan.findUnique = jest.fn().mockResolvedValue({
+        id: PLAN_ID,
+        duration_days: PLAN_DURATION_DAYS,
+        total_classes: null,
+        price: 0, // skip payment-create branch
+      });
+      prisma.member.create.mockImplementation(async (args: any) => ({
+        id: 'new-member-id',
+        ...args.data,
+      }));
+      prisma.memberMembership = {
+        ...(prisma.memberMembership ?? {}),
+        create: jest.fn().mockImplementation(async (args: any) => ({
+          id: 'new-membership-id',
+          ...args.data,
+          plan: { id: PLAN_ID, duration_days: PLAN_DURATION_DAYS },
+        })),
+        update: jest.fn().mockImplementation(async (args: any) => ({
+          id: args.where.id,
+          ...args.data,
+        })),
+        findFirst: jest.fn().mockResolvedValue(null),
+      };
+
+      // Simulate two studios. After the fix, the query will bind the current
+      // gym id. Before the fix, it has no bindings — return gym B's settings
+      // to represent an arbitrary wrong row.
+      prisma.$queryRaw.mockImplementation((_strings: any, ...values: any[]) => {
+        const boundGymId = values[0];
+        if (boundGymId === GYM_A) {
+          return Promise.resolve([
+            { referral_free_days: 5, referral_reward_days: 0 },
+          ]);
+        }
+        if (boundGymId === GYM_B) {
+          return Promise.resolve([
+            { referral_free_days: 99, referral_reward_days: 0 },
+          ]);
+        }
+        // No binding present (current buggy LIMIT 1) — arbitrary row wins.
+        return Promise.resolve([
+          { referral_free_days: 99, referral_reward_days: 0 },
+        ]);
+      });
+    }
+
+    it("extends referred member's membership by THIS gym's referral_free_days, not another gym's", async () => {
+      wireReferralPath();
+
+      const dto = {
+        branch_id: mockMember.branch_id,
+        full_name: 'Referred Newbie',
+        phone: '+919999999999',
+        gender: 'male',
+        plan_id: PLAN_ID,
+        membership_start_date: START_DATE.toISOString(),
+        referred_by_member_id: REFERRER_ID,
+      };
+
+      await withTenantA(() =>
+        service.create('studio-a', dto as any),
+      );
+
+      // Plan baseline end_date = START + 30 days.
+      // Gym A's referral_free_days = 5 → expected newEnd = START + 35 days.
+      // If the bug is present, gym B's 99 gets applied → newEnd = START + 129 days.
+      const updateCalls = (prisma.memberMembership.update as jest.Mock).mock
+        .calls;
+      expect(updateCalls.length).toBeGreaterThan(0);
+      const newEnd: Date = updateCalls[0][0].data.end_date;
+      const expectedEnd = new Date(START_DATE);
+      expectedEnd.setDate(
+        expectedEnd.getDate() + PLAN_DURATION_DAYS + 5,
+      );
+      expect(newEnd.toISOString()).toBe(expectedEnd.toISOString());
     });
   });
 

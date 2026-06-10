@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/app-layout";
-import { StatusBadge, LoadingSkeleton, AccessDenied } from "@/components/shared";
+import { StatusBadge, LoadingSkeleton, AccessDenied, ConfirmDialog } from "@/components/shared";
 import { useRequirePermission } from "@/hooks/use-require-permission";
 import { apiClient } from "@/lib/api";
 import { ClassItem, ClassEnrollment } from "@/lib/types";
@@ -32,6 +32,11 @@ export default function ClassDetailPage() {
   const queryClient = useQueryClient();
   const [enrollInput, setEnrollInput] = useState("");
   const [enrollMode, setEnrollMode] = useState<EnrollMode>("member_code");
+  // Which roster list is visible — lets staff flip between the two without
+  // scrolling past a long enrolled list to reach the waitlist.
+  const [rosterTab, setRosterTab] = useState<"enrolled" | "waitlist">("enrolled");
+  // Enrollment the user has asked to cancel — drives the confirm dialog.
+  const [cancelTarget, setCancelTarget] = useState<ClassEnrollment | null>(null);
 
   const { data: classItem, isLoading } = useQuery<ClassItem>({
     queryKey: ["class", id],
@@ -51,9 +56,17 @@ export default function ClassDetailPage() {
 
   const cancelMutation = useMutation({
     mutationFn: (member_id: string) =>
-      apiClient.post(`/classes/${id}/cancel-enrollment`, { member_id }),
-    onSuccess: () => {
-      toast.success("Enrollment cancelled");
+      apiClient.post<{ promoted?: { member_name: string } | null }>(
+        `/classes/${id}/cancel-enrollment`,
+        { member_id },
+      ),
+    onSuccess: (data: { promoted?: { member_name: string } | null }) => {
+      toast.success(
+        data?.promoted
+          ? `Cancelled. ${data.promoted.member_name} promoted from the waitlist.`
+          : "Enrollment cancelled",
+      );
+      setCancelTarget(null);
       queryClient.invalidateQueries({ queryKey: ["class", id] });
     },
     onError: (err: Error) => toast.error(err.message),
@@ -105,13 +118,13 @@ export default function ClassDetailPage() {
       </Link>
 
       {/* Class Header */}
-      <div className="bg-card border border-border rounded-xl p-6 mb-6">
+      <div className="bg-card border border-border rounded-lg p-6 mb-6">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-xl font-semibold text-foreground">
               {classItem.name}
             </h1>
-            <span className="inline-block mt-1 px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">
+            <span className="inline-block mt-1 px-2 py-0.5 bg-canvas-soft-2 text-primary text-xs rounded-full">
               {classItem.category}
             </span>
           </div>
@@ -151,7 +164,7 @@ export default function ClassDetailPage() {
       </div>
 
       {/* Enroll Member */}
-      <div className="bg-card border border-border rounded-xl p-6 mb-6">
+      <div className="bg-card border border-border rounded-lg p-6 mb-6">
         <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
           <UserPlus className="w-5 h-5" /> Enroll Member
         </h2>
@@ -216,73 +229,116 @@ export default function ClassDetailPage() {
         </p>
       </div>
 
-      {/* Enrolled Members */}
-      <div className="bg-card border border-border rounded-xl p-6 mb-6">
-        <h2 className="text-base font-semibold text-foreground mb-3">
-          Enrolled ({enrolled.length})
-        </h2>
-        {enrolled.length > 0 ? (
-          <div className="space-y-2">
-            {enrolled.map((enrollment: ClassEnrollment) => (
-              <div
-                key={enrollment.id}
-                className="flex items-center justify-between py-2 border-b border-border last:border-0"
-              >
-                <div>
-                  <p className="text-sm text-foreground">
-                    {enrollment.member?.full_name ?? enrollment.member_id}
-                  </p>
-                  {enrollment.member?.member_code && (
-                    <p className="text-xs text-muted-foreground">
-                      {enrollment.member.member_code}
-                    </p>
-                  )}
-                </div>
-                <button
-                  onClick={() => cancelMutation.mutate(enrollment.member_id)}
-                  className="text-xs text-destructive hover:text-destructive/80"
+      {/* Roster — switch between Enrolled and Waitlist */}
+      <div className="bg-card border border-border rounded-lg p-6">
+        {/* Tab switch (same segmented style as the enroll-mode toggle) */}
+        <div className="flex gap-1 mb-4 bg-muted rounded-lg p-1 w-fit">
+          <button
+            type="button"
+            onClick={() => setRosterTab("enrolled")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              rosterTab === "enrolled"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            Enrolled ({enrolled.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setRosterTab("waitlist")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              rosterTab === "waitlist"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5" />
+            Waitlist ({waitlisted.length})
+          </button>
+        </div>
+
+        {/* Active list. Scrolls inside the card so a long roster (100+) doesn't
+            push the rest of the page down. */}
+        {(() => {
+          const rows = rosterTab === "enrolled" ? enrolled : waitlisted;
+          if (rows.length === 0) {
+            return (
+              <p className="text-sm text-muted-foreground">
+                {rosterTab === "enrolled"
+                  ? "No enrolled members"
+                  : "No one on the waitlist"}
+              </p>
+            );
+          }
+          return (
+            <div className="space-y-2 max-h-[28rem] overflow-y-auto pr-1">
+              {rows.map((enrollment: ClassEnrollment) => (
+                <div
+                  key={enrollment.id}
+                  className="flex items-center justify-between py-2 border-b border-border last:border-0"
                 >
-                  Cancel
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">No enrolled members</p>
-        )}
+                  <div>
+                    <p className="text-sm text-foreground">
+                      {enrollment.member?.full_name ?? enrollment.member_id}
+                    </p>
+                    {rosterTab === "waitlist" ? (
+                      <p className="text-xs text-muted-foreground">
+                        Position #{enrollment.waitlist_position}
+                      </p>
+                    ) : (
+                      enrollment.member?.member_code && (
+                        <p className="text-xs text-muted-foreground">
+                          {enrollment.member.member_code}
+                        </p>
+                      )
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setCancelTarget(enrollment)}
+                    className="text-xs text-destructive hover:text-destructive/80"
+                  >
+                    {rosterTab === "waitlist" ? "Remove" : "Cancel"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
-      {/* Waitlist */}
-      {waitlisted.length > 0 && (
-        <div className="bg-card border border-border rounded-xl p-6">
-          <h2 className="text-base font-semibold text-foreground mb-3">
-            Waitlist ({waitlisted.length})
-          </h2>
-          <div className="space-y-2">
-            {waitlisted.map((enrollment: ClassEnrollment) => (
-              <div
-                key={enrollment.id}
-                className="flex items-center justify-between py-2 border-b border-border last:border-0"
-              >
-                <div>
-                  <p className="text-sm text-foreground">
-                    {enrollment.member?.full_name ?? enrollment.member_id}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Position #{enrollment.waitlist_position}
-                  </p>
-                </div>
-                <button
-                  onClick={() => cancelMutation.mutate(enrollment.member_id)}
-                  className="text-xs text-destructive hover:text-destructive/80"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Cancel-enrollment confirmation. Cancelling an enrolled member frees a
+         seat and auto-promotes the next waitlisted member, so confirm first. */}
+      <ConfirmDialog
+        open={cancelTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setCancelTarget(null);
+        }}
+        title={
+          cancelTarget?.status === "waitlisted"
+            ? "Remove from waitlist?"
+            : "Cancel enrollment?"
+        }
+        description={
+          cancelTarget
+            ? `${cancelTarget.member?.full_name ?? "This member"} will be ${
+                cancelTarget.status === "waitlisted"
+                  ? "removed from the waitlist"
+                  : "removed from this class. If someone is waitlisted, they'll be promoted into the freed seat"
+              }.`
+            : ""
+        }
+        confirmLabel={
+          cancelTarget?.status === "waitlisted" ? "Remove" : "Cancel enrollment"
+        }
+        cancelLabel="Keep"
+        variant="danger"
+        loading={cancelMutation.isPending}
+        onConfirm={() => {
+          if (cancelTarget) cancelMutation.mutate(cancelTarget.member_id);
+        }}
+      />
     </AppLayout>
   );
 }

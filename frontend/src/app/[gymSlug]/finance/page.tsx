@@ -88,10 +88,10 @@ export default function FinancePage() {
         </Link>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-sm font-semibold text-foreground mb-4">Recent Transactions</h2>
         <div className="space-y-3">
-          {paymentsError && <p className="text-sm text-red-500 mb-2">Failed to load payments. Check your permissions.</p>}
+          {paymentsError && <p className="text-sm text-error mb-2">Failed to load payments. Check your permissions.</p>}
           {payments?.data?.length ? payments.data.map((p) => (
             <div key={p.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
               <div>

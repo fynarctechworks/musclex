@@ -19,6 +19,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
     branches: ['view', 'create', 'edit', 'delete'],
     reports: ['view', 'export'],
     roles: ['view', 'create', 'edit', 'delete'],
+    inventory: ['view', 'create', 'edit', 'delete', 'export'],
   },
 
   owner: {
@@ -34,6 +35,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
     branches: ['view', 'create', 'edit', 'delete'],
     reports: ['view', 'export'],
     roles: ['view', 'create', 'edit', 'delete'],
+    inventory: ['view', 'create', 'edit', 'delete', 'export'],
   },
 
   brand_owner: {
@@ -49,6 +51,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
     branches: ['view', 'create', 'edit', 'delete'],
     reports: ['view', 'export'],
     roles: ['view', 'create', 'edit', 'delete'],
+    inventory: ['view', 'create', 'edit', 'delete', 'export'],
   },
 
   regional_manager: {
@@ -64,6 +67,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
     branches: ['view', 'edit'],
     reports: ['view', 'export'],
     roles: ['view'],
+    inventory: ['view', 'create', 'edit', 'export'],
   },
 
   branch_manager: {
@@ -79,6 +83,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
     branches: ['view'],
     reports: ['view', 'export'],
     roles: ['view'],
+    inventory: ['view', 'create', 'edit', 'export'],
   },
 
   // Legacy alias
@@ -95,6 +100,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
     branches: ['view'],
     reports: ['view', 'export'],
     roles: ['view'],
+    inventory: ['view', 'create', 'edit', 'export'],
   },
 
   trainer: {
@@ -106,6 +112,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
     ai: ['view', 'create'],
     branches: ['view'],
     reports: ['view'],
+    inventory: ['view'],
   },
 
   front_desk: {
@@ -117,6 +124,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
     staff: ['view'],
     branches: ['view'],
     reports: ['view'],
+    // front desk runs POS — selling requires inventory.create
+    inventory: ['view', 'create'],
   },
 
   accountant: {
@@ -125,6 +134,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
     payments: ['view', 'create', 'edit', 'delete', 'export'],
     branches: ['view'],
     reports: ['view', 'export'],
+    // valuation / stock reports
+    inventory: ['view', 'export'],
   },
 
   marketing_manager: {

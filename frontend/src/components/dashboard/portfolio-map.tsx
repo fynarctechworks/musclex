@@ -69,7 +69,7 @@ export function PortfolioMap({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border bg-card overflow-hidden",
+        "rounded-lg border border-border bg-card overflow-hidden",
         className,
       )}
     >
@@ -141,15 +141,15 @@ export function PortfolioMap({
                 onClick={() => onBranchClick?.(b.branch_id)}
                 className={cn(
                   "border-b border-border/40 last:border-0 transition-colors",
-                  onBranchClick && "cursor-pointer hover:bg-muted/30",
-                  b.outliers.length > 0 && "bg-amber-500/5",
+                  onBranchClick && "cursor-pointer hover:bg-canvas-soft",
+                  b.outliers.length > 0 && "bg-warning/5",
                 )}
               >
                 <td className="px-3 py-2.5">
                   <div className="flex items-center gap-2">
                     {b.outliers.length > 0 && (
                       <AlertTriangle
-                        className="h-3.5 w-3.5 shrink-0 text-amber-500"
+                        className="h-3.5 w-3.5 shrink-0 text-warning"
                         aria-label="Outlier"
                       />
                     )}
@@ -158,7 +158,7 @@ export function PortfolioMap({
                     </span>
                   </div>
                   {b.outliers.length > 0 && (
-                    <span className="block text-[11px] text-amber-500/90 mt-0.5">
+                    <span className="block text-[11px] text-warning/90 mt-0.5">
                       {b.outliers[0]}
                     </span>
                   )}
@@ -176,7 +176,7 @@ export function PortfolioMap({
                 <Td align="right">
                   <span
                     className={cn(
-                      b.outstanding_dues > 0 && "text-amber-500",
+                      b.outstanding_dues > 0 && "text-warning",
                     )}
                   >
                     ₹{b.outstanding_dues.toLocaleString()}
@@ -221,7 +221,7 @@ function Th({
       className={cn(
         "px-3 py-2 text-[11px] uppercase tracking-wide select-none",
         align === "right" ? "text-right" : "text-left",
-        onClick && "cursor-pointer hover:bg-muted/30",
+        onClick && "cursor-pointer hover:bg-canvas-soft",
         active ? "text-foreground" : "text-muted-foreground",
       )}
     >

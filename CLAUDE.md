@@ -1,177 +1,137 @@
-# FitSync Pro — Project Instructions
+# CLAUDE.md — MuscleX Working Rules
 
-## What This Project Is
+This file defines how you (Claude Code) must work in this repository.
+Read it fully at the start of every session. These rules override any
+instinct to "be helpful" by doing more than asked.
 
-FitSync Pro is a cloud-native, AI-powered gym management SaaS platform for fitness studio owners. It replaces spreadsheets, WhatsApp groups, and paper registers with one intelligent operating system.
+## What this project is
+MuscleX is a **production multi-tenant gym-management SaaS** used by real,
+paying gyms. Real money and real member data flow through it. Each gym ("studio")
+is a tenant and its data MUST stay isolated — a cross-tenant leak is the worst
+thing that can happen here.
 
-## Documentation
+It is a **monorepo of four apps** sharing one Supabase Postgres database:
 
-- **PRD (Product Requirements):** `docs/PRD_v1.0.md` — features, user flows, design system, screen inventory
-- **TRD (Technical Requirements):** `docs/TRD_v1.0.md` — database schema, API endpoints, tech stack, deployment
-- **UI Screens:** `docs/screens/` — organized by module, PNG exports from Figma
-- **Alignment Report:** `docs/alignment-report.md` — known mismatches between screens and backend specs
-- **Screen Map:** `docs/SCREEN_MAP.md` — maps every PNG filename to its PRD screen ID
-- **Build Plan:** `tasks/todo.md` — phased checklist
+| Path | App | Stack |
+|---|---|---|
+| `backend/` | Core gym API (memberships, check-ins, classes, payments, inventory, member BFF) | NestJS 10 + Prisma 5 (**multi-schema**) |
+| `frontend/` | Gym admin / operations web app | Next.js 14 (App Router) + Supabase |
+| `gym-member-app/` | Member mobile app | Expo / React Native (dark-first "Geist" design system) |
+| `saas-control-center/` (+ `/frontend`) | Internal super-admin control center (SCC) | NestJS + Next.js 16 |
 
-**The TRD is the single source of truth for all technical decisions.** If there's a conflict between screens and the TRD, follow the TRD.
+Supporting: `docs/`, `design.md` (the design language), `scripts/`, `tasks/`.
 
-## Workflow Rules
+## The prime directive
+Do what the current task asks — no unrequested scope. If you notice other
+problems while working, LIST them at the end (NOTED FOR LATER) instead of fixing
+them inline. Scope creep is how working software gets broken.
 
-### Plan Mode
-- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
-- If something goes sideways, STOP and re-plan immediately
-- Write detailed specs upfront to reduce ambiguity
+## How we work: autonomous slices, hard gates
+The standing instruction is to **execute autonomously** toward the agreed goal —
+you do not need to stop and ask permission for each ordinary code step. But you
+MUST work in **reviewable slices**: one coherent change at a time, then report
+(see "How to report work") before continuing. Big multi-phase efforts get a short
+analysis/roadmap first, then are built slice by slice.
 
-### Build Order (STRICT — do not skip ahead)
-Each phase depends on the previous. Never jump ahead.
+**HARD STOP — never cross these without explicit confirmation in the message:**
+1. **Database schema / migrations** — any change to `schema.prisma`, a Prisma
+   migration, or hand-written SQL that alters structure.
+2. **Auth, RLS, or tenant-isolation** — anything touching how identity, gym
+   scoping, or the tenant-model set works.
+3. **New dependencies** — adding any package. Justify each one when you propose it.
+4. **Leaving Expo Go / native builds** for the member app (one-way EAS shift).
+5. **External or legal actions** — partner-program registration, publishing,
+   sending anything to a third party, anything hard to reverse.
+6. **Deleting code you believe is unused** — show it first and explain why it's safe.
+7. **Destructive git / DB ops** — `reset --hard`, force-push, `prisma migrate
+   reset`, dropping data. Prefer a non-destructive path.
 
-1. **Project Setup** — Next.js 14 + NestJS + Prisma + Supabase + shared components
-2. **Auth** — Login, JWT, RBAC, tenant middleware, onboarding
-3. **Members** — CRUD, plans, profiles, registration
-4. **Check-in** — QR + Manual + Facial Recognition (RFID skipped in Phase 1)
-5. **Payments** — Manual recording + Razorpay + Stripe + invoices + expenses
-6. **Dashboard** — KPIs, revenue chart, alerts, activity feed, branch comparison
-7. **Classes & Schedule** — Class CRUD, calendar, roster, waitlist, trainer assignment
-8. **Staff** — Directory, profiles, shifts, leave requests, performance
-9. **Marketing** — Campaigns, automation rules, message templates, referral program
-10. **AI Advisor** — Claude API chat, daily briefing, proactive alerts
-11. **Settings** — Studio settings, integrations, membership plan management
+Everything else (writing UI/feature code, adding tests, refactors *you were asked
+for*, docs) you may carry through a slice autonomously, then report and continue.
 
-### Shared Components FIRST
-Before building any pages, create these shared components:
-- `AppLayout` — sidebar navigation + top bar (consistent across ALL pages)
-- `DataTable` — reusable table with search, filters, pagination, sorting
-- `StatusBadge` — Active (green), Expiring (yellow), Expired (red), Frozen (blue)
-- `KPICard` — metric card with label, value, trend indicator
-- `Modal` / `Dialog` — confirmation dialogs, forms in modals
-- `FormInput`, `FormSelect`, `FormDatePicker` — consistent form elements
-- `EmptyState` — placeholder for screens with no data
-- `LoadingSkeleton` — shimmer loading states
+## Multi-tenant safety (read this before touching any data access)
+Tenant isolation here is **enforced in the app layer, not by the database**:
+- The backend connects to Postgres as a **superuser with `rolbypassrls`**, so
+  **RLS is decorative / not load-bearing** — do not rely on it to stop a leak.
+- Real isolation = Prisma middleware/extension auto-injecting `gym_id` + a
+  JWT-sourced `gym_id`. The **single source of truth for which models are
+  tenant-scoped is `backend/src/prisma/tenant-models.ts`** — a model missing from
+  it can leak across gyms. Two model-sets drifting apart is a known leak class.
+- Tenant data lives in **per-studio Postgres schemas** (`studio_template` is the
+  template; live gyms get `studio_*`), plus a `public` schema and an `scc` schema.
+- **Every query that reads gym data must be gym-scoped.** Raw SQL must include an
+  explicit `gym_id` filter — the auto-injection does NOT cover `$queryRaw`.
+- When you touch any query, confirm it cannot return another gym's rows, and flag
+  any route/query that reads sensitive data without scoping.
 
-### Task Management
-1. Write plan to `tasks/todo.md` with checkable items before starting
-2. Mark items complete as you go
-3. After corrections, update `tasks/lessons.md` with the pattern
-4. Never mark a task complete without proving it works
+## Repo-specific gotchas (these have bitten us)
+- **Prisma + Json null:** Prisma rejects a raw `null` for a `Json` field on
+  create/update. Use `Prisma.JsonNull` (nullable column) or `{}` (non-nullable
+  with default).
+- **SCC migrations:** SCC uses hand-written **idempotent SQL** + `apply-migrations.ts`
+  against the `scc` schema. **NEVER run `prisma migrate dev`** here — it would wipe
+  the shared Supabase DB.
+- **Next.js dev cache:** never run `next build` and then `next dev` against the
+  same `.next/` — vendor-chunk mismatch crashes dev. Prefer `tsc --noEmit` to verify.
+- **Bash cwd resets to the monorepo root between turns.** Use absolute paths,
+  `npm --prefix <app>`, or call a sub-project's local binary directly
+  (e.g. `gym-member-app/node_modules/.bin/tsc`). `npx tsc` from the root fails.
+- **Member app can't run in Expo Go** (native modules) — it needs a dev build.
 
-## Tech Stack (from TRD Section 3 — do not deviate)
+## Testing & verification
+- ALWAYS run the relevant checks after a change and report the real result.
+- `backend/` has Jest tests — run the ones covering what you touched.
+- `gym-member-app/` has **no tests** — verify with
+  `gym-member-app/node_modules/.bin/tsc --noEmit` and SAY that no tests cover it;
+  RN UI behavior (animation, layout) is **on-device QA**, not verifiable from here.
+- Never invent findings. If you haven't measured or verified something, say
+  **"unverified"** — never present a guess as a fact.
 
-### Frontend (Web)
-- **Framework:** Next.js 14 (App Router) + TypeScript
-- **Styling:** Tailwind CSS 3.x + shadcn/ui
-- **State:** Zustand 4.x
-- **Data Fetching:** @tanstack/react-query 5.x
-- **Charts:** Recharts 2.x
-- **Calendar:** @fullcalendar/react 6.x
-- **Forms:** react-hook-form 7.x + zod 3.x
-- **Tables:** @tanstack/react-table 8.x
-- **QR Scanner:** html5-qrcode 2.x
-- **QR Generator:** qrcode.react 3.x
-- **Facial Recognition:** face-api.js 0.22.x (on-device, NO cloud)
-- **PDF Generation:** @react-pdf/renderer 3.x
-- **Offline Queue:** idb 8.x (IndexedDB)
-- **Icons:** lucide-react
-- **Toasts:** sonner
-- **Supabase Client:** @supabase/supabase-js 2.x
-- **Date Handling:** date-fns 3.x
+## How to report work (after every slice)
+- **WHAT** you changed (files + one line each)
+- **WHY** (the reason it serves the task)
+- **TESTS** (what you ran and the result, or "no tests cover this")
+- **RISKS** (what could break; what I should manually check; what's unverified)
+- **NOTED FOR LATER** (issues you saw but did NOT touch)
 
-### Backend (API)
-- **Framework:** NestJS 10.x + TypeScript
-- **ORM:** Prisma 5.x
-- **Validation:** class-validator + class-transformer
-- **WebSocket:** @nestjs/websockets + socket.io
-- **Job Queues:** @nestjs/bullmq + bullmq (Upstash Redis)
-- **Scheduled Tasks:** @nestjs/schedule
-- **Auth:** @nestjs/jwt + @nestjs/passport
-- **HTTP Client:** @nestjs/axios
+## When unsure
+Ask only when the answer genuinely changes what you build and you cannot resolve
+it from the code or sensible defaults — a wrong change to a production app is far
+more expensive than a question. Do not guess at business logic. For ordinary
+sequencing/scope choices, pick the sensible default, state it, and proceed.
 
-### External SDKs
-- **Payments:** razorpay (India primary) + stripe (international)
-- **SMS:** twilio
-- **WhatsApp:** Meta WhatsApp Cloud API (direct HTTP)
-- **Email:** resend + React Email templates
-- **AI:** @anthropic-ai/sdk (Claude claude-sonnet-4-20250514)
+## Operational reference (consolidated from the legacy rules docs)
+These specifics are folded in from the old `docs/{AGENT,DB,SECURITY,PERFORMANCE,CLEANUP}_RULES.md`
+(now in `docs/_archive/`). Where they conflicted with reality, the corrected version is below.
+Full architecture/audit lives in `MASTER_PROJECT_DOCUMENTATION.md`; the API map in
+`docs/API_REFERENCE.md`.
 
-### Infrastructure
-- **Web Hosting:** Vercel
-- **API Hosting:** Railway
-- **Database:** Supabase (PostgreSQL + Auth + Storage + Realtime)
-- **Redis:** Upstash Redis
-- **Monitoring:** Sentry + Posthog
+**Security**
+- All DTOs use class-validator; the global `ValidationPipe` runs `whitelist` +
+  `forbidNonWhitelisted` + `transform` — never trust raw input.
+- Every route requires `Authorization: Bearer <jwt>` except `auth/*` and `health`.
+  Member BFF (`member/v1/*`) uses the **member JWT**, not the staff JWT.
+- Login lockout: 5 fails → 15-min Redis lockout. Supabase Storage buckets are private;
+  serve via 1-hour signed URLs. Validate uploads server-side (MIME + size + extension).
+- Never return secret fields — `face_descriptor`, `payment_method_token`/`card_token`,
+  `salary`/`base_salary`/`hourly_rate` (owner/brand_owner only), passwords, 2FA secrets.
+  The global `StripSecretsInterceptor` enforces this; don't defeat it.
+- Verify inbound webhook HMAC (timing-safe) before processing. Payment webhooks already do;
+  the `platform/webhooks` + integrations surface is not yet audited.
 
-## Design System (from PRD Section 13)
+**Database / Prisma**
+- UUID PKs; every table has `created_at`/`updated_at`; **snake_case** column names matching
+  the TRD. `Json` fields: use `Prisma.JsonNull` or `{}`, never raw `null`.
+- Forward-only migrations, descriptive names. **Never `prisma db push` in prod** — use
+  `prisma migrate deploy`. (SCC is hand-SQL only — never `prisma migrate dev` there.)
+- **Correction to the old DB/SECURITY rules:** isolation is **NOT** `search_path = studio_{id}`
+  — under Prisma `multiSchema` that is inert. Real isolation = the `gym_id` `$use` injection
+  (single source: `backend/src/prisma/tenant-models.ts`) + JWT `gym_id` + RLS (currently
+  decorative until the Phase-B non-bypass-role keystone ships). Raw SQL must hand-filter `gym_id`.
 
-### Color Palette
-```
---color-bg-primary:      #0D1B2A    (app background, nav bar)
---color-bg-surface:      #1A2F45    (card backgrounds, sidebars)
---color-bg-card:         #1E3450    (elevated cards, modals)
---color-accent-primary:  #4A9FD4    (CTAs, active states, links)
---color-accent-light:    #6BBFE8    (hover states, highlights)
---color-text-primary:    #FFFFFF    (primary body text)
---color-text-secondary:  #B0C8E0    (secondary text, captions)
---color-text-muted:      #5A7A9A    (placeholders, disabled)
---color-success:         #34C77A    (success, active badges)
---color-warning:         #F59E0B    (expiring soon, alerts)
---color-danger:          #EF4444    (errors, expired, high risk)
---color-border:          #2A4A6A    (card borders, dividers)
-```
+**Performance targets** (P95): dashboard < 2s, check-in < 1s, AI < 4s, member list < 1.5s,
+DB query < 100ms. No `SELECT *`; index WHERE/JOIN/ORDER-BY columns; paginate list endpoints;
+avoid N+1; lazy-load heavy FE components (charts, calendar, PDF).
 
-### Typography
-- **Font:** Inter (all text), JetBrains Mono (data/codes)
-- Display: 32px / 800 weight
-- Heading 1: 24px / 700
-- Heading 2: 18px / 600
-- Body: 14px / 400
-- Small: 12px / 400
-
-### Component Specs
-- **Buttons:** Primary bg #4A9FD4, border-radius 8px, padding 12px 24px
-- **Cards:** bg #1E3450, border 1px #2A4A6A, border-radius 12px, padding 20px, shadow 0 4px 16px rgba(0,0,0,0.3)
-- **Inputs:** bg #0D1B2A, border 1px #2A4A6A, border-radius 8px, focus border #4A9FD4
-- **Transitions:** all 0.2s ease
-- **Loading:** skeleton shimmer gradient #1A2F45 to #2A4A6A
-
-## Database Rules (from TRD Section 4)
-
-- All field names are EXACT as specified in the TRD — use them verbatim
-- snake_case throughout
-- UUIDs for all primary keys
-- All tables include created_at and updated_at
-- Multi-tenancy: separate PostgreSQL schema per studio (studio_{studio_id})
-
-## API Rules (from TRD Section 5)
-
-- Base URL: /api/v1/
-- All endpoints require Authorization: Bearer {jwt_token} except /auth/*
-- JWT payload contains: user_id, studio_id, role, branch_ids[]
-- TenantMiddleware sets search_path = studio_{studio_id} before every query
-
-## Security Rules (from TRD Section 6)
-
-- face_descriptor field: NEVER returned in any API response (write-only)
-- payment_method_token: NEVER returned in API responses
-- salary field: stripped from staff responses unless role === "owner"
-- Supabase Storage: all buckets private, served via signed URLs (1-hour expiry)
-- Webhook endpoints: verify HMAC signature before processing
-- Max 5 failed logins → 15-minute lockout (Redis TTL)
-
-## Known Issues (from alignment report)
-
-These are known mismatches between current UI screens and the TRD. When implementing, follow the TRD spec:
-
-1. **RFID check-in:** Show as greyed out "Coming Soon" — not wired to backend in Phase 1
-2. **Payment methods:** Use cash | card | upi | bank_transfer | razorpay | stripe — NOT PayPal
-3. **Member ID format:** FS-YYYYMMDD-XXXX — standardize across all screens
-4. **Receipt number format:** RCP-YYYYMMDD-XXXX — as per TRD
-5. **Integrations:** Anthropic Claude (not OpenAI), Resend (not SendGrid), Razorpay + Stripe (not PayPal)
-6. **Member Goals section on profile:** Not in TRD — skip implementation
-
-## Performance Targets (from TRD Section 9)
-
-- Dashboard initial load: < 2s
-- Check-in confirmation: < 1s
-- AI advisor response: < 4s
-- Member list (500 members): < 1.5s
-- QR scan to confirmation: < 2s
-- All Supabase queries: < 100ms P95
+**Hygiene:** remove dead code/unused imports/unused deps as you touch them; group by feature,
+not type; keep project docs in `/docs/` (the master doc + API reference are the canonical pair).

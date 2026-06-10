@@ -1,43 +1,11 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, ForbiddenException } from '@nestjs/common';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { getTenantSchema, getTenantGymId } from '../common/tenant-context';
 import { createTenantExtension, TenantPrismaClient } from './tenant-prisma.extension';
 import { createBranchScopeExtension } from './branch-scope.extension';
-
-// ────────────────────────────────────────────────────────────────
-// Tenant models — must match TENANT_MODELS in tenant-prisma.extension.ts.
-// These are all models with a gym_id column. Any query against these models
-// is auto-filtered by gym_id at the $use middleware layer below.
-// ────────────────────────────────────────────────────────────────
-const TENANT_MODELS_PRISMA: ReadonlySet<string> = new Set<string>([
-  'Organization', 'OrganizationSettings', 'Region', 'Branch', 'BranchSettings',
-  'FranchiseOwner', 'BranchFranchise', 'Member', 'MemberProfile', 'MemberBodyStats',
-  'MemberProgressPhoto', 'MemberNote', 'MemberTag', 'MemberTagAssignment',
-  'MemberDocument', 'MemberReferral', 'MembershipPlan', 'MemberMembership',
-  'MembershipFreeze', 'FamilyMembership', 'FamilyMember', 'CorporateAccount',
-  'CorporateMember', 'GlobalAccessPass', 'CheckIn', 'ClassTemplate', 'StudioRoom',
-  'ClassSession', 'ClassBooking', 'ClassWaitlist', 'TrainerAssignment',
-  'ClassAttendance', 'ClassRecurringRule', 'Class', 'ClassEnrollment',
-  'Role', 'RolePermission', 'Staff', 'StaffProfile', 'StaffAvailability',
-  'StaffAttendance', 'TrainerClient', 'TrainerSession', 'PayrollConfig',
-  'TrainerRevenue', 'StaffShift', 'LeaveRequest', 'PayrollRecord',
-  'TrainerPerformanceRecord', 'AuditLog', 'Payment', 'Expense',
-  'NotificationLog', 'Campaign', 'Lead', 'LeadActivity', 'CampaignAudience',
-  'MessageTemplate', 'AutomationWorkflow', 'WorkflowAction', 'ReferralProgram',
-  'PushNotification', 'ProductCategory', 'Product', 'Inventory',
-  'InventoryTransaction', 'Supplier', 'PurchaseOrder', 'PurchaseOrderItem',
-  'PosSale', 'PosSaleItem', 'ProductReturn', 'AiConversation', 'SsoProvider',
-  'ApiKey', 'MemberInvoice', 'InvoiceItem', 'PaymentGatewayConfig', 'Refund',
-  'Discount', 'TaxRate', 'FinancialTransaction', 'PaymentRetryLog',
-  'DailyGymMetrics', 'MembershipAnalytics', 'RevenueAnalytics', 'ClassAnalytics',
-  'MemberBehaviorAnalytics', 'TrainerAnalytics', 'CampaignAnalyticsRecord',
-  'Webhook', 'WebhookDelivery', 'Integration', 'FeatureFlag', 'WhiteLabelConfig',
-  'SystemNotification', 'ConsentLog', 'DataRequest', 'BookingTransition',
-  'ProviderAvailabilitySlot', 'BookingDispute', 'ServiceProvider',
-  'ServiceCatalog', 'ServiceBooking', 'Review', 'Chat', 'ChatMessage',
-  'Notification', 'ProviderSubscription', 'DashboardMetrics', 'DomainEvent',
-  'StaffPermissionOverride', 'ExpenseCategory', 'ExpenseMetric',
-]);
+// Single source of truth for gym_id models — shared with the $extends tenant
+// extension so the two layers can never drift (the drift previously leaked).
+import { TENANT_MODELS as TENANT_MODELS_PRISMA } from './tenant-models';
 
 const READ_ACTIONS = new Set([
   'findMany', 'findFirst', 'findFirstOrThrow', 'count', 'aggregate', 'groupBy',
@@ -45,11 +13,41 @@ const READ_ACTIONS = new Set([
 const WHERE_MUTATION_ACTIONS = new Set([
   'update', 'updateMany', 'delete', 'deleteMany',
 ]);
+const WRITE_ACTIONS = new Set([
+  'create', 'createMany', 'update', 'updateMany', 'delete', 'deleteMany', 'upsert',
+]);
 
 function injectGymIdInWhere(where: any, gymId: string): any {
   if (!where || typeof where !== 'object') return { gym_id: gymId };
   if (where.gym_id !== undefined) return where; // respect caller-provided filter
   return { ...where, gym_id: gymId };
+}
+
+/**
+ * Does a write already carry its own explicit gym_id scoping? Such writes are
+ * trusted even without ALS context — they're how onboarding, seeds, and system
+ * jobs operate before/outside a request's tenant scope (e.g. creating the first
+ * branch with an explicit gym_id).
+ */
+function writeCarriesExplicitGymId(action: string, args: any): boolean {
+  if (!args) return false;
+  switch (action) {
+    case 'create':
+      return !!args.data?.gym_id;
+    case 'createMany':
+      return Array.isArray(args.data)
+        ? args.data.length > 0 && args.data.every((d: any) => d?.gym_id)
+        : !!args.data?.gym_id;
+    case 'upsert':
+      return !!args.create?.gym_id && !!args.where?.gym_id;
+    case 'update':
+    case 'updateMany':
+    case 'delete':
+    case 'deleteMany':
+      return !!args.where?.gym_id;
+    default:
+      return false;
+  }
 }
 
 @Injectable()
@@ -112,8 +110,35 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     // defense-in-depth for callers that opt in explicitly.
     // ────────────────────────────────────────────────────────────
     this.$use(async (params, next) => {
+      if (!params.model || !TENANT_MODELS_PRISMA.has(params.model)) {
+        return next(params);
+      }
+
       const gymId = getTenantGymId();
-      if (!gymId || !params.model || !TENANT_MODELS_PRISMA.has(params.model)) {
+
+      // ── No tenant context on a tenant model ──────────────────────────
+      // Reads are left untouched: some context-less flows legitimately read
+      // tenant models (e.g. RBAC resolution during login, which runs on the
+      // /auth routes that are excluded from TenantMiddleware). But WRITES must
+      // never touch tenant data without scoping — block them unless the payload
+      // carries an explicit gym_id (onboarding, seeds, system jobs scope
+      // manually). This turns the cryptic Prisma "Argument `gym_id` is missing"
+      // into a clear, fail-fast error and prevents accidental unscoped writes.
+      if (!gymId) {
+        if (
+          WRITE_ACTIONS.has(params.action) &&
+          !writeCarriesExplicitGymId(params.action, params.args)
+        ) {
+          this.logger.error(
+            `TENANT SAFETY: blocked ${params.action} on ${params.model} — no gym_id in ` +
+              `context and none in the payload. A tenant-scoped write reached the DB with ` +
+              `no authenticated studio (likely a stale/missing token or a missing guard).`,
+          );
+          throw new ForbiddenException(
+            'Tenant context missing: this action could not be scoped to your studio. ' +
+              'Please sign in again and retry.',
+          );
+        }
         return next(params);
       }
 
@@ -194,6 +219,43 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         `Database connection failed: ${error.message}. API will start but DB queries will fail.`,
       );
     }
+  }
+
+  /**
+   * PHASE B (keystone) — run a unit of tenant work with a TRANSACTION-LOCAL
+   * `app.gym_id`. This is the propagation fix that must ship WITH the cutover to
+   * the non-BYPASSRLS role (see docs/RLS-PHASE-B-CUTOVER-RUNBOOK-2026-06-03.md §3):
+   *
+   *   - `set_config(..., true)` is transaction-local: it is bound to THIS
+   *     transaction's connection and auto-resets at COMMIT/ROLLBACK, so it can
+   *     never bleed onto the next request that reuses a pooled connection (the
+   *     session-scoped `$use` set is the racy hole the cutover closes).
+   *   - Raw queries (`tx.$queryRaw` / `tx.$executeRaw`) issued inside `work`
+   *     inherit the same local GUC, so the ~21 raw-SQL tenant sites become
+   *     correctly scoped under RLS without each re-setting it.
+   *
+   * Behavior-neutral TODAY: while the app still connects as a BYPASSRLS role the
+   * GUC is unused, so this is safe to land ahead of the maintenance window. It is
+   * intentionally NOT wired into request handling yet — the cutover task routes
+   * tenant request handlers through it and then repoints DATABASE_URL.
+   *
+   * SECURITY: `gymId` MUST originate from a verified token claim, never from
+   * client-supplied body/query/header input.
+   */
+  async forTenant<T>(
+    gymId: string,
+    work: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    if (!gymId) {
+      throw new ForbiddenException(
+        'forTenant requires a gym_id: this work could not be scoped to a studio.',
+      );
+    }
+    return this.$transaction(async (tx) => {
+      // Parameterized set_config — injection-safe; third arg `true` = tx-local.
+      await tx.$queryRaw`SELECT set_config('app.gym_id', ${gymId}, true)`;
+      return work(tx);
+    });
   }
 
   /**

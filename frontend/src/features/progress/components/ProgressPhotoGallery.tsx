@@ -31,12 +31,12 @@ export function ProgressPhotoGallery({
 
   if (loading) {
     return (
-      <div className={cn("rounded-xl border border-border bg-card p-5", className)}>
+      <div className={cn("rounded-lg border border-border bg-card p-5", className)}>
         <div className="animate-pulse space-y-3">
           <div className="h-5 w-36 bg-muted rounded" />
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="aspect-square bg-muted/50 rounded-lg" />
+              <div key={i} className="aspect-square bg-canvas-soft rounded-lg" />
             ))}
           </div>
         </div>
@@ -46,7 +46,7 @@ export function ProgressPhotoGallery({
 
   if (!photos || photos.length === 0) {
     return (
-      <div className={cn("rounded-xl border border-border bg-card p-6", className)}>
+      <div className={cn("rounded-lg border border-border bg-card p-6", className)}>
         <EmptyState
           icon={Camera}
           title="No progress photos"
@@ -59,18 +59,18 @@ export function ProgressPhotoGallery({
   const typeColor = (type: string) => {
     switch (type) {
       case "before":
-        return "bg-amber-500/20 text-amber-400";
+        return "bg-warning/20 text-warning";
       case "after":
         return "bg-success/20 text-success";
       default:
-        return "bg-primary/20 text-primary";
+        return "bg-canvas-soft-2 text-primary";
     }
   };
 
   const viewedPhoto = viewIndex !== null ? photos[viewIndex] : null;
 
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-5", className)}>
+    <div className={cn("rounded-lg border border-border bg-card p-5", className)}>
       <h3 className="text-base font-semibold text-foreground mb-4">Progress Photos</h3>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -93,7 +93,7 @@ export function ProgressPhotoGallery({
                 <Badge className={cn("text-[10px]", typeColor(photo.photo_type))}>
                   {photo.photo_type}
                 </Badge>
-                <p className="text-[10px] text-white mt-0.5">
+                <p className="text-[10px] text-on-primary mt-0.5">
                   {format(parseISO(photo.taken_at), "MMM dd, yyyy")}
                 </p>
               </div>
@@ -101,7 +101,7 @@ export function ProgressPhotoGallery({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-white hover:text-destructive"
+                  className="h-6 w-6 text-on-primary hover:text-destructive"
                   onClick={(e) => {
                     e.stopPropagation();
                     setDeleteId(photo.id);
@@ -124,7 +124,7 @@ export function ProgressPhotoGallery({
           <Button
             variant="ghost"
             size="icon"
-            className="absolute top-4 right-4 text-white hover:bg-white/10 z-10"
+            className="absolute top-4 right-4 text-on-primary hover:bg-canvas/10 z-10"
             onClick={() => setViewIndex(null)}
           >
             <X className="h-5 w-5" />
@@ -134,7 +134,7 @@ export function ProgressPhotoGallery({
             <Button
               variant="ghost"
               size="icon"
-              className="absolute left-4 text-white hover:bg-white/10 z-10"
+              className="absolute left-4 text-on-primary hover:bg-canvas/10 z-10"
               onClick={(e) => {
                 e.stopPropagation();
                 setViewIndex(viewIndex - 1);
@@ -148,7 +148,7 @@ export function ProgressPhotoGallery({
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-4 text-white hover:bg-white/10 z-10"
+              className="absolute right-4 text-on-primary hover:bg-canvas/10 z-10"
               onClick={(e) => {
                 e.stopPropagation();
                 setViewIndex(viewIndex + 1);
@@ -173,11 +173,11 @@ export function ProgressPhotoGallery({
               <Badge className={cn("text-xs", typeColor(viewedPhoto.photo_type))}>
                 {viewedPhoto.photo_type}
               </Badge>
-              <p className="text-sm text-white/70 mt-1">
+              <p className="text-sm text-on-primary/70 mt-1">
                 {format(parseISO(viewedPhoto.taken_at), "MMMM dd, yyyy")}
               </p>
               {viewedPhoto.caption && (
-                <p className="text-sm text-white mt-1">{viewedPhoto.caption}</p>
+                <p className="text-sm text-on-primary mt-1">{viewedPhoto.caption}</p>
               )}
             </div>
           </div>

@@ -183,7 +183,7 @@ export default function NewStaffPage() {
           className="space-y-4"
         >
           {/* Basic Info */}
-          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+          <div className="bg-card border border-border rounded-lg p-6 space-y-4">
             <FormInput
               label="Full Name"
               {...register("full_name", { required: "Name is required" })}
@@ -278,7 +278,7 @@ export default function NewStaffPage() {
           </div>
 
           {/* Invite Section */}
-          <div className="bg-card border border-border rounded-xl p-6 space-y-4">
+          <div className="bg-card border border-border rounded-lg p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-primary" />
@@ -294,7 +294,7 @@ export default function NewStaffPage() {
                 }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  className={`inline-block h-4 w-4 transform rounded-full bg-canvas transition-transform ${
                     sendInvite ? "translate-x-6" : "translate-x-1"
                   }`}
                 />
@@ -314,7 +314,7 @@ export default function NewStaffPage() {
           </div>
 
           {/* Permission Overrides */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="bg-card border border-border rounded-lg p-6">
             <button
               type="button"
               onClick={() => setShowPermissions(!showPermissions)}
@@ -326,7 +326,7 @@ export default function NewStaffPage() {
                   Custom Permission Overrides
                 </span>
                 {(permGrants.length > 0 || permDenials.length > 0) && (
-                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                  <span className="text-xs bg-canvas-soft-2 text-primary px-2 py-0.5 rounded-full">
                     {permGrants.length} grants, {permDenials.length} denials
                   </span>
                 )}
@@ -358,7 +358,7 @@ export default function NewStaffPage() {
                   <button
                     type="button"
                     onClick={grantAllModules}
-                    className="px-3 py-1 text-xs rounded bg-green-500/10 text-green-400 border border-green-500/30 hover:bg-green-500/20 transition-colors"
+                    className="px-3 py-1 text-xs rounded bg-success/10 text-success border border-success/30 hover:bg-success/20 transition-colors"
                   >
                     Grant All
                   </button>
@@ -392,8 +392,8 @@ export default function NewStaffPage() {
                                 onClick={() => grantAllModule(module)}
                                 className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${
                                   allGranted
-                                    ? "bg-green-500/20 text-green-400"
-                                    : "text-muted-foreground hover:text-green-400"
+                                    ? "bg-success/20 text-success"
+                                    : "text-muted-foreground hover:text-success"
                                 }`}
                                 title="Grant all in this module"
                               >
@@ -404,8 +404,8 @@ export default function NewStaffPage() {
                                 onClick={() => denyAllModule(module)}
                                 className={`px-1.5 py-0.5 text-[10px] rounded transition-colors ${
                                   allDenied
-                                    ? "bg-red-500/20 text-red-400"
-                                    : "text-muted-foreground hover:text-red-400"
+                                    ? "bg-error/20 text-error"
+                                    : "text-muted-foreground hover:text-error"
                                 }`}
                                 title="Deny all in this module"
                               >
@@ -435,7 +435,7 @@ export default function NewStaffPage() {
                                     }
                                     className={`px-2 py-1 text-xs rounded-l border transition-colors ${
                                       isGrant
-                                        ? "bg-green-500/20 text-green-400 border-green-500/40"
+                                        ? "bg-success/20 text-success border-success/30"
                                         : "bg-background text-muted-foreground border-border hover:bg-muted"
                                     }`}
                                     title={`Grant ${code}`}
@@ -449,7 +449,7 @@ export default function NewStaffPage() {
                                     }
                                     className={`px-2 py-1 text-xs rounded-r border-t border-b border-r transition-colors ${
                                       isDenial
-                                        ? "bg-red-500/20 text-red-400 border-red-500/40"
+                                        ? "bg-error/20 text-error border-error/30"
                                         : "bg-background text-muted-foreground border-border hover:bg-muted"
                                     }`}
                                     title={`Deny ${code}`}

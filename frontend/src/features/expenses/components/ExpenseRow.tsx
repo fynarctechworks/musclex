@@ -36,7 +36,7 @@ export function ExpenseRow({ expense }: ExpenseRowProps) {
         isReversed
           ? "border-dashed border-border bg-card/40 opacity-70"
           : isReversal
-            ? "border-amber-500/40 bg-amber-500/5"
+            ? "border-warning/30 bg-warning/5"
             : "border-border bg-card hover:border-primary/40"
       }`}
     >
@@ -54,12 +54,12 @@ export function ExpenseRow({ expense }: ExpenseRowProps) {
             </span>
           )}
           {isReversed && (
-            <span className="text-[10px] font-medium text-amber-500">
+            <span className="text-[10px] font-medium text-warning">
               REVERSED
             </span>
           )}
           {isReversal && (
-            <span className="text-[10px] font-medium text-amber-500">
+            <span className="text-[10px] font-medium text-warning">
               REVERSAL
             </span>
           )}
@@ -82,7 +82,7 @@ export function ExpenseRow({ expense }: ExpenseRowProps) {
         <div className="text-right">
           <p
             className={`text-sm font-semibold ${
-              amount < 0 ? "text-amber-500" : "text-foreground"
+              amount < 0 ? "text-warning" : "text-foreground"
             } ${isReversed ? "line-through" : ""}`}
           >
             {amount < 0 ? "-" : ""}

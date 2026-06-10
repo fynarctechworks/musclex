@@ -1,6 +1,7 @@
 export { MemberHeader } from "./MemberHeader";
 export { MemberActions } from "./MemberActions";
 export { MemberOverview } from "./MemberOverview";
+export { MemberFitnessProfile } from "./MemberFitnessProfile";
 export { MemberAttendance } from "./MemberAttendance";
 export { MemberPayments } from "./MemberPayments";
 export { MemberNotes } from "./MemberNotes";
@@ -11,4 +12,8 @@ export { MembershipAnalytics } from "./MembershipAnalytics";
 export { MemberVisitsTab } from "./MemberVisitsTab";
 export { MemberProgressTab } from "./MemberProgressTab";
 export { MemberDocumentsTab } from "./MemberDocumentsTab";
+export { EnrollBiometricDialog } from "./EnrollBiometricDialog";
+export { TransferDialog } from "./TransferDialog";
+export { MemberAccessTab } from "./MemberAccessTab";
+export { AccessNetworkCard } from "./AccessNetworkCard";
 export { statusToVariant, statusLabels, paymentStatusVariant } from "./member-utils";

@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
+import { RazorpayService } from './razorpay.service';
 import { ExpensesController } from './expenses.controller';
 import { ExpensesService } from './expenses.service';
 import { InvoicesController } from './invoices.controller';
@@ -37,6 +38,7 @@ import { BranchDefaultsListener } from './expenses/branch-defaults.listener';
   ],
   providers: [
     PaymentsService,
+    RazorpayService,
     ExpensesService,
     BillingService,
     RefundsService,

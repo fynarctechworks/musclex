@@ -44,6 +44,29 @@ export function isBranchScopeBypassed(): boolean {
 }
 
 /**
+ * Mutate the current request's tenant (gym) scope for the remainder of the request.
+ *
+ * Used by the member BFF's TenantContextInterceptor, which runs AFTER the admin
+ * TenantMiddleware has already created an (empty) ALS store. Member access tokens
+ * do not carry `user_metadata.studio_id`, so TenantMiddleware leaves gymId="".
+ * The interceptor resolves the gym from the *verified member JWT* and writes it
+ * here — every downstream Prisma query then auto-filters by this gym_id exactly
+ * as it does for admin requests.
+ *
+ * SECURITY: the gymId passed here MUST originate from a verified token claim,
+ * never from a client-supplied body/query/header.
+ */
+export function setTenantContext(patch: {
+  gymId?: string;
+  schemaName?: string;
+}): void {
+  const store = tenantContext.getStore();
+  if (!store) return;
+  if (patch.gymId !== undefined) store.gymId = patch.gymId;
+  if (patch.schemaName !== undefined) store.schemaName = patch.schemaName;
+}
+
+/**
  * Mutate the current ALS store for the remainder of the request.
  * Used by ActiveBranchInterceptor (which runs AFTER TenantMiddleware set up the store)
  * to populate branch fields once req.user is available.

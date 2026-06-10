@@ -40,8 +40,25 @@ function buildMetricStore() {
         return rows[k];
       }),
       findFirst: jest.fn(async ({ where }: any) => {
-        const k = keyOf(where);
-        return rows[k] ?? null;
+        // Real Prisma findFirst matches *any* row satisfying the where
+        // clause — not an exact composite-key lookup. The old impl keyed
+        // on (gym_id|branch_id|period_type|period_key|category_id) and
+        // failed when callers (e.g. getTodaySummary) omit gym_id from
+        // their where.
+        return (
+          (Object.values(rows) as any[]).find((r) => {
+            if ('gym_id' in where && r.gym_id !== where.gym_id) return false;
+            if ('branch_id' in where && r.branch_id !== where.branch_id)
+              return false;
+            if ('period_type' in where && r.period_type !== where.period_type)
+              return false;
+            if ('period_key' in where && r.period_key !== where.period_key)
+              return false;
+            if ('category_id' in where && r.category_id !== where.category_id)
+              return false;
+            return true;
+          }) ?? null
+        );
       }),
       findMany: jest.fn(async ({ where }: any) => {
         return Object.values(rows).filter((r: any) => {
@@ -67,6 +84,9 @@ function buildMetricStore() {
 }
 
 function buildPrismaMock() {
+  // NOTE: ExpenseMetricsService accesses `this.prisma.expenseMetric.*` /
+  // `this.prisma.expense.*` / `this.prisma.expenseCategory.*` directly
+  // — no `.tenant` namespace. The old shape was stale; flatten the mock.
   const store = buildMetricStore();
   const tenantExpense = {
     findMany: jest.fn().mockResolvedValue([]),
@@ -75,11 +95,9 @@ function buildPrismaMock() {
     findMany: jest.fn().mockResolvedValue([]),
   };
   const prisma: any = {
-    tenant: {
-      expenseMetric: store.mock,
-      expense: tenantExpense,
-      expenseCategory: tenantCategory,
-    },
+    expenseMetric: store.mock,
+    expense: tenantExpense,
+    expenseCategory: tenantCategory,
     $transaction: jest.fn(async (fn: any) =>
       fn({ expenseMetric: store.mock }),
     ),
@@ -215,7 +233,7 @@ describe('ExpenseMetricsService', () => {
     it('rebuilds metrics from raw expenses, skipping frozen pre-reversal originals', async () => {
       const fresh = buildPrismaMock();
       const svc = new ExpenseMetricsService(fresh);
-      fresh.tenant.expense.findMany.mockResolvedValueOnce([
+      fresh.expense.findMany.mockResolvedValueOnce([
         // Original — skipped (status=reversed but no reference_id)
         {
           id: 'orig',

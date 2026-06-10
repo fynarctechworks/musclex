@@ -8,6 +8,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { FormInput } from "@/components/shared/form-fields";
+import { PhoneInput } from "@/components/shared/phone-input";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
@@ -28,11 +29,20 @@ import {
 import type { Branch } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
+import {
+  BranchLocationPicker,
+  type ResolvedLocation,
+} from "@/features/branches/components/BranchLocationPicker";
 
 interface BranchFormData {
   name: string;
   address: string;
   city: string;
+  state: string;
+  country: string;
+  postal_code: string;
+  latitude: number | null;
+  longitude: number | null;
   phone: string;
   email: string;
 }
@@ -48,17 +58,54 @@ function BranchFormModal({
   onSave: (data: BranchFormData) => void;
   saving: boolean;
 }) {
+  // Prisma Decimal columns serialize over JSON as a string/object, not a plain
+  // number — coerce so the pin pre-populates correctly in edit mode.
+  const toNum = (v: unknown): number | null => {
+    if (v === null || v === undefined) return null;
+    const n = Number((v as { toString(): string }).toString());
+    return Number.isFinite(n) ? n : null;
+  };
+
   const [form, setForm] = useState<BranchFormData>({
     name: branch?.name || "",
     address: branch?.address || "",
     city: branch?.city || "",
+    state: branch?.state || "",
+    country: branch?.country || "",
+    postal_code: branch?.postal_code || "",
+    latitude: toNum(branch?.latitude),
+    longitude: toNum(branch?.longitude),
     phone: branch?.phone || "",
     email: branch?.email || "",
   });
 
+  // The picker fires twice per selection: first coords-only (geocode pending),
+  // then again with the resolved address. On the coords-only pass we keep the
+  // existing text. On a resolved pass the PIN is the source of truth, so we
+  // replace ALL address fields from the geocode — coalescing missing parts to
+  // "" rather than keeping stale values (a town with no `city` must not inherit
+  // the previously-typed city).
+  const applyLocation = (loc: ResolvedLocation) => {
+    setForm((prev) => {
+      if (!loc.address) {
+        return { ...prev, latitude: loc.latitude, longitude: loc.longitude };
+      }
+      return {
+        ...prev,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        address: loc.address,
+        city: loc.city ?? "",
+        state: loc.state ?? "",
+        country: loc.country ?? "",
+        postal_code: loc.postal_code ?? "",
+      };
+    });
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md mx-4">
+      <div className="bg-card border border-border rounded-lg p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">
             {branch ? "Edit Branch" : "Add Branch"}
@@ -88,12 +135,15 @@ function BranchFormModal({
             onChange={(e) => setForm({ ...form, city: e.target.value })}
             placeholder="Mumbai"
           />
+          <BranchLocationPicker
+            value={{ latitude: form.latitude, longitude: form.longitude }}
+            onChange={applyLocation}
+          />
           <div className="grid grid-cols-2 gap-4">
-            <FormInput
+            <PhoneInput
               label="Phone"
               value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              placeholder="+91 98765 43210"
+              onChange={(val) => setForm({ ...form, phone: val })}
             />
             <FormInput
               label="Email"
@@ -199,7 +249,7 @@ export default function BranchesPage() {
         const branch = row.original;
         return (
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
               <Building2 className="w-4 h-4 text-primary" />
             </div>
             <div>
@@ -296,10 +346,10 @@ export default function BranchesPage() {
                   {canDelete && (
                     <button
                       onClick={() => setDeletingBranch(branch)}
-                      className="p-1.5 hover:bg-red-500/10 rounded-lg transition-colors"
+                      className="p-1.5 hover:bg-error/10 rounded-lg transition-colors"
                       title="Delete branch"
                     >
-                      <Trash2 className="w-4 h-4 text-red-500" />
+                      <Trash2 className="w-4 h-4 text-error" />
                     </button>
                   )}
                 </div>
@@ -376,10 +426,10 @@ export default function BranchesPage() {
       {/* Delete Confirmation Dialog */}
       {deletingBranch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md mx-4">
+          <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4">
             <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-red-500" />
+              <div className="w-10 h-10 rounded-full bg-error/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-error" />
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Delete Branch</h2>
@@ -389,8 +439,8 @@ export default function BranchesPage() {
               </div>
             </div>
 
-            <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 mb-5">
-              <p className="text-sm text-red-400 font-medium mb-1">This action cannot be undone.</p>
+            <div className="bg-error/5 border border-error/30 rounded-lg p-3 mb-5">
+              <p className="text-sm text-error font-medium mb-1">This action cannot be undone.</p>
               <p className="text-xs text-muted-foreground">
                 All data linked to this branch will be permanently deleted including:
                 members, check-ins, payments, classes, staff, and membership plans.
@@ -407,7 +457,7 @@ export default function BranchesPage() {
               <button
                 onClick={() => deleteMutation.mutate(deletingBranch.id)}
                 disabled={deleteMutation.isPending}
-                className="bg-red-500 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="bg-error text-on-primary px-5 py-2 rounded-lg text-sm font-medium hover:bg-error transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 {deleteMutation.isPending ? "Deleting..." : "Delete Branch"}

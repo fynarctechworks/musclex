@@ -46,7 +46,7 @@ export function ConfirmDialog({
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
-            className="text-muted-foreground hover:text-foreground hover:bg-accent text-[13px]"
+            className="text-muted-foreground hover:text-foreground hover:bg-canvas-soft text-[13px]"
           >
             {cancelLabel}
           </Button>

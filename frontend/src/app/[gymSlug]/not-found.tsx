@@ -12,11 +12,11 @@ export default function GymNotFound() {
 
   return (
     <div className="flex min-h-[80vh] flex-col items-center justify-center px-4 text-center">
-      <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-card border border-border">
+      <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-lg bg-card border border-border">
         <Compass className="h-8 w-8 text-primary" />
       </div>
 
-      <p className="mb-2 text-6xl font-black tracking-tight text-primary">
+      <p className="mb-2 text-6xl font-semibold tracking-tight text-primary">
         404
       </p>
 

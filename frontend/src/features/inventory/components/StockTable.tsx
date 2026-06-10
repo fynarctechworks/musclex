@@ -35,7 +35,7 @@ export function StockTable({ branchId }: StockTableProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-muted/50">
+              <tr className="border-b border-border bg-canvas-soft">
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Product</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">SKU</th>
                 <th className="text-center px-4 py-3 font-medium text-muted-foreground">On Hand</th>
@@ -63,7 +63,7 @@ export function StockTable({ branchId }: StockTableProps) {
                 </tr>
               ) : (
                 items.map((item) => (
-                  <tr key={item.id} className="border-b border-border hover:bg-muted/30 transition-colors">
+                  <tr key={item.id} className="border-b border-border hover:bg-canvas-soft transition-colors">
                     <td className="px-4 py-3">
                       <div className="font-medium text-foreground">{item.product?.product_name}</div>
                     </td>

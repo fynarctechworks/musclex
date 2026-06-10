@@ -28,7 +28,7 @@ function ExpiryBadge({ expiresAt }: { expiresAt: string | null }) {
   }
   if (days <= 30) {
     return (
-      <Badge className="bg-amber-500/20 text-amber-400 text-[10px]">
+      <Badge className="bg-warning/20 text-warning text-[10px]">
         {days}d left
       </Badge>
     );
@@ -68,10 +68,10 @@ export function DocumentTable({
 
   if (loading) {
     return (
-      <div className={cn("rounded-xl border border-border bg-card p-5", className)}>
+      <div className={cn("rounded-lg border border-border bg-card p-5", className)}>
         <div className="animate-pulse space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-12 bg-muted/50 rounded" />
+            <div key={i} className="h-12 bg-canvas-soft rounded" />
           ))}
         </div>
       </div>
@@ -80,7 +80,7 @@ export function DocumentTable({
 
   if (!documents || documents.length === 0) {
     return (
-      <div className={cn("rounded-xl border border-border bg-card p-6", className)}>
+      <div className={cn("rounded-lg border border-border bg-card p-6", className)}>
         <EmptyState
           icon={FileText}
           title="No documents uploaded"
@@ -91,7 +91,7 @@ export function DocumentTable({
   }
 
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-5", className)}>
+    <div className={cn("rounded-lg border border-border bg-card p-5", className)}>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>

@@ -12,9 +12,13 @@ import { Prisma } from '@prisma/client';
 import {
   REFERRAL_EVENTS,
   SubscriptionActivatedPayload,
+  SubscriptionRefundedPayload,
+  TrialCompletedPayload,
 } from './events/domain-events';
 import { RuleEngineService, EvaluationContext } from './rule-engine.service';
 import { RewardProcessorService } from './reward-processor.service';
+import { ReferralLifecycleService } from './referral-lifecycle.service';
+import { ReferralFraudService } from './referral-fraud.service';
 import { CreateReferralDto } from './dto/create-referral.dto';
 import { ProcessSubscriptionEventDto } from './dto/process-event.dto';
 import { randomBytes } from 'crypto';
@@ -27,6 +31,8 @@ export class ReferralsService {
     private readonly prisma: PrismaService,
     private readonly ruleEngine: RuleEngineService,
     private readonly rewardProcessor: RewardProcessorService,
+    private readonly lifecycle: ReferralLifecycleService,
+    private readonly fraud: ReferralFraudService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -145,6 +151,40 @@ export class ReferralsService {
       data: { referred_by_code: code },
     });
 
+    // Initial lifecycle audit (pending is the starting state — write the
+    // creation event so the history is complete from t=0).
+    await this.prisma.referralLifecycleEvent.create({
+      data: {
+        referral_id: referral.id,
+        from_status: null,
+        to_status:   'pending',
+        actor_type:  'system',
+        payload:     { source: 'createReferral' },
+      },
+    });
+
+    // Fire-and-forget fraud signal collection.
+    // If signals push risk above FRAUD_THRESHOLD we eagerly flip to 'fraud'.
+    this.fraud.collectSignals({
+      referralId:       referral.id,
+      referrerStudioId: referrerStudio.id,
+      referredStudioId: referredStudioId,
+      referredEmail:    dto.referred_email,
+    })
+      .then((score) => {
+        if (this.fraud.shouldMarkFraud(score)) {
+          return this.lifecycle.transition({
+            referralId: referral.id,
+            toStatus:   'fraud',
+            actorType:  'system',
+            payload:    { reason: 'auto_fraud_threshold', risk_score: score },
+          });
+        }
+      })
+      .catch((err) => {
+        this.logger.error(`Fraud collection failed for ${referral.id}: ${err.message}`);
+      });
+
     this.logger.log(
       `Referral created: ${referral.id} (referrer=${referrerStudio.id}, referred=${referredStudioId})`,
     );
@@ -174,8 +214,18 @@ export class ReferralsService {
   }
 
   /**
-   * Core reward handler — called by the event listener.
-   * Finds the referral, runs the rule engine, applies rewards.
+   * Stage 1 of 2 in the reward pipeline: the referred gym just made their
+   * first verified payment (during trial). We RECORD the milestone but do
+   * NOT credit the reward yet — that waits for TRIAL_COMPLETED.
+   *
+   * Why split? In a $0-trial model, a payment-method-on-file is captured at
+   * onboarding but the gym can still trial-cancel for 14 days. If we credited
+   * the reward here, a fraud loop could: refer fake gym → fake gym signs up
+   * + adds card → reward credits → fake gym cancels in trial → real money
+   * was never collected → referrer banked free days for nothing.
+   *
+   * By stopping at `payment_verified`, we get a clean audit trail of the
+   * referred gym's commitment without exposing the reward to trial-cancel.
    */
   async handleSubscriptionActivated(
     payload: SubscriptionActivatedPayload,
@@ -185,6 +235,60 @@ export class ReferralsService {
     // ── Find a pending referral for this studio ────────────────────
     const referral = await this.prisma.referral.findUnique({
       where: { referred_studio_id: studioId },
+      select: { id: true, status: true },
+    });
+
+    if (!referral) {
+      this.logger.debug(`No referral found for studio ${studioId} — nothing to record`);
+      return;
+    }
+
+    if (referral.status === 'rewarded' || referral.status === 'payment_verified') {
+      this.logger.debug(
+        `Referral ${referral.id} already at ${referral.status} — activation no-op`,
+      );
+      return;
+    }
+
+    if (referral.status === 'fraud' || referral.status === 'reversed' || referral.status === 'expired') {
+      this.logger.warn(`Referral ${referral.id} is ${referral.status} — skipping`);
+      return;
+    }
+
+    // Advance lifecycle to `payment_verified` and stop.
+    // The cron will later detect trial completion and fire TRIAL_COMPLETED to
+    // run the actual reward credit (see handleTrialCompleted).
+    await this.lifecycle.transition({
+      referralId: referral.id,
+      toStatus:   'subscribed',
+      actorType:  'webhook',
+      payload:    { idempotency_key: idempotencyKey },
+    });
+    await this.lifecycle.transition({
+      referralId: referral.id,
+      toStatus:   'payment_verified',
+      actorType:  'webhook',
+      payload:    { idempotency_key: idempotencyKey, awaiting: 'trial_completion' },
+    });
+
+    this.logger.log(
+      `Referral ${referral.id} marked payment_verified — reward deferred until trial completes`,
+    );
+  }
+
+  /**
+   * Stage 2 of 2: the referred gym's trial period ended while they're still
+   * on a paid plan (they didn't cancel during trial). NOW we credit the
+   * referrer's reward — runs the same fraud re-check + rule engine + reward
+   * application that previously ran on activation.
+   *
+   * Emitted by SubscriptionCron once per studio per trial_ends_at.
+   */
+  async handleTrialCompleted(payload: TrialCompletedPayload): Promise<void> {
+    const { studioId, idempotencyKey } = payload;
+
+    const referral = await this.prisma.referral.findUnique({
+      where: { referred_studio_id: studioId },
       include: {
         referrer_studio: { select: { id: true, country: true } },
         referred_studio: { select: { id: true, country: true } },
@@ -192,7 +296,7 @@ export class ReferralsService {
     });
 
     if (!referral) {
-      this.logger.debug(`No referral found for studio ${studioId} — nothing to reward`);
+      this.logger.debug(`No referral found for studio ${studioId} on trial completion`);
       return;
     }
 
@@ -201,69 +305,213 @@ export class ReferralsService {
       return;
     }
 
-    if (referral.status === 'fraud' || referral.status === 'reversed') {
+    if (referral.status === 'fraud' || referral.status === 'reversed' || referral.status === 'expired') {
       this.logger.warn(`Referral ${referral.id} is ${referral.status} — skipping`);
       return;
     }
 
-    // ── Mark referral as "processing" (prevents concurrent double-reward) ─
+    // Trial completion is the canonical "the referred gym is for real" signal.
+    // If we never saw activation (e.g. payment event was missed), advance the
+    // FSM through it now so the audit trail is complete.
+    if (referral.status !== 'payment_verified' && referral.status !== 'reward_pending') {
+      await this.lifecycle.transition({
+        referralId: referral.id,
+        toStatus:   'subscribed',
+        actorType:  'system',
+        payload:    { source: 'trial_completed', recovery: true },
+      });
+      await this.lifecycle.transition({
+        referralId: referral.id,
+        toStatus:   'payment_verified',
+        actorType:  'system',
+        payload:    { source: 'trial_completed', recovery: true },
+      });
+    }
+
+    // ── Re-collect fraud signals at reward time ────────────────────
+    const riskScore = await this.fraud.collectSignals({
+      referralId:       referral.id,
+      referrerStudioId: referral.referrer_studio_id,
+      referredStudioId: referral.referred_studio_id,
+      referredEmail:    null,
+    });
+
+    if (this.fraud.shouldMarkFraud(riskScore)) {
+      await this.lifecycle.transition({
+        referralId: referral.id,
+        toStatus:   'fraud',
+        actorType:  'system',
+        payload:    { reason: 'auto_fraud_threshold_at_reward', risk_score: riskScore },
+      });
+      this.logger.warn(`Referral ${referral.id} auto-flagged fraud at trial completion (score=${riskScore})`);
+      return;
+    }
+
+    if (this.fraud.shouldHoldForReview(riskScore)) {
+      this.logger.warn(
+        `Referral ${referral.id} held for manual review (score=${riskScore}) — reward NOT applied`,
+      );
+      return;
+    }
+
+    await this.lifecycle.transition({
+      referralId: referral.id,
+      toStatus:   'reward_pending',
+      actorType:  'system',
+    });
+
+    // ── Idempotency stamp ─────────────────────────────────────────
     const referralIdempotencyKey = `reward_${referral.id}_${idempotencyKey}`;
     const updated = await this.prisma.referral.updateMany({
       where: {
-        id:               referral.id,
-        status:           'pending',
-        idempotency_key:  null,
+        id:              referral.id,
+        idempotency_key: null,
       },
-      data: {
-        status:           'completed',
-        idempotency_key:  referralIdempotencyKey,
-      },
+      data: { idempotency_key: referralIdempotencyKey },
     });
 
     if (updated.count === 0) {
       this.logger.warn(
-        `Referral ${referral.id} race condition prevented — already being processed`,
+        `Referral ${referral.id} idempotency stamp already set — replay skip`,
       );
       return;
     }
 
     // ── Evaluate rules ─────────────────────────────────────────────
+    // The reward processor expects a SubscriptionActivatedPayload shape. The
+    // TrialCompletedPayload is structurally compatible (same fields except
+    // activatedAt is named trialEndedAt) — we adapt for the call.
+    const rewardPayload: SubscriptionActivatedPayload = {
+      studioId:       payload.studioId,
+      planId:         payload.planId,
+      planName:       payload.planName,
+      billingCycle:   payload.billingCycle,
+      amountPaid:     payload.amountPaid,
+      currency:       payload.currency,
+      idempotencyKey: payload.idempotencyKey,
+      activatedAt:    payload.trialEndedAt,
+    };
+
     const ctx: EvaluationContext = {
       referrerStudioId:     referral.referrer_studio_id,
       referredStudioCountry: referral.referred_studio?.country ?? null,
-      payload,
+      payload: rewardPayload,
     };
 
     const matchedRules = await this.ruleEngine.evaluate(ctx);
 
     if (matchedRules.length === 0) {
       this.logger.log(
-        `Referral ${referral.id}: no rules matched for plan ${payload.planId} — no reward`,
+        `Referral ${referral.id}: no rules matched on trial completion — no reward`,
       );
-      // Referral is completed (studio did activate) but no reward was earned
       return;
     }
 
-    // ── Apply rewards ──────────────────────────────────────────────
     const results = await this.rewardProcessor.processRewards({
       referralId:        referral.id,
       referrerStudioId:  referral.referrer_studio_id,
       matchedRules,
-      payload,
-      eventType:         REFERRAL_EVENTS.SUBSCRIPTION_ACTIVATED,
+      payload: rewardPayload,
+      eventType:         REFERRAL_EVENTS.TRIAL_COMPLETED,
     });
 
-    // ── Mark referral as fully rewarded ───────────────────────────
     if (results.length > 0) {
+      await this.lifecycle.transition({
+        referralId: referral.id,
+        toStatus:   'rewarded',
+        actorType:  'system',
+        payload:    { reward_count: results.length, trigger: 'trial_completed' },
+      });
       await this.prisma.referral.update({
         where: { id: referral.id },
-        data:  { status: 'rewarded', rewarded_at: new Date() },
+        data:  { rewarded_at: new Date() },
       });
 
       this.logger.log(
-        `🎉 Referral ${referral.id} rewarded: ${results.length} reward(s) applied to studio ${referral.referrer_studio_id}`,
+        `🎉 Referral ${referral.id} rewarded on trial completion: ${results.length} reward(s) applied to studio ${referral.referrer_studio_id}`,
       );
     }
+  }
+
+  // ── Subscription Refund / Cancellation (clawback) ─────────────────
+
+  /**
+   * Core clawback handler — called by the event listener when a referred
+   * studio cancels or is refunded AFTER its referrer was already rewarded.
+   *
+   * Fraud scenario this closes: gym A refers gym B; B pays (reward fires,
+   * A gets +30 days); B then cancels/refunds. Without clawback, A keeps the
+   * stolen days forever. This reverses the extension and the reward logs.
+   *
+   * Idempotent: a referral already in `reversed` is a no-op. Reward logs are
+   * matched by `status: 'applied'` so a replayed refund can't double-reverse.
+   */
+  async handleSubscriptionRefunded(payload: SubscriptionRefundedPayload): Promise<void> {
+    const { studioId, refundReason } = payload;
+
+    // The refunded studio is the REFERRED gym. Find its referral.
+    const referral = await this.prisma.referral.findUnique({
+      where: { referred_studio_id: studioId },
+      select: { id: true, status: true, referrer_studio_id: true },
+    });
+
+    if (!referral) {
+      this.logger.debug(`Refund for studio ${studioId}: no referral — nothing to claw back`);
+      return;
+    }
+
+    if (referral.status === 'reversed') {
+      this.logger.debug(`Referral ${referral.id} already reversed — idempotency skip`);
+      return;
+    }
+
+    // Only a rewarded referral has anything to claw back. If the referred gym
+    // cancels BEFORE the reward fired (e.g. never paid), just mark it reversed
+    // so the pending reward can never land later.
+    if (referral.status !== 'rewarded') {
+      const moved = await this.lifecycle.transition({
+        referralId: referral.id,
+        toStatus:   'reversed',
+        actorType:  'system',
+        payload:    { reason: 'referred_studio_cancelled_before_reward', detail: refundReason },
+      });
+      this.logger.warn(
+        `Referral ${referral.id} (${referral.status}) reversed pre-reward on refund` +
+        (moved ? '' : ' — transition refused (terminal state)'),
+      );
+      return;
+    }
+
+    // ── Reverse every applied reward on this referral ────────────────
+    const appliedLogs = await this.prisma.rewardLog.findMany({
+      where: { referral_id: referral.id, status: 'applied' },
+    });
+
+    for (const log of appliedLogs) {
+      try {
+        await this.rewardProcessor.reverseReward({
+          rewardLog: log,
+          reason:    `Referred studio refunded/cancelled: ${refundReason}`,
+        });
+      } catch (err) {
+        this.logger.error(
+          `Failed to reverse reward log ${log.id} for referral ${referral.id}: ${(err as Error).message}`,
+        );
+      }
+    }
+
+    // ── Transition the referral itself to reversed ───────────────────
+    await this.lifecycle.transition({
+      referralId: referral.id,
+      toStatus:   'reversed',
+      actorType:  'system',
+      payload:    { reason: 'referred_studio_refunded', detail: refundReason, logs_reversed: appliedLogs.length },
+    });
+
+    this.logger.warn(
+      `↩️  Referral ${referral.id} clawed back: ${appliedLogs.length} reward(s) reversed ` +
+      `for referrer ${referral.referrer_studio_id} (referred studio ${studioId} refunded)`,
+    );
   }
 
   // ── Stats (for the API response) ──────────────────────────────────

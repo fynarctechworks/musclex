@@ -29,7 +29,7 @@ export function IntelligencePanel({ branchId }: IntelligencePanelProps) {
     `${CURRENCY}${Math.abs(Number(n) || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
   return (
-    <div className="mb-6 rounded-xl border border-border bg-card">
+    <div className="mb-6 rounded-lg border border-border bg-card">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -88,9 +88,9 @@ function ProfitLossCard({
           Profit & Loss
         </p>
         {net >= 0 ? (
-          <TrendingUp className="h-4 w-4 text-emerald-400" />
+          <TrendingUp className="h-4 w-4 text-success" />
         ) : (
-          <TrendingDown className="h-4 w-4 text-rose-400" />
+          <TrendingDown className="h-4 w-4 text-error" />
         )}
       </div>
       <dl className="space-y-1 text-sm">
@@ -109,7 +109,7 @@ function ProfitLossCard({
         <div className="mt-2 flex justify-between border-t border-border pt-2">
           <dt className="font-semibold text-foreground">Net</dt>
           <dd
-            className={`font-semibold ${net >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+            className={`font-semibold ${net >= 0 ? "text-success" : "text-error"}`}
           >
             {net < 0 ? "-" : ""}
             {fmt(net)}
@@ -206,7 +206,7 @@ function CashflowCard({
           {cf.anomalies.slice(0, 3).map((a: any) => (
             <div
               key={a.month ?? a.period}
-              className="flex items-center gap-1 text-[11px] text-rose-400"
+              className="flex items-center gap-1 text-[11px] text-error"
             >
               <AlertTriangle className="h-3 w-3" />
               <span>

@@ -30,11 +30,11 @@ export function MeasurementTable({
 
   if (loading) {
     return (
-      <div className={cn("rounded-xl border border-border bg-card p-5", className)}>
+      <div className={cn("rounded-lg border border-border bg-card p-5", className)}>
         <div className="animate-pulse space-y-3">
           <div className="h-5 w-48 bg-muted rounded" />
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-10 bg-muted/50 rounded" />
+            <div key={i} className="h-10 bg-canvas-soft rounded" />
           ))}
         </div>
       </div>
@@ -43,7 +43,7 @@ export function MeasurementTable({
 
   if (!data || data.length === 0) {
     return (
-      <div className={cn("rounded-xl border border-border bg-card p-6", className)}>
+      <div className={cn("rounded-lg border border-border bg-card p-6", className)}>
         <EmptyState
           icon={Ruler}
           title="No measurements recorded"
@@ -56,7 +56,7 @@ export function MeasurementTable({
   const fmt = (v: number | null) => (v !== null ? Number(v).toFixed(1) : "—");
 
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-5", className)}>
+    <div className={cn("rounded-lg border border-border bg-card p-5", className)}>
       <h3 className="text-base font-semibold text-foreground mb-4">Measurement History</h3>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">

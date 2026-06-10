@@ -13,6 +13,7 @@ import {
   FormTextarea,
   FormSelect,
 } from "@/components/shared/form-fields";
+import { PhoneInput } from "@/components/shared/phone-input";
 import { Button } from "@/components/ui/button";
 import { PhotoUpload } from "@/components/ui/photo-upload";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
@@ -151,7 +152,7 @@ export default function EditMemberPage() {
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Personal Information */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="rounded-lg border border-border bg-card p-6 space-y-4">
             <h2 className="text-base font-semibold text-foreground">
               Personal Information
             </h2>
@@ -165,17 +166,24 @@ export default function EditMemberPage() {
                   required: "Full name is required",
                 })}
               />
-              <FormInput
-                label="Phone *"
-                placeholder="+91 98765 43210"
-                error={errors.phone?.message}
-                {...register("phone", {
+              <Controller
+                name="phone"
+                control={control}
+                rules={{
                   required: "Phone number is required",
-                  pattern: {
-                    value: /^\+?[\d\s-]{7,15}$/,
-                    message: "Enter a valid phone number",
+                  validate: (v) => {
+                    const d = (v ?? "").replace(/\D/g, "");
+                    return (d.length >= 7 && d.length <= 15) || "Enter a valid phone number";
                   },
-                })}
+                }}
+                render={({ field }) => (
+                  <PhoneInput
+                    label="Phone *"
+                    value={field.value}
+                    onChange={field.onChange}
+                    error={errors.phone?.message}
+                  />
+                )}
               />
             </div>
 
@@ -212,7 +220,7 @@ export default function EditMemberPage() {
           </div>
 
           {/* Emergency Contact */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="rounded-lg border border-border bg-card p-6 space-y-4">
             <h2 className="text-base font-semibold text-foreground">
               Emergency Contact
             </h2>
@@ -233,7 +241,7 @@ export default function EditMemberPage() {
           </div>
 
           {/* Preferences */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="rounded-lg border border-border bg-card p-6 space-y-4">
             <h2 className="text-base font-semibold text-foreground">
               Preferences
             </h2>
@@ -252,7 +260,7 @@ export default function EditMemberPage() {
           </div>
 
           {/* Notes */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="rounded-lg border border-border bg-card p-6 space-y-4">
             <h2 className="text-base font-semibold text-foreground">Notes</h2>
             <FormTextarea
               label="Additional Notes"

@@ -8,7 +8,7 @@ import {
   useSeedDefaultMessaging,
   useMessageTemplates,
 } from "@/features/marketing/hooks";
-import type { AutomationWorkflow, MessageTemplate } from "@/features/marketing/types";
+import type { AutomationWorkflow, MessageTemplate, TriggerEvent } from "@/features/marketing/types";
 import { LoadingSkeleton, ConfirmDialog } from "@/components/shared";
 import {
   UserPlus,
@@ -21,7 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const ESSENTIAL_RULES: Array<{
-  trigger: string;
+  trigger: TriggerEvent;
   title: string;
   description: string;
   icon: React.ElementType;
@@ -77,8 +77,8 @@ export function AutoSendRulesPanel({ onEditTemplate }: AutoSendRulesPanelProps) 
 
   if (allMissing) {
     return (
-      <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-5 flex items-start gap-4">
-        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+      <div className="mb-6 rounded-lg border border-primary/20 bg-primary/5 p-5 flex items-start gap-4">
+        <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center shrink-0">
           <Sparkles className="w-5 h-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
@@ -139,7 +139,7 @@ export function AutoSendRulesPanel({ onEditTemplate }: AutoSendRulesPanelProps) 
               <div
                 key={rule.trigger}
                 className={cn(
-                  "rounded-xl border p-4 transition-colors bg-card",
+                  "rounded-lg border p-4 transition-colors bg-card",
                   wf ? "border-border" : "border-dashed border-border/70"
                 )}
               >
@@ -148,7 +148,7 @@ export function AutoSendRulesPanel({ onEditTemplate }: AutoSendRulesPanelProps) 
                     <div
                       className={cn(
                         "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
-                        isActive ? "bg-primary/10" : "bg-muted"
+                        isActive ? "bg-canvas-soft-2" : "bg-muted"
                       )}
                     >
                       <Icon
@@ -181,7 +181,7 @@ export function AutoSendRulesPanel({ onEditTemplate }: AutoSendRulesPanelProps) 
                     >
                       <span
                         className={cn(
-                          "h-4 w-4 rounded-full bg-background shadow-sm transform transition-transform",
+                          "h-4 w-4 rounded-full bg-background shadow-level-2 transform transition-transform",
                           isActive ? "translate-x-[18px]" : "translate-x-[2px]"
                         )}
                       />
@@ -191,7 +191,7 @@ export function AutoSendRulesPanel({ onEditTemplate }: AutoSendRulesPanelProps) 
 
                 {wf ? (
                   <>
-                    <div className="rounded-lg bg-muted/40 border border-border px-3 py-2 mb-3">
+                    <div className="rounded-lg bg-canvas-soft border border-border px-3 py-2 mb-3">
                       <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                         Sends template
                       </p>

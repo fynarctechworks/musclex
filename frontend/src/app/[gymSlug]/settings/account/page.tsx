@@ -229,9 +229,9 @@ function UsageBar({
         <span
           className={
             isFull
-              ? "text-red-500 font-semibold"
+              ? "text-error font-semibold"
               : isHigh
-                ? "text-amber-500 font-semibold"
+                ? "text-warning font-semibold"
                 : "text-foreground font-medium"
           }
         >
@@ -243,9 +243,9 @@ function UsageBar({
         <div
           className={`h-full rounded-full transition-all ${
             isFull
-              ? "bg-red-500"
+              ? "bg-error"
               : isHigh
-                ? "bg-amber-500"
+                ? "bg-warning"
                 : "bg-primary"
           }`}
           style={{ width: `${pct}%` }}
@@ -260,12 +260,12 @@ function StatusPill({ status }: { status: string }) {
     status === "active"
       ? "bg-success/10 text-success"
       : status === "trial"
-        ? "bg-blue-500/10 text-blue-600"
+        ? "bg-link/10 text-link"
         : status === "past_due"
-          ? "bg-amber-500/10 text-amber-600"
+          ? "bg-warning/10 text-warning"
           : status === "paid"
             ? "bg-success/10 text-success"
-            : "bg-red-500/10 text-red-500";
+            : "bg-error/10 text-error";
   return (
     <span
       className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium capitalize ${color}`}
@@ -301,7 +301,7 @@ function SectionCard({
   return (
     <div
       id={id}
-      className="bg-card border border-border rounded-xl p-6 scroll-mt-20"
+      className="bg-card border border-border rounded-lg p-6 scroll-mt-20"
     >
       <h2 className="text-base font-semibold text-foreground flex items-center gap-2 mb-5">
         <Icon className="w-5 h-5 text-primary" />
@@ -493,7 +493,7 @@ export default function AccountDetailsPage() {
               className="w-12 h-12 rounded-lg object-cover"
             />
           ) : (
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
               <Crown className="w-6 h-6 text-primary" />
             </div>
           )}
@@ -652,7 +652,7 @@ export default function AccountDetailsPage() {
                 label="Current Plan"
                 value={
                   <span className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-xs font-semibold capitalize">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-canvas-soft-2 text-primary text-xs font-semibold capitalize">
                       <Zap className="w-3 h-3" />
                       {sub.plan}
                     </span>
@@ -750,7 +750,7 @@ export default function AccountDetailsPage() {
                   return (
                     <div
                       key={plan.id}
-                      className={`rounded-xl border p-4 transition-colors ${
+                      className={`rounded-lg border p-4 transition-colors ${
                         isCurrent
                           ? "border-primary bg-primary/5"
                           : "border-border hover:border-primary/30"
@@ -761,12 +761,12 @@ export default function AccountDetailsPage() {
                           {plan.name}
                         </h4>
                         {isCurrent && (
-                          <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">
+                          <span className="text-[10px] bg-canvas-soft-2 text-primary px-1.5 py-0.5 rounded font-medium">
                             Current
                           </span>
                         )}
                       </div>
-                      <p className="text-lg font-bold text-foreground">
+                      <p className="text-lg font-semibold text-foreground">
                         {plan.monthly_price > 0
                           ? fmtCurrency(
                               plan.monthly_price,
@@ -851,7 +851,7 @@ export default function AccountDetailsPage() {
                 <label className="block text-sm font-medium text-foreground mb-1.5">
                   Currency
                 </label>
-                <p className="text-sm text-foreground bg-muted/30 border border-border px-3 py-2 rounded-lg">
+                <p className="text-sm text-foreground bg-canvas-soft border border-border px-3 py-2 rounded-lg">
                   {account.billing.currency}
                 </p>
               </div>

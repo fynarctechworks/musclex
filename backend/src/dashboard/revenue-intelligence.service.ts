@@ -37,7 +37,7 @@ export interface RevenueMixItem {
 }
 
 export interface PaymentMethodItem {
-  method: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'razorpay' | 'stripe';
+  method: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'razorpay';
   count: number;
   amount: number;
   share_pct: number;
@@ -368,7 +368,6 @@ export class RevenueIntelligenceService {
       'upi',
       'bank_transfer',
       'razorpay',
-      'stripe',
     ];
 
     const result: PaymentMethodItem[] = groups

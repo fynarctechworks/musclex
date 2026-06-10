@@ -1,6 +1,8 @@
 'use client';
 
-import { Check, User, Mail, Building2, MapPin, CreditCard, Users, Zap, Dumbbell } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Check, User, Mail, Building2, MapPin, CreditCard, Users, Zap, Loader2 } from 'lucide-react';
+import Silk from '@/components/ui/silk';
 
 const STEPS = [
   { label: 'Create Account', icon: User },
@@ -25,25 +27,34 @@ export function OnboardingLayout({
   maxWidth = '480px',
   hideSidebar = false,
 }: OnboardingLayoutProps) {
+  // Every onboarding page seeds its form from client-only persisted stores
+  // (sessionStorage draft + auth store), which are empty on the server. To
+  // avoid React hydration mismatches (the form renders different conditional
+  // nodes server vs client), we keep the static chrome SSR'd but defer the
+  // store-driven `children` until after the first client mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* ── Left dark panel ── */}
       {!hideSidebar && (
+        <div className="hidden lg:flex lg:h-screen lg:w-[44%] lg:shrink-0 flex-col justify-between p-10 relative overflow-hidden bg-[#0a0a0a]">
+        {/* Animated silk backdrop — brand chrome, hero scale only */}
+        <div className="absolute inset-0 pointer-events-none bg-[#0a0a0a]">
+          <Silk color="#7B7481" speed={5} scale={1} noiseIntensity={1.5} rotation={0} />
+        </div>
+        {/* Subtle bottom fade — keeps the white copy legible over the silk */}
         <div
-          className="hidden lg:flex lg:h-screen lg:w-[44%] lg:shrink-0 flex-col justify-between p-10 relative overflow-hidden"
-          style={{
-            background:
-              'radial-gradient(ellipse at 20% 10%, hsl(0 0% 98% / 0.08) 0%, transparent 55%), radial-gradient(ellipse at 85% 85%, hsl(0 0% 98% / 0.05) 0%, transparent 55%), hsl(0 0% 7%)',
-          }}
-        >
+          className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/40 via-transparent to-transparent"
+          aria-hidden
+        />
         {/* Logo */}
-        <div className="relative flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15">
-            <Dumbbell className="h-4 w-4 text-white" />
-          </div>
-          <span className="text-[15px] font-semibold text-white tracking-tight">
-            MuscleX
-          </span>
+        <div className="relative flex items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo-wordmark-light.png" alt="MuscleX" className="h-6 w-auto" />
         </div>
 
         {/* Step indicator */}
@@ -55,12 +66,12 @@ export function OnboardingLayout({
             return (
               <div key={s.label} className="flex items-center gap-3">
                 <div
-                  className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-all ${
+                  className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-all ${
                     isComplete
                       ? 'bg-foreground text-background'
                       : isCurrent
-                        ? 'bg-white/90 text-[#111] ring-2 ring-white ring-offset-2 ring-offset-transparent'
-                        : 'bg-white/15 text-white/60'
+                        ? 'bg-canvas/90 text-[#111] ring-2 ring-white ring-offset-2 ring-offset-transparent'
+                        : 'bg-canvas/15 text-on-primary/60'
                   }`}
                 >
                   {isComplete ? (
@@ -71,7 +82,7 @@ export function OnboardingLayout({
                 </div>
                 <span
                   className={`text-[13px] font-medium ${
-                    i <= currentStep ? 'text-white' : 'text-white/40'
+                    i <= currentStep ? 'text-on-primary' : 'text-on-primary/40'
                   }`}
                 >
                   {s.label}
@@ -83,13 +94,13 @@ export function OnboardingLayout({
 
         {/* Bottom copy */}
         <div className="relative">
-          <p className="text-white/40 text-xs mb-3 font-medium tracking-wide uppercase">
+          <p className="text-on-primary/40 text-xs mb-3 font-medium tracking-wide uppercase">
             Get started free.
           </p>
-          <h2 className="text-white text-[26px] font-bold leading-snug">
+          <h2 className="text-on-primary text-[26px] font-semibold leading-snug">
             Your studio is minutes away from going digital.
           </h2>
-          <p className="mt-4 text-white/50 text-[13px] leading-relaxed">
+          <p className="mt-4 text-on-primary/50 text-[13px] leading-relaxed">
             Set up once, manage everything — members, payments, classes, and
             team.
           </p>
@@ -99,15 +110,11 @@ export function OnboardingLayout({
 
       {/* ── Right form panel ── */}
       <div className="flex h-screen flex-1 overflow-y-auto bg-background">
-        <div className="flex min-h-full w-full flex-col items-center justify-start px-4 py-16 sm:px-6 lg:px-10 lg:py-20 lg:justify-center">
+        <div className="flex min-h-full w-full flex-col items-center justify-start px-4 py-10 sm:px-6 lg:px-10 lg:py-12">
         {/* Mobile logo */}
-        <div className="lg:hidden mb-8 flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Dumbbell className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <span className="font-semibold text-foreground text-[15px]">
-            MuscleX
-          </span>
+        <div className="lg:hidden mb-8 flex items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo-wordmark.png" alt="MuscleX" className="h-6 w-auto" />
         </div>
 
         {/* Mobile step pills */}
@@ -123,7 +130,13 @@ export function OnboardingLayout({
         </div>
 
         <div className="w-full" style={{ maxWidth, minWidth: 0 }}>
-          {children}
+          {mounted ? (
+            children
+          ) : (
+            <div className="flex justify-center py-16">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
         </div>
         </div>
       </div>

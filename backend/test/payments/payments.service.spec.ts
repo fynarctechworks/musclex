@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PaymentsService } from '../../src/payments/payments.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { BillingService } from '../../src/payments/billing.service';
+import { RazorpayService } from '../../src/payments/razorpay.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { createMockPrismaService, mockPayment, mockMember } from '../test-utils';
 
@@ -14,6 +15,15 @@ describe('PaymentsService', () => {
     generateInvoice: jest.fn(),
   };
 
+  const mockRazorpayService = {
+    configured: true,
+    getKeyId: jest.fn().mockReturnValue('rzp_test_key'),
+    createOrder: jest
+      .fn()
+      .mockResolvedValue({ id: 'order_TEST123', amount: 100000, currency: 'INR', status: 'created' }),
+    verifyCheckoutSignature: jest.fn().mockReturnValue(true),
+  };
+
   beforeEach(async () => {
     prisma = createMockPrismaService();
 
@@ -22,6 +32,7 @@ describe('PaymentsService', () => {
         PaymentsService,
         { provide: PrismaService, useValue: prisma },
         { provide: BillingService, useValue: mockBillingService },
+        { provide: RazorpayService, useValue: mockRazorpayService },
       ],
     }).compile();
 
@@ -87,7 +98,10 @@ describe('PaymentsService', () => {
       const callArgs = prisma.payment.create.mock.calls[0][0];
       expect(callArgs.data.payment_method).toBe('cash');
       expect(callArgs.data.status).toBe('paid');
-      expect(callArgs.data.receipt_number).toMatch(/^RCP-\d{8}-\d{4}$/);
+      // payments.service.generateReceiptNumber():
+      //   `RCP-${YYYYMMDD}-${randomBytes(4).toString('hex').toUpperCase()}`
+      // i.e. 8 uppercase-hex chars, not 4 digits.
+      expect(callArgs.data.receipt_number).toMatch(/^RCP-\d{8}-[0-9A-F]{8}$/);
     });
 
     it('should throw when member not found', async () => {

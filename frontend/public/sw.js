@@ -1,4 +1,4 @@
-/* FitSync Pro — minimal service worker for Web Push notifications.
+/* MuscleX — minimal service worker for Web Push notifications.
  *
  * Why this exists:
  *   The dashboard's Action Queue can escalate high-severity items to a
@@ -24,10 +24,10 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("push", (event) => {
   let payload = {
-    title: "FitSync Pro",
+    title: "MuscleX",
     body: "You have a new action.",
     url: "/",
-    tag: "fitsync-action",
+    tag: "musclex-action",
   };
   try {
     if (event.data) {

@@ -4,15 +4,23 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Providers } from "@/components/providers";
 
+// Design.md font stack: Geist (proprietary) → Inter substitute with geometric
+// stylistic sets (ss01/ss02). The brand's display ceiling is weight 600, but
+// 700/800 stay loaded for legacy `font-semibold` usage during migration.
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
-  weight: ["300", "400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
+// Geist Mono substitute per Design.md: JetBrains Mono at 12-13 px for
+// technical labels, terminal mockups, and section eyebrows.
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
+  weight: ["400", "500"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {

@@ -37,10 +37,10 @@ interface TemplatesResponse {
 
 // ── Dummy data for preview ──────────────────────────────────────
 const DUMMY = {
-  gym_name: "FitSync Pro Gym",
+  gym_name: "MuscleX Gym",
   gym_address: "123 Fitness Street, Mumbai, MH 400001",
   gym_phone: "+91 98765 43210",
-  gym_email: "hello@fitsyncgym.com",
+  gym_email: "hello@musclexgym.com",
   member_name: "Rahul Sharma",
   member_code: "FS-20260101-0042",
   member_email: "rahul.sharma@email.com",
@@ -87,7 +87,7 @@ function InvoiceCardPreview({ template, selected }: { template: InvoiceTemplate;
 
   return (
     <div
-      className="rounded-xl overflow-hidden border-2 transition-all duration-200"
+      className="rounded-lg overflow-hidden border-2 transition-all duration-fast"
       style={{
         borderColor: selected ? s.accent : "hsl(var(--border))",
         boxShadow: selected ? `0 0 0 2px ${s.accent}33` : "none",
@@ -100,7 +100,7 @@ function InvoiceCardPreview({ template, selected }: { template: InvoiceTemplate;
             <div className="w-5 h-5 rounded" style={{ background: s.accent }} />
             <div className="h-2 w-16 rounded" style={{ background: s.accent, opacity: 0.7 }} />
           </div>
-          <div className="text-xs font-bold" style={{ color: s.accent }}>INVOICE</div>
+          <div className="text-xs font-semibold" style={{ color: s.accent }}>INVOICE</div>
         </div>
         {/* Divider */}
         <div className="h-px w-full" style={{ background: s.border }} />
@@ -116,7 +116,7 @@ function InvoiceCardPreview({ template, selected }: { template: InvoiceTemplate;
         {/* Total row */}
         <div className="flex justify-between items-center pt-2 border-t" style={{ borderColor: s.border }}>
           <div className="h-2 w-12 rounded" style={{ background: s.text, opacity: 0.4 }} />
-          <div className="h-2 w-14 rounded font-bold" style={{ background: s.accent }} />
+          <div className="h-2 w-14 rounded font-semibold" style={{ background: s.accent }} />
         </div>
       </div>
     </div>
@@ -129,7 +129,7 @@ function InvoiceFullPreview({ templateId }: { templateId: string }) {
 
   return (
     <div
-      className="rounded-xl overflow-hidden shadow-sm"
+      className="rounded-lg overflow-hidden shadow-level-2"
       style={{ background: s.bg, border: `1px solid ${s.border}`, minHeight: "500px" }}
     >
       {/* Invoice header */}
@@ -143,18 +143,18 @@ function InvoiceFullPreview({ templateId }: { templateId: string }) {
         <div className="flex items-start justify-between">
           <div>
             <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
+              className="w-12 h-12 rounded-lg flex items-center justify-center mb-3"
               style={{ background: s.accent }}
             >
-              <Receipt className="w-6 h-6 text-white" />
+              <Receipt className="w-6 h-6 text-on-primary" />
             </div>
-            <h2 className="text-lg font-bold" style={{ color: s.text }}>{DUMMY.gym_name}</h2>
+            <h2 className="text-lg font-semibold" style={{ color: s.text }}>{DUMMY.gym_name}</h2>
             <p className="text-xs mt-1" style={{ color: s.subtext }}>{DUMMY.gym_address}</p>
             <p className="text-xs" style={{ color: s.subtext }}>{DUMMY.gym_phone} · {DUMMY.gym_email}</p>
           </div>
           <div className="text-right">
             <div
-              className="inline-block px-3 py-1 rounded-full text-xs font-bold mb-2"
+              className="inline-block px-3 py-1 rounded-full text-xs font-semibold mb-2"
               style={{ background: `${s.accent}15`, color: s.accent, border: `1px solid ${s.accent}30` }}
             >
               INVOICE
@@ -213,7 +213,7 @@ function InvoiceFullPreview({ templateId }: { templateId: string }) {
               <span style={{ color: s.text }}>{DUMMY.currency} 0</span>
             </div>
             <div
-              className="flex items-center gap-6 text-base font-bold px-4 py-2 rounded-lg"
+              className="flex items-center gap-6 text-base font-semibold px-4 py-2 rounded-lg"
               style={{ background: `${s.accent}15`, border: `1px solid ${s.accent}30` }}
             >
               <span style={{ color: s.text }}>Total</span>
@@ -250,13 +250,13 @@ function PreviewModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-card border border-border shadow-lg"
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-card border border-border shadow-level-4"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal header */}
         <div className="flex items-center justify-between px-6 py-4 sticky top-0 z-10 bg-card border-b border-border">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/10">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-canvas-soft-2">
               <Icon className="w-4 h-4 text-primary" />
             </div>
             <div>
@@ -270,7 +270,7 @@ function PreviewModal({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-muted hover:bg-accent transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-muted hover:bg-canvas-soft transition-colors"
           >
             <X className="w-4 h-4 text-muted-foreground" />
           </button>
@@ -338,7 +338,7 @@ export default function InvoiceSettingsPage() {
           <ChevronRight className="w-4 h-4 rotate-180" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2.5">
+          <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2.5">
             <Receipt className="w-7 h-7 text-primary" /> Invoice Templates
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -350,7 +350,7 @@ export default function InvoiceSettingsPage() {
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-56 bg-muted animate-pulse rounded-2xl" />
+            <div key={i} className="h-56 bg-muted animate-pulse rounded-lg" />
           ))}
         </div>
       ) : (
@@ -364,10 +364,10 @@ export default function InvoiceSettingsPage() {
                 <button
                   key={template.id}
                   onClick={() => setSelectedTemplate(template.id)}
-                  className={`group text-left rounded-2xl border transition-all duration-200 overflow-hidden bg-card ${
+                  className={`group text-left rounded-lg border transition-all duration-fast overflow-hidden bg-card ${
                     isActive
-                      ? "border-primary shadow-md ring-2 ring-primary/20"
-                      : "border-border hover:border-primary/40 hover:shadow-sm"
+                      ? "border-primary shadow-level-3 ring-2 ring-primary/20"
+                      : "border-border hover:border-primary/40 hover:shadow-level-2"
                   }`}
                 >
                   {/* Preview area */}
@@ -380,7 +380,7 @@ export default function InvoiceSettingsPage() {
                     <div className="flex items-center gap-2.5">
                       <div
                         className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                          isActive ? "bg-primary/10" : "bg-muted"
+                          isActive ? "bg-canvas-soft-2" : "bg-muted"
                         }`}
                       >
                         <Icon className={`w-4 h-4 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
@@ -402,7 +402,7 @@ export default function InvoiceSettingsPage() {
                           e.stopPropagation();
                           setPreviewTemplate(template);
                         }}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-primary/10 border border-primary/20 transition-all opacity-0 group-hover:opacity-100 hover:bg-primary/15"
+                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-canvas-soft-2 border border-primary/20 transition-all opacity-0 group-hover:opacity-100 hover:bg-canvas-soft-2"
                         title="Preview template"
                       >
                         <Eye className="w-3.5 h-3.5 text-primary" />
@@ -421,7 +421,7 @@ export default function InvoiceSettingsPage() {
           </div>
 
           {/* ── Info banner ────────────────────────────────── */}
-          <div className="flex items-start gap-3 rounded-xl p-4 bg-primary/5 border border-primary/15">
+          <div className="flex items-start gap-3 rounded-lg p-4 bg-primary/5 border border-primary/15">
             <Eye className="w-5 h-5 shrink-0 mt-0.5 text-primary" />
             <div>
               <p className="text-sm font-medium text-foreground">
@@ -438,7 +438,7 @@ export default function InvoiceSettingsPage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-50 shadow-sm"
+              className="inline-flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-50 shadow-level-2"
             >
               <Check className="w-4 h-4" />
               {saving ? "Saving..." : "Save Template"}

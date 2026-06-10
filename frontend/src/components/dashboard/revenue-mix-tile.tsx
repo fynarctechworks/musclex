@@ -92,7 +92,7 @@ export function RevenueMixTile({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border bg-card p-5",
+        "rounded-lg border border-border bg-card p-5",
         className,
       )}
     >
@@ -133,7 +133,7 @@ export function RevenueMixTile({
               className={cn(
                 "px-3 py-1 text-[12px] font-medium rounded transition-colors",
                 active
-                  ? "bg-primary/10 text-primary"
+                  ? "bg-canvas-soft-2 text-primary"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >

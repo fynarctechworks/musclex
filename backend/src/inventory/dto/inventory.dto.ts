@@ -26,6 +26,9 @@ export class AdjustInventoryDto {
 }
 
 export class UpdateReorderLevelDto {
+  @IsUUID()
+  branch_id: string;
+
   @IsInt()
   @Min(0)
   reorder_level: number;

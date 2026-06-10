@@ -1,0 +1,2498 @@
+openapi: 3.1.0
+info:
+  title: Gym Member App — Member BFF API
+  version: "1.0.0"
+  description: >
+    Phase-1 contract for the member-facing app. This is the ONLY surface the
+    mobile app uses. It lives inside the existing NestJS SaaS as a `/member`
+    module, reuses the shared Prisma tenant extension (schema-per-tenant), and
+    enforces member-level scoping on top of tenant-schema isolation.
+
+    Auth model: members have no login today. OTP is delivered/verified via the
+    existing Supabase IdP (phone OTP). The app exchanges the Supabase token for
+    a member access token whose claims carry the tenant schema + memberId.
+
+    Generate from this file:
+      - NestJS DTOs / validation (server)
+      - Typed API client (React Native app)
+servers:
+  - url: https://api.yoursaas.com/member/v1
+    description: Production
+  - url: https://staging-api.yoursaas.com/member/v1
+    description: Staging (use fake tenants here for all testing)
+
+security:
+  - MemberBearer: []
+
+tags:
+  - name: Auth
+  - name: Profile
+  - name: Home
+  - name: CheckIn
+  - name: Locations
+  - name: Membership
+  - name: Workouts
+  - name: Progress
+  - name: Notifications
+  - name: Health
+
+paths:
+  /auth/otp/request:
+    post:
+      tags: [Auth]
+      summary: Request an OTP for a phone number
+      description: >
+        Looks up the phone in the public-schema member directory. If found,
+        triggers Supabase phone OTP. Always returns 200 (do not reveal whether
+        a phone is a member — prevents enumeration).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone:
+                  type: string
+                  example: "+919876543210"
+      responses:
+        "200":
+          description: OTP dispatched if the phone maps to a member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OtpRequestResult"
+
+  /auth/session:
+    post:
+      tags: [Auth]
+      summary: Exchange a verified Supabase OTP token for a member session
+      description: >
+        Verifies the Supabase access token, resolves the member via the public
+        directory, and issues the app's member access + refresh tokens. If the
+        phone maps to multiple gyms, returns `tenantChoices` and no tokens until
+        a tenant is selected.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [supabaseToken]
+              properties:
+                supabaseToken:
+                  type: string
+                tenantId:
+                  type: string
+                  description: Required only when resolving a multi-gym member
+      responses:
+        "200":
+          description: Session issued (or tenant choice required)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResult"
+        "403":
+          $ref: "#/components/responses/NotAMember"
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate tokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        "200":
+          description: New token pair
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+
+  /me:
+    get:
+      tags: [Profile]
+      summary: Current member profile
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/MemberProfile" }
+    patch:
+      tags: [Profile]
+      summary: Update the member's fitness profile (onboarding + later edits)
+      description: >-
+        Partial update — any subset of fields. Powers per-step onboarding
+        auto-save and later profile edits. Setting onboardingComplete=true stamps
+        completion. Changing goal/weight/activity/experience recomputes the
+        personalization targets (daily calories / protein / water) and upserts the
+        member's nutrition goal. The member is always taken from the token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateProfile" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/MemberProfile" }
+
+  /me/context:
+    get:
+      tags: [Profile]
+      summary: Identity + capabilities for the current app user (drives dynamic UX)
+      description: >-
+        Returns the user's type (public | member | expired) and the capability
+        flags the app reads to show/hide features in navigation and screens.
+        Available to ANY authenticated app user, including gym-less PUBLIC users
+        (so it does NOT require a gym membership). memberships is empty for a
+        public user, one entry per gym otherwise.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/MeContext" }
+
+  /me/weight:
+    get:
+      tags: [Tracking]
+      summary: Personal weight history (gym-less, app_user-scoped)
+      parameters:
+        - in: query
+          name: days
+          schema: { type: integer, default: 90 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/WeightSeries" } }
+    post:
+      tags: [Tracking]
+      summary: Log a weigh-in (upsert for the day)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WeightInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/WeightEntry" } }
+
+  /me/water:
+    get:
+      tags: [Tracking]
+      summary: Water intake for a day (defaults to today)
+      parameters:
+        - in: query
+          name: date
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/WaterDay" } }
+    post:
+      tags: [Tracking]
+      summary: Set or add water for a day (upsert)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WaterInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/WaterDay" } }
+
+  /me/goals:
+    get:
+      tags: [Tracking]
+      summary: Personal goals (app_user-scoped)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/GoalList" } }
+    post:
+      tags: [Tracking]
+      summary: Create a personal goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GoalInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/Goal" } }
+
+  /me/goals/{goalId}:
+    patch:
+      tags: [Tracking]
+      summary: Update a goal's progress or status
+      parameters:
+        - in: path
+          name: goalId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GoalUpdate" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/Goal" } }
+
+  /me/health/daily:
+    get:
+      tags: [Tracking]
+      summary: On-device health daily rollup history (steps/calories/distance)
+      parameters:
+        - in: query
+          name: days
+          schema: { type: integer, default: 30 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/HealthSeries" } }
+    post:
+      tags: [Tracking]
+      summary: Upsert a day's on-device health rollup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HealthDailyInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/HealthDay" } }
+
+  /me/profile:
+    get:
+      tags: [Profile]
+      summary: Current app-user fitness profile + recommendation (any user)
+      description: >-
+        The gym-less counterpart of GET /me — returns the app_user's fitness
+        profile (same MemberProfile shape) plus the computed recommendation.
+        Powers the public onboarding flow's draft/resume + the personalized home.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/MemberProfile" } }
+    patch:
+      tags: [Profile]
+      summary: Update the app-user fitness profile (public onboarding + edits)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateProfile" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/MemberProfile" } }
+
+  /me/device-tokens:
+    post:
+      tags: [Tracking]
+      summary: Register this device's push token to the app user (any user)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AppDeviceTokenInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/SimpleOk" } }
+    delete:
+      tags: [Tracking]
+      summary: Unregister a device push token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AppDeviceTokenDelete" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/SimpleOk" } }
+
+  /me/notifications/ack:
+    post:
+      tags: [Tracking]
+      summary: Acknowledge a campaign notification (opened / clicked) for analytics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NotificationAckInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/SimpleOk" } }
+
+  /me/referral:
+    post:
+      tags: [Tracking]
+      summary: Apply a referrer's code to this app user (once)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReferralApplyInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/ReferralApplyResult" } }
+
+  /me/weekly:
+    get:
+      tags: [Tracking]
+      summary: Weekly progress (days active, weight change, consistency) — any user
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/WeeklyProgress" } }
+
+  /me/tools/compute:
+    post:
+      tags: [Tracking]
+      summary: Compute fitness calculators from inputs (BMI/BMR/calorie/water/protein)
+      description: Pure calculation via the shared PersonalizationService — single source of the formulas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ToolsComputeInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/Recommendation" } }
+
+  /me/gyms/{tenantId}:
+    get:
+      tags: [Discovery]
+      summary: Public gym profile page (plans, branches, contact) — any user
+      parameters:
+        - { in: path, name: tenantId, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/GymProfile" } }
+
+  /me/nearby-gyms:
+    get:
+      tags: [Discovery]
+      summary: Public gym directory (cross-gym) for conversion — any app user
+      description: >-
+        Lists active gyms' branches with public-safe fields only (name, address,
+        city, lat/lng, phone, logo). When lat+lng are supplied, results are sorted
+        nearest-first with distanceKm. Available to gym-less PUBLIC users (the
+        find-a-gym conversion surface). Never exposes member data.
+      parameters:
+        - { in: query, name: lat, schema: { type: number } }
+        - { in: query, name: lng, schema: { type: number } }
+        - { in: query, name: q, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/NearbyGyms" } }
+
+  /me/events:
+    post:
+      tags: [Tracking]
+      summary: Ingest app-user funnel / behaviour events (batch, fire-and-forget)
+      description: >-
+        Records client-emitted funnel + conversion events for the authenticated
+        app user (any user, incl. public). Append-only; the SCC computes funnels by
+        DISTINCT user per event_type, so duplicate "first_*" emits are harmless.
+        onboarding_started/completed also advance app_users.onboarding_state.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventBatchInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties: { data: { $ref: "#/components/schemas/EventIngestResult" } }
+
+  /home:
+    get:
+      tags: [Home]
+      summary: Composite dashboard payload (one call powers the Home screen)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/HomeDashboard" }
+
+  /gym/occupancy:
+    get:
+      tags: [CheckIn]
+      summary: Live gym occupancy (polling fallback for the realtime channel)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/Occupancy" }
+
+  /gym/locations:
+    get:
+      tags: [Locations]
+      summary: This gym's branches with coordinates (powers the in-app gym/branch finder)
+      description: >
+        Returns the branches of the member's current gym (tenant), each with its
+        address and lat/lng when set, so the app can map them and let the member
+        find the nearest location. Scoped to the member's tenant — never returns
+        other gyms' branches.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/GymLocations" }
+
+  /checkins:
+    post:
+      tags: [CheckIn]
+      summary: Record a check-in (idempotent; offline-queued writes are safe)
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method]
+              properties:
+                method:
+                  type: string
+                  enum: [qr, manual]
+                token:
+                  type: string
+                  description: QR/scan token when method=qr
+                occurredAt:
+                  type: string
+                  format: date-time
+                  description: Client timestamp (server is authoritative on accept/reject)
+      responses:
+        "201":
+          description: Checked in (or already recorded for this idempotency key)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/CheckInResult" }
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /membership:
+    get:
+      tags: [Membership]
+      summary: Current membership, plan, expiry, recent invoices
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/Membership" }
+
+  /membership/renew:
+    post:
+      tags: [Membership]
+      summary: Start a renewal/upgrade — returns a Razorpay order to open in checkout
+      description: >
+        Creates a Razorpay order via the existing per-tenant Razorpay flow.
+        Payment is confirmed server-side by webhook; the app should refresh
+        /membership (or await a push) rather than trusting the client result.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [planId]
+              properties:
+                planId: { type: string }
+      responses:
+        "200":
+          description: Razorpay order created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/RazorpayOrder" }
+
+  /workouts/today:
+    get:
+      tags: [Workouts]
+      summary: Today's assigned workout (or null if none assigned)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data:
+                        oneOf:
+                          - $ref: "#/components/schemas/Workout"
+                          - type: "null"
+
+  /workouts/{workoutId}/logs:
+    post:
+      tags: [Workouts]
+      summary: Log completed sets for a workout (idempotent, offline-safe)
+      parameters:
+        - name: workoutId
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sets]
+              properties:
+                sets:
+                  type: array
+                  items: { $ref: "#/components/schemas/SetLog" }
+      responses:
+        "201":
+          description: Logged
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/WorkoutLogResult" }
+
+  /classes:
+    get:
+      tags: [Classes]
+      summary: Upcoming classes at the member's branch (with this member's booking state)
+      description: >
+        Returns future, non-cancelled classes scheduled at the member's own
+        branch, soonest first. `seatsLeft` counts only ENROLLED bookings.
+        `booked`/`bookingStatus` reflect THIS member only — other members'
+        identities are never returned. Scoped to the member's tenant + branch.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/ClassList" }
+
+  /classes/{classId}/book:
+    post:
+      tags: [Classes]
+      summary: Book (enroll) the current member into a class; waitlists if full
+      description: >
+        Idempotent. Reuses the same capacity/waitlist/duplicate rules as the
+        front-desk enrollment path. If the class is full the member is placed on
+        the waitlist and `status=waitlisted` with a `waitlistPosition`.
+      parameters:
+        - name: classId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "201":
+          description: Booked (or waitlisted), or replayed for this idempotency key
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/ClassBookingResult" }
+        "404":
+          $ref: "#/components/responses/NotAMember"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /classes/{classId}/booking:
+    delete:
+      tags: [Classes]
+      summary: Cancel the current member's booking for a class
+      description: >
+        Cancels this member's enrolled/waitlisted booking. If an enrolled seat
+        is freed, the next waitlisted member is auto-promoted (same rule as the
+        front-desk path).
+      parameters:
+        - name: classId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/ClassCancelResult" }
+        "404":
+          $ref: "#/components/responses/NotAMember"
+
+  /progress:
+    get:
+      tags: [Progress]
+      summary: Body metrics history + summary for graphs
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/Progress" }
+
+  /progress/metrics:
+    post:
+      tags: [Progress]
+      summary: Log a body metric (weight, measurements)
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BodyMetricInput"
+      responses:
+        "201":
+          description: Logged
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/BodyMetric" }
+
+  /progress/photos/upload-url:
+    post:
+      tags: [Progress]
+      summary: Get a signed URL to upload a progress photo directly to object storage
+      description: >
+        Keeps media out of the API. App PUTs the file to the signed URL, then
+        confirms via POST /progress/photos. Photos are private by default.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contentType]
+              properties:
+                contentType: { type: string, example: image/jpeg }
+      responses:
+        "200":
+          description: Signed upload URL
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/UploadTarget" }
+
+  /progress/photos:
+    post:
+      tags: [Progress]
+      summary: Confirm an uploaded progress photo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [photoId, takenAt]
+              properties:
+                photoId: { type: string }
+                takenAt: { type: string, format: date-time }
+      responses:
+        "201":
+          description: Confirmed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Envelope" }
+
+  /notifications/device-tokens:
+    post:
+      tags: [Notifications]
+      summary: Register a device push token (idempotent upsert) with category prefs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, platform]
+              properties:
+                token: { type: string }
+                platform: { type: string, enum: [ios, android] }
+                prefs:
+                  type: object
+                  description: Per-category opt-in flags (true = send). Server honours these.
+                  additionalProperties: { type: boolean }
+      responses:
+        "204":
+          description: Registered
+    delete:
+      tags: [Notifications]
+      summary: Unregister a device push token (on disable / sign-out)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        "204":
+          description: Unregistered
+
+  /nutrition/today:
+    get:
+      tags: [Nutrition]
+      summary: Today's nutrition — goal, running totals, water, and logged meals
+      description: >
+        The member's nutrition for the current day (their local day boundary on
+        the server): per-member daily goal (created with defaults on first read),
+        macro totals summed from logged meals, total water, and the meals
+        themselves. Scoped to the member's tenant + member_id.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/NutritionDay" }
+
+  /nutrition/foods:
+    get:
+      tags: [Nutrition]
+      summary: Search the gym's food catalog
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+          description: Case-insensitive name/brand prefix match. Empty = recent foods.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/FoodSearch" }
+
+  /nutrition/meals:
+    post:
+      tags: [Nutrition]
+      summary: Log a meal with its items (idempotent, offline-safe)
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MealLogInput" }
+      responses:
+        "201":
+          description: Logged
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/MealLogResult" }
+
+  /nutrition/water:
+    post:
+      tags: [Nutrition]
+      summary: Log water intake (idempotent, offline-safe)
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WaterLogInput" }
+      responses:
+        "201":
+          description: Logged
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/WaterLogResult" }
+
+  /exercises:
+    get:
+      tags: [Exercises]
+      summary: Browse / search the gym's exercise library
+      description: >
+        The gym's active exercises (the same catalog trainers build plans from),
+        optionally filtered by name and muscle group. Scoped to the member's tenant.
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+          description: Case-insensitive name match.
+        - name: muscle
+          in: query
+          required: false
+          schema: { type: string }
+          description: Filter by muscle group (chest, back, legs, …).
+        - name: favorites
+          in: query
+          required: false
+          schema: { type: boolean }
+          description: When true, returns only the member's favorited exercises.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/ExerciseList" }
+
+  /exercises/{exerciseId}:
+    get:
+      tags: [Exercises]
+      summary: One exercise's detail (instructions + media)
+      parameters:
+        - name: exerciseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/ExerciseDetail" }
+        "404":
+          $ref: "#/components/responses/NotAMember"
+
+  /exercises/{exerciseId}/favorite:
+    put:
+      tags: [Exercises]
+      summary: Mark an exercise as a favorite (idempotent)
+      parameters:
+        - name: exerciseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Favorited
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/FavoriteResult" }
+        "404":
+          $ref: "#/components/responses/NotAMember"
+    delete:
+      tags: [Exercises]
+      summary: Remove an exercise from favorites (idempotent)
+      parameters:
+        - name: exerciseId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Unfavorited
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/FavoriteResult" }
+
+  /trainer-chat/threads:
+    get:
+      tags: [TrainerChat]
+      summary: The member's trainer conversations (one per assigned trainer)
+      description: >
+        One thread per active trainer assignment (TrainerClient), with the last
+        message and the member's unread count. Scoped to the member's tenant.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/ChatThreadList" }
+
+  /trainer-chat/threads/{trainerId}/messages:
+    get:
+      tags: [TrainerChat]
+      summary: Messages with a trainer (marks the trainer's messages read)
+      parameters:
+        - name: trainerId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/ChatMessageList" }
+        "404":
+          $ref: "#/components/responses/NotAMember"
+    post:
+      tags: [TrainerChat]
+      summary: Send a message to a trainer (idempotent, offline-safe)
+      parameters:
+        - name: trainerId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SendMessageInput" }
+      responses:
+        "201":
+          description: Sent
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/ChatMessage" }
+        "404":
+          $ref: "#/components/responses/NotAMember"
+
+  /community/leaderboard:
+    get:
+      tags: [Community]
+      summary: Gym attendance leaderboard (real check-ins over a period)
+      description: >
+        Ranks the member's gym by check-ins over the last `period` days. Returns
+        first names only (no PII), the current member flagged with `isMe`, plus
+        the member's own rank/value. Scoped to the member's tenant.
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema: { type: integer, default: 30 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/Leaderboard" }
+
+  /community/challenges:
+    get:
+      tags: [Community]
+      summary: Active gym challenges with the member's join state + real progress
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/ChallengeList" }
+
+  /community/challenges/{challengeId}/join:
+    post:
+      tags: [Community]
+      summary: Join a challenge (idempotent)
+      parameters:
+        - name: challengeId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Joined
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/ChallengeJoinResult" }
+        "404":
+          $ref: "#/components/responses/NotAMember"
+
+  /community/badges:
+    get:
+      tags: [Community]
+      summary: The member's badges (earned/locked, computed from real activity)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/BadgeList" }
+
+  /nutrition/goal:
+    put:
+      tags: [Nutrition]
+      summary: Set the member's daily nutrition goal (upsert)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NutritionGoalInput" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/NutritionGoal" }
+
+  # ── Health Data Platform (wearable telemetry) ───────────────────────
+  /health/samples:
+    post:
+      tags: [Health]
+      summary: Batch-ingest health samples from a wearable (idempotent)
+      description: >
+        Push a batch of quantified-health samples (steps, heart rate, sleep, …)
+        synced from Apple HealthKit / Google Health Connect or entered manually.
+        Each sample is deduped server-side on (type, source, sourceUuid) so a
+        re-sync or offline replay never double-counts. The server upserts the
+        per-day rollups (`/health/summary`) as part of the same write.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/HealthSampleBatchInput" }
+      responses:
+        "201":
+          description: Ingested
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/HealthIngestResult" }
+
+  /health/summary:
+    get:
+      tags: [Health]
+      summary: Daily health rollups for a date range (dashboard/charts)
+      description: >
+        Per-metric daily totals/averages over the requested window, read from
+        the rollup table so it never scans raw samples. Defaults to the last
+        7 days when no range is supplied.
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema: { type: string, format: date }
+          description: Inclusive start day (YYYY-MM-DD). Defaults to 6 days ago.
+        - name: to
+          in: query
+          required: false
+          schema: { type: string, format: date }
+          description: Inclusive end day (YYYY-MM-DD). Defaults to today.
+        - name: types
+          in: query
+          required: false
+          schema: { type: string }
+          description: Comma-separated metric types to include (default = all).
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/HealthSummary" }
+
+  /health/connections:
+    get:
+      tags: [Health]
+      summary: List the member's linked wearable providers
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/WearableConnectionList" }
+    post:
+      tags: [Health]
+      summary: Link a wearable provider (records explicit consent)
+      description: >
+        Upserts a connection for the given provider and stamps `consentedAt`.
+        Health telemetry is GDPR special-category data — the client MUST obtain
+        the member's consent before calling this, and no `/health/samples`
+        ingest is accepted for a provider that is not connected.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WearableConnectInput" }
+      responses:
+        "200":
+          description: Linked
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/WearableConnection" }
+
+  /health/connections/{provider}:
+    delete:
+      tags: [Health]
+      summary: Revoke a linked wearable provider
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/WearableConnection" }
+
+components:
+  securitySchemes:
+    MemberBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Member access token. Claims MUST include sub=memberId, tenantId
+        (the tenant schema), role=member, aud=member. Admin tokens are a
+        different audience and are rejected here.
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, format: uuid }
+      description: Client-generated key. Server dedupes retries (offline outbox).
+
+  responses:
+    NotAMember:
+      description: Phone is not linked to any gym membership
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+    Conflict:
+      description: Rejected (e.g., duplicate / stale / capacity)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+
+  schemas:
+    Envelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { type: object }
+        meta: { $ref: "#/components/schemas/Meta" }
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string, example: MEMBERSHIP_EXPIRED }
+            message: { type: string }
+            retryable: { type: boolean, default: false }
+    Meta:
+      type: object
+      properties:
+        tenantId: { type: string, example: gym_017 }
+        serverTime: { type: string, format: date-time }
+        cacheTtl: { type: integer, description: Seconds the client may cache }
+
+    OtpRequestResult:
+      type: object
+      properties:
+        dispatched: { type: boolean, example: true }
+        channel: { type: string, enum: [sms, whatsapp], example: sms }
+
+    SessionResult:
+      type: object
+      properties:
+        tokens:
+          oneOf:
+            - $ref: "#/components/schemas/TokenPair"
+            - type: "null"
+        tenantChoices:
+          type: array
+          description: Present only when the phone maps to multiple gyms
+          items:
+            type: object
+            properties:
+              tenantId: { type: string }
+              gymName: { type: string }
+    TokenPair:
+      type: object
+      required: [accessToken, refreshToken, expiresIn]
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer, example: 900 }
+
+    MeContext:
+      type: object
+      required: [appUserId, userType, onboardingState, phone, capabilities, memberships]
+      properties:
+        appUserId: { type: string }
+        userType:
+          type: string
+          description: >-
+            public = no gym membership (a lead); member = active membership in
+            >=1 gym; expired = had a membership, none active now; suspended =
+            has an active membership but every such gym is operator-suspended.
+          enum: [public, member, expired, suspended]
+        onboardingState: { type: string, enum: [not_started, in_progress, completed] }
+        fullName: { type: string, nullable: true }
+        phone: { type: string }
+        city: { type: string, nullable: true }
+        referralCode: { type: string, nullable: true }
+        capabilities: { $ref: "#/components/schemas/MeCapabilities" }
+        memberships:
+          type: array
+          description: One per gym the person belongs to; empty for public users.
+          items: { $ref: "#/components/schemas/MeMembership" }
+    MeCapabilities:
+      type: object
+      description: Feature gates the app reads to build navigation + screens.
+      required:
+        [
+          membershipCard, attendance, classBooking, gymSchedule,
+          gymAnnouncements, trainerChat, subscriptionDetails, memberBenefits,
+          renewMembership, gymSuspended, healthDashboard, weightTracking,
+          waterTracking, goalTracking, bmiCalculator, calorieCalculator,
+          fitnessTips, nearbyGyms, referralProgram,
+        ]
+      properties:
+        # Gym-only features (hidden for public users)
+        membershipCard: { type: boolean }
+        # True when the member's gym is operator-suspended — the app shows a
+        # "gym suspended" banner and gym features are disabled.
+        gymSuspended: { type: boolean }
+        attendance: { type: boolean }
+        classBooking: { type: boolean }
+        gymSchedule: { type: boolean }
+        gymAnnouncements: { type: boolean }
+        trainerChat: { type: boolean }
+        subscriptionDetails: { type: boolean }
+        memberBenefits: { type: boolean }
+        renewMembership: { type: boolean }
+        # Public fitness features (always available)
+        healthDashboard: { type: boolean }
+        weightTracking: { type: boolean }
+        waterTracking: { type: boolean }
+        goalTracking: { type: boolean }
+        bmiCalculator: { type: boolean }
+        calorieCalculator: { type: boolean }
+        fitnessTips: { type: boolean }
+        nearbyGyms: { type: boolean }
+        referralProgram: { type: boolean }
+    MeMembership:
+      type: object
+      required: [tenantId, gymName, memberId, status, active]
+      properties:
+        tenantId: { type: string }
+        gymName: { type: string }
+        memberId: { type: string }
+        status: { type: string, description: members.status }
+        active: { type: boolean }
+        suspended:
+          type: boolean
+          description: True when this gym is operator-suspended (studios.suspended_at).
+        planName: { type: string, nullable: true }
+        expiresAt: { type: string, format: date, nullable: true }
+
+    WeightEntry:
+      type: object
+      required: [date, weightKg]
+      properties:
+        date: { type: string, format: date }
+        weightKg: { type: number }
+        bodyFatPct: { type: number, nullable: true }
+        note: { type: string, nullable: true }
+    WeightSeries:
+      type: object
+      required: [entries]
+      properties:
+        latest:
+          oneOf:
+            - $ref: "#/components/schemas/WeightEntry"
+            - type: "null"
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/WeightEntry" }
+    WeightInput:
+      type: object
+      required: [weightKg]
+      properties:
+        date: { type: string, format: date, description: Defaults to today }
+        weightKg: { type: number }
+        bodyFatPct: { type: number, nullable: true }
+        note: { type: string, nullable: true }
+
+    WaterDay:
+      type: object
+      required: [date, amountMl]
+      properties:
+        date: { type: string, format: date }
+        amountMl: { type: integer }
+        goalMl: { type: integer, nullable: true }
+    WaterInput:
+      type: object
+      required: [amountMl]
+      properties:
+        date: { type: string, format: date, description: Defaults to today }
+        amountMl: { type: integer }
+        goalMl: { type: integer, nullable: true }
+        mode:
+          type: string
+          enum: [set, add]
+          description: add (default) increments the day's total; set replaces it.
+
+    Goal:
+      type: object
+      required: [id, type, status]
+      properties:
+        id: { type: string }
+        type: { type: string, enum: [weight, water, steps, workout, custom] }
+        title: { type: string, nullable: true }
+        targetValue: { type: number, nullable: true }
+        currentValue: { type: number, nullable: true }
+        unit: { type: string, nullable: true }
+        targetDate: { type: string, format: date, nullable: true }
+        status: { type: string, enum: [active, achieved, abandoned] }
+    GoalList:
+      type: object
+      required: [goals]
+      properties:
+        goals:
+          type: array
+          items: { $ref: "#/components/schemas/Goal" }
+    GoalInput:
+      type: object
+      required: [type]
+      properties:
+        type: { type: string, enum: [weight, water, steps, workout, custom] }
+        title: { type: string, nullable: true }
+        targetValue: { type: number, nullable: true }
+        currentValue: { type: number, nullable: true }
+        unit: { type: string, nullable: true }
+        targetDate: { type: string, format: date, nullable: true }
+    GoalUpdate:
+      type: object
+      properties:
+        currentValue: { type: number, nullable: true }
+        targetValue: { type: number, nullable: true }
+        title: { type: string, nullable: true }
+        status: { type: string, enum: [active, achieved, abandoned] }
+
+    HealthDay:
+      type: object
+      required: [date, steps]
+      properties:
+        date: { type: string, format: date }
+        steps: { type: integer }
+        activeCalories: { type: number, nullable: true }
+        distanceM: { type: number, nullable: true }
+        restingHeartRate: { type: integer, nullable: true }
+        source: { type: string, nullable: true }
+    HealthSeries:
+      type: object
+      required: [days]
+      properties:
+        days:
+          type: array
+          items: { $ref: "#/components/schemas/HealthDay" }
+    HealthDailyInput:
+      type: object
+      required: [steps]
+      properties:
+        date: { type: string, format: date, description: Defaults to today }
+        steps: { type: integer }
+        activeCalories: { type: number, nullable: true }
+        distanceM: { type: number, nullable: true }
+        restingHeartRate: { type: integer, nullable: true }
+        source: { type: string, nullable: true }
+
+    SimpleOk:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+    AppDeviceTokenInput:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string }
+        platform: { type: string, enum: [ios, android, web] }
+    AppDeviceTokenDelete:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string }
+    NotificationAckInput:
+      type: object
+      required: [deliveryId, action]
+      properties:
+        deliveryId: { type: string }
+        action: { type: string, enum: [opened, clicked] }
+    ReferralApplyInput:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string }
+    ReferralApplyResult:
+      type: object
+      required: [applied]
+      properties:
+        applied: { type: boolean }
+        reason: { type: string, nullable: true }
+
+    NearbyGym:
+      type: object
+      required: [tenantId, gymName, branchId, branchName]
+      properties:
+        tenantId: { type: string }
+        gymName: { type: string }
+        logoUrl: { type: string, nullable: true }
+        branchId: { type: string }
+        branchName: { type: string }
+        address: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        latitude: { type: number, nullable: true }
+        longitude: { type: number, nullable: true }
+        phone: { type: string, nullable: true }
+        distanceKm: { type: number, nullable: true }
+    NearbyGyms:
+      type: object
+      required: [gyms]
+      properties:
+        gyms:
+          type: array
+          items: { $ref: "#/components/schemas/NearbyGym" }
+
+    AppEventType:
+      type: string
+      enum:
+        [
+          first_app_open,
+          onboarding_started,
+          onboarding_completed,
+          gym_selected,
+          first_dashboard_visit,
+          viewed_nearby_gyms,
+          viewed_gym_profile,
+          inquiry_click,
+          referral_share,
+        ]
+    EventInput:
+      type: object
+      required: [type]
+      properties:
+        type: { $ref: "#/components/schemas/AppEventType" }
+        occurredAt: { type: string, format: date-time, description: Defaults to server time }
+        platform: { type: string, enum: [ios, android, web] }
+        appVersion: { type: string }
+        metadata: { type: object, additionalProperties: true }
+    EventBatchInput:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/EventInput" }
+    EventIngestResult:
+      type: object
+      required: [accepted]
+      properties:
+        accepted: { type: integer }
+
+    MemberProfile:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        phone: { type: string }
+        gymName: { type: string }
+        # Legacy compact fields — kept populated for backward compatibility.
+        goal: { type: string, enum: [lose_fat, build_muscle, general_fitness] }
+        experienceLevel: { type: string, enum: [beginner, intermediate, advanced] }
+        avatarUrl: { type: string, nullable: true }
+        # Fitness profile (collected during first-time onboarding; editable later).
+        gender: { type: string, enum: [male, female, prefer_not_to_say], nullable: true }
+        dateOfBirth: { type: string, format: date, nullable: true }
+        age: { type: integer, nullable: true }
+        heightCm: { type: number, nullable: true }
+        weightKg: { type: number, nullable: true }
+        heightUnit: { type: string, enum: [cm, ft] }
+        weightUnit: { type: string, enum: [kg, lb] }
+        primaryGoal: { $ref: "#/components/schemas/FitnessGoal", nullable: true }
+        goals:
+          type: array
+          items: { $ref: "#/components/schemas/FitnessGoal" }
+        activityLevel:
+          type: string
+          enum: [sedentary, lightly_active, moderately_active, very_active, athlete]
+          nullable: true
+        trainingExperience: { type: string, enum: [beginner, intermediate, advanced], nullable: true }
+        workoutPreferences:
+          type: array
+          items: { $ref: "#/components/schemas/WorkoutPreference" }
+        limitations:
+          type: array
+          description: Injuries / health limitations (stored as medical_conditions).
+          items: { type: string }
+        onboardingCompleted: { type: boolean }
+        onboardingStep: { type: string, nullable: true }
+        recommendation:
+          oneOf:
+            - $ref: "#/components/schemas/Recommendation"
+            - type: "null"
+
+    FitnessGoal:
+      type: string
+      description: Member-app fitness goals (multi-select; one is the primary).
+      enum:
+        [
+          lose_weight,
+          gain_muscle,
+          build_strength,
+          improve_fitness,
+          improve_endurance,
+          athletic_performance,
+          body_recomposition,
+          stay_healthy,
+        ]
+
+    WorkoutPreference:
+      type: string
+      enum:
+        [
+          gym,
+          home,
+          strength,
+          cardio,
+          hiit,
+          yoga,
+          crossfit,
+          powerlifting,
+          bodybuilding,
+        ]
+
+    Recommendation:
+      type: object
+      description: Personalization targets computed from the member's profile.
+      properties:
+        dailyCalories: { type: integer }
+        proteinG: { type: integer }
+        carbsG: { type: integer }
+        fatG: { type: integer }
+        waterMl: { type: integer }
+        weeklyWorkouts: { type: integer }
+        splitKey: { type: string, enum: [full_body, push_pull_legs, advanced_split] }
+        split: { type: string, example: "Full Body · 3×/week" }
+        bmi: { type: number, nullable: true }
+        bmr: { type: integer, nullable: true }
+
+    ToolsComputeInput:
+      type: object
+      description: Inputs for the fitness calculators (BMI/BMR/calorie/water/protein).
+      properties:
+        gender: { type: string, enum: [male, female, prefer_not_to_say] }
+        age: { type: integer }
+        heightCm: { type: number }
+        weightKg: { type: number }
+        activityLevel:
+          type: string
+          enum: [sedentary, lightly_active, moderately_active, very_active, athlete]
+        primaryGoal: { $ref: "#/components/schemas/FitnessGoal" }
+        trainingExperience: { type: string, enum: [beginner, intermediate, advanced] }
+
+    WeeklyProgress:
+      type: object
+      required: [daysActive, consistencyScore, points]
+      properties:
+        daysActive: { type: integer }
+        weightChangeKg: { type: number, nullable: true }
+        consistencyScore: { type: integer, description: 0-100 over the last 7 days }
+        points:
+          type: array
+          items:
+            type: object
+            properties:
+              day: { type: string, format: date }
+              active: { type: boolean }
+
+    GymPlan:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        price: { type: number, nullable: true }
+        durationDays: { type: integer, nullable: true }
+        description: { type: string, nullable: true }
+    GymProfile:
+      type: object
+      required: [tenantId, gymName, branches, plans]
+      properties:
+        tenantId: { type: string }
+        gymName: { type: string }
+        tagline: { type: string, nullable: true }
+        logoUrl: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        branches:
+          type: array
+          items: { $ref: "#/components/schemas/NearbyGym" }
+        plans:
+          type: array
+          items: { $ref: "#/components/schemas/GymPlan" }
+
+    UpdateProfile:
+      type: object
+      description: Partial profile update (onboarding auto-save + later edits).
+      properties:
+        gender: { type: string, enum: [male, female, prefer_not_to_say] }
+        dateOfBirth: { type: string, format: date }
+        heightCm: { type: number }
+        weightKg: { type: number }
+        heightUnit: { type: string, enum: [cm, ft] }
+        weightUnit: { type: string, enum: [kg, lb] }
+        primaryGoal: { $ref: "#/components/schemas/FitnessGoal" }
+        goals:
+          type: array
+          items: { $ref: "#/components/schemas/FitnessGoal" }
+        activityLevel:
+          type: string
+          enum: [sedentary, lightly_active, moderately_active, very_active, athlete]
+        trainingExperience: { type: string, enum: [beginner, intermediate, advanced] }
+        workoutPreferences:
+          type: array
+          items: { $ref: "#/components/schemas/WorkoutPreference" }
+        limitations:
+          type: array
+          items: { type: string }
+        onboardingStep: { type: string }
+        onboardingComplete: { type: boolean, description: "Set true to stamp onboarding completion." }
+
+    HomeDashboard:
+      type: object
+      properties:
+        greeting: { type: string, example: "Good evening, Sneha" }
+        membership:
+          type: object
+          properties:
+            status: { type: string, enum: [active, expiring, expired, frozen] }
+            expiresOn: { type: string, format: date }
+            daysLeft: { type: integer }
+        streak:
+          type: object
+          properties:
+            days: { type: integer }
+        today:
+          type: object
+          description: >-
+            Today's ritual status — which streak-qualifying actions the member has
+            already done today (check-in, workout log, meal log), and whether an
+            active streak is still at risk (no qualifying action logged yet today).
+          properties:
+            checkedIn: { type: boolean }
+            workoutLogged: { type: boolean }
+            mealLogged: { type: boolean }
+            streakAtRisk: { type: boolean }
+        todayWorkout:
+          oneOf:
+            - $ref: "#/components/schemas/WorkoutSummary"
+            - type: "null"
+        nextClass:
+          oneOf:
+            - $ref: "#/components/schemas/ClassSummary"
+            - type: "null"
+        occupancy: { $ref: "#/components/schemas/Occupancy" }
+        nutrition:
+          type: object
+          description: Today's calories eaten vs goal and water vs goal (V2.1).
+          properties:
+            kcal: { type: integer }
+            kcalGoal: { type: integer }
+            waterMl: { type: integer }
+            waterGoal: { type: integer }
+
+    Occupancy:
+      type: object
+      properties:
+        current: { type: integer }
+        capacity: { type: integer }
+        level: { type: string, enum: [low, moderate, high, full] }
+        updatedAt: { type: string, format: date-time }
+
+    GymLocation:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        address: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        latitude: { type: number, nullable: true, description: Decimal degrees (WGS84) }
+        longitude: { type: number, nullable: true }
+        phone: { type: string, nullable: true }
+        status:
+          type: string
+          enum: [active, inactive, temporarily_closed, coming_soon, provisioning]
+
+    GymLocations:
+      type: object
+      properties:
+        branches:
+          type: array
+          items: { $ref: "#/components/schemas/GymLocation" }
+
+    CheckInResult:
+      type: object
+      properties:
+        checkInId: { type: string }
+        recordedAt: { type: string, format: date-time }
+        alreadyRecorded: { type: boolean, description: true if idempotent replay }
+        streakDays: { type: integer }
+
+    Membership:
+      type: object
+      properties:
+        status: { type: string, enum: [active, expiring, expired, frozen] }
+        plan:
+          type: object
+          properties:
+            id: { type: string }
+            name: { type: string }
+            price: { type: number }
+            currency: { type: string, example: INR }
+        startedOn: { type: string, format: date }
+        expiresOn: { type: string, format: date }
+        autoRenew: { type: boolean }
+        invoices:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              amount: { type: number }
+              currency: { type: string }
+              paidOn: { type: string, format: date-time, nullable: true }
+              status: { type: string, enum: [paid, pending, failed] }
+
+    RazorpayOrder:
+      type: object
+      properties:
+        orderId: { type: string }
+        amount: { type: integer, description: In paise }
+        currency: { type: string, example: INR }
+        razorpayKeyId: { type: string }
+        receipt: { type: string }
+
+    WorkoutSummary:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        assignedBy: { type: string, nullable: true }
+        exerciseCount: { type: integer }
+    Workout:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        assignedBy: { type: string, nullable: true }
+        exercises:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+              targetSets: { type: integer }
+              targetReps: { type: integer }
+              mediaUrl: { type: string, nullable: true }
+              lastLog: { $ref: "#/components/schemas/SetLog" }
+    SetLog:
+      type: object
+      properties:
+        exerciseId: { type: string }
+        setNumber: { type: integer }
+        reps: { type: integer }
+        weight: { type: number }
+        unit: { type: string, enum: [kg, lb], default: kg }
+    WorkoutLogResult:
+      type: object
+      properties:
+        logId: { type: string }
+        newPersonalRecords:
+          type: array
+          items:
+            type: object
+            properties:
+              exerciseId: { type: string }
+              weight: { type: number }
+
+    ClassSummary:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        startsAt: { type: string, format: date-time }
+        seatsLeft: { type: integer }
+
+    ClassListItem:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        category: { type: string }
+        startsAt: { type: string, format: date-time }
+        durationMinutes: { type: integer }
+        room: { type: string, nullable: true }
+        trainerName: { type: string, nullable: true }
+        capacity: { type: integer }
+        seatsLeft: { type: integer }
+        booked: { type: boolean, description: true if THIS member has an active booking }
+        bookingStatus:
+          type: string
+          nullable: true
+          enum: [enrolled, waitlisted]
+        waitlistPosition: { type: integer, nullable: true }
+    ClassList:
+      type: object
+      properties:
+        classes:
+          type: array
+          items: { $ref: "#/components/schemas/ClassListItem" }
+    ClassBookingResult:
+      type: object
+      properties:
+        classId: { type: string }
+        status: { type: string, enum: [enrolled, waitlisted] }
+        waitlistPosition: { type: integer, nullable: true }
+        seatsLeft: { type: integer }
+        message: { type: string }
+    ClassCancelResult:
+      type: object
+      properties:
+        cancelled: { type: boolean }
+        promotedMemberName:
+          type: string
+          nullable: true
+          description: Name of the waitlisted member auto-promoted into the freed seat, if any
+
+    Progress:
+      type: object
+      properties:
+        latest:
+          type: object
+          properties:
+            weightKg: { type: number, nullable: true }
+            bmi: { type: number, nullable: true }
+            bodyFatPct: { type: number, nullable: true }
+        series:
+          type: array
+          items: { $ref: "#/components/schemas/BodyMetric" }
+        photos:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              url: { type: string, description: Signed, time-limited }
+              takenAt: { type: string, format: date-time }
+    BodyMetricInput:
+      type: object
+      properties:
+        weightKg: { type: number }
+        waistCm: { type: number }
+        recordedAt: { type: string, format: date-time }
+    BodyMetric:
+      type: object
+      properties:
+        id: { type: string }
+        weightKg: { type: number, nullable: true }
+        bmi: { type: number, nullable: true }
+        waistCm: { type: number, nullable: true }
+        recordedAt: { type: string, format: date-time }
+
+    UploadTarget:
+      type: object
+      properties:
+        photoId: { type: string }
+        uploadUrl: { type: string, description: Signed PUT URL }
+
+    # ── Nutrition (V2.1) ────────────────────────────────────────────
+    NutritionTotals:
+      type: object
+      properties:
+        kcal: { type: number }
+        proteinG: { type: number }
+        carbsG: { type: number }
+        fatG: { type: number }
+    NutritionGoal:
+      type: object
+      description: Per-member daily targets.
+      properties:
+        kcal: { type: integer }
+        proteinG: { type: integer }
+        carbsG: { type: integer }
+        fatG: { type: integer }
+        waterMl: { type: integer }
+    NutritionGoalInput:
+      type: object
+      properties:
+        kcal: { type: integer }
+        proteinG: { type: integer }
+        carbsG: { type: integer }
+        fatG: { type: integer }
+        waterMl: { type: integer }
+    FoodItem:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        brand: { type: string, nullable: true }
+        barcode: { type: string, nullable: true }
+        servingSize: { type: number }
+        servingUnit: { type: string }
+        kcal: { type: number }
+        proteinG: { type: number }
+        carbsG: { type: number }
+        fatG: { type: number }
+        source: { type: string, enum: [custom, catalog, barcode] }
+    FoodSearch:
+      type: object
+      properties:
+        foods:
+          type: array
+          items: { $ref: "#/components/schemas/FoodItem" }
+    NutritionMealItem:
+      type: object
+      properties:
+        id: { type: string }
+        foodItemId: { type: string, nullable: true }
+        name: { type: string }
+        quantity: { type: number }
+        unit: { type: string }
+        kcal: { type: number }
+        proteinG: { type: number }
+        carbsG: { type: number }
+        fatG: { type: number }
+    NutritionMeal:
+      type: object
+      properties:
+        id: { type: string }
+        mealType: { type: string, enum: [breakfast, lunch, dinner, snack] }
+        loggedAt: { type: string, format: date-time }
+        notes: { type: string, nullable: true }
+        totals: { $ref: "#/components/schemas/NutritionTotals" }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/NutritionMealItem" }
+    NutritionDay:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        goal: { $ref: "#/components/schemas/NutritionGoal" }
+        totals: { $ref: "#/components/schemas/NutritionTotals" }
+        waterMl: { type: integer }
+        meals:
+          type: array
+          items: { $ref: "#/components/schemas/NutritionMeal" }
+    MealLogItemInput:
+      type: object
+      required: [name]
+      properties:
+        foodItemId: { type: string, nullable: true }
+        name: { type: string }
+        quantity: { type: number }
+        unit: { type: string }
+        kcal: { type: number }
+        proteinG: { type: number }
+        carbsG: { type: number }
+        fatG: { type: number }
+    MealLogInput:
+      type: object
+      required: [mealType, items]
+      properties:
+        mealType: { type: string, enum: [breakfast, lunch, dinner, snack] }
+        loggedAt: { type: string, format: date-time }
+        notes: { type: string }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/MealLogItemInput" }
+    MealLogResult:
+      type: object
+      properties:
+        mealId: { type: string }
+    WaterLogInput:
+      type: object
+      required: [amountMl]
+      properties:
+        amountMl: { type: integer }
+        loggedAt: { type: string, format: date-time }
+    WaterLogResult:
+      type: object
+      properties:
+        waterId: { type: string }
+        totalMl: { type: integer }
+
+    # ── Health Data Platform (wearable telemetry) ───────────────────
+    HealthSampleInput:
+      type: object
+      required: [type, value, unit, startAt, endAt, source, sourceUuid]
+      properties:
+        type:
+          type: string
+          description: >
+            steps | calories_active | calories_resting | distance_m |
+            active_minutes | heart_rate | hr_resting | hrv | sleep_duration |
+            sleep_deep | sleep_rem | spo2 | stress | body_weight | body_fat |
+            vo2max | respiratory_rate | mood
+        value: { type: number }
+        unit: { type: string, description: "count, kcal, m, min, bpm, ms, %, kg, …" }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        source:
+          type: string
+          enum: [apple_health, health_connect, fitbit, garmin, scale, manual]
+        sourceUuid: { type: string, description: Provider-side id → dedupe key }
+        metadata: { type: object, additionalProperties: true, nullable: true }
+    HealthSampleBatchInput:
+      type: object
+      required: [samples]
+      properties:
+        samples:
+          type: array
+          maxItems: 1000
+          items: { $ref: "#/components/schemas/HealthSampleInput" }
+    HealthIngestResult:
+      type: object
+      properties:
+        accepted: { type: integer, description: Newly stored samples }
+        duplicates: { type: integer, description: Skipped (already ingested) }
+        daysAffected: { type: integer }
+    HealthDailyPoint:
+      type: object
+      properties:
+        day: { type: string, format: date }
+        total: { type: number }
+        min: { type: number, nullable: true }
+        max: { type: number, nullable: true }
+        avg: { type: number, nullable: true }
+        sampleCount: { type: integer }
+    HealthMetricSeries:
+      type: object
+      properties:
+        type: { type: string }
+        unit: { type: string }
+        points:
+          type: array
+          items: { $ref: "#/components/schemas/HealthDailyPoint" }
+    HealthSummary:
+      type: object
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        metrics:
+          type: array
+          items: { $ref: "#/components/schemas/HealthMetricSeries" }
+    WearableConnection:
+      type: object
+      properties:
+        provider: { type: string }
+        status: { type: string, enum: [connected, revoked] }
+        consentedAt: { type: string, format: date-time }
+        lastSyncedAt: { type: string, format: date-time, nullable: true }
+    WearableConnectionList:
+      type: object
+      properties:
+        connections:
+          type: array
+          items: { $ref: "#/components/schemas/WearableConnection" }
+    WearableConnectInput:
+      type: object
+      required: [provider]
+      properties:
+        provider:
+          type: string
+          enum: [apple_health, health_connect, fitbit, garmin, scale]
+        externalUserId: { type: string, nullable: true }
+        scopes:
+          type: array
+          items: { type: string }
+
+    # ── Exercise library (V2.2) ─────────────────────────────────────
+    ExerciseListItem:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        muscleGroup: { type: string, nullable: true }
+        equipment: { type: string, nullable: true }
+        mediaUrl: { type: string, nullable: true }
+        hasInstructions: { type: boolean }
+        favorited: { type: boolean }
+    ExerciseList:
+      type: object
+      properties:
+        exercises:
+          type: array
+          items: { $ref: "#/components/schemas/ExerciseListItem" }
+    ExerciseDetail:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        muscleGroup: { type: string, nullable: true }
+        equipment: { type: string, nullable: true }
+        mediaUrl: { type: string, nullable: true }
+        instructions: { type: string, nullable: true }
+        favorited: { type: boolean }
+    FavoriteResult:
+      type: object
+      properties:
+        favorited: { type: boolean }
+
+    # ── Trainer chat (V2.3) ─────────────────────────────────────────
+    ChatThread:
+      type: object
+      properties:
+        trainerId: { type: string }
+        trainerName: { type: string }
+        trainerAvatarUrl: { type: string, nullable: true }
+        lastMessage: { type: string, nullable: true }
+        lastMessageAt: { type: string, format: date-time, nullable: true }
+        unreadCount: { type: integer }
+    ChatThreadList:
+      type: object
+      properties:
+        threads:
+          type: array
+          items: { $ref: "#/components/schemas/ChatThread" }
+    ChatMessage:
+      type: object
+      properties:
+        id: { type: string }
+        sender: { type: string, enum: [member, trainer] }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+    ChatMessageList:
+      type: object
+      properties:
+        trainerId: { type: string }
+        trainerName: { type: string }
+        messages:
+          type: array
+          items: { $ref: "#/components/schemas/ChatMessage" }
+    SendMessageInput:
+      type: object
+      required: [body]
+      properties:
+        body: { type: string }
+
+    # ── Community (V2.5) ────────────────────────────────────────────
+    LeaderboardEntry:
+      type: object
+      properties:
+        rank: { type: integer }
+        name: { type: string }
+        value: { type: integer }
+        isMe: { type: boolean }
+    Leaderboard:
+      type: object
+      properties:
+        metric: { type: string, example: checkins }
+        periodDays: { type: integer }
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/LeaderboardEntry" }
+        myRank: { type: integer, nullable: true }
+        myValue: { type: integer }
+    ChallengeItem:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        metric: { type: string, enum: [checkins, workouts] }
+        goal: { type: integer }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        joined: { type: boolean }
+        progress: { type: integer }
+        completed: { type: boolean }
+        participantCount: { type: integer }
+    ChallengeList:
+      type: object
+      properties:
+        challenges:
+          type: array
+          items: { $ref: "#/components/schemas/ChallengeItem" }
+    ChallengeJoinResult:
+      type: object
+      properties:
+        joined: { type: boolean }
+        progress: { type: integer }
+    Badge:
+      type: object
+      properties:
+        key: { type: string }
+        label: { type: string }
+        description: { type: string }
+        earned: { type: boolean }
+    BadgeList:
+      type: object
+      properties:
+        badges:
+          type: array
+          items: { $ref: "#/components/schemas/Badge" }
+        earnedCount: { type: integer }
+        expiresIn: { type: integer }

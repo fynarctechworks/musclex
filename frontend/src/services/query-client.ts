@@ -227,12 +227,20 @@ export const queryKeys = {
     all: ['inventory'] as const,
     products: (filters?: unknown) => [...queryKeys.inventory.all, 'products', filters] as const,
     product: (id: string) => [...queryKeys.inventory.all, 'product', id] as const,
+    productImages: (productId: string) => [...queryKeys.inventory.all, 'product-images', productId] as const,
     categories: () => [...queryKeys.inventory.all, 'categories'] as const,
     stock: (filters?: unknown) => [...queryKeys.inventory.all, 'stock', filters] as const,
     lowStock: () => [...queryKeys.inventory.all, 'low-stock'] as const,
     transactions: (filters?: unknown) => [...queryKeys.inventory.all, 'transactions', filters] as const,
     suppliers: (filters?: unknown) => [...queryKeys.inventory.all, 'suppliers', filters] as const,
     supplier: (id: string) => [...queryKeys.inventory.all, 'supplier', id] as const,
+    batches: (filters?: unknown) => [...queryKeys.inventory.all, 'batches', filters] as const,
+    expiringBatches: (filters?: unknown) => [...queryKeys.inventory.all, 'expiring-batches', filters] as const,
+    transfers: (filters?: unknown) => [...queryKeys.inventory.all, 'transfers', filters] as const,
+    transfer: (id: string) => [...queryKeys.inventory.all, 'transfer', id] as const,
+    branchPrices: (productId: string) => [...queryKeys.inventory.all, 'branch-prices', productId] as const,
+    bundles: (filters?: unknown) => [...queryKeys.inventory.all, 'bundles', filters] as const,
+    bundle: (id: string) => [...queryKeys.inventory.all, 'bundle', id] as const,
   },
 
   // POS
@@ -242,6 +250,15 @@ export const queryKeys = {
     sale: (id: string) => [...queryKeys.pos.all, 'sale', id] as const,
     dailyReport: (branchId: string, date?: string) => [...queryKeys.pos.all, 'daily-report', branchId, date] as const,
     topProducts: (filters?: unknown) => [...queryKeys.pos.all, 'top-products', filters] as const,
+  },
+
+  // Wallet & Loyalty
+  wallet: {
+    all: ['wallet'] as const,
+    member: (memberId: string) => [...queryKeys.wallet.all, 'member', memberId] as const,
+    transactions: (memberId: string, filters?: unknown) =>
+      [...queryKeys.wallet.all, 'transactions', memberId, filters] as const,
+    loyaltyConfig: () => [...queryKeys.wallet.all, 'loyalty-config'] as const,
   },
 
   // Analytics / Reports

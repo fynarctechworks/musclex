@@ -177,7 +177,7 @@ export function TrainerCockpit() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Today's roster */}
-        <div className="lg:col-span-2 bg-card border border-border rounded-xl p-5">
+        <div className="lg:col-span-2 bg-card border border-border rounded-lg p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
               <Dumbbell className="w-5 h-5 text-primary" />
@@ -237,7 +237,7 @@ export function TrainerCockpit() {
 
       {/* Upcoming */}
       {cockpit && cockpit.upcoming_sessions.length > 0 && (
-        <div className="mt-6 bg-card border border-border rounded-xl p-5">
+        <div className="mt-6 bg-card border border-border rounded-lg p-5">
           <h2 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
             <CalendarClock className="w-5 h-5 text-primary" />
             Coming Up
@@ -267,8 +267,8 @@ export function TrainerCockpit() {
       />
 
       {cockpit && cockpit.no_shows_30d >= 3 && (
-        <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-start gap-3">
-          <UserMinus className="w-5 h-5 text-amber-500 mt-0.5" />
+        <div className="mt-6 rounded-lg border border-warning/30 bg-warning/10 p-4 flex items-start gap-3">
+          <UserMinus className="w-5 h-5 text-warning mt-0.5" />
           <div>
             <p className="text-[14px] font-medium text-foreground">
               {cockpit.no_shows_30d} no-shows in the last 30 days

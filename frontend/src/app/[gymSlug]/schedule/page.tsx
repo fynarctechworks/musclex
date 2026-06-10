@@ -36,11 +36,73 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
 
-// Time constants
-const START_HOUR = 5; // 5 AM
-const END_HOUR = 23; // 11 PM
-const HOURS = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
-const HOUR_HEIGHT = 60; // px per hour
+// Slot granularity: how finely the grid is divided and how clicks snap. Gyms
+// run classes on the hour, half-hour, or quarter-hour, so let the user choose.
+// Per-hour pixel height scales with granularity so finer slots stay clickable.
+const SLOT_OPTIONS = [
+  { label: "60 min", value: 60 },
+  { label: "30 min", value: 30 },
+  { label: "15 min", value: 15 },
+] as const;
+type SlotMinutes = (typeof SLOT_OPTIONS)[number]["value"];
+const HOUR_HEIGHT_BY_SLOT: Record<SlotMinutes, number> = {
+  60: 60,
+  30: 80,
+  15: 120,
+};
+
+// ── Per-gym schedule view preferences ──────────────────────────────
+// Operating hours and slot size differ per gym, so they're configurable and
+// persisted. These are VIEW preferences (how the calendar renders), not gym
+// data, so they live in localStorage — no schema/RLS change. Keyed by gym +
+// active branch so a multi-branch operator can tune each branch's day window.
+interface SchedulePrefs {
+  openHour: number; // first hour shown (0–23)
+  closeHour: number; // end boundary, exclusive (1–24); last row is closeHour-1
+  slotMinutes: SlotMinutes;
+}
+const DEFAULT_PREFS: SchedulePrefs = { openHour: 5, closeHour: 23, slotMinutes: 60 };
+const PREFS_VERSION = 1;
+
+function prefsStorageKey(gymSlug: string, branchId: string | null): string {
+  return `musclex:schedulePrefs:v${PREFS_VERSION}:${gymSlug}:${branchId ?? "all"}`;
+}
+
+function isSlotMinutes(v: unknown): v is SlotMinutes {
+  return v === 60 || v === 30 || v === 15;
+}
+
+/** Read + sanitise saved prefs; always returns a valid, ordered window. */
+function loadPrefs(key: string): SchedulePrefs {
+  if (typeof window === "undefined") return DEFAULT_PREFS;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return DEFAULT_PREFS;
+    const p = JSON.parse(raw) as Partial<SchedulePrefs>;
+    const openHour = clampHour(p.openHour, DEFAULT_PREFS.openHour, 0, 23);
+    const closeHour = clampHour(p.closeHour, DEFAULT_PREFS.closeHour, 1, 24);
+    return {
+      openHour: Math.min(openHour, closeHour - 1),
+      closeHour: Math.max(closeHour, openHour + 1),
+      slotMinutes: isSlotMinutes(p.slotMinutes) ? p.slotMinutes : DEFAULT_PREFS.slotMinutes,
+    };
+  } catch {
+    return DEFAULT_PREFS;
+  }
+}
+
+function clampHour(v: unknown, fallback: number, min: number, max: number): number {
+  const n = typeof v === "number" ? Math.round(v) : NaN;
+  if (Number.isNaN(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+/** Pretty label for an hour boundary: 0 → "12 AM", 13 → "1 PM", 24 → "12 AM". */
+function hourLabel(hour: number): string {
+  const h = ((hour % 24) + 24) % 24;
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12} ${h < 12 ? "AM" : "PM"}`;
+}
 
 const categories = [
   { label: "Cardio", value: "cardio" },
@@ -53,23 +115,26 @@ const categories = [
   { label: "Other", value: "other" },
 ];
 
+// Class category chips — Design.md `badge-secondary` soft semantic pills.
+// Categories map onto the brand's four semantic tones (success / warning /
+// error / link / neutral) rather than a freeform 8-color rainbow.
 const categoryColors: Record<string, string> = {
-  cardio: "bg-red-500/20 border-red-500/40 text-red-300",
-  strength: "bg-blue-500/20 border-blue-500/40 text-blue-300",
-  flexibility: "bg-green-500/20 border-green-500/40 text-green-300",
-  mind_body: "bg-purple-500/20 border-purple-500/40 text-purple-300",
-  dance: "bg-pink-500/20 border-pink-500/40 text-pink-300",
-  martial_arts: "bg-orange-500/20 border-orange-500/40 text-orange-300",
-  rehabilitation: "bg-teal-500/20 border-teal-500/40 text-teal-300",
-  other: "bg-gray-500/20 border-gray-500/40 text-gray-300",
+  cardio:         "bg-error-soft text-error-deep",
+  strength:       "bg-link-soft text-link-deep",
+  flexibility:    "bg-success/12 text-success",
+  mind_body:      "bg-canvas-soft-2 text-foreground",
+  dance:          "bg-canvas-soft-2 text-foreground",
+  martial_arts:   "bg-warning-soft text-warning-deep",
+  rehabilitation: "bg-link-soft text-link-deep",
+  other:          "bg-canvas-soft-2 text-muted-foreground",
   // Legacy categories
-  yoga: "bg-purple-500/20 border-purple-500/40 text-purple-300",
-  hiit: "bg-red-500/20 border-red-500/40 text-red-300",
-  pilates: "bg-green-500/20 border-green-500/40 text-green-300",
-  crossfit: "bg-orange-500/20 border-orange-500/40 text-orange-300",
-  zumba: "bg-pink-500/20 border-pink-500/40 text-pink-300",
-  spinning: "bg-yellow-500/20 border-yellow-500/40 text-yellow-300",
-  boxing: "bg-orange-500/20 border-orange-500/40 text-orange-300",
+  yoga:           "bg-canvas-soft-2 text-foreground",
+  hiit:           "bg-error-soft text-error-deep",
+  pilates:        "bg-success/12 text-success",
+  crossfit:       "bg-warning-soft text-warning-deep",
+  zumba:          "bg-canvas-soft-2 text-foreground",
+  spinning:       "bg-warning-soft text-warning-deep",
+  boxing:         "bg-warning-soft text-warning-deep",
 };
 
 interface CreateClassForm {
@@ -86,26 +151,56 @@ interface CreateClassForm {
 
 export default function SchedulePage() {
   const { allowed, checked } = useRequirePermission("classes", "view", "deny");
-  const { gymPath } = useGymSlug();
+  const { gymPath, gymSlug } = useGymSlug();
   const { activeBranchId } = useAuthStore();
   const queryClient = useQueryClient();
   const [currentWeek, setCurrentWeek] = useState(() => new Date());
   const [showModal, setShowModal] = useState(false);
   const [prefillDate, setPrefillDate] = useState<string>("");
+  const [showHours, setShowHours] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // View preferences (operating hours + slot size), persisted per gym+branch.
+  // Start from defaults for SSR-safe first render, then hydrate from storage in
+  // an effect (localStorage is browser-only) to avoid a hydration mismatch.
+  const prefsKey = prefsStorageKey(gymSlug, activeBranchId);
+  const [prefs, setPrefs] = useState<SchedulePrefs>(DEFAULT_PREFS);
+  useEffect(() => {
+    setPrefs(loadPrefs(prefsKey));
+  }, [prefsKey]);
+
+  const savePrefs = (next: SchedulePrefs) => {
+    setPrefs(next);
+    try {
+      window.localStorage.setItem(prefsKey, JSON.stringify(next));
+    } catch {
+      /* storage unavailable (private mode) — keep in-memory for this session */
+    }
+  };
+
+  const { openHour, closeHour, slotMinutes } = prefs;
+  const hours = useMemo(
+    () =>
+      Array.from({ length: Math.max(1, closeHour - openHour) }, (_, i) => openHour + i),
+    [openHour, closeHour],
+  );
+
+  // Derived grid metrics from the chosen granularity.
+  const HOUR_HEIGHT = HOUR_HEIGHT_BY_SLOT[slotMinutes];
+  const subSlots = 60 / slotMinutes; // 1 / 2 / 4 click rows per hour
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  // Scroll to current time on mount
+  // Scroll to current time on mount + whenever the window/height changes.
   useEffect(() => {
     if (scrollRef.current) {
       const now = new Date();
       const currentHour = now.getHours();
-      const scrollTo = Math.max(0, (currentHour - START_HOUR - 1) * HOUR_HEIGHT);
+      const scrollTo = Math.max(0, (currentHour - openHour - 1) * HOUR_HEIGHT);
       scrollRef.current.scrollTop = scrollTo;
     }
-  }, []);
+  }, [HOUR_HEIGHT, openHour]);
 
   const { data: classesResponse } = useQuery<{
     data: ClassItem[];
@@ -129,7 +224,10 @@ export default function SchedulePage() {
     if (!classes) return {};
     const map: Record<string, ClassItem[]> = {};
     for (const cls of classes) {
-      const dateStr = cls.starts_at.slice(0, 10);
+      // Bucket by LOCAL date (not the raw UTC slice) so events land in the same
+      // day column the grid headers use — both are local time. Slicing the ISO
+      // string instead would shift events by a day for non-UTC timezones.
+      const dateStr = format(parseISO(cls.starts_at), "yyyy-MM-dd");
       if (!map[dateStr]) map[dateStr] = [];
       map[dateStr].push(cls);
     }
@@ -138,9 +236,9 @@ export default function SchedulePage() {
 
   const goToToday = () => setCurrentWeek(new Date());
 
-  const openAddModal = (day?: Date, hour?: number) => {
+  const openAddModal = (day?: Date, hour?: number, minute = 0) => {
     if (day && hour !== undefined) {
-      const dt = set(day, { hours: hour, minutes: 0 });
+      const dt = set(day, { hours: hour, minutes: minute });
       // Format as datetime-local value: YYYY-MM-DDTHH:mm
       setPrefillDate(format(dt, "yyyy-MM-dd'T'HH:mm"));
     } else {
@@ -203,66 +301,94 @@ export default function SchedulePage() {
         <h2 className="text-base font-semibold text-foreground">
           {format(weekStart, "MMMM yyyy")}
         </h2>
-        <div className="text-sm text-muted-foreground">
-          {format(weekStart, "MMM d")} – {format(addDays(weekStart, 6), "MMM d")}
+        <div className="flex items-center gap-3">
+          {/* Slot granularity — controls how finely the grid divides and how
+             click-to-create snaps (60 / 30 / 15 min). Persisted per gym. */}
+          <div
+            className="flex items-center gap-0.5 rounded-md border border-border p-0.5"
+            role="group"
+            aria-label="Time slot size"
+          >
+            {SLOT_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => savePrefs({ ...prefs, slotMinutes: opt.value })}
+                aria-pressed={slotMinutes === opt.value}
+                className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
+                  slotMinutes === opt.value
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          {/* Operating-hours editor — gyms set their own open/close window. */}
+          <button
+            onClick={() => setShowHours(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors"
+            title="Set operating hours"
+          >
+            <Clock className="w-3.5 h-3.5" />
+            {hourLabel(openHour)} – {hourLabel(closeHour)}
+          </button>
         </div>
       </div>
 
       {/* Calendar Grid */}
       <div className="bg-card border border-border rounded-lg overflow-hidden">
-        {/* Day Headers */}
-        <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border">
-          {/* Timezone gutter */}
-          <div className="border-r border-border" />
-          {days.map((day) => {
-            const today = isToday(day);
-            return (
-              <div
-                key={day.toISOString()}
-                className={`text-center py-3 border-r border-border last:border-r-0 ${
-                  today ? "bg-primary/5" : ""
-                }`}
-              >
-                <div className="text-xs text-muted-foreground uppercase tracking-wider">
-                  {format(day, "EEE")}
-                </div>
-                <div
-                  className={`text-lg font-semibold mt-0.5 ${
-                    today
-                      ? "w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center mx-auto"
-                      : "text-foreground"
-                  }`}
-                >
-                  {format(day, "d")}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Scrollable Time Grid */}
+        {/* Scrollable area. The day headers live INSIDE this scroll container as
+           a sticky row so they share the exact column widths as the time grid —
+           otherwise the vertical scrollbar narrows the body and the dates drift
+           out of alignment with their columns. */}
         <div
           ref={scrollRef}
           className="overflow-y-auto"
           style={{ maxHeight: "calc(100vh - 260px)" }}
         >
+          {/* Day Headers (sticky) */}
+          <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border sticky top-0 z-30 bg-card">
+            {/* Timezone gutter */}
+            <div className="border-r border-border" />
+            {days.map((day) => {
+              const today = isToday(day);
+              return (
+                <div
+                  key={day.toISOString()}
+                  className={`text-center py-3 border-r border-border last:border-r-0 ${
+                    today ? "bg-primary/5" : ""
+                  }`}
+                >
+                  <div className="text-xs text-muted-foreground uppercase tracking-wider">
+                    {format(day, "EEE")}
+                  </div>
+                  <div
+                    className={`text-lg font-semibold mt-0.5 ${
+                      today
+                        ? "w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center mx-auto"
+                        : "text-foreground"
+                    }`}
+                  >
+                    {format(day, "d")}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Time grid */}
           <div className="grid grid-cols-[60px_repeat(7,1fr)] relative">
             {/* Time Labels + Grid Lines */}
             <div className="relative">
-              {HOURS.map((hour) => (
+              {hours.map((hour) => (
                 <div
                   key={hour}
                   className="relative border-b border-border/50"
                   style={{ height: HOUR_HEIGHT }}
                 >
                   <span className="absolute -top-2.5 right-2 text-[10px] text-muted-foreground font-mono">
-                    {hour === 0
-                      ? "12 AM"
-                      : hour < 12
-                      ? `${hour} AM`
-                      : hour === 12
-                      ? "12 PM"
-                      : `${hour - 12} PM`}
+                    {hourLabel(hour)}
                   </span>
                 </div>
               ))}
@@ -281,22 +407,42 @@ export default function SchedulePage() {
                     today ? "bg-primary/[0.02]" : ""
                   }`}
                 >
-                  {/* Hour grid lines + click targets */}
-                  {HOURS.map((hour) => (
-                    <div
-                      key={hour}
-                      className="border-b border-border/30 hover:bg-muted/30 cursor-pointer transition-colors"
-                      style={{ height: HOUR_HEIGHT }}
-                      onClick={() => openAddModal(day, hour)}
-                    />
+                  {/* Sub-slot grid lines + click targets (snap to granularity) */}
+                  {hours.map((hour) => (
+                    <div key={hour} className="border-b border-border/30">
+                      {Array.from({ length: subSlots }).map((_, i) => (
+                        <div
+                          key={i}
+                          className={`hover:bg-canvas-soft cursor-pointer transition-colors ${
+                            i > 0 ? "border-t border-dashed border-border/20" : ""
+                          }`}
+                          style={{ height: HOUR_HEIGHT / subSlots }}
+                          onClick={() => openAddModal(day, hour, i * slotMinutes)}
+                          title={`Add class at ${formatSlotLabel(hour, i * slotMinutes)}`}
+                        />
+                      ))}
+                    </div>
                   ))}
 
                   {/* Current Time Indicator */}
-                  {today && <CurrentTimeIndicator />}
+                  {today && (
+                    <CurrentTimeIndicator
+                      hourHeight={HOUR_HEIGHT}
+                      openHour={openHour}
+                      closeHour={closeHour}
+                    />
+                  )}
 
                   {/* Class Events */}
                   {dayClasses.map((cls) => (
-                    <ClassEvent key={cls.id} cls={cls} gymPath={gymPath} />
+                    <ClassEvent
+                      key={cls.id}
+                      cls={cls}
+                      gymPath={gymPath}
+                      hourHeight={HOUR_HEIGHT}
+                      openHour={openHour}
+                      closeHour={closeHour}
+                    />
                   ))}
                 </div>
               );
@@ -314,12 +460,44 @@ export default function SchedulePage() {
           activeBranchId={activeBranchId}
         />
       )}
+
+      {/* Operating-hours & slot settings */}
+      {showHours && (
+        <HoursSettingsModal
+          prefs={prefs}
+          scopeLabel={activeBranchId ? "this branch" : "your gym"}
+          onClose={() => setShowHours(false)}
+          onSave={(next) => {
+            savePrefs(next);
+            setShowHours(false);
+          }}
+          onReset={() => {
+            savePrefs(DEFAULT_PREFS);
+            setShowHours(false);
+          }}
+        />
+      )}
     </AppLayout>
   );
 }
 
+// Human-readable label for a slot's start time (used as a click hint tooltip).
+function formatSlotLabel(hour: number, minute: number): string {
+  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  const mm = minute.toString().padStart(2, "0");
+  return `${h12}:${mm} ${hour < 12 ? "AM" : "PM"}`;
+}
+
 // ── Current Time Red Line ──────────────────────────────────────
-function CurrentTimeIndicator() {
+function CurrentTimeIndicator({
+  hourHeight,
+  openHour,
+  closeHour,
+}: {
+  hourHeight: number;
+  openHour: number;
+  closeHour: number;
+}) {
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -329,9 +507,9 @@ function CurrentTimeIndicator() {
 
   const hours = now.getHours();
   const minutes = now.getMinutes();
-  if (hours < START_HOUR || hours >= END_HOUR) return null;
+  if (hours < openHour || hours >= closeHour) return null;
 
-  const top = (hours - START_HOUR) * HOUR_HEIGHT + (minutes / 60) * HOUR_HEIGHT;
+  const top = (hours - openHour) * hourHeight + (minutes / 60) * hourHeight;
 
   return (
     <div
@@ -339,8 +517,8 @@ function CurrentTimeIndicator() {
       style={{ top }}
     >
       <div className="flex items-center">
-        <div className="w-2 h-2 rounded-full bg-red-500 -ml-1" />
-        <div className="flex-1 h-[2px] bg-red-500" />
+        <div className="w-2 h-2 rounded-full bg-error -ml-1" />
+        <div className="flex-1 h-[2px] bg-error" />
       </div>
     </div>
   );
@@ -350,32 +528,39 @@ function CurrentTimeIndicator() {
 function ClassEvent({
   cls,
   gymPath,
+  hourHeight,
+  openHour,
+  closeHour,
 }: {
   cls: ClassItem;
   gymPath: (path: string) => string;
+  hourHeight: number;
+  openHour: number;
+  closeHour: number;
 }) {
   const startDate = parseISO(cls.starts_at);
   const startHour = startDate.getHours();
   const startMin = startDate.getMinutes();
 
-  if (startHour < START_HOUR || startHour >= END_HOUR) return null;
+  // Hide classes scheduled outside the gym's configured day window.
+  if (startHour < openHour || startHour >= closeHour) return null;
 
   const top =
-    (startHour - START_HOUR) * HOUR_HEIGHT + (startMin / 60) * HOUR_HEIGHT;
+    (startHour - openHour) * hourHeight + (startMin / 60) * hourHeight;
   const height = Math.max(
     24,
-    (cls.duration_minutes / 60) * HOUR_HEIGHT
+    (cls.duration_minutes / 60) * hourHeight
   );
 
   const colorClass =
     categoryColors[cls.category] ||
-    "bg-primary/20 border-primary/40 text-primary";
+    "bg-canvas-soft-2 border-primary/40 text-primary";
 
   return (
     <Link
       href={gymPath(`/classes/${cls.id}`)}
       className={`absolute left-0.5 right-0.5 rounded-md border px-1.5 py-1 overflow-hidden z-10 hover:brightness-125 transition-all cursor-pointer ${colorClass}`}
-      style={{ top, height: Math.min(height, (END_HOUR - startHour) * HOUR_HEIGHT - (startMin / 60) * HOUR_HEIGHT) }}
+      style={{ top, height: Math.min(height, (closeHour - startHour) * hourHeight - (startMin / 60) * hourHeight) }}
     >
       <p className="text-xs font-semibold truncate leading-tight">
         {cls.name}
@@ -400,6 +585,138 @@ function ClassEvent({
         </div>
       )}
     </Link>
+  );
+}
+
+// ── Operating Hours & Slot Settings Modal ──────────────────────
+function HoursSettingsModal({
+  prefs,
+  scopeLabel,
+  onClose,
+  onSave,
+  onReset,
+}: {
+  prefs: SchedulePrefs;
+  scopeLabel: string;
+  onClose: () => void;
+  onSave: (next: SchedulePrefs) => void;
+  onReset: () => void;
+}) {
+  const [draft, setDraft] = useState<SchedulePrefs>(prefs);
+
+  // Open can be 12 AM–11 PM; Close can be 1 AM–12 AM (midnight = 24).
+  const openOptions = Array.from({ length: 24 }, (_, h) => ({
+    label: hourLabel(h),
+    value: String(h),
+  }));
+  const closeOptions = Array.from({ length: 24 }, (_, i) => {
+    const h = i + 1; // 1..24
+    return { label: h === 24 ? "12 AM (midnight)" : hourLabel(h), value: String(h) };
+  });
+
+  const invalid = draft.closeHour <= draft.openHour;
+  const totalHours = draft.closeHour - draft.openHour;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative bg-card border border-border rounded-lg shadow-level-5 w-full max-w-md mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Operating hours</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <p className="text-[13px] text-muted-foreground">
+            Set when {scopeLabel} runs classes. The calendar only shows this
+            window, and click-to-create snaps to your chosen slot size. Saved on
+            this device.
+          </p>
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormSelect
+              label="Opens at"
+              value={String(draft.openHour)}
+              onValueChange={(v) =>
+                setDraft((d) => ({ ...d, openHour: Number(v) }))
+              }
+              options={openOptions}
+            />
+            <FormSelect
+              label="Closes at"
+              value={String(draft.closeHour)}
+              onValueChange={(v) =>
+                setDraft((d) => ({ ...d, closeHour: Number(v) }))
+              }
+              options={closeOptions}
+              error={invalid ? "Close must be after open" : undefined}
+            />
+          </div>
+
+          <FieldWrapper label="Default slot size">
+            <div
+              className="flex items-center gap-1 rounded-md border border-border p-1"
+              role="group"
+              aria-label="Default slot size"
+            >
+              {SLOT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() =>
+                    setDraft((d) => ({ ...d, slotMinutes: opt.value }))
+                  }
+                  aria-pressed={draft.slotMinutes === opt.value}
+                  className={`flex-1 px-2 py-1.5 rounded text-[13px] font-medium transition-colors ${
+                    draft.slotMinutes === opt.value
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </FieldWrapper>
+
+          {!invalid && (
+            <p className="text-[11px] text-muted-foreground">
+              Showing {hourLabel(draft.openHour)} – {hourLabel(draft.closeHour)} ·{" "}
+              {totalHours} {totalHours === 1 ? "hour" : "hours"} per day.
+            </p>
+          )}
+
+          <div className="flex items-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => onSave(draft)}
+              disabled={invalid}
+              className="bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 flex-1"
+            >
+              Save hours
+            </button>
+            <button
+              type="button"
+              onClick={onReset}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground border border-border hover:bg-muted transition-colors"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -482,7 +799,7 @@ function AddClassModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-card border border-border rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-card border border-border rounded-lg shadow-level-5 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-lg font-semibold text-foreground">Add Class</h2>

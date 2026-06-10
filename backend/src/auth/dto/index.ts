@@ -15,6 +15,7 @@ export {
   OnboardingSkipStepDto,
 } from './setup-studio.dto';
 export { OnboardingPaymentDto } from './onboarding-payment.dto';
+export { OAuthSyncDto } from './oauth-sync.dto';
 export { DeviceInfoDto } from './device-info.dto';
 export { RevokeSessionDto, RevokeAllSessionsDto } from './manage-session.dto';
 export { CreateSsoProviderDto, UpdateSsoProviderDto } from './sso-provider.dto';

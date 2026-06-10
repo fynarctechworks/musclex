@@ -1,5 +1,5 @@
 -- ============================================================
--- MuscleX / FitSync Pro — CLEAN ALL DATA (preserve tables)
+-- MuscleX / MuscleX — CLEAN ALL DATA (preserve tables)
 -- ============================================================
 --
 -- TRUNCATES all data from every table but keeps table structure.

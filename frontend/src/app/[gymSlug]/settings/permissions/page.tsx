@@ -83,12 +83,12 @@ function StaffRow({
       className={cn(
         "w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
         active
-          ? "bg-primary/10 text-foreground"
-          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+          ? "bg-canvas-soft-2 text-foreground"
+          : "text-muted-foreground hover:bg-canvas-soft/60 hover:text-foreground"
       )}
     >
       <Avatar className="h-8 w-8 shrink-0">
-        <AvatarFallback className="bg-primary/10 text-primary text-[11px] font-semibold">
+        <AvatarFallback className="bg-canvas-soft-2 text-primary text-[11px] font-semibold">
           {initials}
         </AvatarFallback>
       </Avatar>
@@ -122,10 +122,10 @@ function SectionHeader({
   return (
     <button
       onClick={onToggle}
-      className="w-full flex items-center justify-between px-4 py-3 hover:bg-accent/40 transition-colors"
+      className="w-full flex items-center justify-between px-4 py-3 hover:bg-canvas-soft/40 transition-colors"
     >
       <div className="flex items-center gap-3">
-        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+        <div className="h-8 w-8 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
           <Icon className="h-4 w-4 text-primary" />
         </div>
         <div className="text-left">
@@ -332,7 +332,7 @@ export default function StaffPermissionsPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5">
           {/* ─── Staff list ─── */}
-          <aside className="bg-card border border-border rounded-xl overflow-hidden h-fit lg:sticky lg:top-4">
+          <aside className="bg-card border border-border rounded-lg overflow-hidden h-fit lg:sticky lg:top-4">
             <div className="p-3 border-b border-border">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -377,7 +377,7 @@ export default function StaffPermissionsPage() {
           {/* ─── Editor ─── */}
           <section className="space-y-4">
             {!selected ? (
-              <div className="bg-card border border-border rounded-xl p-10">
+              <div className="bg-card border border-border rounded-lg p-10">
                 <EmptyState
                   icon={Shield}
                   title="Select a staff member"
@@ -387,10 +387,10 @@ export default function StaffPermissionsPage() {
             ) : (
               <>
                 {/* Header card */}
-                <div className="bg-card border border-border rounded-xl p-5 flex items-center justify-between flex-wrap gap-3">
+                <div className="bg-card border border-border rounded-lg p-5 flex items-center justify-between flex-wrap gap-3">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-11 w-11">
-                      <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                      <AvatarFallback className="bg-canvas-soft-2 text-primary font-semibold">
                         {selected.full_name
                           .split(" ")
                           .map((n) => n[0])
@@ -418,7 +418,7 @@ export default function StaffPermissionsPage() {
                 </div>
 
                 {/* ── Branches section ── */}
-                <div className="bg-card border border-border rounded-xl overflow-hidden">
+                <div className="bg-card border border-border rounded-lg overflow-hidden">
                   <SectionHeader
                     icon={Building2}
                     title="Branch Access"
@@ -443,7 +443,7 @@ export default function StaffPermissionsPage() {
                                   "flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors",
                                   checked
                                     ? "border-primary/40 bg-primary/5"
-                                    : "border-border hover:bg-accent/40"
+                                    : "border-border hover:bg-canvas-soft/40"
                                 )}
                               >
                                 <Checkbox
@@ -483,7 +483,7 @@ export default function StaffPermissionsPage() {
                 </div>
 
                 {/* ── Module permissions section ── */}
-                <div className="bg-card border border-border rounded-xl overflow-hidden">
+                <div className="bg-card border border-border rounded-lg overflow-hidden">
                   <SectionHeader
                     icon={Shield}
                     title="Module Permissions"
@@ -515,16 +515,16 @@ export default function StaffPermissionsPage() {
                               moduleDenials === actions.length
                                 ? { text: "Disabled", cls: "bg-destructive/10 text-destructive" }
                                 : moduleGrants === actions.length
-                                  ? { text: "All granted", cls: "bg-green-500/10 text-green-500" }
+                                  ? { text: "All granted", cls: "bg-success/10 text-success" }
                                   : moduleGrants + moduleDenials > 0
-                                    ? { text: `${moduleGrants + moduleDenials} override${moduleGrants + moduleDenials > 1 ? "s" : ""}`, cls: "bg-primary/10 text-primary" }
-                                    : { text: "Role default", cls: "text-muted-foreground bg-muted/60" };
+                                    ? { text: `${moduleGrants + moduleDenials} override${moduleGrants + moduleDenials > 1 ? "s" : ""}`, cls: "bg-canvas-soft-2 text-primary" }
+                                    : { text: "Role default", cls: "text-muted-foreground bg-canvas-soft" };
 
                             return (
                               <div key={mod} className="rounded-lg border border-border">
                                 <button
                                   onClick={() => setExpandedModule(expanded ? null : mod)}
-                                  className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-accent/40 rounded-lg transition-colors"
+                                  className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-canvas-soft/40 rounded-lg transition-colors"
                                 >
                                   <div className="flex items-center gap-3">
                                     <ChevronDown
@@ -553,13 +553,13 @@ export default function StaffPermissionsPage() {
                                     <div className="flex items-center gap-1.5 flex-wrap py-2">
                                       <button
                                         onClick={() => applyModuleAction(mod, "grant_all")}
-                                        className="px-2 py-1 text-[10.5px] rounded bg-green-500/10 text-green-500 hover:bg-green-500/20"
+                                        className="px-2 py-1 text-[10.5px] rounded bg-success/10 text-success hover:bg-success/20"
                                       >
                                         Grant all
                                       </button>
                                       <button
                                         onClick={() => applyModuleAction(mod, "read_only")}
-                                        className="px-2 py-1 text-[10.5px] rounded bg-primary/10 text-primary hover:bg-primary/20 inline-flex items-center gap-1"
+                                        className="px-2 py-1 text-[10.5px] rounded bg-canvas-soft-2 text-primary hover:bg-canvas-soft-2 inline-flex items-center gap-1"
                                       >
                                         <Eye className="h-3 w-3" /> Read-only
                                       </button>
@@ -571,7 +571,7 @@ export default function StaffPermissionsPage() {
                                       </button>
                                       <button
                                         onClick={() => applyModuleAction(mod, "clear")}
-                                        className="px-2 py-1 text-[10.5px] rounded bg-muted text-muted-foreground hover:bg-muted/80 inline-flex items-center gap-1"
+                                        className="px-2 py-1 text-[10.5px] rounded bg-muted text-muted-foreground hover:bg-canvas-soft-2 inline-flex items-center gap-1"
                                       >
                                         <RotateCcw className="h-3 w-3" /> Reset
                                       </button>
@@ -586,7 +586,7 @@ export default function StaffPermissionsPage() {
                                         return (
                                           <div
                                             key={code}
-                                            className="flex items-center justify-between px-2 py-2 rounded hover:bg-accent/30"
+                                            className="flex items-center justify-between px-2 py-2 rounded hover:bg-canvas-soft/30"
                                           >
                                             <div className="flex items-center gap-2">
                                               <span className="text-[12.5px] font-medium text-foreground capitalize">
@@ -597,7 +597,7 @@ export default function StaffPermissionsPage() {
                                                   className={cn(
                                                     "text-[9.5px] uppercase tracking-wider px-1.5 py-0.5 rounded font-medium",
                                                     state === "grant"
-                                                      ? "bg-green-500/10 text-green-500"
+                                                      ? "bg-success/10 text-success"
                                                       : "bg-destructive/10 text-destructive"
                                                   )}
                                                 >
@@ -642,7 +642,7 @@ export default function StaffPermissionsPage() {
                 {/* Sticky save footer */}
                 {dirty.perms && (
                   <div className="sticky bottom-4 flex justify-end">
-                    <div className="bg-card border border-border rounded-xl shadow-lg px-4 py-3 flex items-center gap-3">
+                    <div className="bg-card border border-border rounded-lg shadow-level-4 px-4 py-3 flex items-center gap-3">
                       <span className="text-[12px] text-muted-foreground">
                         You have unsaved permission changes
                       </span>

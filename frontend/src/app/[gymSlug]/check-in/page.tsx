@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
-import { Search, QrCode, ScanFace, WifiOff, Upload, Clock } from "lucide-react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { Search, QrCode, ScanFace, WifiOff, Upload, Clock, Command as CommandIcon, ExternalLink } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { AccessDenied } from "@/components/shared/access-denied";
 import { useRequirePermission } from "@/hooks/use-require-permission";
@@ -14,17 +14,28 @@ import {
   useFacialCheckIn,
   useRecentCheckIns,
   useSyncCheckIns,
+  useCheckInRealtime,
   offlineQueue,
   CheckinSearch,
   QRScanner,
   FaceScanner,
   CheckinResult,
+  CheckinSuccessToastStack,
   CheckinFeed,
   CapacityWidget,
   VisitAnalytics,
   EntryAlerts,
+  MemberHotkeyPalette,
+  OverrideDialog,
+  RecentMembersDock,
 } from "@/features/checkins";
-import type { CheckInResponse, EntryAlert } from "@/features/checkins";
+import type {
+  CheckInResponse,
+  EntryAlert,
+  RecentMember,
+  SuccessToastItem,
+} from "@/features/checkins";
+import { lookupDenial } from "@/features/checkins/denial-catalog";
 
 type CheckInMode = "search" | "qr" | "face";
 
@@ -35,15 +46,43 @@ export default function CheckInPage() {
   const branchId = activeBranchId || (user?.branch_ids?.[0] ?? "");
 
   const [mode, setMode] = useState<CheckInMode>("search");
+  // `result` holds DENIALS only — successes stream into `successToasts`
+  // so reception isn't blocked by a full-screen overlay between scans.
   const [result, setResult] = useState<CheckInResponse | null>(null);
+  const [successToasts, setSuccessToasts] = useState<SuccessToastItem[]>([]);
   const [offlineCount, setOfflineCount] = useState(0);
   const [isOnline, setIsOnline] = useState(true);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Override dialog state — populated when the orchestrator returns
+  // `severity: 'overridable'` and the user has the override permission.
+  const [overrideTarget, setOverrideTarget] = useState<{
+    member_id: string;
+    member_name: string | null;
+    denial_reason: string;
+    denial_message: string;
+    last_input: {
+      member_id?: string;
+      qr_code?: string;
+      branch_id: string;
+      checkin_method: string;
+    };
+  } | null>(null);
+
+  const canOverride = user?.permission_codes?.includes('check_ins.override') ?? false;
 
   const createCheckIn = useCreateCheckIn();
   const facialCheckIn = useFacialCheckIn();
   const syncMutation = useSyncCheckIns();
 
-  const { data: recentData, isLoading: feedLoading } = useRecentCheckIns(branchId, 20);
+  const { status: realtimeStatus, isLive } = useCheckInRealtime({
+    branchId: branchId || null,
+    enabled: Boolean(branchId),
+  });
+
+  const { data: recentData, isLoading: feedLoading } = useRecentCheckIns(branchId, 20, {
+    realtimeActive: isLive,
+  });
   const recentCheckIns = recentData?.data ?? [];
 
   // Derive analytics from recent data
@@ -112,11 +151,36 @@ export default function CheckInPage() {
     );
   };
 
-  // Manual / QR Check-in handler
+  // Successes push into a small toast stack instead of opening the
+  // full-screen overlay; the operator's hands stay free to scan the next
+  // person. Cap visible to 3 — older successes are still in the live feed.
+  const pushSuccessToast = useCallback((res: CheckInResponse, method: string) => {
+    setSuccessToasts((prev) => {
+      const next: SuccessToastItem = {
+        id: res.check_in?.id ?? crypto.randomUUID(),
+        member_name: res.member_name ?? res.check_in?.member?.full_name ?? null,
+        member_code: res.member_code ?? res.check_in?.member?.member_code ?? null,
+        membership_status: res.membership_status ?? null,
+        membership_end_date: res.membership_end_date ?? null,
+        membership_days_remaining: res.membership_days_remaining ?? null,
+        membership_plan_name: res.membership_plan_name ?? null,
+        method,
+        checked_in_at: res.check_in?.checked_in_at ?? new Date().toISOString(),
+      };
+      return [next, ...prev].slice(0, 3);
+    });
+  }, []);
+
+  const dismissSuccessToast = useCallback((id: string) => {
+    setSuccessToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Manual / QR Check-in handler. Wraps the mutation so we can intercept
+  // 'overridable' denials and offer staff with the override permission a
+  // chance to force-allow with a written reason.
   const handleCheckIn = useCallback(
     (data: { member_id?: string; qr_code?: string; branch_id: string; checkin_method: string }) => {
       if (!isOnline) {
-        // Store offline
         const id = crypto.randomUUID();
         offlineQueue.add({
           id,
@@ -132,10 +196,91 @@ export default function CheckInPage() {
       }
 
       createCheckIn.mutate(data, {
-        onSuccess: (res) => setResult(res),
+        onSuccess: (res: CheckInResponse) => {
+          // Surface the overridable denial via OverrideDialog instead of
+          // the regular full-screen result overlay.
+          if (
+            res &&
+            res.success === false &&
+            (res as { severity?: string }).severity === 'overridable' &&
+            canOverride
+          ) {
+            setOverrideTarget({
+              member_id: data.member_id ?? '',
+              member_name: (res as { member_name?: string }).member_name ?? null,
+              denial_reason: (res as { failure_reason?: string }).failure_reason ?? 'denied',
+              denial_message: (res as { message?: string }).message ?? 'Check-in denied',
+              last_input: data,
+            });
+            return;
+          }
+          // Successes → toast stack; denials → full-screen modal so the
+          // operator reads the "why" and any actionable next step.
+          if (res.success) {
+            pushSuccessToast(res, data.checkin_method);
+          } else {
+            setResult(res);
+          }
+        },
       });
     },
-    [createCheckIn, isOnline]
+    [createCheckIn, isOnline, canOverride, pushSuccessToast]
+  );
+
+  // Confirm override → re-send the same input with override flags set.
+  const handleOverrideConfirm = useCallback(
+    (reason: string) => {
+      if (!overrideTarget) return;
+      createCheckIn.mutate(
+        {
+          ...overrideTarget.last_input,
+          override_authorized: true,
+          override_reason: reason,
+        },
+        {
+          onSuccess: (res: CheckInResponse) => {
+            setOverrideTarget(null);
+            // An override that succeeded is still a success — show it as
+            // a toast (not a blocking overlay) so the desk keeps moving.
+            if (res.success) {
+              pushSuccessToast(res, overrideTarget.last_input.checkin_method);
+            } else {
+              setResult(res);
+            }
+          },
+        }
+      );
+    },
+    [createCheckIn, overrideTarget, pushSuccessToast]
+  );
+
+  // Cmd-K palette pick → trigger manual check-in.
+  const handlePalettePick = useCallback(
+    (m: { id: string; full_name: string; member_code: string }) => {
+      if (!branchId) {
+        toast.error('Select a branch first.');
+        return;
+      }
+      handleCheckIn({
+        member_id: m.id,
+        branch_id: branchId,
+        checkin_method: 'manual',
+      });
+    },
+    [handleCheckIn, branchId]
+  );
+
+  // Recent-member dock pick → repeat last check-in.
+  const handleRecentPick = useCallback(
+    (m: RecentMember) => {
+      if (!branchId) return;
+      handleCheckIn({
+        member_id: m.member_id,
+        branch_id: branchId,
+        checkin_method: 'manual',
+      });
+    },
+    [handleCheckIn, branchId]
   );
 
   // QR scan handler
@@ -155,18 +300,86 @@ export default function CheckInPage() {
     (descriptor: number[]) => {
       facialCheckIn.mutate(
         { descriptor, branch_id: branchId },
-        { onSuccess: (res) => setResult(res) }
+        {
+          onSuccess: (res) => {
+            if (res.success) {
+              pushSuccessToast(res, 'facial');
+            } else {
+              setResult(res);
+            }
+          },
+        }
       );
     },
-    [facialCheckIn, branchId]
+    [facialCheckIn, branchId, pushSuccessToast]
   );
 
   const dismissResult = useCallback(() => setResult(null), []);
 
-  const modes: { key: CheckInMode; label: string; icon: React.ElementType }[] = [
-    { key: "search", label: "Manual", icon: Search },
-    { key: "qr", label: "QR Code", icon: QrCode },
-    { key: "face", label: "Face ID", icon: ScanFace },
+  // ── Global keyboard shortcuts ────────────────────────────────
+  // Cmd/Ctrl-K: open palette
+  // Q / M / F: switch mode (only when no input is focused)
+  // Esc: dismiss result overlay or close palette
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const inField =
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable);
+
+      if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (paletteOpen) {
+          setPaletteOpen(false);
+          return;
+        }
+        if (result) {
+          setResult(null);
+          return;
+        }
+      }
+
+      if (inField) return;
+
+      if (e.key === 'q' || e.key === 'Q') {
+        e.preventDefault();
+        setMode('qr');
+      } else if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        setMode('search');
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        setMode('face');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [paletteOpen, result]);
+
+  // Derive recent members from the live feed for the quick-repeat dock.
+  const recentMembers = useMemo<RecentMember[]>(() => {
+    return recentCheckIns
+      .filter((c) => c.status === 'success' && c.member?.full_name)
+      .map((c) => ({
+        member_id: c.member_id,
+        full_name: c.member!.full_name,
+        member_code: c.member!.member_code ?? '',
+        profile_photo_url: c.member?.profile_photo_url ?? null,
+        last_seen_at: c.checked_in_at,
+      }));
+  }, [recentCheckIns]);
+
+  const modes: { key: CheckInMode; label: string; icon: React.ElementType; shortcut: string }[] = [
+    { key: "search", label: "Manual", icon: Search, shortcut: "M" },
+    { key: "qr", label: "QR Code", icon: QrCode, shortcut: "Q" },
+    { key: "face", label: "Face ID", icon: ScanFace, shortcut: "F" },
   ];
 
   if (checked && !allowed) {
@@ -182,15 +395,45 @@ export default function CheckInPage() {
       <div className="flex flex-col lg:flex-row gap-6">
         {/* ─── Left: Check-In Panel ─── */}
         <div className="flex-1 min-w-0">
-          <PageHeader
-            title="Front Desk Check-In"
-            description="Search, scan QR, or use Face ID"
-            className="mb-4"
-          />
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <PageHeader
+              title="Front Desk Check-In"
+              description="Search, scan QR, or use Face ID"
+              className=""
+            />
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPaletteOpen(true)}
+              >
+                <CommandIcon className="h-3.5 w-3.5" />
+                Quick search
+                <kbd className="ml-1 hidden sm:inline rounded-sm border border-hairline bg-canvas-soft-2 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                  ⌘K
+                </kbd>
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (!branchId) {
+                    toast.error('Select a branch first.');
+                    return;
+                  }
+                  window.open(`/kiosk/${branchId}`, '_blank', 'noopener,noreferrer');
+                }}
+                disabled={!branchId}
+                title="Open the full-screen Gate Scanner in a new tab"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Open Gate Scanner
+              </Button>
+            </div>
+          </div>
 
           {/* Offline Banner */}
           {!isOnline && (
-            <div className="mb-4 flex items-center gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-4 py-2.5 text-yellow-400 text-sm">
+            <div className="mb-4 flex items-center gap-2 rounded-md border border-warning/30 bg-warning-soft px-4 py-2.5 text-warning-deep text-sm">
               <WifiOff className="h-4 w-4 shrink-0" />
               <span>Offline mode — check-ins will sync when connection returns</span>
             </div>
@@ -198,40 +441,57 @@ export default function CheckInPage() {
 
           {/* Sync Pending Banner */}
           {offlineCount > 0 && isOnline && (
-            <div className="mb-4 flex items-center justify-between rounded-lg border border-blue-500/30 bg-blue-500/5 px-4 py-2.5 text-blue-400 text-sm">
+            <div className="mb-4 flex items-center justify-between rounded-md border border-link/30 bg-link-soft px-4 py-2.5 text-link-deep text-sm">
               <span>{offlineCount} check-in{offlineCount > 1 ? "s" : ""} pending sync</span>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={handleSyncOffline}
                 disabled={syncMutation.isPending}
-                className="text-xs"
               >
-                <Upload className="h-3 w-3 mr-1" /> Sync Now
+                <Upload className="h-3 w-3" /> Sync Now
               </Button>
             </div>
           )}
 
-          {/* Mode Tabs */}
+          {/* Mode Tabs — Design.md tab-ghost pattern */}
           <div className="flex gap-2 mb-5">
             {modes.map((m) => (
               <button
                 key={m.key}
                 onClick={() => setMode(m.key)}
-                className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 px-4 h-10 rounded-md text-sm font-medium transition-colors ${
                   mode === m.key
-                    ? "bg-primary text-primary-foreground shadow-lg"
-                    : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/50"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card border border-hairline text-muted-foreground hover:text-foreground hover:bg-canvas-soft"
                 }`}
+                title={`Shortcut: ${m.shortcut}`}
               >
                 <m.icon className="h-4 w-4" />
                 {m.label}
+                <kbd
+                  aria-hidden="true"
+                  className={`hidden md:inline ml-1 rounded-sm border px-1.5 py-0 font-mono text-[10px] ${
+                    mode === m.key
+                      ? "border-primary-foreground/30 bg-primary-foreground/15 text-primary-foreground"
+                      : "border-hairline bg-canvas-soft text-muted-foreground"
+                  }`}
+                >
+                  {m.shortcut}
+                </kbd>
               </button>
             ))}
           </div>
 
+          {/* Recent Members Dock — one-tap repeat for the most recent check-ins */}
+          {recentMembers.length > 0 && (
+            <div className="mb-5">
+              <RecentMembersDock members={recentMembers} onPick={handleRecentPick} />
+            </div>
+          )}
+
           {/* Check-In Method */}
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-lg border border-hairline bg-card p-5 shadow-level-2">
             {mode === "search" && (
               <CheckinSearch
                 branchId={branchId}
@@ -264,40 +524,97 @@ export default function CheckInPage() {
 
         {/* ─── Right: Sidebar ─── */}
         <div className="w-full lg:w-80 xl:w-96 space-y-5 shrink-0">
-          {/* Capacity */}
-          <CapacityWidget current={currentInGym} max={80} />
+          {/* Capacity — `max` is 0 until branch.max_capacity is wired
+              up; the widget renders an honest "set capacity" CTA. */}
+          <CapacityWidget current={currentInGym} max={0} />
 
-          {/* Visit Analytics */}
+          {/* Visit Analytics — avgDurationMinutes is null until we capture
+              exit times; the widget renders "—" instead of fake data. */}
           <VisitAnalytics
             todayCount={todayCount}
             peakHour={peakHour}
-            avgDurationMinutes={45}
+            avgDurationMinutes={null}
             returningMembers={returningCount}
           />
 
           {/* Live Feed */}
-          <div className="rounded-xl border border-border bg-card p-4">
-            <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-primary" />
+          <div className="rounded-lg border border-hairline bg-card p-4 shadow-level-2">
+            <h3 className="text-sm font-semibold tracking-[-0.01em] text-foreground mb-3 flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
               Recent Check-ins
-              <span className="ml-auto text-xs text-muted-foreground font-normal">
-                Live • 5s refresh
-              </span>
+              <RealtimeStatusBadge status={realtimeStatus} />
             </h3>
             <CheckinFeed checkIns={recentCheckIns} isLoading={feedLoading} />
           </div>
         </div>
       </div>
 
-      {/* ─── Full-screen Result Overlay ─── */}
+      {/* ─── Non-blocking Success Toast Stack ─── */}
+      <CheckinSuccessToastStack
+        items={successToasts}
+        onDismiss={dismissSuccessToast}
+      />
+
+      {/* ─── Full-screen Result Overlay (denials only) ─── */}
       {result && (
         <CheckinResult result={result} onDismiss={dismissResult} />
       )}
+
+      {/* ─── Cmd-K Member Palette ─── */}
+      <MemberHotkeyPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        branchId={branchId}
+        onPick={handlePalettePick}
+      />
+
+      {/* ─── Override Dialog (permission-gated) ─── */}
+      <OverrideDialog
+        open={!!overrideTarget}
+        onOpenChange={(open) => {
+          if (!open) setOverrideTarget(null);
+        }}
+        denialReason={overrideTarget?.denial_reason ?? null}
+        denialMessage={overrideTarget?.denial_message ?? null}
+        memberName={overrideTarget?.member_name ?? null}
+        canOverride={canOverride}
+        onConfirm={handleOverrideConfirm}
+        isSubmitting={createCheckIn.isPending}
+      />
     </AppLayout>
   );
 }
 
 // ─── Helpers ─────────────────────────────────────────────────
+
+function RealtimeStatusBadge({ status }: { status: string }) {
+  const isLive = status === 'connected';
+  const isConnecting = status === 'connecting';
+  const isError = status === 'error' || status === 'disconnected';
+
+  const dotClass = isLive
+    ? 'bg-success animate-pulse'
+    : isConnecting
+    ? 'bg-warning animate-pulse'
+    : isError
+    ? 'bg-error'
+    : 'bg-hairline-strong';
+
+  const label = isLive
+    ? 'Live'
+    : isConnecting
+    ? 'Connecting…'
+    : isError
+    ? 'Reconnecting…'
+    : 'Idle';
+
+  return (
+    <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground font-normal">
+      <span className={`inline-block h-2 w-2 rounded-full ${dotClass}`} />
+      {label}
+    </span>
+  );
+}
 
 function derivePeakHour(checkIns: Array<{ checked_in_at: string }>): string {
   if (checkIns.length === 0) return "--";
@@ -319,35 +636,52 @@ function derivePeakHour(checkIns: Array<{ checked_in_at: string }>): string {
   return `${display}:00 ${period}`;
 }
 
-function deriveAlerts(checkIns: Array<{ status: string; failure_reason?: string; member?: { full_name: string } }>): EntryAlert[] {
+/**
+ * Builds the right-rail alerts list from the live feed. Sources every
+ * piece of copy from the shared denial catalog, so the alert pane,
+ * the result overlay, the kiosk denial screen, and the override dialog
+ * all speak the same language.
+ *
+ * Bug fix: the rule engine emits `membership_expired`, not `expired` —
+ * the prior implementation matched the wrong code and never surfaced
+ * the most common alert.
+ */
+function deriveAlerts(
+  checkIns: Array<{
+    status: string;
+    failure_reason?: string;
+    member?: { full_name: string };
+  }>,
+): EntryAlert[] {
   const alerts: EntryAlert[] = [];
   const seen = new Set<string>();
+
   for (const ci of checkIns) {
-    if (ci.failure_reason && !seen.has(ci.failure_reason)) {
-      seen.add(ci.failure_reason);
-      if (ci.failure_reason === "expired") {
-        alerts.push({
-          type: "expiring",
-          severity: "danger",
-          title: "Expired Membership",
-          message: `${ci.member?.full_name ?? "A member"} tried to check in with expired membership`,
-        });
-      } else if (ci.failure_reason === "no_credits") {
-        alerts.push({
-          type: "balance",
-          severity: "warning",
-          title: "No Credits Remaining",
-          message: `${ci.member?.full_name ?? "A member"} has no class credits left`,
-        });
-      } else if (ci.failure_reason === "wrong_branch") {
-        alerts.push({
-          type: "balance",
-          severity: "warning",
-          title: "Wrong Branch",
-          message: `${ci.member?.full_name ?? "A member"} attempted check-in at wrong branch`,
-        });
-      }
-    }
+    if (!ci.failure_reason || seen.has(ci.failure_reason)) continue;
+    seen.add(ci.failure_reason);
+
+    const entry = lookupDenial(ci.failure_reason);
+    const who = ci.member?.full_name ?? "A member";
+
+    alerts.push({
+      type: alertTypeFor(ci.failure_reason),
+      severity: alertSeverityFor(entry.severity),
+      title: entry.title,
+      message: `${who} — ${entry.headline}`,
+    });
   }
+
   return alerts;
+}
+
+function alertTypeFor(reason: string): EntryAlert["type"] {
+  if (reason.startsWith("membership_") || reason === "no_active_membership") return "expiring";
+  if (reason === "no_credits") return "balance";
+  return "balance";
+}
+
+function alertSeverityFor(s: ReturnType<typeof lookupDenial>["severity"]): EntryAlert["severity"] {
+  if (s === "block") return "danger";
+  if (s === "warn") return "warning";
+  return "info";
 }

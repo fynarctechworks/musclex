@@ -6,7 +6,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BillingService } from './billing.service';
-import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
+import { RazorpayService } from './razorpay.service';
+import { randomBytes } from 'crypto';
 import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class PaymentsService {
   constructor(
     private prisma: PrismaService,
     private billingService: BillingService,
+    private razorpay: RazorpayService,
   ) {}
 
   private generateReceiptNumber(): string {
@@ -102,7 +104,7 @@ export class PaymentsService {
     plan_id: string;
     branch_id: string;
     invoice_id?: string;
-    gateway: 'razorpay' | 'stripe';
+    gateway?: 'razorpay';
   }) {
     const member = await this.prisma.member.findFirst({
       where: { id: data.member_id } // tenant isolation via search_path,
@@ -124,20 +126,38 @@ export class PaymentsService {
         branch_id: data.branch_id,
         invoice_id: data.invoice_id,
         amount: plan.price,
-        payment_method: data.gateway,
+        payment_method: 'razorpay',
         status: 'pending',
         receipt_number: receiptNumber,
       },
     });
 
-    // In production, call Razorpay/Stripe SDK to create an order.
-    // For now, return the payment record as the order reference.
+    // Create a real Razorpay order and bind it to our pending payment. The
+    // Razorpay order id (order_xxx) is what Checkout needs and what the
+    // signature is computed over, so we persist it as gateway_order_id and
+    // return it as order_id.
+    const order = await this.razorpay.createOrder({
+      amount: Number(plan.price),
+      currency: payment.currency,
+      receipt: receiptNumber,
+      notes: {
+        payment_id: payment.id,
+        member_id: data.member_id,
+        plan_id: data.plan_id,
+      },
+    });
+    await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: { gateway_order_id: order.id },
+    });
     return {
-      order_id: payment.id,
+      order_id: order.id,
+      payment_id: payment.id,
+      key_id: this.razorpay.getKeyId(),
       receipt_number: receiptNumber,
       amount: Number(plan.price),
       currency: payment.currency,
-      gateway: data.gateway,
+      gateway: 'razorpay',
       plan_name: plan.name,
     };
   }
@@ -150,27 +170,19 @@ export class PaymentsService {
     plan_id: string;
     branch_id: string;
   }) {
-    // Verify HMAC signature based on payment gateway
+    // Look up the pending payment by the gateway order id (order_xxx for
+    // Razorpay) — NOT our local payment id.
     const payment = await this.prisma.payment.findFirst({
-      where: { id: data.gateway_order_id, status: 'pending' },
+      where: { gateway_order_id: data.gateway_order_id, status: 'pending' },
     });
     if (!payment) throw new NotFoundException('Pending payment not found');
 
-    // Verify gateway signature
-    const gatewayConfig = await this.prisma.paymentGatewayConfig.findFirst({
-      where: { gateway_name: payment.payment_method, is_active: true },
-    });
-
-    if (!gatewayConfig?.webhook_secret) {
-      throw new BadRequestException(
-        `Payment gateway configuration not found or missing webhook secret for ${payment.payment_method}`,
-      );
-    }
-
-    const isValid = this.verifyGatewaySignature(
-      payment.payment_method,
-      data,
-      gatewayConfig.webhook_secret,
+    // Verify the Razorpay Checkout handshake — signed `order_id|payment_id`
+    // with the KEY SECRET (timing-safe).
+    const isValid = this.razorpay.verifyCheckoutSignature(
+      data.gateway_order_id,
+      data.gateway_payment_id,
+      data.signature,
     );
     if (!isValid) {
       throw new ForbiddenException('Invalid payment signature');
@@ -185,7 +197,7 @@ export class PaymentsService {
     return this.prisma.$transaction(async (tx) => {
       // Re-fetch payment inside transaction to prevent double-processing
       const lockedPayment = await tx.payment.findFirst({
-        where: { id: data.gateway_order_id, status: 'pending' },
+        where: { id: payment.id, status: 'pending' },
       });
       if (!lockedPayment) {
         throw new BadRequestException('Payment already processed or not found');
@@ -251,44 +263,6 @@ export class PaymentsService {
     });
   }
 
-  private verifyGatewaySignature(
-    gateway: string,
-    data: { gateway_payment_id: string; gateway_order_id: string; signature: string },
-    secret: string,
-  ): boolean {
-    if (gateway === 'razorpay') {
-      const body = `${data.gateway_order_id}|${data.gateway_payment_id}`;
-      const expected = createHmac('sha256', secret).update(body).digest('hex');
-      // Use timing-safe comparison to prevent timing attacks
-      try {
-        return timingSafeEqual(Buffer.from(expected), Buffer.from(data.signature));
-      } catch {
-        return false;
-      }
-    }
-    if (gateway === 'stripe') {
-      // Stripe signature format: "t=timestamp,v1=signature1,v1=signature2"
-      // Verification: HMAC-SHA256(secret, "${timestamp}.${rawPayload}")
-      try {
-        const parts = data.signature.split(',').reduce<Record<string, string>>((acc, part) => {
-          const [k, v] = part.split('=');
-          acc[k] = v;
-          return acc;
-        }, {});
-        const timestamp = parts['t'];
-        const receivedSig = parts['v1'];
-        if (!timestamp || !receivedSig) return false;
-
-        const signedPayload = `${timestamp}.${data.gateway_payment_id}`;
-        const expected = createHmac('sha256', secret).update(signedPayload).digest('hex');
-        return timingSafeEqual(Buffer.from(expected), Buffer.from(receivedSig));
-      } catch {
-        return false;
-      }
-    }
-    return false;
-  }
-
   async findAll(studioId: string, query: {
     branch_id?: string;
     date_from?: string;
@@ -341,7 +315,14 @@ export class PaymentsService {
       this.prisma.payment.count({ where }),
     ]);
 
-    return { data, total, page, limit };
+    // Prisma Decimal serializes as an object over JSON; coerce to plain
+    // numbers so the frontend reads `.amount` as a Number, not NaN.
+    const serialized = data.map((p: any) => ({
+      ...p,
+      amount: p.amount === null || p.amount === undefined ? p.amount : Number(p.amount.toString()),
+    }));
+
+    return { data: serialized, total, page, limit };
   }
 
   async getInvoice(id: string) {
@@ -393,13 +374,13 @@ export class PaymentsService {
    */
   async handleRazorpayWebhook(orderId: string, gatewayPaymentId: string) {
     const payment = await this.prisma.payment.findFirst({
-      where: { id: orderId, status: 'pending' },
+      where: { gateway_order_id: orderId, status: 'pending' },
     });
     if (!payment) return; // Already processed or not found — idempotent
 
     await this.prisma.$transaction(async (tx) => {
       await tx.payment.update({
-        where: { id: orderId },
+        where: { id: payment.id },
         data: {
           gateway_payment_id: gatewayPaymentId,
           status: 'paid',
@@ -425,41 +406,144 @@ export class PaymentsService {
     });
   }
 
+
+  // ────────────────────────────────────────────────────────────
+  // PDF receipt rendering (member payments)
+  // ────────────────────────────────────────────────────────────
+
   /**
-   * Called by Stripe webhook when payment_intent.succeeded event fires.
-   * Marks the pending payment as paid without needing frontend verification.
+   * Render a payment receipt as a PDF. Uses the same renderer the
+   * subscription invoices use so receipts look identical across the
+   * product (gym sub + member payment).
+   *
+   * The "issuer" of a member-payment receipt is the gym (Studio + Branch),
+   * and the "billed-to" is the member.
    */
-  async handleStripeWebhook(orderId: string, gatewayPaymentId: string) {
-    const payment = await this.prisma.payment.findFirst({
-      where: { id: orderId, status: 'pending' },
-    });
-    if (!payment) return; // Already processed or not found — idempotent
-
-    await this.prisma.$transaction(async (tx) => {
-      await tx.payment.update({
-        where: { id: orderId },
-        data: {
-          gateway_payment_id: gatewayPaymentId,
-          status: 'paid',
-          paid_at: new Date(),
+  async renderReceiptPdf(
+    studioId: string,
+    paymentId: string,
+  ): Promise<{ buffer: Buffer; filename: string }> {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        member: {
+          select: {
+            id: true,
+            full_name: true,
+            member_code: true,
+            phone: true,
+            email: true,
+          },
         },
+        membership: { include: { plan: true } },
+        branch: true,
+      },
+    });
+    if (!payment) throw new NotFoundException('Payment not found');
+
+    const studio = await this.prisma.studio.findUnique({
+      where: { id: studioId },
+      select: {
+        name: true,
+        phone: true,
+        email: true,
+        address: true,
+        city: true,
+        state: true,
+        postal_code: true,
+        tax_id: true,
+      },
+    });
+
+    const branch = payment.branch;
+    // Issuer address: prefer branch (the location actually serving the
+    // member), fall back to studio HQ.
+    const issuerAddress = [
+      branch?.address ?? studio?.address,
+      branch?.city ?? studio?.city,
+      branch?.state ?? studio?.state,
+      branch?.postal_code ?? studio?.postal_code,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    const fmtDate = (d: Date) =>
+      d.toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
       });
 
-      await tx.financialTransaction.create({
-        data: {
-          gym_id: getTenantGymId()!,
-          branch_id: payment.branch_id,
-          reference_type: 'payment',
-          reference_id: payment.id,
-          transaction_type: 'credit',
-          amount: payment.amount,
-          description: `Stripe payment ${payment.receipt_number} (webhook)`,
-        },
-      });
+    const currency = payment.currency;
+    const money = (n: number) =>
+      `${currency === 'INR' ? '₹' : currency + ' '}${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
-      if (payment.invoice_id) {
-        await this.billingService.recalculateInvoiceStatus(payment.invoice_id);
-      }
+    const prettyMethod = (m: string) => {
+      const map: Record<string, string> = {
+        upi: 'UPI',
+        card: 'Card',
+        cash: 'Cash',
+        netbanking: 'Net Banking',
+        bank_transfer: 'Bank Transfer',
+        razorpay: 'Razorpay',
+        cheque: 'Cheque',
+      };
+      return map[m] || m.replace(/_/g, ' ');
+    };
+
+    const plan = payment.membership?.plan;
+    const lineDesc = plan
+      ? `${plan.name}${plan.plan_type ? ` (${plan.plan_type.replace(/_/g, ' ')})` : ''}`
+      : 'Membership payment';
+
+    const periodStart = payment.membership?.start_date ?? payment.created_at;
+    const periodEnd =
+      payment.membership?.end_date ??
+      payment.membership?.start_date ??
+      payment.created_at;
+
+    const amount = Number(payment.amount);
+    const paid = payment.status === 'paid';
+
+    const { renderInvoicePdfBuffer } = await import(
+      '../subscription/invoice-pdf.renderer'
+    );
+
+    const buffer = await renderInvoicePdfBuffer({
+      template: 'classic',
+      invoice_number: payment.receipt_number,
+      invoice_date: fmtDate(payment.paid_at ?? payment.created_at),
+      status_label: payment.status.toUpperCase(),
+      status_paid: paid,
+      issuer_name: studio?.name || 'Gym',
+      issuer_address: issuerAddress || undefined,
+      issuer_email: studio?.email || branch?.email || undefined,
+      billed_to_name: payment.member.full_name,
+      billed_to_email: payment.member.email ?? undefined,
+      billed_to_address: undefined,
+      billed_to_tax_id: payment.member.member_code,
+      items: [
+        {
+          description: lineDesc,
+          period_start: fmtDate(new Date(periodStart)),
+          period_end: fmtDate(new Date(periodEnd)),
+          amount: money(amount),
+        },
+      ],
+      subtotal: money(amount),
+      tax_label: 'Tax (0%)',
+      tax_amount: money(0),
+      total: money(amount),
+      payment_method: prettyMethod(payment.payment_method),
+      payment_reference:
+        payment.gateway_payment_id ??
+        payment.gateway_order_id ??
+        payment.receipt_number,
+      footer_note: studio?.name
+        ? `Thank you for being a member of ${studio.name}.`
+        : 'Thank you for your payment.',
     });
+
+    return { buffer, filename: `${payment.receipt_number}.pdf` };
   }
 }

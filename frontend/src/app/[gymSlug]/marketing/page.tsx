@@ -145,7 +145,7 @@ export default function MarketingPage() {
         />
       ) : (
         <>
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="bg-card border border-border rounded-lg overflow-hidden">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
@@ -160,7 +160,7 @@ export default function MarketingPage() {
               </thead>
               <tbody>
                 {campaigns.map((campaign) => (
-                  <tr key={campaign.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                  <tr key={campaign.id} className="border-b border-border last:border-0 hover:bg-canvas-soft">
                     <td className="px-4 py-3">
                       <Link href={gymPath(`/marketing/campaigns/${campaign.id}`)} className="hover:underline">
                         <p className="text-sm text-foreground font-medium">{campaign.name}</p>
@@ -170,7 +170,7 @@ export default function MarketingPage() {
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
                         {campaign.channels.map((ch) => (
-                          <span key={ch} className="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded capitalize">
+                          <span key={ch} className="px-1.5 py-0.5 bg-canvas-soft-2 text-primary text-xs rounded capitalize">
                             {ch}
                           </span>
                         ))}

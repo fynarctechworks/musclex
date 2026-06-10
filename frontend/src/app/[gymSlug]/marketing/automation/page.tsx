@@ -58,6 +58,8 @@ const subNavItems = [
 ];
 
 const triggerLabels: Record<TriggerEvent, string> = {
+  member_registered: "New Member Registered",
+  member_renewed: "Membership Renewed",
   membership_expiring: "Membership Expiring",
   member_inactive: "Member Inactive",
   lead_created: "New Lead Created",
@@ -213,7 +215,7 @@ export default function AutomationPage() {
             <div
               key={wf.id}
               className={cn(
-                "bg-card border rounded-xl p-5 transition-colors",
+                "bg-card border rounded-lg p-5 transition-colors",
                 wf.status === "active" ? "border-primary/30" : "border-border"
               )}
             >
@@ -222,7 +224,7 @@ export default function AutomationPage() {
                   <div
                     className={cn(
                       "p-2 rounded-lg",
-                      wf.status === "active" ? "bg-primary/10" : "bg-muted"
+                      wf.status === "active" ? "bg-canvas-soft-2" : "bg-muted"
                     )}
                   >
                     <Zap
@@ -244,7 +246,7 @@ export default function AutomationPage() {
                           wf.status === "active"
                             ? "bg-success/10 text-success"
                             : wf.status === "paused"
-                            ? "bg-yellow-500/10 text-yellow-500"
+                            ? "bg-warning/10 text-warning"
                             : "bg-muted text-muted-foreground"
                         )}
                       >
@@ -295,7 +297,7 @@ export default function AutomationPage() {
                   >
                     <span
                       className={cn(
-                        "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform",
+                        "absolute top-0.5 left-0.5 w-5 h-5 bg-canvas rounded-full transition-transform",
                         wf.status === "active" ? "translate-x-5" : "translate-x-0"
                       )}
                     />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 
 export default function DashboardError({
   error,
@@ -10,12 +11,13 @@ export default function DashboardError({
   reset: () => void;
 }) {
   useEffect(() => {
+    Sentry.captureException(error);
     console.error("Dashboard error:", error);
   }, [error]);
 
   return (
     <div className="flex h-full items-center justify-center p-8">
-      <div className="max-w-md rounded-lg border border-border bg-card p-8 text-center shadow-sm">
+      <div className="max-w-md rounded-lg border border-border bg-card p-8 text-center shadow-level-2">
         <h2 className="mb-2 text-base font-semibold text-foreground">
           Dashboard failed to load
         </h2>

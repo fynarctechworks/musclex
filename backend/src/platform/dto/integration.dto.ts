@@ -8,7 +8,7 @@ import { Prisma } from '@prisma/client';
 
 export class CreateIntegrationDto {
   @IsString()
-  provider: string; // twilio | whatsapp | razorpay | stripe | resend | google_calendar | zapier
+  provider: string; // twilio | whatsapp | razorpay | resend | google_calendar | zapier
 
   @IsString()
   display_name: string;

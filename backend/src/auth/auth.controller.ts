@@ -18,6 +18,7 @@ import {
   OnboardingStaffListDto,
   OnboardingSkipStepDto,
   OnboardingPaymentDto,
+  OAuthSyncDto,
 } from './dto';
 import { SelectWorkspaceDto } from './dto/select-workspace.dto';
 import { JwtAuthGuard, CurrentUser, JwtPayload } from '../common';
@@ -109,6 +110,26 @@ export class AuthController {
       undefined;
     const userAgent = req.headers['user-agent'] || undefined;
     return this.authService.login(dto, { ip_address: ip, user_agent: userAgent });
+  }
+
+  // ── OAuth sign-in sync (Google / Apple) ───────────────
+  // Public: the Supabase session is verified server-side inside the service,
+  // so this must NOT use JwtAuthGuard (a brand-new social user has no local
+  // identity row yet — the guard would reject them before sync can create it).
+  @Post('oauth/sync')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  oauthSync(@Body() dto: OAuthSyncDto, @Req() req: Request) {
+    const ip =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket?.remoteAddress ||
+      undefined;
+    const userAgent = req.headers['user-agent'] || undefined;
+    return this.authService.oauthSync(
+      dto.access_token,
+      dto.refresh_token,
+      { ip_address: ip, user_agent: userAgent },
+      dto.device_info,
+    );
   }
 
   @Post('logout')

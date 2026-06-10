@@ -17,6 +17,7 @@ import { ChangePlanDialog } from './ChangePlanDialog';
 import { CancelSubscriptionDialog } from './CancelSubscriptionDialog';
 import { RenewMembershipDialog } from './RenewMembershipDialog';
 import type { Member } from '@/types';
+import { resolvePlanPrice } from '@/lib/plan-pricing';
 
 interface MemberSubscriptionCardProps {
   member: Member;
@@ -34,7 +35,7 @@ export function MemberSubscriptionCard({ member }: MemberSubscriptionCardProps) 
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="rounded-lg border border-border bg-card p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <CreditCard className="h-4 w-4 text-primary" />
@@ -48,7 +49,7 @@ export function MemberSubscriptionCard({ member }: MemberSubscriptionCardProps) 
         {hasActive ? (
           <div className="space-y-3">
             {/* Plan Info */}
-            <div className="rounded-lg bg-muted/50 border border-border p-3">
+            <div className="rounded-lg bg-canvas-soft border border-border p-3">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-base font-semibold text-foreground">
@@ -56,20 +57,14 @@ export function MemberSubscriptionCard({ member }: MemberSubscriptionCardProps) 
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {(() => {
-                      const raw = active.plan?.price as unknown;
-                      const n =
-                        typeof raw === 'number'
-                          ? raw
-                          : typeof raw === 'string'
-                            ? Number(raw)
-                            : Number((raw as { toString?: () => string })?.toString?.() ?? NaN);
-                      const priceLabel = Number.isFinite(n) ? `₹${n.toLocaleString()}` : '—';
-                      return `${priceLabel} / ${active.plan?.duration_days ?? 0} days`;
+                      const price = resolvePlanPrice(active.plan, active.branch_id);
+                      const label = `₹${price.toLocaleString()}`;
+                      return `${label} / ${active.plan?.duration_days ?? 0} days`;
                     })()}
                   </p>
                 </div>
                 {active.plan?.plan_type && (
-                  <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-md font-medium capitalize">
+                  <span className="text-xs bg-canvas-soft-2 text-primary px-2 py-1 rounded-md font-medium capitalize">
                     {active.plan.plan_type.replace('_', ' ')}
                   </span>
                 )}
@@ -185,6 +180,8 @@ export function MemberSubscriptionCard({ member }: MemberSubscriptionCardProps) 
       <RenewMembershipDialog
         memberId={member.id}
         memberName={member.full_name}
+        branchId={active?.branch_id}
+        currentPlanId={active?.plan_id}
         open={renewOpen}
         onClose={() => setRenewOpen(false)}
       />

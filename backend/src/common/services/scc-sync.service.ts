@@ -32,13 +32,26 @@ export class SccSyncService {
     logo_url?: string | null;
     account_type?: string | null;
     subscription_plan?: string;
+    /**
+     * Live-computed lifecycle status from SubscriptionPolicyService
+     * (active | grace_period | locked | suspended). Preferred — reflects reality.
+     */
+    lifecycle_status?: string;
+    /**
+     * Legacy field from studio.subscription_status column (trial | active | ...).
+     * Frozen at onboarding and not updated by the lifecycle recompute, so it
+     * lies once a tenant enters grace. Kept as a fallback for callers that
+     * haven't been updated; new callers should pass `lifecycle_status`.
+     */
     subscription_status?: string;
     trial_ends_at?: Date | null;
     last_login_at?: Date | null;
     owner_full_name?: string;
   }): Promise<void> {
     try {
-      const status = this.mapStatus(studio.subscription_status);
+      // Prefer the computed status; fall back to the legacy column so older
+      // callers (and tests) keep working during the migration window.
+      const status = this.mapStatus(studio.lifecycle_status ?? studio.subscription_status);
       const ownerName = studio.owner_full_name || studio.email?.split('@')[0] || 'Owner';
       const accountType = studio.account_type || 'gym';
 
@@ -189,13 +202,28 @@ export class SccSyncService {
 
   // ── Helpers ──────────────────────────────────────────────────────
 
-  private mapStatus(subscriptionStatus?: string): string {
-    switch (subscriptionStatus) {
-      case 'active':    return 'ACTIVE';
-      case 'trial':     return 'TRIAL';
-      case 'expired':   return 'EXPIRED';
-      case 'suspended': return 'SUSPENDED';
-      default:          return 'TRIAL';
+  /**
+   * Map our internal status (either the legacy studio.subscription_status
+   * column OR the live-computed lifecycle_status from SubscriptionPolicyService)
+   * onto the SCC TenantStatus enum: ACTIVE | TRIAL | EXPIRED | SUSPENDED.
+   *
+   * The SCC enum has no GRACE_PERIOD / LOCKED buckets, so both fold into
+   * EXPIRED — which is semantically correct: a gym in grace IS past expiry,
+   * it just hasn't been locked out yet. The lock banner conveys the nuance;
+   * the dashboard just needs the high-level state.
+   */
+  private mapStatus(status?: string): string {
+    switch (status) {
+      // Legacy subscription_status values
+      case 'active':       return 'ACTIVE';
+      case 'trial':        return 'TRIAL';
+      case 'expired':      return 'EXPIRED';
+      // Computed lifecycle_status values
+      case 'grace_period': return 'EXPIRED';
+      case 'locked':       return 'EXPIRED';
+      // Shared
+      case 'suspended':    return 'SUSPENDED';
+      default:             return 'TRIAL';
     }
   }
 

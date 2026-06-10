@@ -10,6 +10,6 @@ export class CreateOrderDto {
   @IsUUID()
   branch_id: string;
 
-  @IsIn(['razorpay', 'stripe'])
-  gateway: 'razorpay' | 'stripe';
+  @IsIn(['razorpay'])
+  gateway: 'razorpay';
 }

@@ -23,6 +23,10 @@ export function middleware(request: NextRequest) {
     publicPaths.some((p) => pathname.startsWith(p)) ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
+    pathname.startsWith("/brand") ||
+    // any static file in /public (by extension) — these are public by definition
+    // and must not be redirected to /login (that breaks <img>/<link> on auth pages)
+    /\.(png|jpe?g|svg|gif|webp|avif|ico|css|js|map|woff2?|ttf|otf)$/i.test(pathname) ||
     pathname === "/favicon.ico"
   ) {
     const response = NextResponse.next();
@@ -49,7 +53,18 @@ function setSecurityHeaders(response: NextResponse) {
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  // The check-in module needs `camera` for QR / Face scanning and `microphone`
+  // is reserved for future RTC features. `geolocation` is used by the kiosk
+  // branch resolver on tablets. All three are granted to the top-level
+  // document only (`self`) — embedders cannot access them.
+  //
+  // IMPORTANT: this used to be `camera=()` (deny-all) which silently blocked
+  // every on-device scanner with a "Permissions policy violation" in the
+  // console. Be very careful about tightening this back to deny-all.
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(self), microphone=(self), geolocation=(self)"
+  );
 }
 
 export const config = {

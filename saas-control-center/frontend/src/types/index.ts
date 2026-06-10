@@ -39,6 +39,55 @@ export interface Tenant {
   _count?: { subscriptions: number; payments: number };
 }
 
+export interface TenantBranchSnapshot {
+  id: string;
+  name: string;
+  code: string | null;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  status: string | null;
+  timezone: string | null;
+  memberCount: number;
+  activeMemberCount: number;
+  staffCount: number;
+  revenue: number;
+}
+
+export interface TenantOperationalDetail {
+  available: boolean;
+  reason?: 'not_linked' | 'invalid_schema' | 'unreachable';
+  schema_name?: string;
+  members?: { total: number; active: number };
+  staff?: { total: number; active: number };
+  revenue?: {
+    currency: string;
+    total: number;
+    last30Days: number;
+    paidCount: number;
+  };
+  branches?: TenantBranchSnapshot[];
+  recentPayments?: Array<{
+    id: string;
+    amount: number;
+    currency: string;
+    status: string;
+    method: string | null;
+    memberName: string | null;
+    paidAt: string | null;
+    createdAt: string;
+  }>;
+  recentMembers?: Array<{
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    status: string;
+    branchName: string | null;
+    joinedAt: string;
+  }>;
+}
+
 export interface SubscriptionPlan {
   id: string;
   name: string;
@@ -122,6 +171,7 @@ export interface DashboardMetrics {
   };
   subscriptions: {
     active: number;
+    past_due: number;
     expiring_soon: number;
     churned_last_30d: number;
   };

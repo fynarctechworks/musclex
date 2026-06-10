@@ -20,7 +20,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/services/query-client';
 import { expensesApi, type CreateExpenseInput } from '@/features/payments';
 
-const DB_NAME = 'fitsync-expenses';
+const DB_NAME = 'musclex-expenses';
 const DB_VERSION = 1;
 const STORE = 'pending-expenses';
 

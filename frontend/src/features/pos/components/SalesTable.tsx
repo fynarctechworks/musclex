@@ -66,7 +66,7 @@ export function SalesTable({ branchId, onView }: SalesTableProps) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-muted/50">
+              <tr className="border-b border-border bg-canvas-soft">
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Invoice</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Customer</th>
@@ -94,7 +94,7 @@ export function SalesTable({ branchId, onView }: SalesTableProps) {
                 </tr>
               ) : (
                 sales.map((sale) => (
-                  <tr key={sale.id} className="border-b border-border hover:bg-muted/30 transition-colors">
+                  <tr key={sale.id} className="border-b border-border hover:bg-canvas-soft transition-colors">
                     <td className="px-4 py-3 font-mono text-xs text-foreground">
                       {sale.invoice_number}
                     </td>

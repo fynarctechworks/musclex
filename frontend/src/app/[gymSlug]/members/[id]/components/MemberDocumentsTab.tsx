@@ -79,9 +79,9 @@ export function MemberDocumentsTab({ memberId }: MemberDocumentsTabProps) {
     <div className="space-y-4">
       {/* Expiring documents alert */}
       {expiringCount > 0 && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-          <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
-          <p className="text-sm text-amber-300">
+        <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3">
+          <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
+          <p className="text-sm text-warning-deep">
             {expiringCount} document{expiringCount > 1 ? "s" : ""} expiring within 30 days
           </p>
         </div>

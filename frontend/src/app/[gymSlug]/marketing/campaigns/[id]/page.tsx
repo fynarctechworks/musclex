@@ -145,14 +145,14 @@ export default function CampaignDetailPage() {
       {/* Channels */}
       <div className="flex gap-2 mb-6">
         {c.channels?.map((ch: string) => (
-          <span key={ch} className="px-2.5 py-1 bg-primary/10 text-primary text-xs rounded-lg capitalize font-medium">
+          <span key={ch} className="px-2.5 py-1 bg-canvas-soft-2 text-primary text-xs rounded-lg capitalize font-medium">
             {ch}
           </span>
         ))}
       </div>
 
       {/* Message Preview */}
-      <div className="bg-card border border-border rounded-xl p-5 mb-6">
+      <div className="bg-card border border-border rounded-lg p-5 mb-6">
         <h3 className="text-sm font-medium text-foreground mb-2">Message Template</h3>
         <p className="text-sm text-muted-foreground whitespace-pre-wrap">{c.message_template}</p>
       </div>
@@ -170,16 +170,16 @@ export default function CampaignDetailPage() {
           </div>
           {analytics.sent > 0 && (
             <div className="grid grid-cols-3 gap-4 mt-4">
-              <div className="bg-card border border-border rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-foreground">{((analytics.opened / analytics.sent) * 100).toFixed(1)}%</p>
+              <div className="bg-card border border-border rounded-lg p-4 text-center">
+                <p className="text-2xl font-semibold text-foreground">{((analytics.opened / analytics.sent) * 100).toFixed(1)}%</p>
                 <p className="text-xs text-muted-foreground">Open Rate</p>
               </div>
-              <div className="bg-card border border-border rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-foreground">{((analytics.clicked / analytics.sent) * 100).toFixed(1)}%</p>
+              <div className="bg-card border border-border rounded-lg p-4 text-center">
+                <p className="text-2xl font-semibold text-foreground">{((analytics.clicked / analytics.sent) * 100).toFixed(1)}%</p>
                 <p className="text-xs text-muted-foreground">Click Rate</p>
               </div>
-              <div className="bg-card border border-border rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-foreground">{((analytics.bounced / analytics.sent) * 100).toFixed(1)}%</p>
+              <div className="bg-card border border-border rounded-lg p-4 text-center">
+                <p className="text-2xl font-semibold text-foreground">{((analytics.bounced / analytics.sent) * 100).toFixed(1)}%</p>
                 <p className="text-xs text-muted-foreground">Bounce Rate</p>
               </div>
             </div>
@@ -194,7 +194,7 @@ export default function CampaignDetailPage() {
         </h3>
         {audience.length > 0 ? (
           <>
-            <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="bg-card border border-border rounded-lg overflow-hidden">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
@@ -206,7 +206,7 @@ export default function CampaignDetailPage() {
                 </thead>
                 <tbody>
                   {audience.map((a) => (
-                    <tr key={a.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                    <tr key={a.id} className="border-b border-border last:border-0 hover:bg-canvas-soft">
                       <td className="px-4 py-3">
                         <p className="text-sm text-foreground font-medium">{a.member?.full_name ?? "Unknown"}</p>
                         <p className="text-xs text-muted-foreground">{a.member?.email ?? a.member?.phone ?? ""}</p>
@@ -239,7 +239,7 @@ export default function CampaignDetailPage() {
             )}
           </>
         ) : (
-          <div className="bg-card border border-border rounded-xl p-8 text-center text-muted-foreground text-sm">
+          <div className="bg-card border border-border rounded-lg p-8 text-center text-muted-foreground text-sm">
             {c.status === "draft" ? "Audience will be built when campaign is sent." : "No audience data available."}
           </div>
         )}

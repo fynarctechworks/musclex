@@ -45,14 +45,14 @@ function Stat({ label, value, icon: Icon, delta_pct, invertDelta, hint }: StatPr
   return (
     <div className="rounded-lg border border-border bg-background p-4">
       <div className="flex items-start justify-between mb-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-canvas-soft-2">
           <Icon className="h-4 w-4 text-primary" />
         </div>
         {delta_pct !== 0 && (
           <span
             className={cn(
               "inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium",
-              isPositive && "bg-primary/10 text-primary",
+              isPositive && "bg-canvas-soft-2 text-primary",
               isNegative && "bg-destructive/10 text-destructive",
               !isPositive && !isNegative && "bg-muted text-muted-foreground",
             )}
@@ -101,7 +101,7 @@ export function RevenueSummaryTile({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border bg-card p-5",
+        "rounded-lg border border-border bg-card p-5",
         className,
       )}
     >

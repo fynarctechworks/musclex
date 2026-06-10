@@ -1,4 +1,5 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventStoreService } from '../events/event-store.service';
 import { getTenantGymId } from '../common/tenant-context';
@@ -147,9 +148,26 @@ export class BranchProvisioningService {
       });
 
       for (const plan of sourcePlans) {
-        const { id, created_at, updated_at, ...planData } = plan;
+        const {
+          id,
+          created_at,
+          updated_at,
+          allowed_hours_json,
+          feature_flags,
+          branch_price_overrides,
+          ...planData
+        } = plan;
         await tx.membershipPlan.create({
-          data: { ...planData, branch_id: branchId, gym_id: gymId },
+          data: {
+            ...planData,
+            branch_id: branchId,
+            gym_id: gymId,
+            // Prisma's create input rejects raw `null` for Json columns —
+            // use Prisma.JsonNull (nullable) or {} (non-nullable with default).
+            allowed_hours_json: allowed_hours_json ?? Prisma.JsonNull,
+            feature_flags: (feature_flags as Prisma.InputJsonValue) ?? {},
+            branch_price_overrides: (branch_price_overrides as Prisma.InputJsonValue) ?? {},
+          },
         });
       }
 

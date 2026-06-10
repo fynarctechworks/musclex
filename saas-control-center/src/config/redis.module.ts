@@ -21,8 +21,22 @@ class InMemoryRedis {
     return entry.value;
   }
 
-  async set(key: string, value: string): Promise<'OK'> {
-    this.store.set(key, { value });
+  async set(key: string, value: string, ...args: unknown[]): Promise<'OK' | null> {
+    // Parse optional flags: 'EX' <seconds>, 'PX' <ms>, 'NX', 'XX'
+    let expiry: number | undefined;
+    let nx = false;
+    let xx = false;
+    for (let i = 0; i < args.length; i++) {
+      const flag = String(args[i]).toUpperCase();
+      if (flag === 'EX') { expiry = Date.now() + Number(args[++i]) * 1000; }
+      else if (flag === 'PX') { expiry = Date.now() + Number(args[++i]); }
+      else if (flag === 'NX') { nx = true; }
+      else if (flag === 'XX') { xx = true; }
+    }
+    const existing = await this.get(key);
+    if (nx && existing !== null) return null;
+    if (xx && existing === null) return null;
+    this.store.set(key, { value, expiry });
     return 'OK';
   }
 

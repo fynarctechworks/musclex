@@ -1,7 +1,13 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MeiliSearch, Index } from 'meilisearch';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
 
 export interface SearchResult {
   entity: string;
@@ -73,35 +79,35 @@ export class SearchService implements OnModuleInit {
         uid: SEARCH_INDEXES.MEMBERS,
         primaryKey: 'id',
         searchableAttributes: ['full_name', 'email', 'phone', 'member_code'],
-        filterableAttributes: ['branch_id', 'status'],
+        filterableAttributes: ['gym_id', 'branch_id', 'status'],
         sortableAttributes: ['created_at', 'full_name'],
       },
       {
         uid: SEARCH_INDEXES.STAFF,
         primaryKey: 'id',
         searchableAttributes: ['full_name', 'email', 'phone', 'employee_code'],
-        filterableAttributes: ['branch_id', 'role', 'status'],
+        filterableAttributes: ['gym_id', 'branch_id', 'role', 'status'],
         sortableAttributes: ['created_at', 'full_name'],
       },
       {
         uid: SEARCH_INDEXES.LEADS,
         primaryKey: 'id',
         searchableAttributes: ['full_name', 'email', 'phone', 'notes'],
-        filterableAttributes: ['status', 'lead_source', 'assigned_staff_id'],
+        filterableAttributes: ['gym_id', 'status', 'lead_source', 'assigned_staff_id'],
         sortableAttributes: ['created_at', 'full_name'],
       },
       {
         uid: SEARCH_INDEXES.PAYMENTS,
         primaryKey: 'id',
         searchableAttributes: ['receipt_number', 'notes'],
-        filterableAttributes: ['member_id', 'branch_id', 'payment_method', 'status'],
+        filterableAttributes: ['gym_id', 'member_id', 'branch_id', 'payment_method', 'status'],
         sortableAttributes: ['payment_date', 'amount'],
       },
       {
         uid: SEARCH_INDEXES.CLASSES,
         primaryKey: 'id',
         searchableAttributes: ['name', 'description', 'class_type'],
-        filterableAttributes: ['branch_id', 'status', 'trainer_id'],
+        filterableAttributes: ['gym_id', 'branch_id', 'status', 'trainer_id'],
         sortableAttributes: ['created_at', 'name'],
       },
     ];
@@ -146,7 +152,18 @@ export class SearchService implements OnModuleInit {
     branchId: string | undefined,
     startTime: number,
   ): Promise<GlobalSearchResponse> {
-    const filter = branchId ? `branch_id = "${branchId}"` : undefined;
+    // Tenant isolation: gym_id comes from the trusted server-side context,
+    // NEVER from a client-supplied parameter. Without it, Meilisearch
+    // would return matches from every gym in the shared index.
+    const gymId = getTenantGymId();
+    if (!gymId) {
+      throw new ForbiddenException(
+        'Search requires an authenticated tenant (gym) context',
+      );
+    }
+    const filterParts = [`gym_id = "${gymId}"`];
+    if (branchId) filterParts.push(`branch_id = "${branchId}"`);
+    const filter = filterParts.join(' AND ');
     const perEntityLimit = Math.ceil(limit / entities.length);
 
     const queries = entities.map((entity) => ({
@@ -301,6 +318,14 @@ export class SearchService implements OnModuleInit {
 
   async indexDocument(indexName: string, document: Record<string, unknown>): Promise<void> {
     if (!this.client || !this.initialized) return;
+    // Tenant isolation: every indexed doc MUST carry its gym_id, otherwise
+    // it's invisible to the gym_id query filter and will leak to others.
+    if (!document.gym_id) {
+      this.logger.error(
+        `Refusing to index document in ${indexName} without gym_id — tenant isolation would be broken`,
+      );
+      return;
+    }
     try {
       await this.client.index(indexName).addDocuments([document]);
     } catch (error: unknown) {
@@ -329,7 +354,7 @@ export class SearchService implements OnModuleInit {
       case SEARCH_INDEXES.MEMBERS: {
         const members = await this.prisma.member.findMany({
           select: {
-            id: true, full_name: true,
+            id: true, gym_id: true, full_name: true,
             email: true, phone: true, status: true,
             branch_id: true, member_code: true, created_at: true,
           },
@@ -341,7 +366,7 @@ export class SearchService implements OnModuleInit {
       case SEARCH_INDEXES.STAFF: {
         const staff = await this.prisma.staff.findMany({
           select: {
-            id: true, full_name: true,
+            id: true, gym_id: true, full_name: true,
             email: true, phone: true, role: true,
             branch_id: true, status: true, created_at: true,
           },
@@ -353,7 +378,7 @@ export class SearchService implements OnModuleInit {
       case SEARCH_INDEXES.LEADS: {
         const leads = await this.prisma.lead.findMany({
           select: {
-            id: true, full_name: true, email: true, phone: true,
+            id: true, gym_id: true, full_name: true, email: true, phone: true,
             status: true, lead_source: true, created_at: true,
           },
         });

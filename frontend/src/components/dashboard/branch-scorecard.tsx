@@ -38,9 +38,9 @@ export function BranchScorecard({
   const card = (
     <div
       className={cn(
-        "rounded-xl border bg-card p-5 transition-colors",
+        "rounded-lg border bg-card p-5 transition-colors",
         data.outliers.length > 0
-          ? "border-amber-500/40"
+          ? "border-warning/30"
           : "border-border hover:border-primary/40",
         href && "cursor-pointer",
         className,
@@ -50,7 +50,7 @@ export function BranchScorecard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             {rank !== undefined && (
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-canvas-soft-2 text-[11px] font-semibold text-primary">
                 {rank}
               </span>
             )}
@@ -64,7 +64,7 @@ export function BranchScorecard({
         </div>
         {data.outliers.length > 0 && (
           <span
-            className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-500"
+            className="inline-flex items-center gap-1 rounded-md bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning"
             title={data.outliers.join(" · ")}
           >
             <AlertTriangle className="h-3 w-3" />
@@ -123,7 +123,7 @@ export function BranchScorecard({
       {data.outliers.length > 0 && (
         <ul className="mt-3 space-y-1">
           {data.outliers.map((o, i) => (
-            <li key={i} className="text-[11px] text-amber-500">
+            <li key={i} className="text-[11px] text-warning">
               · {o}
             </li>
           ))}
@@ -214,7 +214,7 @@ function PerCapita({
       <p
         className={cn(
           "text-[12px] font-semibold tabular-nums",
-          warn ? "text-amber-500" : "text-foreground",
+          warn ? "text-warning" : "text-foreground",
         )}
       >
         {value}

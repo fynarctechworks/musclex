@@ -185,9 +185,9 @@ const Tex = React.forwardRef<
 
 function SectionCard({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl bg-card border border-border p-6 space-y-4 shadow-sm">
+    <div className="rounded-lg bg-card border border-border p-6 space-y-4 shadow-level-2">
       <div className="flex items-center gap-2.5 pb-3 border-b border-border">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/10">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-canvas-soft-2">
           <Icon className="w-4 h-4 text-primary" />
         </div>
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
@@ -348,7 +348,7 @@ export default function StudioProfilePage() {
           <ChevronRight className="w-4 h-4 rotate-180" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2.5">
+          <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2.5">
             <Building2 className="w-7 h-7 text-primary" />
             Studio Profile
           </h1>
@@ -372,7 +372,7 @@ export default function StudioProfilePage() {
             {/* Logo upload */}
             <div className="flex items-center gap-5">
               <div
-                className="relative w-20 h-20 rounded-2xl overflow-hidden cursor-pointer group shrink-0 border-2 border-dashed border-border hover:border-primary/50 transition-colors"
+                className="relative w-20 h-20 rounded-lg overflow-hidden cursor-pointer group shrink-0 border-2 border-dashed border-border hover:border-primary/50 transition-colors"
                 onClick={() => logoInputRef.current?.click()}
               >
                 {logoPreview ? (
@@ -530,7 +530,7 @@ export default function StudioProfilePage() {
             <button
               type="submit"
               disabled={mutation.isPending}
-              className="inline-flex items-center gap-2 rounded-xl px-7 py-3 text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-50 shadow-sm"
+              className="inline-flex items-center gap-2 rounded-lg px-7 py-3 text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-50 shadow-level-2"
             >
               {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               {mutation.isPending ? "Saving..." : "Save Changes"}

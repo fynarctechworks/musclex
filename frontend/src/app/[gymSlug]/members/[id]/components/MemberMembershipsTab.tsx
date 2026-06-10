@@ -40,9 +40,9 @@ export function MemberMembershipsTab({ member }: MemberMembershipsTabProps) {
     <div className="space-y-4">
       {/* Expiring Soon Alert */}
       {isExpiringSoon && activeMembership && (
-        <div className="flex items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3">
-          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
-          <p className="text-sm text-amber-500">
+        <div className="flex items-center gap-3 rounded-lg border border-warning/30 bg-warning/5 px-4 py-3">
+          <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
+          <p className="text-sm text-warning">
             Membership expires in {expiringDays} day{expiringDays !== 1 ? "s" : ""}
           </p>
           <Button

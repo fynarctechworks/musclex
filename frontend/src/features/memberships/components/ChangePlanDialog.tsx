@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { useChangePlan, useMembershipPlans } from '../hooks';
 import type { MemberMembership } from '@/types';
+import { resolvePlanPrice } from '@/lib/plan-pricing';
 
 interface ChangePlanDialogProps {
   memberId: string;
@@ -43,7 +44,12 @@ export function ChangePlanDialog({
 
   const currentPlan = currentMembership?.plan;
   const selectedPlan = plans?.find((p) => p.id === selectedPlanId);
-  const isUpgrade = selectedPlan && currentPlan ? selectedPlan.price > currentPlan.price : false;
+  // Branch-aware pricing — compare what the member would actually be charged
+  // at the same branch, not the base list price.
+  const branchId = currentMembership?.branch_id ?? null;
+  const currentPrice = currentPlan ? resolvePlanPrice(currentPlan, branchId) : 0;
+  const selectedPrice = selectedPlan ? resolvePlanPrice(selectedPlan, branchId) : 0;
+  const isUpgrade = selectedPlan && currentPlan ? selectedPrice > currentPrice : false;
 
   const handleSubmit = () => {
     if (!selectedPlanId) return;
@@ -76,11 +82,11 @@ export function ChangePlanDialog({
         <div className="space-y-4 py-2">
           {/* Current Plan */}
           {currentPlan && (
-            <div className="rounded-lg border border-border bg-muted/50 p-3">
+            <div className="rounded-lg border border-border bg-canvas-soft p-3">
               <p className="text-xs text-muted-foreground mb-1">Current Plan</p>
               <p className="text-sm font-medium text-foreground">{currentPlan.name}</p>
               <p className="text-xs text-muted-foreground">
-                ₹{currentPlan.price.toLocaleString()} / {currentPlan.duration_days} days
+                ₹{currentPrice.toLocaleString()} / {currentPlan.duration_days} days
               </p>
             </div>
           )}
@@ -95,22 +101,26 @@ export function ChangePlanDialog({
               <SelectContent className="bg-card border-border">
                 {(plans ?? [])
                   .filter((p) => p.id !== currentPlan?.id)
-                  .map((plan) => (
-                    <SelectItem
-                      key={plan.id}
-                      value={plan.id}
-                      className="text-foreground focus:bg-muted"
-                    >
-                      <div className="flex items-center gap-2">
-                        {currentPlan && plan.price > currentPlan.price ? (
-                          <ArrowUpRight className="h-3 w-3 text-success" />
-                        ) : (
-                          <ArrowDownRight className="h-3 w-3 text-amber-500" />
-                        )}
-                        {plan.name} — ₹{plan.price.toLocaleString()}
-                      </div>
-                    </SelectItem>
-                  ))}
+                  .map((plan) => {
+                    const branchPrice = resolvePlanPrice(plan, branchId);
+                    const isUp = currentPlan ? branchPrice > currentPrice : false;
+                    return (
+                      <SelectItem
+                        key={plan.id}
+                        value={plan.id}
+                        className="text-foreground focus:bg-muted"
+                      >
+                        <div className="flex items-center gap-2">
+                          {isUp ? (
+                            <ArrowUpRight className="h-3 w-3 text-success" />
+                          ) : (
+                            <ArrowDownRight className="h-3 w-3 text-warning" />
+                          )}
+                          {plan.name} — ₹{branchPrice.toLocaleString()}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
               </SelectContent>
             </Select>
           </div>
@@ -121,18 +131,18 @@ export function ChangePlanDialog({
               className={`rounded-lg border p-3 ${
                 isUpgrade
                   ? 'border-success/30 bg-success/10'
-                  : 'border-amber-500/30 bg-amber-500/10'
+                  : 'border-warning/30 bg-warning/10'
               }`}
             >
               <div className="flex items-center gap-2">
                 {isUpgrade ? (
                   <ArrowUpRight className="h-4 w-4 text-success" />
                 ) : (
-                  <ArrowDownRight className="h-4 w-4 text-amber-500" />
+                  <ArrowDownRight className="h-4 w-4 text-warning" />
                 )}
                 <span className="text-sm font-medium text-foreground">
                   {isUpgrade ? 'Upgrade' : 'Downgrade'}:{' '}
-                  ₹{Math.abs(selectedPlan.price - currentPlan.price).toLocaleString()}{' '}
+                  ₹{Math.abs(selectedPrice - currentPrice).toLocaleString()}{' '}
                   {isUpgrade ? 'more' : 'less'} per cycle
                 </span>
               </div>

@@ -94,7 +94,7 @@ export default function ClassSessionsPage() {
       {isLoading ? (
         <TableSkeleton rows={6} />
       ) : sessions.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card">
+        <div className="rounded-lg border border-border bg-card">
           <EmptyState
             icon={CalendarClock}
             title="No sessions found"
@@ -102,9 +102,9 @@ export default function ClassSessionsPage() {
           />
         </div>
       ) : (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
           <table className="w-full text-[13px]">
-            <thead className="bg-muted/40">
+            <thead className="bg-canvas-soft">
               <tr className="text-left text-muted-foreground">
                 <th className="px-4 py-2.5 font-medium">Session</th>
                 <th className="px-4 py-2.5 font-medium">Trainer</th>
@@ -117,7 +117,7 @@ export default function ClassSessionsPage() {
               {sessions.map((s) => (
                 <tr
                   key={s.id}
-                  className="border-t border-border hover:bg-muted/30 transition-colors cursor-pointer"
+                  className="border-t border-border hover:bg-canvas-soft transition-colors cursor-pointer"
                   onClick={() => {
                     window.location.href = gymPath(`/classes/sessions/${s.id}`);
                   }}

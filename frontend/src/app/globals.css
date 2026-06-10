@@ -2,137 +2,312 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * MuscleX — Design.md (Vercel/Geist) Design System
+ *
+ * Single source of truth for tokens. Every UI primitive is built on these
+ * variables, so any future page automatically inherits the system.
+ *
+ * Palette principle: ink (#171717) on canvas (#fff) with a 4-step gray ladder
+ * (canvas / canvas-soft / canvas-soft-2 / hairline). Polarity-flip dark band
+ * uses --ink as background. Only decorative chrome is the brand mesh gradient.
+ */
+
 @layer base {
   :root {
-    /*
-     * MuscleX — Supabase-Inspired Design System
-     * Clean, minimal, white-first. Primary buttons: #141413 (near-black).
-     * Supabase pattern: dark CTAs on light backgrounds.
-     */
-    --background: 0 0% 99%;            /* #FCFCFC — subtle off-white */
-    --foreground: 60 3% 8%;            /* #141413 — warm near-black text */
-    --card: 0 0% 100%;                 /* #FFFFFF — pure white cards */
-    --card-foreground: 60 3% 8%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 60 3% 8%;
-    --primary: 60 3% 8%;               /* #141413 — dark primary buttons */
-    --primary-foreground: 0 0% 100%;   /* white text on dark buttons */
-    --secondary: 0 0% 96%;             /* #F5F5F5 — neutral surface */
-    --secondary-foreground: 60 3% 8%;
-    --muted: 0 0% 96%;                 /* same as secondary */
-    --muted-foreground: 0 0% 45%;      /* #737373 — deemphasized text */
-    --accent: 0 0% 96%;
-    --accent-foreground: 60 3% 8%;
-    --destructive: 0 72% 51%;          /* #E5484D — Radix red */
-    --destructive-foreground: 0 0% 100%;
-    --success: 153 60% 53%;            /* #3ECF8E — green for success states */
-    --warning: 40 96% 53%;             /* #F5A623 — warm amber */
-    --border: 0 0% 90%;                /* #E5E5E5 — subtle dividers */
-    --input: 0 0% 90%;
-    --ring: 60 3% 8%;                  /* matches primary for focus rings */
-    --radius: 0.5rem;
+    /* ── Design.md raw tokens (HSL channels for shadcn interop) ───────── */
+    --ink: 0 0% 9%;                /* #171717 */
+    --canvas: 0 0% 100%;           /* #ffffff */
+    --canvas-soft: 0 0% 98%;       /* #fafafa */
+    --canvas-soft-2: 0 0% 96%;     /* #f5f5f5 */
+    --hairline: 0 0% 92%;          /* #ebebeb */
+    --hairline-strong: 0 0% 63%;   /* #a1a1a1 */
+    --body-ink: 0 0% 30%;          /* #4d4d4d */
+    --mute: 0 0% 53%;              /* #888888 */
+    --on-primary: 0 0% 100%;
 
-    /* Sidebar — clean white */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 60 3% 8%;
-    --sidebar-primary: 60 3% 8%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 96%;
-    --sidebar-accent-foreground: 60 3% 8%;
-    --sidebar-border: 0 0% 92%;
-    --sidebar-ring: 60 3% 8%;
+    /* Links/accents use the primary ink, not blue — keeps the palette
+     * monochrome. Default = ink (#171717), hover/badge-text = body-ink
+     * (#4d4d4d), soft background = neutral canvas-soft-2 (#f5f5f5). These
+     * reference the ink ladder so they polarity-flip in dark mode. */
+    --link: var(--ink);            /* #171717 */
+    --link-deep: var(--body-ink);  /* #4d4d4d */
+    --link-bg-soft: var(--canvas-soft-2); /* #f5f5f5 */
 
-    /* Charts — accessible 5-color scheme */
-    --chart-1: 199 89% 48%;            /* blue */
-    --chart-2: 153 60% 53%;            /* green */
-    --chart-3: 40 96% 53%;             /* amber */
-    --chart-4: 0 72% 51%;              /* red */
-    --chart-5: 262 83% 58%;            /* purple */
+    --error: 0 100% 47%;           /* #ee0000 */
+    --error-soft: 357 67% 90%;     /* #f7d4d6 */
+    --error-deep: 0 100% 39%;      /* #c50000 */
+
+    --warning: 32 91% 55%;         /* #f5a623 */
+    --warning-soft: 38 100% 91%;   /* #ffefcf */
+    --warning-deep: 28 88% 35%;    /* #ab570a */
+
+    --success-ink: 153 60% 45%;    /* in-product success (membership active, etc.) */
+
+    /* Brand mesh gradient stops */
+    --grad-develop-start: 205 100% 47%;   /* #007cf0 */
+    --grad-develop-end:   179 100% 44%;   /* #00dfd8 */
+    --grad-preview-start: 274 67% 47%;    /* #7928ca */
+    --grad-preview-end:   325 100% 50%;   /* #ff0080 */
+    --grad-ship-start:    0 100% 65%;     /* #ff4d4d */
+    --grad-ship-end:      45 95% 57%;     /* #f9cb28 */
+
+    /* ── shadcn semantic mapping (drives existing class graph) ────────── */
+    --background: var(--canvas-soft);
+    --foreground: var(--ink);
+    --card: var(--canvas);
+    --card-foreground: var(--ink);
+    --popover: var(--canvas);
+    --popover-foreground: var(--ink);
+    --primary: var(--ink);
+    --primary-foreground: var(--on-primary);
+    --secondary: var(--canvas-soft-2);
+    --secondary-foreground: var(--ink);
+    --muted: var(--canvas-soft-2);
+    --muted-foreground: var(--mute);
+    --accent: var(--canvas-soft-2);
+    --accent-foreground: var(--ink);
+    --destructive: var(--error);
+    --destructive-foreground: var(--on-primary);
+    --success: var(--success-ink);
+    --warning: var(--warning);
+    --border: var(--hairline);
+    --input: var(--hairline);
+    --ring: var(--ink);
+    --radius: 0.5rem;              /* 8px — Design.md marketing radius */
+
+    /* Sidebar — pure canvas to match nav-bar */
+    --sidebar-background: var(--canvas);
+    --sidebar-foreground: var(--ink);
+    --sidebar-primary: var(--ink);
+    --sidebar-primary-foreground: var(--on-primary);
+    --sidebar-accent: var(--canvas-soft);
+    --sidebar-accent-foreground: var(--ink);
+    --sidebar-border: var(--hairline);
+    --sidebar-ring: var(--ink);
+
+    /* ── Motion language ───────────────────────────────────────────
+     * Single source of truth for transition timing.
+     * Enterprise-grade calmness: fast (hover/focus), medium (dropdowns +
+     * menus), slow (modals + page-level). Easing is the brand's natural
+     * out-curve — never bouncy. */
+    --motion-fast: 120ms;
+    --motion-medium: 180ms;
+    --motion-slow: 240ms;
+    --motion-page: 320ms;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);          /* "natural" out */
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);        /* shadcn standard */
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);   /* reserved — sparingly */
+
+    /* Charts — kept saturated for data clarity */
+    --chart-1: 212 100% 47%;       /* link blue */
+    --chart-2: 153 60% 45%;        /* green */
+    --chart-3: 32 91% 55%;         /* amber */
+    --chart-4: 0 100% 47%;         /* red */
+    --chart-5: 274 67% 47%;        /* violet */
   }
 
   .dark {
-    /*
-     * MuscleX — Dark Theme
-     * True dark, Supabase Studio dark palette.
-     * Primary inverts to light for dark backgrounds.
-     */
-    --background: 0 0% 7%;             /* #111111 */
-    --foreground: 0 0% 95%;            /* #F2F2F2 */
-    --card: 0 0% 10%;                  /* #1A1A1A */
-    --card-foreground: 0 0% 95%;
-    --popover: 0 0% 10%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 0 0% 98%;               /* #FAFAFA — light primary in dark mode */
-    --primary-foreground: 60 3% 8%;    /* #141413 — dark text on light buttons */
-    --secondary: 0 0% 13%;             /* #222222 */
-    --secondary-foreground: 0 0% 95%;
-    --muted: 0 0% 13%;
-    --muted-foreground: 0 0% 55%;      /* #8C8C8C */
-    --accent: 0 0% 13%;
-    --accent-foreground: 0 0% 95%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --success: 153 60% 53%;
-    --warning: 40 96% 53%;
-    --border: 0 0% 17%;                /* #2C2C2C — subtle dark borders */
-    --input: 0 0% 13%;
-    --ring: 0 0% 98%;
+    /* Polarity-flipped: ink becomes canvas, canvas becomes ink */
+    --ink: 0 0% 96%;
+    --canvas: 0 0% 7%;             /* #121212 */
+    --canvas-soft: 0 0% 5%;        /* page body in dark */
+    --canvas-soft-2: 0 0% 11%;
+    --hairline: 0 0% 17%;
+    --hairline-strong: 0 0% 38%;
+    --body-ink: 0 0% 73%;
+    --mute: 0 0% 53%;
+    --on-primary: 0 0% 9%;
 
-    --sidebar-background: 0 0% 7%;
-    --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 0 0% 98%;
-    --sidebar-primary-foreground: 60 3% 8%;
-    --sidebar-accent: 0 0% 13%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 0 0% 17%;
-    --sidebar-ring: 0 0% 98%;
+    --background: var(--canvas-soft);
+    --foreground: var(--ink);
+    --card: var(--canvas);
+    --card-foreground: var(--ink);
+    --popover: var(--canvas);
+    --popover-foreground: var(--ink);
+    --primary: var(--ink);
+    --primary-foreground: var(--on-primary);
+    --secondary: var(--canvas-soft-2);
+    --secondary-foreground: var(--ink);
+    --muted: var(--canvas-soft-2);
+    --muted-foreground: var(--mute);
+    --accent: var(--canvas-soft-2);
+    --accent-foreground: var(--ink);
+    --border: var(--hairline);
+    --input: var(--hairline);
+    --ring: var(--ink);
 
-    --chart-1: 199 89% 48%;
-    --chart-2: 153 60% 53%;
-    --chart-3: 40 96% 53%;
-    --chart-4: 0 72% 51%;
-    --chart-5: 262 83% 58%;
+    --sidebar-background: var(--canvas);
+    --sidebar-foreground: var(--ink);
+    --sidebar-primary: var(--ink);
+    --sidebar-primary-foreground: var(--on-primary);
+    --sidebar-accent: var(--canvas-soft-2);
+    --sidebar-accent-foreground: var(--ink);
+    --sidebar-border: var(--hairline);
+    --sidebar-ring: var(--ink);
   }
 
   * {
     @apply border-border;
   }
 
+  html {
+    /* Geist substitute per Design.md: Inter with geometric stylistic sets */
+    font-feature-settings: "ss01", "ss02", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    font-size: 16px;
+    line-height: 24px;
   }
 
-  /* Smooth transitions for theme switching — Doherty Threshold */
-  * {
-    transition-property: color, background-color, border-color;
-    transition-timing-function: ease;
-    transition-duration: 75ms;
-  }
+  /* Headings inherit Design.md display ladder by default */
+  h1 { letter-spacing: -0.05em; font-weight: 600; }
+  h2 { letter-spacing: -0.04em; font-weight: 600; }
+  h3 { letter-spacing: -0.03em; font-weight: 600; }
+  h4 { letter-spacing: -0.02em; font-weight: 600; }
 
-  /* Disable transitions on page load to prevent flash */
-  html.no-transitions * {
-    transition: none !important;
-  }
+  /* Theme-switch transition (subtle) */
+  html.no-transitions * { transition: none !important; }
 
-  /* Focus-visible for keyboard accessibility (WCAG 2.1) */
   :focus-visible {
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
   }
 
-  /* Scrollbar — minimal & unobtrusive */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
+  /* Minimal scrollbar — hairline thumb. Slimmer on overlays. */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: hsl(var(--border));
-    border-radius: 3px;
+    background: hsl(var(--hairline));
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.3);
+    background: hsl(var(--hairline-strong) / 0.6);
+    background-clip: padding-box;
+    border: 2px solid transparent;
   }
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--hairline)) transparent;
+  }
+
+  /* Respect user's reduced-motion preference globally. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Loading shimmer — used by Skeleton + skeleton-like loaders.
+   * Sweeps a gradient highlight across canvas-soft-2 surfaces for
+   * "perceived progress" without flashing the whole element. */
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .shimmer {
+    background-image: linear-gradient(
+      90deg,
+      hsl(var(--canvas-soft-2)) 0%,
+      hsl(var(--canvas-soft)) 20%,
+      hsl(var(--canvas-soft-2)) 40%,
+      hsl(var(--canvas-soft-2)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+
+  /* 3D cube spinner — used by <Spinner /> widget.
+   * Six border-only faces rotated into a cube, spun on a 2s loop.
+   * Sized via CSS var --spinner-size on the root .spinner element. */
+  @keyframes spinner-cube {
+    0%   { transform: rotate(45deg) rotateX(-25deg) rotateY(25deg); }
+    50%  { transform: rotate(45deg) rotateX(-385deg) rotateY(25deg); }
+    100% { transform: rotate(45deg) rotateX(-385deg) rotateY(385deg); }
+  }
+  .spinner-cube {
+    width: var(--spinner-size, 44px);
+    height: var(--spinner-size, 44px);
+    animation: spinner-cube 2s infinite ease;
+    transform-style: preserve-3d;
+  }
+  .spinner-cube > div {
+    background-color: hsl(var(--foreground) / 0.15);
+    height: 100%;
+    position: absolute;
+    width: 100%;
+    border: 2px solid hsl(var(--foreground));
+  }
+  .spinner-cube > div:nth-of-type(1) { transform: translateZ(calc(var(--spinner-size, 44px) / -2)) rotateY(180deg); }
+  .spinner-cube > div:nth-of-type(2) { transform: rotateY(-270deg) translateX(50%); transform-origin: top right; }
+  .spinner-cube > div:nth-of-type(3) { transform: rotateY(270deg) translateX(-50%); transform-origin: center left; }
+  .spinner-cube > div:nth-of-type(4) { transform: rotateX(90deg) translateY(-50%); transform-origin: top center; }
+  .spinner-cube > div:nth-of-type(5) { transform: rotateX(-90deg) translateY(50%); transform-origin: bottom center; }
+  .spinner-cube > div:nth-of-type(6) { transform: translateZ(calc(var(--spinner-size, 44px) / 2)); }
+
+  /* Sticky table header utility — meant for DataTable inside scroll areas.
+   * Caller wraps the table in `overflow-auto` and adds `sticky-thead` to the
+   * <thead>. */
+  .sticky-thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: hsl(var(--canvas-soft));
+    box-shadow: inset 0 -1px 0 hsl(var(--hairline));
+  }
+
+  /* Focus ring helper — apply to non-form interactive elements that need
+   * a Design.md-aligned visible focus indicator. */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /*
+   * Brand mesh gradient — the only decorative chrome.
+   * Apply as an atmospheric backdrop at hero scale only (never miniaturised,
+   * never a flat fill, never re-ordered).
+   */
+  .bg-mesh-brand {
+    background:#000000;
+  }
+
+  /* Polarity-flipped dark band — the brand's primary depth cue. */
+  .surface-ink {
+    background-color: hsl(var(--ink));
+    color: hsl(var(--on-primary));
+  }
+  .surface-canvas { background-color: hsl(var(--canvas)); }
+  .surface-canvas-soft { background-color: hsl(var(--canvas-soft)); }
+  .surface-canvas-soft-2 { background-color: hsl(var(--canvas-soft-2)); }
+
+  /* Mono caption — section eyebrows and technical labels. */
+  .text-caption-mono {
+    font-family: var(--font-mono), "JetBrains Mono", ui-monospace, monospace;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: hsl(var(--body-ink));
+  }
+
+  /* Display ladder helpers (use when h1/h2 isn't semantic enough). */
+  .text-display-xl { font-size: 48px; line-height: 48px; font-weight: 600; letter-spacing: -0.05em; }
+  .text-display-lg { font-size: 32px; line-height: 40px; font-weight: 600; letter-spacing: -0.04em; }
+  .text-display-md { font-size: 24px; line-height: 32px; font-weight: 600; letter-spacing: -0.04em; }
+  .text-display-sm { font-size: 20px; line-height: 28px; font-weight: 600; letter-spacing: -0.03em; }
 }

@@ -153,16 +153,16 @@ export default function PortfolioPage() {
       {data && data.rollup.mean_revenue_wow_pct !== null && (
         <div
           className={cn(
-            "mb-6 rounded-xl border px-4 py-3 flex items-center gap-3",
+            "mb-6 rounded-lg border px-4 py-3 flex items-center gap-3",
             data.rollup.mean_revenue_wow_pct >= 0
               ? "border-success/30 bg-success/5"
-              : "border-amber-500/30 bg-amber-500/5",
+              : "border-warning/30 bg-warning/5",
           )}
         >
           {data.rollup.mean_revenue_wow_pct >= 0 ? (
             <ArrowUpRight className="w-5 h-5 text-success" />
           ) : (
-            <ArrowDownRight className="w-5 h-5 text-amber-500" />
+            <ArrowDownRight className="w-5 h-5 text-warning" />
           )}
           <p className="text-[13px] text-foreground">
             Chain revenue is{" "}
@@ -179,7 +179,7 @@ export default function PortfolioPage() {
       {isLoading || !data ? (
         <LoadingSkeleton className="h-64" />
       ) : data.rollup.branch_count === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center">
+        <div className="rounded-lg border border-dashed border-border bg-card p-10 text-center">
           <p className="text-[14px] text-foreground">No branches yet.</p>
           <p className="text-[12px] text-muted-foreground mt-1">
             Add a branch to start comparing performance.
@@ -228,7 +228,7 @@ function ViewToggle({
           className={cn(
             "px-2.5 py-1 transition-colors",
             view === v
-              ? "bg-primary/15 text-primary"
+              ? "bg-canvas-soft-2 text-primary"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -262,7 +262,7 @@ function RankSelect({
           className={cn(
             "px-2.5 py-1 transition-colors",
             value === o.key
-              ? "bg-primary/15 text-primary"
+              ? "bg-canvas-soft-2 text-primary"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -288,14 +288,14 @@ function RollupTile({
     <div
       className={cn(
         "rounded-lg border bg-card px-3 py-2.5",
-        warn ? "border-amber-500/40" : "border-border",
+        warn ? "border-warning/30" : "border-border",
       )}
     >
       <div className="flex items-center gap-2">
         <Icon
           className={cn(
             "w-3.5 h-3.5",
-            warn ? "text-amber-500" : "text-primary",
+            warn ? "text-warning" : "text-primary",
           )}
         />
         <p className="text-[10px] uppercase tracking-wide text-muted-foreground">

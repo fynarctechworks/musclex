@@ -40,8 +40,8 @@ export function FreshnessPill({
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px]",
         stale
-          ? "bg-amber-500/10 text-amber-500"
-          : "bg-muted/40 text-muted-foreground",
+          ? "bg-warning/10 text-warning"
+          : "bg-canvas-soft text-muted-foreground",
         className,
       )}
       title={new Date(ts).toLocaleString()}
@@ -49,7 +49,7 @@ export function FreshnessPill({
       <span
         className={cn(
           "inline-block h-1.5 w-1.5 rounded-full",
-          stale ? "bg-amber-500" : "bg-success animate-pulse",
+          stale ? "bg-warning" : "bg-success animate-pulse",
         )}
       />
       Updated {label}

@@ -145,10 +145,10 @@ export function MessageTemplatesManager({
           {templates.map((t) => {
             const ChannelIcon = channelIcons[t.channel] ?? Mail;
             return (
-              <div key={t.id} className="bg-card border border-border rounded-xl p-5">
+              <div key={t.id} className="bg-card border border-border rounded-lg p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
+                    <div className="p-2 rounded-lg bg-canvas-soft-2">
                       <ChannelIcon className="w-4 h-4 text-primary" />
                     </div>
                     <div>

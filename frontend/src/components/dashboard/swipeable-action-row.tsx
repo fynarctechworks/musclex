@@ -37,7 +37,7 @@ const KIND_ICON: Partial<Record<ActionKind, LucideIcon>> = {
 
 const SEVERITY_BAR: Record<"high" | "medium" | "low", string> = {
   high: "bg-destructive",
-  medium: "bg-amber-500",
+  medium: "bg-warning",
   low: "bg-primary",
 };
 
@@ -115,7 +115,7 @@ export function SwipeableActionRow({ item }: Props) {
     <li
       ref={containerRef}
       className={cn(
-        "relative overflow-hidden rounded-lg transition-[height,margin] duration-200",
+        "relative overflow-hidden rounded-lg transition-[height,margin] duration-fast",
       )}
     >
       {/* Intent backdrop */}
@@ -125,7 +125,7 @@ export function SwipeableActionRow({ item }: Props) {
           intent === "resolve"
             ? "justify-start bg-success/15 text-success"
             : intent === "snooze"
-              ? "justify-end bg-amber-500/15 text-amber-500"
+              ? "justify-end bg-warning/15 text-warning"
               : "bg-transparent",
         )}
         aria-hidden
@@ -150,7 +150,7 @@ export function SwipeableActionRow({ item }: Props) {
         onPointerCancel={onPointerUp}
         className={cn(
           "relative flex items-stretch overflow-hidden rounded-lg border border-border bg-card transition-transform",
-          committed && "transition-transform duration-200 ease-out",
+          committed && "transition-transform duration-fast ease-out",
         )}
         style={{
           transform: `translateX(${dx}px)`,
@@ -159,7 +159,7 @@ export function SwipeableActionRow({ item }: Props) {
       >
         <span className={cn("w-1 shrink-0", severityBar)} aria-hidden />
         <div className="flex flex-1 items-center gap-3 p-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-canvas-soft-2">
             <Icon className="h-4 w-4 text-primary" />
           </div>
           <div className="min-w-0 flex-1">

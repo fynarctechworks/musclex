@@ -259,6 +259,59 @@ async function seedPlans() {
   }
 }
 
+async function seedReferralRules() {
+  const count = await prisma.referralRewardRule.count();
+  if (count > 0) {
+    console.log(`  -> ${count} referral rules already exist, skipping`);
+    return;
+  }
+
+  const rules = [
+    {
+      name: 'Refer a gym → +15 days',
+      description: 'Default reward: any referred gym that subscribes earns the referrer 15 extra subscription days.',
+      trigger_event: 'b2b_subscription_activated',
+      conditions: {},
+      rewards: [{ type: 'extend_subscription', days: 15 }],
+      priority: 0,
+      is_active: true,
+    },
+    {
+      name: 'Annual subscriber → +30 days',
+      description: 'Referred gym subscribing on an annual cycle earns the referrer 30 extra days.',
+      trigger_event: 'b2b_subscription_activated',
+      conditions: { billing_cycles: ['annual'] },
+      rewards: [{ type: 'extend_subscription', days: 30 }],
+      priority: 10,
+      is_active: true,
+    },
+    {
+      name: 'Wallet credit ₹500',
+      description: 'Referred gym subscribes → referrer earns ₹500 referral wallet credit (expires in 180 days).',
+      trigger_event: 'b2b_subscription_activated',
+      conditions: { min_subscription_amount: 1000 },
+      rewards: [{ type: 'wallet_credit', amount: 500, currency: 'INR', expires_in_days: 180 }],
+      priority: 5,
+      is_active: true,
+    },
+  ];
+
+  for (const r of rules) {
+    await prisma.referralRewardRule.create({
+      data: {
+        name: r.name,
+        description: r.description,
+        trigger_event: r.trigger_event,
+        conditions: r.conditions as any,
+        rewards: r.rewards as any,
+        priority: r.priority,
+        is_active: r.is_active,
+      },
+    });
+    console.log(`  -> Created referral rule: ${r.name}`);
+  }
+}
+
 async function cloneTenantSchema(targetSchema: string): Promise<void> {
   const sourceSchema = 'studio_template';
 
@@ -705,6 +758,10 @@ async function main() {
   // Phase 1: Subscription Plans
   console.log('Phase 1: Subscription Plans');
   await seedPlans();
+
+  // Phase 1b: Referral Reward Rules (B2B SaaS-level)
+  console.log('\nPhase 1b: Referral Reward Rules');
+  await seedReferralRules();
 
   // Phase 2: Sample Gyms (4 gyms with different plans/scenarios)
   console.log('\nPhase 2: Sample Gyms');

@@ -6,7 +6,8 @@ import { FormInput, FormSelect, FormTextarea } from "@/components/shared";
 import { LoadingSkeleton, PageHeader, AccessDenied } from "@/components/shared";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
+import { PhoneInput } from "@/components/shared/phone-input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ import {
   AlertCircle,
   BarChart3,
   MessageSquare,
+  Star,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
@@ -157,10 +159,10 @@ function StatusPill({ status }: { status: string }) {
     status === "active"
       ? "bg-success/10 text-success ring-success/20"
       : status === "trial"
-        ? "bg-blue-500/10 text-blue-400 ring-blue-500/20"
+        ? "bg-link/10 text-link ring-link/20"
         : status === "past_due"
-          ? "bg-amber-500/10 text-amber-500 ring-amber-500/20"
-          : "bg-red-500/10 text-red-500 ring-red-500/20";
+          ? "bg-warning/10 text-warning ring-amber-500/20"
+          : "bg-error/10 text-error ring-red-500/20";
   return (
     <span
       className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold capitalize ring-1 ${color}`}
@@ -193,7 +195,7 @@ export default function SettingsPage() {
     queryFn: () => apiClient.get("/settings/studio"),
   });
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<StudioSettingsForm>({
+  const { register, handleSubmit, reset, watch, setValue, control, formState: { errors } } = useForm<StudioSettingsForm>({
     resolver: zodResolver(settingsSchema),
   });
 
@@ -291,9 +293,9 @@ export default function SettingsPage() {
           </div>
         </div>
       ) : accountError ? (
-        <div className="bg-card border border-red-500/20 rounded-xl p-6 mb-8 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
-            <AlertCircle className="w-5 h-5 text-red-500" />
+        <div className="bg-card border border-error/30 rounded-lg p-6 mb-8 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-full bg-error/10 flex items-center justify-center shrink-0">
+            <AlertCircle className="w-5 h-5 text-error" />
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">
@@ -307,7 +309,7 @@ export default function SettingsPage() {
       ) : account ? (
         <div className="space-y-6 mb-8">
           {/* ── Section 1: 50/50 Hero + Navigation ─────────── */}
-          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-black/5">
+          <div className="bg-card border border-border rounded-lg overflow-hidden shadow-black/5">
             <div className="grid grid-cols-1 lg:grid-cols-2">
               {/* Left 50%: Gym Info */}
               <div className="bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-8 flex flex-col justify-between">
@@ -318,15 +320,15 @@ export default function SettingsPage() {
                       alt=""
                       width={72}
                       height={72}
-                      className="w-[72px] h-[72px] rounded-2xl object-cover border-2 border-primary/20"
+                      className="w-[72px] h-[72px] rounded-lg object-cover border-2 border-primary/20"
                     />
                   ) : (
-                    <div className="w-[72px] h-[72px] rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shrink-0 border-2 border-primary/20 shadow-md">
+                    <div className="w-[72px] h-[72px] rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shrink-0 border-2 border-primary/20 shadow-level-3">
                       <Crown className="w-9 h-9 text-primary" />
                     </div>
                   )}
                   <div className="min-w-0">
-                    <h2 className="text-2xl font-bold text-foreground truncate">
+                    <h2 className="text-2xl font-semibold text-foreground truncate">
                       {account.studio.name}
                     </h2>
                     {account.studio.tagline && (
@@ -335,7 +337,7 @@ export default function SettingsPage() {
                       </p>
                     )}
                     <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                      <span className="font-mono bg-muted/50 px-2 py-0.5 rounded">
+                      <span className="font-mono bg-canvas-soft px-2 py-0.5 rounded">
                         ID: {account.studio.id.slice(0, 8).toUpperCase()}
                       </span>
                       <span>&middot;</span>
@@ -345,7 +347,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex items-center gap-3 mt-6">
-                  <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary/10 text-primary text-sm font-bold capitalize ring-1 ring-primary/20">
+                  <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-canvas-soft-2 text-primary text-sm font-semibold capitalize ring-1 ring-primary/20">
                     <Zap className="w-4 h-4" />
                     {account.subscription.plan} Plan
                   </span>
@@ -353,7 +355,7 @@ export default function SettingsPage() {
                   {account.subscription.plan !== "enterprise" && (
                     <Link
                       href={gymPath("/settings/subscription")}
-                      className="inline-flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/20 ml-auto"
+                      className="inline-flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition-all hover:shadow-level-4 hover:shadow-primary/20 ml-auto"
                     >
                       <TrendingUp className="w-4 h-4" />
                       Upgrade
@@ -366,9 +368,9 @@ export default function SettingsPage() {
               <div className="border-t lg:border-t-0 lg:border-l border-border divide-y divide-border">
                 <Link
                   href={gymPath("/settings/subscription")}
-                  className="flex items-center gap-4 px-6 py-5 hover:bg-muted/30 transition-colors group"
+                  className="flex items-center gap-4 px-6 py-5 hover:bg-canvas-soft transition-colors group"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center shrink-0">
                     <CreditCard className="w-5 h-5 text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -382,9 +384,9 @@ export default function SettingsPage() {
 
                 <Link
                   href={gymPath("/settings/profile")}
-                  className="flex items-center gap-4 px-6 py-5 hover:bg-muted/30 transition-colors group"
+                  className="flex items-center gap-4 px-6 py-5 hover:bg-canvas-soft transition-colors group"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center shrink-0">
                     <Phone className="w-5 h-5 text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -398,9 +400,9 @@ export default function SettingsPage() {
 
                 <Link
                   href={gymPath("/branches")}
-                  className="flex items-center gap-4 px-6 py-5 hover:bg-muted/30 transition-colors group"
+                  className="flex items-center gap-4 px-6 py-5 hover:bg-canvas-soft transition-colors group"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center shrink-0">
                     <BarChart3 className="w-5 h-5 text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -423,9 +425,9 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <Link
                 href={gymPath("/settings/plans")}
-                className="group bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
+                className="group bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-level-3 hover:shadow-primary/5 transition-all duration-fast"
               >
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center mb-3 group-hover:bg-canvas-soft-2 transition-colors">
                   <CreditCard className="w-5 h-5 text-primary" />
                 </div>
                 <h4 className="text-sm font-semibold text-foreground mb-1">
@@ -439,9 +441,9 @@ export default function SettingsPage() {
 
               <Link
                 href={gymPath("/settings/integrations")}
-                className="group bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
+                className="group bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-level-3 hover:shadow-primary/5 transition-all duration-fast"
               >
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center mb-3 group-hover:bg-canvas-soft-2 transition-colors">
                   <LinkIcon className="w-5 h-5 text-primary" />
                 </div>
                 <h4 className="text-sm font-semibold text-foreground mb-1">
@@ -455,9 +457,9 @@ export default function SettingsPage() {
 
               <Link
                 href={gymPath("/settings/roles")}
-                className="group bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
+                className="group bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-level-3 hover:shadow-primary/5 transition-all duration-fast"
               >
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center mb-3 group-hover:bg-canvas-soft-2 transition-colors">
                   <Shield className="w-5 h-5 text-primary" />
                 </div>
                 <h4 className="text-sm font-semibold text-foreground mb-1">
@@ -471,9 +473,9 @@ export default function SettingsPage() {
 
               <Link
                 href={gymPath("/settings/permissions")}
-                className="group bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
+                className="group bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-level-3 hover:shadow-primary/5 transition-all duration-fast"
               >
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center mb-3 group-hover:bg-canvas-soft-2 transition-colors">
                   <ShieldCheck className="w-5 h-5 text-primary" />
                 </div>
                 <h4 className="text-sm font-semibold text-foreground mb-1">
@@ -487,9 +489,9 @@ export default function SettingsPage() {
 
               <Link
                 href={gymPath("/settings/security")}
-                className="group bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
+                className="group bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-level-3 hover:shadow-primary/5 transition-all duration-fast"
               >
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center mb-3 group-hover:bg-canvas-soft-2 transition-colors">
                   <ShieldCheck className="w-5 h-5 text-primary" />
                 </div>
                 <h4 className="text-sm font-semibold text-foreground mb-1">
@@ -503,9 +505,9 @@ export default function SettingsPage() {
 
               <Link
                 href={gymPath("/branches")}
-                className="group bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
+                className="group bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-level-3 hover:shadow-primary/5 transition-all duration-fast"
               >
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center mb-3 group-hover:bg-canvas-soft-2 transition-colors">
                   <Building2 className="w-5 h-5 text-primary" />
                 </div>
                 <h4 className="text-sm font-semibold text-foreground mb-1">
@@ -519,9 +521,9 @@ export default function SettingsPage() {
 
               <Link
                 href={gymPath("/settings/invoices")}
-                className="group bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
+                className="group bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-level-3 hover:shadow-primary/5 transition-all duration-fast"
               >
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center mb-3 group-hover:bg-canvas-soft-2 transition-colors">
                   <Receipt className="w-5 h-5 text-primary" />
                 </div>
                 <h4 className="text-sm font-semibold text-foreground mb-1">
@@ -534,10 +536,42 @@ export default function SettingsPage() {
               </Link>
 
               <Link
-                href={gymPath("/settings/templates")}
-                className="group bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
+                href={gymPath("/settings/tax-invoice")}
+                className="group bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-level-3 hover:shadow-primary/5 transition-all duration-fast"
               >
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center mb-3 group-hover:bg-canvas-soft-2 transition-colors">
+                  <Receipt className="w-5 h-5 text-primary" />
+                </div>
+                <h4 className="text-sm font-semibold text-foreground mb-1">
+                  Tax Invoice (GST)
+                </h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Configure GSTIN, place of supply, HSN/SAC and tax-invoice terms
+                </p>
+                <ArrowRight className="w-4 h-4 text-muted-foreground mt-3 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+              </Link>
+
+              <Link
+                href={gymPath("/settings/loyalty")}
+                className="group bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-level-3 hover:shadow-primary/5 transition-all duration-fast"
+              >
+                <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center mb-3 group-hover:bg-canvas-soft-2 transition-colors">
+                  <Star className="w-5 h-5 text-primary" />
+                </div>
+                <h4 className="text-sm font-semibold text-foreground mb-1">
+                  Loyalty Program
+                </h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Configure points earning and redemption for member wallets
+                </p>
+                <ArrowRight className="w-4 h-4 text-muted-foreground mt-3 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+              </Link>
+
+              <Link
+                href={gymPath("/settings/templates")}
+                className="group bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-level-3 hover:shadow-primary/5 transition-all duration-fast"
+              >
+                <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center mb-3 group-hover:bg-canvas-soft-2 transition-colors">
                   <MessageSquare className="w-5 h-5 text-primary" />
                 </div>
                 <h4 className="text-sm font-semibold text-foreground mb-1">
@@ -551,9 +585,9 @@ export default function SettingsPage() {
 
               <Link
                 href={gymPath("/settings/profile")}
-                className="group bg-card border border-border rounded-2xl p-5 hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all duration-200"
+                className="group bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-level-3 hover:shadow-primary/5 transition-all duration-fast"
               >
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
+                <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center mb-3 group-hover:bg-canvas-soft-2 transition-colors">
                   <Building2 className="w-5 h-5 text-primary" />
                 </div>
                 <h4 className="text-sm font-semibold text-foreground mb-1">
@@ -581,7 +615,7 @@ export default function SettingsPage() {
         className="max-w-3xl space-y-6 pb-8"
       >
         {/* Studio Details */}
-        <div className="bg-card border border-border rounded-2xl p-6 space-y-4 shadow-sm shadow-black/5">
+        <div className="bg-card border border-border rounded-lg p-6 space-y-4 shadow-level-2 shadow-black/5">
           <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
             <Settings className="w-4 h-4 text-primary" /> Studio Details
           </h2>
@@ -595,7 +629,18 @@ export default function SettingsPage() {
           <FormInput label="Tagline" {...register("tagline")} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormInput label="Phone" {...register("phone")} />
+            <Controller
+              name="phone"
+              control={control}
+              render={({ field }) => (
+                <PhoneInput
+                  label="Phone"
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  error={errors.phone?.message}
+                />
+              )}
+            />
             <FormInput
               label="Email"
               type="email"
@@ -650,7 +695,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Business Information */}
-        <div className="bg-card border border-border rounded-2xl p-6 space-y-4 shadow-sm shadow-black/5">
+        <div className="bg-card border border-border rounded-lg p-6 space-y-4 shadow-level-2 shadow-black/5">
           <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
             <Briefcase className="w-4 h-4 text-primary" /> Business Information
           </h2>
@@ -669,7 +714,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Billing Information */}
-        <div className="bg-card border border-border rounded-2xl p-6 space-y-4 shadow-sm shadow-black/5">
+        <div className="bg-card border border-border rounded-lg p-6 space-y-4 shadow-level-2 shadow-black/5">
           <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
             <Receipt className="w-4 h-4 text-primary" /> Billing Information
           </h2>
@@ -703,7 +748,7 @@ export default function SettingsPage() {
         <button
           type="submit"
           disabled={mutation.isPending}
-          className="bg-primary text-primary-foreground px-8 py-3 rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/20 disabled:opacity-50 disabled:hover:shadow-none"
+          className="bg-primary text-primary-foreground px-8 py-3 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-all hover:shadow-level-4 hover:shadow-primary/20 disabled:opacity-50 disabled:hover:shadow-none"
         >
           {mutation.isPending ? "Saving..." : "Save Settings"}
         </button>

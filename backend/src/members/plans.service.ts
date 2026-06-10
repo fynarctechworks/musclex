@@ -1,7 +1,56 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { getTenantGymId } from '../common/tenant-context';
 import { DEFAULT_CURRENCY } from '../common/defaults';
+
+interface PlanScopeFields {
+  access_type?: string;
+  tier?: string;
+  allowed_branch_ids?: string[];
+  allowed_city?: string | null;
+  allowed_hours_json?: Record<string, unknown> | null;
+  feature_flags?: Record<string, unknown>;
+  branch_price_overrides?: Record<string, number | string>;
+}
+
+interface PlanCreateInput extends PlanScopeFields {
+  name: string;
+  description?: string;
+  plan_type: string;
+  duration_days?: number | string;
+  total_classes?: number | string;
+  max_classes_per_week?: number | string;
+  max_visits?: number | string;
+  price: number | string;
+  yearly_price?: number | string;
+  currency?: string;
+  branch_id?: string;
+  organization_id?: string;
+  multi_branch_access?: boolean;
+  grace_period_days?: number;
+  auto_renew_enabled?: boolean;
+  is_active?: boolean;
+}
+
+interface PlanUpdateInput extends PlanScopeFields {
+  name?: string;
+  description?: string;
+  plan_type?: string;
+  duration_days?: number | string;
+  total_classes?: number | string;
+  max_classes_per_week?: number | string;
+  max_visits?: number | string;
+  price?: number | string;
+  yearly_price?: number | string;
+  currency?: string;
+  branch_id?: string;
+  organization_id?: string;
+  multi_branch_access?: boolean;
+  grace_period_days?: number;
+  is_active?: boolean;
+  auto_renew_enabled?: boolean;
+}
 
 @Injectable()
 export class PlansService {
@@ -65,24 +114,11 @@ export class PlansService {
     return isNaN(n) ? null : n;
   }
 
-  async create(data: {
-    name: string;
-    description?: string;
-    plan_type: string;
-    duration_days?: number | string;
-    total_classes?: number | string;
-    max_classes_per_week?: number | string;
-    max_visits?: number | string;
-    price: number | string;
-    yearly_price?: number | string;
-    currency?: string;
-    branch_id?: string;
-    organization_id?: string;
-    multi_branch_access?: boolean;
-    grace_period_days?: number;
-    auto_renew_enabled?: boolean;
-    is_active?: boolean;
-  }) {
+  async create(data: PlanCreateInput) {
+    this.validateAccessScope(data);
+
+    const accessType = data.access_type ?? 'single_branch';
+
     const plan = await this.prisma.membershipPlan.create({
       data: {
         gym_id: getTenantGymId()!,
@@ -98,10 +134,29 @@ export class PlansService {
         currency: data.currency || DEFAULT_CURRENCY,
         branch_id: data.branch_id || null,
         organization_id: data.organization_id || null,
-        multi_branch_access: data.multi_branch_access || false,
+        // Legacy boolean — keep in sync with access_type so older code paths
+        // that still read this flag (filters, exports) behave correctly.
+        multi_branch_access:
+          data.multi_branch_access ??
+          (accessType === 'multi_branch' ||
+            accessType === 'all_access' ||
+            accessType === 'city_access'),
         grace_period_days: data.grace_period_days ?? 0,
         auto_renew_enabled: data.auto_renew_enabled || false,
         is_active: data.is_active ?? true,
+        // ── Multi-gym access scope ──
+        access_type: accessType,
+        tier: (data.tier ?? '').trim() || 'standard',
+        allowed_branch_ids:
+          accessType === 'multi_branch' ? (data.allowed_branch_ids ?? []) : [],
+        allowed_city: accessType === 'city_access' ? (data.allowed_city ?? null) : null,
+        allowed_hours_json:
+          accessType === 'time_based' && data.allowed_hours_json
+            ? (data.allowed_hours_json as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
+        feature_flags: (data.feature_flags as Prisma.InputJsonValue) ?? {},
+        branch_price_overrides:
+          (this.sanitizeBranchOverrides(data.branch_price_overrides) as Prisma.InputJsonValue) ?? {},
       },
       include: {
         branch: { select: { id: true, name: true } },
@@ -111,28 +166,27 @@ export class PlansService {
     return this.serialize(plan);
   }
 
-  async update(
-    id: string,
-    data: {
-      name?: string;
-      description?: string;
-      plan_type?: string;
-      duration_days?: number | string;
-      total_classes?: number | string;
-      max_classes_per_week?: number | string;
-      max_visits?: number | string;
-      price?: number | string;
-      yearly_price?: number | string;
-      currency?: string;
-      branch_id?: string;
-      organization_id?: string;
-      multi_branch_access?: boolean;
-      grace_period_days?: number;
-      is_active?: boolean;
-      auto_renew_enabled?: boolean;
-    },
-  ) {
-    await this.findOne(id);
+  async update(id: string, data: PlanUpdateInput) {
+    const existing = await this.findOne(id);
+
+    // If the update touches access scope at all, re-validate the resulting
+    // shape (merge existing + incoming) so we don't end up with e.g. a
+    // multi_branch plan with no allowed_branch_ids.
+    const touchesScope =
+      data.access_type !== undefined ||
+      data.allowed_branch_ids !== undefined ||
+      data.allowed_city !== undefined ||
+      data.allowed_hours_json !== undefined;
+    if (touchesScope) {
+      this.validateAccessScope({
+        access_type: data.access_type ?? (existing as any).access_type,
+        allowed_branch_ids:
+          data.allowed_branch_ids ?? (existing as any).allowed_branch_ids,
+        allowed_city: data.allowed_city ?? (existing as any).allowed_city,
+        allowed_hours_json:
+          data.allowed_hours_json ?? (existing as any).allowed_hours_json,
+      });
+    }
 
     const updateData: any = {};
     if (data.name !== undefined) updateData.name = data.name;
@@ -151,6 +205,27 @@ export class PlansService {
     if (data.grace_period_days !== undefined) updateData.grace_period_days = data.grace_period_days;
     if (data.is_active !== undefined) updateData.is_active = data.is_active;
     if (data.auto_renew_enabled !== undefined) updateData.auto_renew_enabled = data.auto_renew_enabled;
+    // ── Multi-gym access scope ──
+    if (data.access_type !== undefined) updateData.access_type = data.access_type;
+    if (data.tier !== undefined) updateData.tier = data.tier;
+    if (data.allowed_branch_ids !== undefined) {
+      updateData.allowed_branch_ids = data.allowed_branch_ids;
+    }
+    if (data.allowed_city !== undefined) {
+      updateData.allowed_city = data.allowed_city || null;
+    }
+    if (data.allowed_hours_json !== undefined) {
+      updateData.allowed_hours_json = data.allowed_hours_json
+        ? (data.allowed_hours_json as Prisma.InputJsonValue)
+        : Prisma.JsonNull;
+    }
+    if (data.feature_flags !== undefined) {
+      updateData.feature_flags = (data.feature_flags as Prisma.InputJsonValue) ?? {};
+    }
+    if (data.branch_price_overrides !== undefined) {
+      updateData.branch_price_overrides =
+        (this.sanitizeBranchOverrides(data.branch_price_overrides) as Prisma.InputJsonValue) ?? {};
+    }
 
     const plan = await this.prisma.membershipPlan.update({
       where: { id },
@@ -161,6 +236,74 @@ export class PlansService {
       },
     });
     return this.serialize(plan);
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────────────
+
+  /**
+   * Cross-field validation for access scope. Mirrors the resolver's contract:
+   * each access_type has its own required field. Throws BadRequest with a
+   * specific message so the UI can surface it.
+   */
+  private validateAccessScope(input: {
+    access_type?: string;
+    allowed_branch_ids?: unknown;
+    allowed_city?: unknown;
+    allowed_hours_json?: unknown;
+  }): void {
+    const t = input.access_type;
+    if (!t || t === 'single_branch' || t === 'class_only') return;
+
+    if (t === 'multi_branch') {
+      const ids = input.allowed_branch_ids;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        throw new BadRequestException(
+          'Multi-branch plans must include at least one branch in allowed_branch_ids',
+        );
+      }
+    } else if (t === 'city_access') {
+      const city = input.allowed_city;
+      if (typeof city !== 'string' || city.trim() === '') {
+        throw new BadRequestException(
+          'City-access plans require allowed_city',
+        );
+      }
+    } else if (t === 'time_based') {
+      const hrs = input.allowed_hours_json as
+        | { start?: unknown; end?: unknown }
+        | null
+        | undefined;
+      if (
+        !hrs ||
+        typeof hrs.start !== 'string' ||
+        typeof hrs.end !== 'string'
+      ) {
+        throw new BadRequestException(
+          'Time-based plans require allowed_hours_json with start and end (HH:mm)',
+        );
+      }
+    } else if (t !== 'all_access') {
+      throw new BadRequestException(`Unknown access_type: ${t}`);
+    }
+  }
+
+  /**
+   * Strips invalid entries from branch_price_overrides: only positive
+   * numbers survive. Stringified numbers from form JSON are accepted.
+   * Returns null when nothing valid remains (caller stores {} default).
+   */
+  private sanitizeBranchOverrides(
+    input: unknown,
+  ): Record<string, number> | null {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
+    const cleaned: Record<string, number> = {};
+    for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
+      const n = typeof v === 'string' ? parseFloat(v) : (v as number);
+      if (typeof n === 'number' && Number.isFinite(n) && n >= 0) {
+        cleaned[k] = n;
+      }
+    }
+    return Object.keys(cleaned).length > 0 ? cleaned : null;
   }
 
   async remove(id: string) {

@@ -2,14 +2,19 @@
 
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import { createQueryClient } from "@/services/query-client";
 import { CommandPalette } from "@/components/shared/command-palette";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { installGlobalErrorReporting } from "@/lib/observability/install";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => createQueryClient());
+
+  useEffect(() => {
+    installGlobalErrorReporting();
+  }, []);
 
   return (
     <ErrorBoundary>

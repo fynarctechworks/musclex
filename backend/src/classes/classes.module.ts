@@ -30,6 +30,9 @@ import { ResourceLimitService } from '../common/services/resource-limit.service'
     ResourceLimitService,
   ],
   exports: [
+    // Exposed for the Member BFF (member self-booking reuses the same
+    // capacity/waitlist/duplicate rules as the front-desk path).
+    ClassesService,
     ClassTemplateService,
     SchedulingService,
     BookingService,

@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { createHmac } from 'crypto';
@@ -7,10 +7,16 @@ import { WebhookJobData } from '../queue.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { getTenantGymId } from '../../common/tenant-context';
 import { Prisma } from '@prisma/client';
+import { reportJobFailure } from '../../common/sentry/report-job-failure';
 
 @Processor(QUEUE_NAMES.WEBHOOK)
 export class WebhookProcessor extends WorkerHost {
   private readonly logger = new Logger(WebhookProcessor.name);
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job, err: Error) {
+    reportJobFailure(QUEUE_NAMES.WEBHOOK, job, err);
+  }
 
   constructor(private readonly prisma: PrismaService) {
     super();

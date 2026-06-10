@@ -35,11 +35,11 @@ const statusOptions = [
 ];
 
 const statusColors: Record<string, string> = {
-  new: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  contacted: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-  trial_scheduled: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  new: "bg-link/10 text-link border-link/30",
+  contacted: "bg-warning/10 text-warning border-warning/30",
+  trial_scheduled: "bg-foreground/10 text-foreground border-hairline/20",
   converted: "bg-success/10 text-success border-success/20",
-  lost: "bg-red-500/10 text-red-400 border-red-500/20",
+  lost: "bg-error/10 text-error border-error/30",
 };
 
 const activityIcons: Record<string, typeof Phone> = {
@@ -124,9 +124,9 @@ export default function LeadDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Lead Info Card */}
         <div className="lg:col-span-1 space-y-4">
-          <div className="bg-card border border-border rounded-xl p-5">
+          <div className="bg-card border border-border rounded-lg p-5">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+              <div className="w-12 h-12 bg-canvas-soft-2 rounded-full flex items-center justify-center">
                 <Users className="w-6 h-6 text-primary" />
               </div>
               <div>
@@ -169,7 +169,7 @@ export default function LeadDetailPage() {
           </div>
 
           {/* Status Update */}
-          <div className="bg-card border border-border rounded-xl p-5">
+          <div className="bg-card border border-border rounded-lg p-5">
             <h3 className="text-sm font-medium text-foreground mb-3">Update Status</h3>
             <div className="grid grid-cols-2 gap-2">
               {statusOptions.map((opt) => (
@@ -204,7 +204,7 @@ export default function LeadDetailPage() {
           </div>
 
           {activities.length === 0 ? (
-            <div className="bg-card border border-border rounded-xl p-8 text-center">
+            <div className="bg-card border border-border rounded-lg p-8 text-center">
               <MessageSquare className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">No activities recorded yet.</p>
               <button
@@ -232,7 +232,7 @@ export default function LeadDetailPage() {
 
                     {/* Content */}
                     <div className="pb-6 flex-1">
-                      <div className="bg-card border border-border rounded-xl p-4">
+                      <div className="bg-card border border-border rounded-lg p-4">
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-medium text-foreground capitalize">
                             {activity.activity_type.replace("_", " ")}

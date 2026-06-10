@@ -1,13 +1,17 @@
 import {
-  IsString,
-  IsOptional,
-  IsUUID,
-  IsNumber,
+  IsArray,
   IsBoolean,
   IsIn,
   IsInt,
+  IsNumber,
+  IsObject,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
   Min,
 } from 'class-validator';
+import { PLAN_ACCESS_TYPES } from './create-plan.dto';
 
 export class UpdatePlanDto {
   @IsUUID()
@@ -75,4 +79,37 @@ export class UpdatePlanDto {
   @IsBoolean()
   @IsOptional()
   auto_renew_enabled?: boolean;
+
+  // ── Multi-gym access scope ──
+
+  @IsString()
+  @IsIn(PLAN_ACCESS_TYPES as unknown as string[])
+  @IsOptional()
+  access_type?: string;
+
+  @IsString()
+  @MaxLength(40)
+  @IsOptional()
+  tier?: string;
+
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  allowed_branch_ids?: string[];
+
+  @IsString()
+  @IsOptional()
+  allowed_city?: string;
+
+  @IsObject()
+  @IsOptional()
+  allowed_hours_json?: Record<string, unknown>;
+
+  @IsObject()
+  @IsOptional()
+  feature_flags?: Record<string, unknown>;
+
+  @IsObject()
+  @IsOptional()
+  branch_price_overrides?: Record<string, number>;
 }

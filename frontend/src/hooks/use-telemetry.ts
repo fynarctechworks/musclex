@@ -12,7 +12,7 @@ import { useCallback, useEffect, useRef } from "react";
  * Today this is a no-op + console-shaped wrapper. When `posthog-js` is
  * installed and `NEXT_PUBLIC_POSTHOG_KEY` is set, swap the body of `track`
  * to call `posthog.capture(...)`. Until then, events are forwarded to a
- * window-level queue (`window.__fitsync_telemetry`) so they can be
+ * window-level queue (`window.__musclex_telemetry`) so they can be
  * inspected during dev — and so a future provider can drain the queue.
  *
  * The `pageview` helper is debounced per-pathname so React's render churn
@@ -26,7 +26,7 @@ export interface TelemetryEvent {
 
 declare global {
   interface Window {
-    __fitsync_telemetry?: TelemetryEvent[];
+    __musclex_telemetry?: TelemetryEvent[];
   }
 }
 
@@ -37,11 +37,11 @@ export function track(name: string, props?: Record<string, unknown>) {
     props,
     ts: Date.now(),
   };
-  window.__fitsync_telemetry = window.__fitsync_telemetry ?? [];
-  window.__fitsync_telemetry.push(evt);
+  window.__musclex_telemetry = window.__musclex_telemetry ?? [];
+  window.__musclex_telemetry.push(evt);
   // Keep the in-memory ring small — last 200 events is plenty for debug.
-  if (window.__fitsync_telemetry.length > 200) {
-    window.__fitsync_telemetry.shift();
+  if (window.__musclex_telemetry.length > 200) {
+    window.__musclex_telemetry.shift();
   }
   // If a real posthog client is loaded, forward.
   const posthog = (window as any).posthog;

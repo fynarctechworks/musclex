@@ -1,11 +1,11 @@
 'use client';
 
 import React from 'react';
-import { Package } from 'lucide-react';
+import { Package, Package2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { useProducts, useCategories } from '@/features/inventory/hooks';
-import type { Product } from '@/features/inventory/types';
+import { useProducts, useCategories, useBundles } from '@/features/inventory/hooks';
+import type { Product, Bundle } from '@/features/inventory/types';
 import type { CartItem } from '../types';
 import {
   Select,
@@ -18,10 +18,11 @@ import {
 interface ProductGridProps {
   cart: CartItem[];
   onAddToCart: (product: Product) => void;
+  onAddBundleToCart?: (bundle: Bundle) => void;
   branchId?: string;
 }
 
-export function ProductGrid({ cart, onAddToCart, branchId }: ProductGridProps) {
+export function ProductGrid({ cart, onAddToCart, onAddBundleToCart, branchId }: ProductGridProps) {
   const [search, setSearch] = React.useState('');
   const [categoryId, setCategoryId] = React.useState<string>('');
 
@@ -33,11 +34,19 @@ export function ProductGrid({ cart, onAddToCart, branchId }: ProductGridProps) {
     limit: 100,
   });
   const { data: categories } = useCategories();
+  const { data: bundlesData } = useBundles({ branch_id: branchId, status: 'active', limit: 50 });
 
   const products = data?.data || [];
+  const bundles: Bundle[] = bundlesData?.data ?? [];
+  const filteredBundles = search
+    ? bundles.filter((b) =>
+        b.name.toLowerCase().includes(search.toLowerCase()) ||
+        (b.sku ?? '').toLowerCase().includes(search.toLowerCase()),
+      )
+    : bundles;
 
-  const getCartQty = (productId: string) =>
-    cart.find((c) => c.product_id === productId)?.quantity || 0;
+  const getCartQty = (key: string) =>
+    cart.find((c) => c.key === key)?.quantity || 0;
 
   const getStockQty = (product: Product) => {
     const inv = Array.isArray(product.inventory)
@@ -82,6 +91,52 @@ export function ProductGrid({ cart, onAddToCart, branchId }: ProductGridProps) {
           <p className="text-sm text-muted-foreground">No products found</p>
         </div>
       ) : (
+        <>
+          {/* Bundles strip — only when bundles exist and the search/filter matches */}
+          {filteredBundles.length > 0 && onAddBundleToCart && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Package2 className="h-3.5 w-3.5" />
+                Bundles
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {filteredBundles.map((bundle) => {
+                  const key = `bundle:${bundle.id}`;
+                  const cartQty = getCartQty(key);
+                  return (
+                    <button
+                      key={bundle.id}
+                      onClick={() => onAddBundleToCart(bundle)}
+                      className={cn(
+                        'relative flex flex-col items-start rounded-lg border p-3 text-left transition-all',
+                        'border-primary/40 bg-canvas-soft-2/40 hover:border-primary/70 hover:bg-canvas-soft-2',
+                        cartQty > 0 && 'ring-1 ring-primary/40',
+                      )}
+                    >
+                      {cartQty > 0 && (
+                        <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+                          {cartQty}
+                        </span>
+                      )}
+                      <div className="text-sm font-medium text-foreground line-clamp-2 mb-1">
+                        {bundle.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground mb-2">
+                        {bundle.items.length} item{bundle.items.length === 1 ? '' : 's'}
+                      </div>
+                      <div className="mt-auto flex w-full items-center justify-between">
+                        <span className="text-sm font-semibold text-foreground">
+                          ₹{Number(bundle.price).toFixed(0)}
+                        </span>
+                        <span className="text-[10px] uppercase tracking-wide text-primary">Bundle</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {products.map((product) => {
             const stock = getStockQty(product);
@@ -95,16 +150,31 @@ export function ProductGrid({ cart, onAddToCart, branchId }: ProductGridProps) {
                 onClick={() => onAddToCart(product)}
                 className={cn(
                   'relative flex flex-col items-start rounded-lg border p-3 text-left transition-all',
-                  'border-border bg-card hover:border-primary/50 hover:bg-muted/50',
+                  'border-border bg-card hover:border-primary/50 hover:bg-canvas-soft',
                   outOfStock && 'opacity-50 cursor-not-allowed hover:border-border hover:bg-card',
                   cartQty > 0 && 'border-primary/60 ring-1 ring-primary/30',
                 )}
               >
                 {cartQty > 0 && (
-                  <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                  <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
                     {cartQty}
                   </span>
                 )}
+                {(() => {
+                  const thumb = product.images?.[0]?.image_url || product.image_url;
+                  return thumb ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={thumb}
+                      alt={product.product_name}
+                      className="mb-2 h-20 w-full rounded-md object-cover bg-muted"
+                    />
+                  ) : (
+                    <div className="mb-2 flex h-20 w-full items-center justify-center rounded-md bg-muted">
+                      <Package className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  );
+                })()}
                 <div className="text-sm font-medium text-foreground line-clamp-2 mb-1">
                   {product.product_name}
                 </div>
@@ -117,7 +187,7 @@ export function ProductGrid({ cart, onAddToCart, branchId }: ProductGridProps) {
                   </span>
                   <span className={cn(
                     'text-xs',
-                    outOfStock ? 'text-destructive' : stock <= 5 ? 'text-yellow-400' : 'text-muted-foreground',
+                    outOfStock ? 'text-destructive' : stock <= 5 ? 'text-warning' : 'text-muted-foreground',
                   )}>
                     {outOfStock ? 'Out' : `${stock} left`}
                   </span>
@@ -126,6 +196,7 @@ export function ProductGrid({ cart, onAddToCart, branchId }: ProductGridProps) {
             );
           })}
         </div>
+        </>
       )}
     </div>
   );

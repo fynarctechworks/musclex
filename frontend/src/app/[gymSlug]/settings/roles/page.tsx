@@ -34,6 +34,7 @@ const MODULE_LABELS: Record<PermissionModule, string> = {
   settings: "Settings",
   branches: "Branches",
   reports: "Reports",
+  inventory: "Inventory & POS",
 };
 
 const ALL_ACTIONS: ModuleAction[] = [
@@ -168,7 +169,7 @@ function RoleFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto py-8">
-      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-3xl mx-4">
+      <div className="bg-card border border-border rounded-lg p-6 w-full max-w-3xl mx-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">
             {role ? "Edit Role" : "Create Custom Role"}
@@ -236,7 +237,7 @@ function RoleViewModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto py-8">
-      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-3xl mx-4">
+      <div className="bg-card border border-border rounded-lg p-6 w-full max-w-3xl mx-4">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -401,7 +402,7 @@ export default function RolesPage() {
                 <button
                   key={role.id}
                   onClick={() => setViewingRole(role)}
-                  className="bg-card border border-border rounded-xl p-4 text-left hover:border-primary/30 transition-colors"
+                  className="bg-card border border-border rounded-lg p-4 text-left hover:border-primary/30 transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -428,7 +429,7 @@ export default function RolesPage() {
                       .map(([mod]) => (
                         <span
                           key={mod}
-                          className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded"
+                          className="text-[10px] bg-canvas-soft-2 text-primary px-1.5 py-0.5 rounded"
                         >
                           {MODULE_LABELS[mod as PermissionModule] || mod}
                         </span>
@@ -455,7 +456,7 @@ export default function RolesPage() {
                 {customRoles.map((role) => (
                   <div
                     key={role.id}
-                    className="bg-card border border-border rounded-xl p-4"
+                    className="bg-card border border-border rounded-lg p-4"
                   >
                     <div className="flex items-center justify-between">
                       <div>
@@ -502,10 +503,10 @@ export default function RolesPage() {
                                   deleteMutation.mutate(role.id);
                                 }
                               }}
-                              className="p-1.5 hover:bg-red-500/10 rounded-lg transition-colors"
+                              className="p-1.5 hover:bg-error/10 rounded-lg transition-colors"
                               title="Delete role"
                             >
-                              <Trash2 className="w-4 h-4 text-red-500" />
+                              <Trash2 className="w-4 h-4 text-error" />
                             </button>
                           </>
                         )}
@@ -520,7 +521,7 @@ export default function RolesPage() {
                         .map(([mod]) => (
                           <span
                             key={mod}
-                            className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded"
+                            className="text-[10px] bg-canvas-soft-2 text-primary px-1.5 py-0.5 rounded"
                           >
                             {MODULE_LABELS[mod as PermissionModule] || mod}
                           </span>

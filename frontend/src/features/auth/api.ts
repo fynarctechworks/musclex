@@ -4,6 +4,13 @@ export const authApi = {
   login: (email: string, password: string) =>
     apiClient.post<LoginResponse>('/auth/login', { email, password }),
 
+  /**
+   * Exchange a verified Supabase OAuth session (from /auth/callback) for the
+   * normalized backend auth payload — same shape as password login.
+   */
+  oauthSync: (access_token: string, refresh_token: string) =>
+    apiClient.post<LoginResponse>('/auth/oauth/sync', { access_token, refresh_token }),
+
   register: (data: { full_name: string; email: string; password: string; phone?: string }) =>
     apiClient.post<{ success: boolean; email: string; verification_url?: string; skip_verification?: boolean; access_token?: string; refresh_token?: string; user?: any }>('/auth/register', data),
 

@@ -120,7 +120,7 @@ export function CreateReferralDialog({
                     }}
                     className="flex w-full items-center gap-3 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                   >
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-primary text-xs font-semibold">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-canvas-soft-2 text-primary text-xs font-semibold">
                       {m.full_name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
                     </div>
                     <div className="text-left">

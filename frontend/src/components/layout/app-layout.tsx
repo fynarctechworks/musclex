@@ -29,6 +29,9 @@ import {
   UserPlus,
   ShoppingCart,
   BookUser,
+  ScanFace,
+  Store,
+  ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -62,6 +65,7 @@ import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import { toast } from "sonner";
 import type { Branch } from "@/lib/types";
 import { TwoFactorBanner } from "@/components/shared/two-factor-banner";
+import { SubscriptionBanner } from "@/features/subscription";
 import { useSessionSync } from "@/hooks/use-session-sync";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -83,6 +87,7 @@ const gymNavItems: NavItem[] = [
   { label: "Members",     href: "/members",           icon: Users,        feature: "member_management", module: "members" },
   { label: "Memberships", href: "/memberships/plans", icon: CreditCard,   feature: "member_management", module: "members" },
   { label: "Check-ins",   href: "/check-in",          icon: UserCheck,    feature: "check_in", module: "check_ins" },
+  { label: "Biometrics",  href: "/biometrics",        icon: ScanFace,     feature: "check_in", module: "members" },
   { label: "Visits",      href: "/visits",            icon: Activity,     feature: "check_in", module: "check_ins" },
   { label: "Schedule",    href: "/schedule",          icon: CalendarDays, feature: "class_scheduling", module: "classes" },
   { label: "Finance",     href: "/finance",           icon: DollarSign,   feature: "manual_payments", module: "payments" },
@@ -93,10 +98,25 @@ const gymNavItems: NavItem[] = [
 const gymSecondaryNavItems: NavItem[] = [
   { label: "CRM",         href: "/crm",        icon: BookUser,      feature: "member_management", module: "members" },
   { label: "Referrals",   href: "/referrals",  icon: UserPlus,      feature: "marketing_campaigns", module: "marketing" },
-  { label: "Inventory",   href: "/inventory",  icon: Package,       module: "settings" },
-  { label: "POS",         href: "/pos",        icon: ShoppingCart, module: "payments" },
-  { label: "Reports",     href: "/reports",    icon: BarChart3,     feature: "basic_reports", module: "reports" },
+  { label: "Store",       href: "/pos",        icon: Store },
   { label: "AI Advisor",  href: "/ai",         icon: Bot,           feature: "ai_advisor", module: "ai" },
+];
+
+/* ─── Store workspace nav — POS, Inventory & Reports grouped in one place.
+   Entering any of these routes swaps the sidebar to a focused Store view
+   with a "Back to Dashboard" exit. ─── */
+const commerceNavItems: NavItem[] = [
+  { label: "Point of Sale", href: "/pos",       icon: ShoppingCart, module: "payments" },
+  { label: "Inventory",     href: "/inventory", icon: Package,      module: "settings" },
+  { label: "Reports",       href: "/reports",   icon: BarChart3,    feature: "basic_reports", module: "reports" },
+];
+
+/* ─── Store workspace mobile bottom-nav (replaces global tabs inside the section) ─── */
+const commerceMobileTabs: NavItem[] = [
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "POS",       href: "/pos",       icon: ShoppingCart },
+  { label: "Inventory", href: "/inventory", icon: Package },
+  { label: "Reports",   href: "/reports",   icon: BarChart3 },
 ];
 
 const bottomNavItems: NavItem[] = [
@@ -200,16 +220,21 @@ function NavLink({
   const linkContent = (
     <Link
       href={fullHref}
+      aria-current={isActive ? "page" : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-md px-3 py-[7px] text-[13px] font-medium transition-colors",
+        "group relative flex items-center gap-2.5 rounded-sm px-2.5 h-8 text-sm font-medium transition-colors",
         collapsed && "justify-center px-0",
         isActive
-          ? "bg-accent text-foreground"
-          : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+          ? "bg-canvas-soft-2 text-foreground"
+          : "text-muted-foreground hover:bg-canvas-soft hover:text-foreground"
       )}
     >
-      <item.icon className="h-4 w-4 shrink-0" />
-      {!collapsed && <span>{item.label}</span>}
+      {/* Active indicator — ink bar on the left edge (Design.md `ex-app-shell-row`) */}
+      {isActive && !collapsed && (
+        <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-primary" />
+      )}
+      <item.icon className={cn("h-[15px] w-[15px] shrink-0", isActive ? "text-foreground" : "text-muted-foreground")} />
+      {!collapsed && <span className="truncate">{item.label}</span>}
     </Link>
   );
 
@@ -247,22 +272,22 @@ function SidebarContent({
 }) {
   return (
     <div className="flex h-full flex-col">
-      {/* Logo + Collapse */}
-      <div className={cn("flex h-14 items-center px-4", collapsed ? "justify-center" : "justify-between")}>
-        <Link href={`${basePath}/dashboard`} className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
-            <span className="text-[11px] font-bold text-primary-foreground">F</span>
-          </div>
-          {!collapsed && (
-            <span className="text-sm font-semibold text-foreground tracking-tight">
-              MuscleX
-            </span>
+      {/* Logo + Collapse — Design.md nav-bar height (64 px) */}
+      <div className={cn("flex h-16 items-center px-4", collapsed ? "justify-center" : "justify-between")}>
+        <Link href={`${basePath}/dashboard`} className="flex items-center gap-2">
+          {collapsed ? (
+            <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-primary">
+              <span className="text-[11px] font-semibold text-primary-foreground">M</span>
+            </div>
+          ) : (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src="/brand/logo-wordmark.png" alt="MuscleX" className="h-5 w-auto" />
           )}
         </Link>
         {!collapsed && onCollapse && (
           <button
             onClick={onCollapse}
-            className="hidden lg:flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            className="hidden lg:flex h-7 w-7 items-center justify-center rounded-sm text-muted-foreground hover:bg-canvas-soft hover:text-foreground transition-colors"
             aria-label="Collapse sidebar"
           >
             <ChevronsLeft className="h-4 w-4" />
@@ -270,10 +295,10 @@ function SidebarContent({
         )}
       </div>
 
-      <div className="mx-3 h-px bg-border" />
+      <div className="mx-3 h-px bg-hairline" />
 
       {/* Primary Nav */}
-      <ScrollArea className="flex-1 px-3 py-3">
+      <ScrollArea className="flex-1 px-2.5 py-3">
         <nav className="flex flex-col gap-0.5" role="navigation" aria-label="Main navigation">
           {primaryItems.map((item) => (
             <NavLink key={item.href} item={item} basePath={basePath} pathname={pathname} collapsed={collapsed} />
@@ -281,13 +306,13 @@ function SidebarContent({
         </nav>
 
         {secondaryItems.length > 0 && (
-          <div className="mt-4">
+          <div className="mt-5">
             {!collapsed && (
-              <p className="mb-1.5 px-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+              <p className="mb-1.5 px-2.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                 {secondaryLabel}
               </p>
             )}
-            {collapsed && <div className="mx-auto my-2 h-px w-6 bg-border" />}
+            {collapsed && <div className="mx-auto my-2 h-px w-6 bg-hairline" />}
             <nav className="flex flex-col gap-0.5">
               {secondaryItems.map((item) => (
                 <NavLink key={item.href} item={item} basePath={basePath} pathname={pathname} collapsed={collapsed} />
@@ -298,8 +323,103 @@ function SidebarContent({
       </ScrollArea>
 
       {/* Bottom: Settings */}
-      <div className="px-3 pb-3">
-        <div className="mx-1 mb-2 h-px bg-border" />
+      <div className="px-2.5 pb-3">
+        <div className="mx-1 mb-2 h-px bg-hairline" />
+        {bottomNavItems.map((item) => (
+          <NavLink key={item.href} item={item} basePath={basePath} pathname={pathname} collapsed={collapsed} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Store Workspace Sidebar ─── */
+function CommerceSidebarContent({
+  pathname,
+  basePath,
+  collapsed,
+  onCollapse,
+  items,
+}: {
+  pathname: string;
+  basePath: string;
+  collapsed: boolean;
+  onCollapse?: () => void;
+  items: NavItem[];
+}) {
+  const backLink = (
+    <Link
+      href={`${basePath}/dashboard`}
+      className={cn(
+        "group flex items-center gap-2 rounded-sm text-sm font-medium text-muted-foreground transition-colors hover:bg-canvas-soft hover:text-foreground",
+        collapsed ? "h-8 w-8 justify-center" : "h-8 px-2.5"
+      )}
+      aria-label="Back to Dashboard"
+    >
+      <ArrowLeft className="h-[15px] w-[15px] shrink-0" />
+      {!collapsed && <span className="truncate">Back to Dashboard</span>}
+    </Link>
+  );
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Header — Store identity */}
+      <div className={cn("flex h-16 items-center px-4", collapsed ? "justify-center" : "justify-between")}>
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-primary">
+            <Store className="h-[15px] w-[15px] text-primary-foreground" />
+          </div>
+          {!collapsed && (
+            <span className="text-sm font-semibold text-foreground tracking-[-0.01em]">Store</span>
+          )}
+        </div>
+        {!collapsed && onCollapse && (
+          <button
+            onClick={onCollapse}
+            className="hidden lg:flex h-7 w-7 items-center justify-center rounded-sm text-muted-foreground hover:bg-canvas-soft hover:text-foreground transition-colors"
+            aria-label="Collapse sidebar"
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      <div className="mx-3 h-px bg-hairline" />
+
+      {/* Back to Dashboard */}
+      <div className="px-2.5 pt-3">
+        {collapsed ? (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>{backLink}</TooltipTrigger>
+            <TooltipContent side="right" className="text-xs">
+              Back to Dashboard
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          backLink
+        )}
+      </div>
+
+      {/* Store sections */}
+      <ScrollArea className="flex-1 px-2.5 py-3">
+        <div className="mt-2">
+          {!collapsed && (
+            <p className="mb-1.5 px-2.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              Store
+            </p>
+          )}
+          {collapsed && <div className="mx-auto my-2 h-px w-6 bg-hairline" />}
+          <nav className="flex flex-col gap-0.5" role="navigation" aria-label="Store navigation">
+            {items.map((item) => (
+              <NavLink key={item.href} item={item} basePath={basePath} pathname={pathname} collapsed={collapsed} />
+            ))}
+          </nav>
+        </div>
+      </ScrollArea>
+
+      {/* Bottom: Settings */}
+      <div className="px-2.5 pb-3">
+        <div className="mx-1 mb-2 h-px bg-hairline" />
         {bottomNavItems.map((item) => (
           <NavLink key={item.href} item={item} basePath={basePath} pathname={pathname} collapsed={collapsed} />
         ))}
@@ -312,7 +432,7 @@ function SidebarContent({
 function MobileBottomNav({ pathname, basePath, items }: { pathname: string; basePath: string; items: NavItem[] }) {
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t border-border bg-card lg:hidden"
+      className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t border-hairline bg-card lg:hidden"
       aria-label="Mobile navigation"
     >
       {items.map((item) => {
@@ -375,9 +495,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const features: Record<string, boolean> = account?.features ?? {};
 
   const primaryNav = filterByPermissions(filterByFeatures(gymNavItems, features), hasPermission);
-  const secondaryNav = filterByPermissions(filterByFeatures(gymSecondaryNavItems, features), hasPermission);
-  const mobileNav = filterByPermissions(mobileNavTabs, hasPermission);
+  const commerceNav = filterByPermissions(filterByFeatures(commerceNavItems, features), hasPermission);
+  // Hide the "Store" entry entirely if the user can't reach any section inside it.
+  const secondaryNav = filterByPermissions(filterByFeatures(gymSecondaryNavItems, features), hasPermission)
+    .filter((item) => item.href !== "/pos" || commerceNav.length > 0);
   const secondaryLabel = "Tools";
+
+  /* Detect whether the current route is inside the Store workspace —
+     if so, the sidebar swaps to a focused Store view with a back exit. */
+  const inCommerceSection = commerceNavItems.some((item) => {
+    const full = `${basePath}${item.href}`;
+    return pathname === full || pathname.startsWith(full + "/");
+  });
+
+  const mobileNav = filterByPermissions(
+    inCommerceSection ? commerceMobileTabs : mobileNavTabs,
+    hasPermission,
+  );
 
   const { data: branches } = useQuery({
     queryKey: ["branches"],
@@ -510,32 +644,46 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Desktop Sidebar — Fitts's Law: consistent left-edge target */}
         <aside
           className={cn(
-            "hidden shrink-0 border-r border-border bg-card transition-[width] duration-200 lg:block",
-            sidebarCollapsed ? "w-[60px]" : "w-[220px]"
+            "hidden shrink-0 border-r border-hairline bg-card transition-[width] duration-fast lg:block",
+            sidebarCollapsed ? "w-[64px]" : "w-[232px]"
           )}
         >
-          <SidebarContent
-            pathname={pathname}
-            basePath={basePath}
-            collapsed={sidebarCollapsed}
-            onCollapse={toggleSidebar}
-            primaryItems={primaryNav}
-            secondaryItems={secondaryNav}
-            secondaryLabel={secondaryLabel}
-          />
+          {inCommerceSection ? (
+            <CommerceSidebarContent
+              pathname={pathname}
+              basePath={basePath}
+              collapsed={sidebarCollapsed}
+              onCollapse={toggleSidebar}
+              items={commerceNav}
+            />
+          ) : (
+            <SidebarContent
+              pathname={pathname}
+              basePath={basePath}
+              collapsed={sidebarCollapsed}
+              onCollapse={toggleSidebar}
+              primaryItems={primaryNav}
+              secondaryItems={secondaryNav}
+              secondaryLabel={secondaryLabel}
+            />
+          )}
         </aside>
 
         {/* Mobile Sidebar */}
         <Sheet open={sidebarMobileOpen} onOpenChange={setSidebarMobileOpen}>
-          <SheetContent side="left" className="w-[220px] bg-card p-0 border-border">
-            <SidebarContent pathname={pathname} basePath={basePath} collapsed={false} primaryItems={primaryNav} secondaryItems={secondaryNav} secondaryLabel={secondaryLabel} />
+          <SheetContent side="left" className="w-[232px] bg-card p-0 border-hairline">
+            {inCommerceSection ? (
+              <CommerceSidebarContent pathname={pathname} basePath={basePath} collapsed={false} items={commerceNav} />
+            ) : (
+              <SidebarContent pathname={pathname} basePath={basePath} collapsed={false} primaryItems={primaryNav} secondaryItems={secondaryNav} secondaryLabel={secondaryLabel} />
+            )}
           </SheetContent>
         </Sheet>
 
         {/* Main content */}
         <div className="flex flex-1 flex-col overflow-hidden">
           {/* Top Bar — Jakob's Law: familiar SaaS topbar pattern */}
-          <header className="flex h-[52px] items-center gap-3 border-b border-border bg-card px-4 lg:px-5">
+          <header className="flex h-14 items-center gap-3 border-b border-hairline bg-card px-4 lg:px-5">
             {/* Mobile menu */}
             <Button
               variant="ghost"
@@ -573,13 +721,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-1.5">
               {/* Search (Cmd+K) */}
               <Button
-                variant="ghost"
-                className="hidden sm:flex items-center gap-2 h-8 px-3 text-muted-foreground hover:text-foreground"
+                variant="outline"
+                size="sm"
+                className="hidden sm:flex items-center gap-2 text-muted-foreground"
                 onClick={() => useUiStore.getState().setGlobalSearchOpen(true)}
               >
                 <Search className="h-3.5 w-3.5" />
-                <span className="text-[13px]">Search</span>
-                <kbd className="ml-1 inline-flex h-5 items-center rounded border border-border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
+                <span>Search</span>
+                <kbd className="ml-1 inline-flex h-5 items-center rounded-sm border border-hairline bg-canvas-soft-2 px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
                   ⌘K
                 </kbd>
               </Button>
@@ -629,7 +778,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                       </DropdownMenuLabel>
                       {isOwner && (
                         <DropdownMenuItem
-                          className={`text-[13px] ${!activeBranchId ? "bg-primary/10 text-primary" : ""}`}
+                          className={cn("text-sm", !activeBranchId && "bg-canvas-soft-2 text-foreground font-medium")}
                           onClick={() => setActiveBranch(null)}
                         >
                           <Building2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
@@ -639,7 +788,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                       {visibleBranches.map((b) => (
                         <DropdownMenuItem
                           key={b.id}
-                          className={`text-[13px] ${activeBranchId === b.id ? "bg-primary/10 text-primary" : ""}`}
+                          className={cn("text-sm", activeBranchId === b.id && "bg-canvas-soft-2 text-foreground font-medium")}
                           onClick={() => setActiveBranch(b.id)}
                         >
                           <Building2 className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
@@ -664,8 +813,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-80 p-0">
-                  <div className="border-b border-border px-4 py-3">
-                    <h4 className="text-sm font-semibold text-foreground">Notifications</h4>
+                  <div className="border-b border-hairline px-4 py-3">
+                    <h4 className="text-sm font-semibold text-foreground tracking-[-0.01em]">Notifications</h4>
                   </div>
                   <div className="flex flex-col items-center justify-center py-10 px-4">
                     <Bell className="h-8 w-8 text-muted-foreground/40 mb-3" />
@@ -678,41 +827,44 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               {/* User Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center gap-2 h-8 pl-1 pr-2">
+                  <Button variant="ghost" size="sm" className="flex items-center gap-1.5 pl-1 pr-2">
                     <Avatar className="h-6 w-6">
-                      <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
+                      <AvatarFallback className="bg-canvas-soft-2 text-foreground text-[10px] font-semibold">
                         {userInitials}
                       </AvatarFallback>
                     </Avatar>
                     <ChevronDown className="h-3 w-3 text-muted-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <div className="px-2 py-1.5">
-                    <p className="text-[13px] font-medium text-foreground">{user?.full_name ?? "User"}</p>
-                    <p className="text-[11px] text-muted-foreground capitalize">{user?.role ?? "staff"}</p>
+                <DropdownMenuContent align="end" className="w-56">
+                  <div className="px-2 py-2">
+                    <p className="text-sm font-medium text-foreground truncate">{user?.full_name ?? "User"}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{user?.role ?? "staff"}</p>
                   </div>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="text-[13px]" onClick={() => router.push(gymPath("/settings/account"))}>
-                    <User className="mr-2 h-3.5 w-3.5" />
+                  <DropdownMenuItem onClick={() => router.push(gymPath("/settings/account"))}>
+                    <User className="mr-2 h-4 w-4" />
                     Account
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="text-[13px]" onClick={() => router.push(gymPath("/settings"))}>
-                    <Settings className="mr-2 h-3.5 w-3.5" />
+                  <DropdownMenuItem onClick={() => router.push(gymPath("/settings"))}>
+                    <Settings className="mr-2 h-4 w-4" />
                     Settings
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    className="text-destructive focus:text-destructive text-[13px]"
+                    className="text-error-deep focus:text-error-deep"
                     onClick={handleLogout}
                   >
-                    <LogOut className="mr-2 h-3.5 w-3.5" />
+                    <LogOut className="mr-2 h-4 w-4" />
                     Log out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </header>
+
+          {/* Subscription lifecycle banner — sits above 2FA */}
+          <SubscriptionBanner />
 
           {/* 2FA reminder banner */}
           <TwoFactorBanner />
@@ -731,14 +883,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             };
             const href = stepRoutes[user.onboarding_step] || "/onboarding/studio-info";
             return (
-              <div className="border-b border-primary/20 bg-primary/5 px-4 py-2.5 flex items-center justify-between">
-                <p className="text-[13px] text-foreground">
-                  <span className="font-medium">Finish setting up your gym</span>
-                  <span className="text-muted-foreground ml-1.5">— complete the remaining onboarding steps</span>
+              <div className="border-b border-hairline bg-warning-soft px-4 py-2.5 flex items-center justify-between">
+                <p className="text-sm text-warning-deep">
+                  <span className="font-semibold">Finish setting up your gym</span>
+                  <span className="opacity-80 ml-1.5">— complete the remaining onboarding steps</span>
                 </p>
                 <Link
                   href={href}
-                  className="text-[13px] font-medium text-primary hover:text-primary/80 transition-colors"
+                  className="text-sm font-medium text-link hover:text-link-deep transition-colors"
                 >
                   Continue Setup &rarr;
                 </Link>
@@ -747,8 +899,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           })()}
 
           {/* Page Content — extra bottom padding on mobile for bottom nav bar */}
-          <main className="flex-1 overflow-y-auto p-4 pb-20 lg:p-6 lg:pb-6">
-            {children}
+          <main className="flex-1 overflow-y-auto bg-background">
+            <div className="mx-auto max-w-[1400px] p-4 pb-20 lg:px-8 lg:py-8 lg:pb-8">
+              {children}
+            </div>
           </main>
         </div>
 

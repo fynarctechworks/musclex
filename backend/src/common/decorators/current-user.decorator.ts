@@ -28,6 +28,24 @@ export interface UserRoleSummary {
   is_primary: boolean;
 }
 
+export type SubscriptionLifecycleStatus =
+  | 'active'
+  | 'grace_period'
+  | 'locked'
+  | 'suspended';
+
+export interface SubscriptionContext {
+  status: SubscriptionLifecycleStatus;
+  plan: string;
+  billing_cycle: string;
+  expires_at: string | null;        // next_billing_date (ISO)
+  grace_until: string | null;       // when LOCKED triggers (ISO)
+  locked_at: string | null;
+  days_until_expiry: number | null; // null if no billing date
+  grace_days_remaining: number | null; // null unless grace_period
+  can_mutate: boolean;              // false when locked/suspended
+}
+
 export interface JwtPayload {
   user_id: string;
   studio_id: string;
@@ -39,6 +57,7 @@ export interface JwtPayload {
   email: string;
   permissions: PermissionsMap; // legacy format (backward compat)
   permission_codes: string[]; // flat list: ["members.create", "payments.view"]
+  subscription?: SubscriptionContext; // populated by JwtAuthGuard
 }
 
 export const CurrentUser = createParamDecorator(

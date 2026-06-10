@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { getTenantGymId } from '../common/tenant-context';
 import type { JwtPayload } from '../common';
 
 /**
@@ -152,23 +153,36 @@ export class FootfallHeatmapService {
     );
 
     let total = 0;
+    const gymId = getTenantGymId();
+    if (!gymId) {
+      return {
+        cells,
+        max_value: 0,
+        average: 0,
+        outliers: [],
+        generated_at: now.toISOString(),
+        window_days: days,
+      };
+    }
     try {
       // Try a fast SQL aggregation first. We compute Postgres DOW (0=Sun…6=Sat)
       // and remap to 0=Mon…6=Sun in JS, which matches the y-axis the UI renders.
-      const branchSql = this.buildBranchSql(branchFilter, 2);
+      // Raw SQL bypasses Prisma's $use middleware — the explicit `gym_id`
+      // filter is the load-bearing tenant scope here; never rely on RLS alone.
+      const branchSql = this.buildBranchSql(branchFilter, 3);
       const sql = `
         SELECT
           EXTRACT(DOW  FROM checked_in_at)::int  AS pg_dow,
           EXTRACT(HOUR FROM checked_in_at)::int  AS hr,
           COUNT(*)::int                          AS cnt
         FROM check_ins
-        WHERE status = 'success' AND checked_in_at >= $1
+        WHERE status = 'success' AND gym_id = $2::uuid AND checked_in_at >= $1
         ${branchSql.clause}
         GROUP BY pg_dow, hr
       `;
       const rows = await this.prisma.$queryRawUnsafe<
         { pg_dow: number; hr: number; cnt: number }[]
-      >(sql, since, ...branchSql.params);
+      >(sql, since, gymId, ...branchSql.params);
 
       for (const r of rows) {
         const d = pgDowToMonStart(Number(r.pg_dow));

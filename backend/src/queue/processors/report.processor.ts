@@ -1,13 +1,19 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { QUEUE_NAMES } from '../queue.module';
 import { ReportJobData } from '../queue.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { reportJobFailure } from '../../common/sentry/report-job-failure';
 
 @Processor(QUEUE_NAMES.REPORT)
 export class ReportProcessor extends WorkerHost {
   private readonly logger = new Logger(ReportProcessor.name);
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job, err: Error) {
+    reportJobFailure(QUEUE_NAMES.REPORT, job, err);
+  }
 
   constructor(private readonly prisma: PrismaService) {
     super();

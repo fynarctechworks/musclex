@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Light (daylight) defaults for the theme CSS variables — the DEFAULT theme.
+ * theme-vars.ts re-injects these (and the dark set) at runtime on the root <View>;
+ * these :root values just guarantee color utilities resolve on first paint before
+ * the runtime vars attach. Keep in sync with lightVars in theme-vars.ts.
+ */
+@layer base {
+  :root {
+    --color-canvas: 255 255 255;
+    --color-canvas-soft: 246 246 250;
+    --color-surface: 255 255 255;
+    --color-surface-2: 241 241 245;
+    --color-hairline: 222 222 229;
+    --color-hairline-strong: 203 203 214;
+    --color-ink: 16 17 20;
+    --color-body: 104 107 130;
+    --color-mute: 148 151 169;
+    --color-primary: 157 209 42;
+    --color-on-primary: 16 17 20;
+    --color-accent: 91 128 17;
+    --color-accent-soft: 232 247 221;
+    --color-success: 20 158 97;
+    --color-success-fg: 2 107 63;
+    --color-warning: 245 166 35;
+    --color-warning-soft: 254 243 225;
+    --color-error: 225 75 75;
+    --color-error-soft: 252 234 234;
+  }
+
+  /*
+   * WEB ONLY: give the document a full-viewport height so the app's root
+   * `flex: 1` (app/_layout.tsx) actually fills the screen. Without this, RN-Web
+   * resolves `flex: 1` against an auto-height parent → the whole UI collapses to
+   * content height (everything bunches at the top). No effect on native.
+   */
+  html,
+  body {
+    height: 100%;
+  }
+  #root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 100%;
+  }
+}

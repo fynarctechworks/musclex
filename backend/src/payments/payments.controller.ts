@@ -5,6 +5,7 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
   Headers,
   Req,
@@ -12,17 +13,21 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { Request } from 'express';
+import type { Request, Response } from 'express';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard, PermissionsGuard, Permissions, CurrentUser, JwtPayload, restrictedBranchIdsForUser } from '../common';
+import { Idempotent } from '../common/idempotency/idempotent.decorator';
+import { StaffIdempotencyInterceptor } from '../common/idempotency/staff-idempotency.interceptor';
+import { UseInterceptors } from '@nestjs/common';
 import { RecordCashDto } from './dto/record-cash.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
 
 @Controller('api/v1/payments')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseInterceptors(StaffIdempotencyInterceptor)
 export class PaymentsController {
   private readonly logger = new Logger(PaymentsController.name);
 
@@ -32,6 +37,7 @@ export class PaymentsController {
   ) {}
 
   @Post('cash')
+  @Idempotent()
   @Permissions({ module: 'payments', action: 'create' })
   recordCash(
     @CurrentUser() user: JwtPayload,
@@ -41,6 +47,7 @@ export class PaymentsController {
   }
 
   @Post('create-order')
+  @Idempotent()
   @Permissions({ module: 'payments', action: 'create' })
   createOrder(
     @CurrentUser() user: JwtPayload,
@@ -83,6 +90,37 @@ export class PaymentsController {
   @Permissions({ module: 'payments', action: 'view' })
   getInvoice(@Param('id') id: string) {
     return this.paymentsService.getInvoice(id);
+  }
+
+  /**
+   * Stream the member-payment receipt as a PDF. Inline by default so it
+   * renders inside an <iframe> preview; client adds ?download=1 to switch
+   * to attachment for download. Uses the same renderer as subscription
+   * invoices so receipts look identical across the product.
+   */
+  @Get(':id/pdf')
+  @Permissions({ module: 'payments', action: 'view' })
+  async getInvoicePdf(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Query('download') download: string | undefined,
+    @Res() res: Response,
+  ) {
+    const { buffer, filename } = await this.paymentsService.renderReceiptPdf(
+      user.studio_id,
+      id,
+    );
+    const disposition = download === '1' ? 'attachment' : 'inline';
+    // Set Content-Type explicitly — @Header() decorator is bypassed when
+    // @Res() is used directly, and without it the iframe renders blank.
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Length', String(buffer.length));
+    res.setHeader(
+      'Content-Disposition',
+      `${disposition}; filename="${filename}"`,
+    );
+    res.setHeader('Cache-Control', 'private, max-age=0, no-store');
+    res.end(buffer);
   }
 
   /**
@@ -141,68 +179,4 @@ export class PaymentsController {
     return { received: true };
   }
 
-  /**
-   * Stripe webhook intake — no JWT auth (called by Stripe servers).
-   * Verifies Stripe signature header before processing.
-   */
-  @Post('webhooks/stripe')
-  @UseGuards() // Override class-level guards — no JWT required
-  async stripeWebhook(
-    @Headers('stripe-signature') signature: string,
-    @Req() req: Request,
-  ) {
-    const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET', '');
-    if (!webhookSecret) {
-      this.logger.error('STRIPE_WEBHOOK_SECRET not configured');
-      throw new BadRequestException('Webhook not configured');
-    }
-
-    // Stripe signature format: "t=timestamp,v1=sig1,v1=sig2"
-    const rawBody = (req as any).rawBody as Buffer | undefined;
-    const bodyStr = rawBody ? rawBody.toString('utf8') : JSON.stringify(req.body);
-
-    let signatureValid = false;
-    try {
-      const sigParts = (signature ?? '').split(',').reduce<Record<string, string>>((acc, part) => {
-        const eqIdx = part.indexOf('=');
-        if (eqIdx > 0) acc[part.slice(0, eqIdx)] = part.slice(eqIdx + 1);
-        return acc;
-      }, {});
-      const timestamp = sigParts['t'];
-      const receivedSig = sigParts['v1'];
-
-      if (timestamp && receivedSig) {
-        const signedPayload = `${timestamp}.${bodyStr}`;
-        const expected = createHmac('sha256', webhookSecret).update(signedPayload).digest('hex');
-        signatureValid = timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(receivedSig, 'hex'));
-
-        // Replay protection: reject events older than 5 minutes
-        const eventAge = Math.floor(Date.now() / 1000) - parseInt(timestamp, 10);
-        if (eventAge > 300) {
-          this.logger.warn('Stripe webhook timestamp too old — possible replay attack');
-          throw new ForbiddenException('Webhook timestamp expired');
-        }
-      }
-    } catch (err) {
-      if (err instanceof ForbiddenException) throw err;
-      signatureValid = false;
-    }
-
-    if (!signatureValid) {
-      this.logger.warn('Invalid Stripe webhook signature');
-      throw new ForbiddenException('Invalid webhook signature');
-    }
-
-    const event = req.body as { type: string; data: { object: Record<string, any> } };
-    this.logger.log(`Stripe webhook received: ${event.type}`);
-
-    if (event.type === 'payment_intent.succeeded') {
-      const intent = event.data?.object;
-      if (intent?.id && intent?.metadata?.order_id) {
-        await this.paymentsService.handleStripeWebhook(intent.metadata.order_id, intent.id);
-      }
-    }
-
-    return { received: true };
-  }
 }

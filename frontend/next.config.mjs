@@ -20,7 +20,11 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
+  // Note: Permissions-Policy + security headers are owned by src/middleware.ts
+  // (the edge middleware runs after next.config headers and would override
+  // anything set here, so we keep a single source of truth).
   experimental: {
+    instrumentationHook: true,
     serverComponentsExternalPackages: ['@opentelemetry/api', '@opentelemetry/core', '@opentelemetry/semantic-conventions'],
     optimizePackageImports: [
       'lucide-react',
@@ -36,10 +40,19 @@ const nextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-  silent: !process.env.CI,
-  widenClientFileUpload: true,
-  disableLogger: true,
-});
+// Sentry's webpack plugin instruments the build (auto-instrumentation,
+// source-map handling, a client tunnel route). That work is only meaningful
+// for production builds — in `next dev` it adds compile overhead for no
+// benefit, especially since the local workflow has no SENTRY_DSN set. So we
+// only wrap with Sentry for production builds. Prod behaviour is unchanged.
+const isProduction = process.env.NODE_ENV === 'production';
+
+export default isProduction
+  ? withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      silent: !process.env.CI,
+      widenClientFileUpload: true,
+      disableLogger: true,
+    })
+  : nextConfig;

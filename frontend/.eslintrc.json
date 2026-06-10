@@ -1,3 +1,35 @@
 {
-  "extends": ["next/core-web-vitals", "next/typescript"]
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "rules": {
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/\\b(shadow-sm|shadow-md|shadow-lg|shadow-xl|shadow-2xl)\\b/]",
+        "message": "Use shadow-level-1..5 per Design.md elevation ladder. Legacy Tailwind drop-shadows are banned."
+      },
+      {
+        "selector": "Literal[value=/\\b(text|bg|border)-(green|red|amber|yellow|orange|blue|sky|indigo|purple|violet|pink|rose|emerald|teal|cyan|gray|slate|zinc|neutral|stone)-[0-9]/]",
+        "message": "Use semantic tokens (text-success/error-deep/warning-deep/link-deep, bg-canvas-soft[-2], border-hairline[-strong]) — Design.md bans Tailwind color scales in app code."
+      },
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Hex colors are banned outside globals.css and tailwind.config.ts. Use design tokens or hsl(var(--token))."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/components/ui/**",
+        "src/components/shared/typography.tsx",
+        "src/components/shared/section.tsx",
+        "scripts/**",
+        "**/*.test.*",
+        "**/*.spec.*"
+      ],
+      "rules": {
+        "no-restricted-syntax": "off"
+      }
+    }
+  ]
 }

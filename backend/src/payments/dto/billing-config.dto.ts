@@ -96,7 +96,7 @@ export class UpdateTaxRateDto {
 }
 
 export class CreateGatewayConfigDto {
-  @IsIn(['razorpay', 'stripe'])
+  @IsIn(['razorpay'])
   gateway_name: string;
 
   @IsString()

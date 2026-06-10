@@ -12,7 +12,8 @@ export type ReferralStatus =
 export type RewardType =
   | 'extend_subscription'
   | 'account_credit'
-  | 'trial_extension';
+  | 'trial_extension'
+  | 'wallet_credit';
 
 export type BillingCycle = 'monthly' | 'annual';
 
@@ -151,4 +152,122 @@ export interface CreateRulePayload {
 export interface PaginatedReferrals {
   data: GymReferral[];
   meta: { total: number; page: number; limit: number; total_pages: number };
+}
+
+// ── Phase 3: Admin overrides & fraud queue ───────────────────────
+
+export type FraudSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type FraudReviewStatus = 'pending' | 'reviewed_ok' | 'confirmed_fraud';
+
+export interface FraudSignal {
+  id:                 string;
+  referral_id:        string | null;
+  subject_studio_id:  string | null;
+  signal_type:        string;
+  severity:           FraudSeverity | string;
+  evidence:           Record<string, unknown>;
+  review_status:      FraudReviewStatus | string;
+  reviewed_by:        string | null;
+  reviewed_at:        string | null;
+  reviewer_notes:     string | null;
+  created_at:         string;
+  referral?: {
+    id:               string;
+    status:           ReferralStatus;
+    risk_score:       number;
+    referral_code:    string;
+    referrer_studio:  { id: string; name: string };
+    referred_studio:  { id: string; name: string };
+  } | null;
+  subject?: { id: string; name: string } | null;
+}
+
+export interface FraudQueueResponse {
+  items: FraudSignal[];
+  total: number;
+}
+
+export interface LifecycleEvent {
+  id:          string;
+  referral_id: string;
+  from_status: string | null;
+  to_status:   string;
+  actor_type:  string;
+  actor_id:    string | null;
+  payload:     Record<string, unknown>;
+  occurred_at: string;
+}
+
+// ── Phase 3: Wallet ──────────────────────────────────────────────
+
+export interface WalletEntry {
+  id:                  string;
+  wallet_id:           string;
+  entry_type:          'credit' | 'debit' | 'reversal' | 'expiry' | string;
+  amount:              string;          // Decimal serialized; signed
+  currency:            string;
+  source_type:         string;
+  source_id:           string | null;
+  reward_log_id:       string | null;
+  reverses_entry_id:   string | null;
+  idempotency_key:     string;
+  expires_at:          string | null;
+  description:         string | null;
+  metadata:            Record<string, unknown>;
+  created_at:          string;
+}
+
+export interface WalletView {
+  balance:  string;
+  currency: string;
+  entries:  WalletEntry[];
+}
+
+// ── Phase 3: Overview ────────────────────────────────────────────
+
+export interface AdminOverview {
+  lifecycle_funnel: Array<{ status: string; count: number }>;
+  rewards: Array<{ status: string; reward_type: string; count: number }>;
+  wallet_totals: Array<{ entry_type: string; total: string }>;
+  fraud: Array<{ severity: string; review_status: string; count: number }>;
+  top_risk_referrals: Array<{
+    id:         string;
+    status:     string;
+    risk_score: number;
+    referrer_studio: { name: string };
+    referred_studio: { name: string };
+  }>;
+}
+
+// ── Phase 4: Analytics ──────────────────────────────────────────
+
+export interface FunnelResponse {
+  total: number;
+  rewarded: number;
+  conversion_pct: number;
+  by_status: Array<{ status: string; count: number }>;
+}
+
+export interface TopReferrer {
+  studio: { id: string; name: string; referral_code: string; country: string | null };
+  rewarded_count: number;
+  rewards: Record<string, number>;
+}
+
+export interface AttributedRevenue {
+  total_revenue: string;
+  by_currency: Record<string, number>;
+  count: number;
+}
+
+export interface TimeToReward {
+  count: number;
+  avg_hours: number;
+  median_hours: number;
+}
+
+export interface DailyTrendRow {
+  day: string;
+  created: number;
+  rewarded: number;
 }

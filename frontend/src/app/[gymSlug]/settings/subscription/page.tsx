@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/app-layout";
 import { LoadingSkeleton , AccessDenied } from "@/components/shared";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "sonner";
+import { InvoicesSection } from "@/features/subscription/invoices-section";
 import {
   ArrowLeft,
   Crown,
@@ -41,6 +43,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import { useRequirePermission } from "@/hooks/use-require-permission";
+import { CancelPlanDialog } from "@/features/subscription";
 
 // ── Types ──────────────────────────────────────────────────────
 interface AccountOverview {
@@ -80,6 +83,11 @@ interface AccountOverview {
     subscription_start: string | null;
     next_billing_date: string | null;
     trial_ends_at: string | null;
+    grace_until?: string | null;
+    locked_at?: string | null;
+    days_until_expiry?: number | null;
+    grace_days_remaining?: number | null;
+    can_mutate?: boolean;
   };
   usage: {
     branches: { current: number; max: number };
@@ -157,17 +165,20 @@ function fmtCurrency(amount: number, currency: string) {
 }
 
 function StatusPill({ status }: { status: string }) {
+  // Status now comes from the live-computed lifecycle:
+  // active | grace_period | locked | suspended | trial | past_due
   const color =
     status === "active"
       ? "bg-success/10 text-success ring-success/20"
       : status === "trial"
-        ? "bg-blue-500/10 text-blue-400 ring-blue-500/20"
-        : status === "past_due"
-          ? "bg-amber-500/10 text-amber-500 ring-amber-500/20"
-          : "bg-red-500/10 text-red-500 ring-red-500/20";
+        ? "bg-link/10 text-link ring-link/20"
+        : status === "grace_period" || status === "past_due"
+          ? "bg-warning/10 text-warning ring-amber-500/20"
+          : "bg-error/10 text-error ring-red-500/20"; // locked | suspended | expired
+  const label = status === "grace_period" ? "Grace period" : status.replace(/_/g, " ");
   return (
     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold capitalize ring-1 ${color}`}>
-      {status.replace("_", " ")}
+      {label}
     </span>
   );
 }
@@ -220,7 +231,7 @@ function UsageBar({
         </span>
         <span
           className={`text-sm font-medium ${
-            isFull ? "text-red-500" : isHigh ? "text-amber-500" : "text-foreground"
+            isFull ? "text-error" : isHigh ? "text-warning" : "text-foreground"
           }`}
         >
           {current.toLocaleString()}{" "}
@@ -229,10 +240,10 @@ function UsageBar({
           </span>
         </span>
       </div>
-      <div className="h-2 bg-muted/50 rounded-full overflow-hidden">
+      <div className="h-2 bg-canvas-soft rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all duration-500 ${
-            isFull ? "bg-red-500" : isHigh ? "bg-amber-500" : "bg-primary"
+          className={`h-full rounded-full transition-all duration-slow ${
+            isFull ? "bg-error" : isHigh ? "bg-warning" : "bg-primary"
           }`}
           style={{ width: `${pct}%` }}
         />
@@ -254,13 +265,23 @@ export default function SubscriptionPage() {
   const { allowed, checked } = useRequirePermission("settings", "view", "deny");
   const { gymPath } = useGymSlug();
   const { user } = useAuthStore();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
 
   const PLAN_TIERS = GYM_PLAN_TIERS;
   const canUpgrade = true;
-  const [confirmPlan, setConfirmPlan] = useState<string | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  // Renewal window — show plan-change UI only when the user actually needs to act.
+  // Threshold: within this many days of next_billing_date, OR any non-active
+  // status (past_due, expired, canceled). Must stay well below the shortest
+  // billing cycle (monthly = 30 days) — otherwise a brand-new monthly plan lands
+  // inside the window on day one and shows "renew" for its entire first month.
+  const RENEWAL_WINDOW_DAYS = 7;
+  // After a successful checkout we redirect here with ?invoice=ID so the
+  // InvoicesSection can deep-link the freshly-paid receipt in the viewer.
+  const focusInvoiceId = searchParams.get("invoice");
 
   const {
     data: account,
@@ -271,17 +292,14 @@ export default function SubscriptionPage() {
     queryFn: () => apiClient.get("/settings/account"),
   });
 
-  const upgradeMutation = useMutation({
-    mutationFn: (data: { plan: string; billing_cycle: string }) =>
-      apiClient.patch("/settings/subscription", data),
-    onSuccess: () => {
-      toast.success("Plan upgraded successfully! A confirmation email has been sent.");
-      queryClient.invalidateQueries({ queryKey: ["account-overview"] });
-      setUpgradeOpen(false);
-      setConfirmPlan(null);
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
+  // Renew (same plan) and Switch (different plan) both navigate to the
+  // dedicated checkout page so there's exactly ONE payment path — no
+  // modal trap, no parallel "instant-upgrade" shortcut that drifts.
+  function openPaymentFor(planKey: string, _planName: string, cycle: "monthly" | "annual") {
+    router.push(
+      gymPath(`/settings/subscription/checkout?plan=${encodeURIComponent(planKey)}&cycle=${cycle}`),
+    );
+  }
 
 
   if (checked && !allowed) {
@@ -296,7 +314,7 @@ export default function SubscriptionPage() {
     <AppLayout>
       {/* ── Page Header ───────────────────────────────────── */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2.5">
+        <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2.5">
           <CreditCard className="w-7 h-7 text-primary" /> Subscription & Plan
         </h1>
         <p className="text-sm text-muted-foreground mt-1.5">
@@ -314,28 +332,49 @@ export default function SubscriptionPage() {
           <LoadingSkeleton className="h-48" />
         </div>
       ) : error ? (
-        <div className="bg-card border border-red-500/20 rounded-xl p-6 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
-            <AlertCircle className="w-5 h-5 text-red-500" />
+        <div className="bg-card border border-error/30 rounded-lg p-6 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-full bg-error/10 flex items-center justify-center shrink-0">
+            <AlertCircle className="w-5 h-5 text-error" />
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">Unable to load subscription</p>
             <p className="text-xs text-muted-foreground mt-1">Please check your connection and try again.</p>
           </div>
         </div>
-      ) : account ? (
+      ) : account ? (() => {
+        // Compute whether to expose renewal / plan-change controls.
+        // Owners on an active plan with > 30 days remaining don't see it —
+        // the surface only appears when a renewal decision is actually due.
+        const status = account.subscription.status;
+        const nextBilling = account.subscription.next_billing_date
+          ? new Date(account.subscription.next_billing_date)
+          : null;
+        const daysUntilRenewal = nextBilling
+          ? Math.ceil((nextBilling.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+          : null;
+        // An active subscription with no billing date is NOT "renewal due" —
+        // that's a free tier or a brand-new paid gym whose period hasn't lapsed.
+        // This mirrors the backend SubscriptionPolicyService, which treats
+        // "no next_billing_date" as active-with-no-expiry. Only surface the
+        // renewal UI when the status is non-active, OR an active plan is within
+        // RENEWAL_WINDOW_DAYS of its actual billing date.
+        const inRenewalWindow =
+          status !== "active" ||
+          (daysUntilRenewal !== null && daysUntilRenewal <= RENEWAL_WINDOW_DAYS);
+        const showRenewalUI = inRenewalWindow;
+        return (
         <div className="space-y-6">
           {/* ── Plan Hero Banner ──────────────────────────── */}
-          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-black/5">
+          <div className="bg-card border border-border rounded-lg overflow-hidden shadow-black/5">
             <div className="bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-8">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                 <div className="flex items-center gap-5">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border-2 border-primary/20">
+                  <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border-2 border-primary/20">
                     <Crown className="w-8 h-8 text-primary" />
                   </div>
                   <div>
                     <div className="flex items-center gap-3 mb-1">
-                      <h2 className="text-2xl font-bold text-foreground capitalize">
+                      <h2 className="text-2xl font-semibold text-foreground capitalize">
                         {account.subscription.plan} Plan
                       </h2>
                       <StatusPill status={account.subscription.status} />
@@ -350,33 +389,212 @@ export default function SubscriptionPage() {
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-foreground">
+                    <p className="text-2xl font-semibold text-foreground">
                       {fmtCurrency(account.subscription.price, account.billing.currency)}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       per {account.subscription.billing_cycle === "annual" ? "year" : "month"}
                     </p>
+                    {!showRenewalUI && (
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        {daysUntilRenewal !== null
+                          ? `Renews in ${daysUntilRenewal} days`
+                          : "Active — no renewal due"}
+                      </p>
+                    )}
                   </div>
-                  {account.subscription.plan !== "enterprise" && canUpgrade && (
+                  {showRenewalUI && (
                     <button
-                      onClick={() => setUpgradeOpen(true)}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/20"
+                      onClick={() => {
+                        const grid = document.getElementById('plans-grid');
+                        grid?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition-all hover:shadow-level-4 hover:shadow-primary/20"
                     >
                       <TrendingUp className="w-4 h-4" />
-                      Upgrade
+                      Renew or change plan
                     </button>
                   )}
+                  <button
+                    onClick={() => setCancelOpen(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 border border-border bg-background text-muted-foreground rounded-lg text-sm font-medium hover:bg-error-soft hover:text-error hover:border-error/30 transition-all"
+                  >
+                    <X className="w-4 h-4" />
+                    Cancel Plan
+                  </button>
+                  <CancelPlanDialog
+                    open={cancelOpen}
+                    onOpenChange={setCancelOpen}
+                    accessUntil={account.subscription.next_billing_date}
+                  />
                 </div>
               </div>
             </div>
           </div>
 
+          {/* ── Plans Grid — only when a renewal decision is due ──── */}
+          {showRenewalUI && (
+          <div
+            id="plans-grid"
+            className="bg-card border border-border rounded-lg shadow-level-2 shadow-black/5 overflow-hidden scroll-mt-20"
+          >
+            <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-border flex-wrap">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
+                  <Rocket className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+                    Renew or change plan
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Pick the plan you want — same one to renew, or switch to a different tier
+                  </p>
+                </div>
+              </div>
+              {/* Billing toggle */}
+              <div className="flex items-center gap-3">
+                <span
+                  className={`text-xs ${billingCycle === "monthly" ? "text-foreground font-semibold" : "text-muted-foreground"}`}
+                >
+                  Monthly
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle(billingCycle === "monthly" ? "annual" : "monthly")}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    billingCycle === "annual" ? "bg-primary" : "bg-border"
+                  }`}
+                  aria-label="Toggle billing cycle"
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-canvas transition-transform ${
+                      billingCycle === "annual" ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+                <span
+                  className={`text-xs ${billingCycle === "annual" ? "text-foreground font-semibold" : "text-muted-foreground"}`}
+                >
+                  Annual <span className="text-primary">(save ~17%)</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {PLAN_TIERS.map((tier) => {
+                const isCurrent =
+                  account.subscription.plan === tier.key &&
+                  account.subscription.billing_cycle === billingCycle;
+                const isCurrentPlanDifferentCycle =
+                  account.subscription.plan === tier.key &&
+                  account.subscription.billing_cycle !== billingCycle;
+                const price = billingCycle === "annual" ? tier.annual : tier.monthly;
+                const currentIdx = PLAN_TIERS.findIndex((t) => t.key === account.subscription.plan);
+                const tierIdx = PLAN_TIERS.findIndex((t) => t.key === tier.key);
+                const direction =
+                  tierIdx > currentIdx ? "upgrade" : tierIdx < currentIdx ? "downgrade" : "same";
+
+                const cta = isCurrent
+                  ? "Renew this plan"
+                  : direction === "upgrade"
+                    ? `Switch to ${tier.name}`
+                    : direction === "downgrade"
+                      ? `Downgrade to ${tier.name}`
+                      : `Switch to ${billingCycle === "annual" ? "Annual" : "Monthly"}`;
+
+                const free = price === 0;
+
+                return (
+                  <div
+                    key={tier.key}
+                    className={`rounded-lg border p-5 flex flex-col ${
+                      isCurrent
+                        ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                        : "border-border bg-background hover:border-primary/40 transition-colors"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-base font-semibold text-foreground">{tier.name}</h3>
+                      {isCurrent && (
+                        <span className="text-[10px] uppercase tracking-wide rounded bg-canvas-soft-2 px-1.5 py-0.5 text-primary font-semibold">
+                          Current
+                        </span>
+                      )}
+                      {direction === "upgrade" && !isCurrent && (
+                        <span className="text-[10px] uppercase tracking-wide rounded bg-success/12 px-1.5 py-0.5 text-emerald-800 font-semibold">
+                          Upgrade
+                        </span>
+                      )}
+                      {direction === "downgrade" && !isCurrent && (
+                        <span className="text-[10px] uppercase tracking-wide rounded bg-warning-soft px-1.5 py-0.5 text-warning-deep font-semibold">
+                          Downgrade
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-2xl font-semibold text-foreground mt-2">
+                      {free ? "Free" : `₹${price.toLocaleString("en-IN")}`}
+                      {!free && (
+                        <span className="text-xs text-muted-foreground font-normal">
+                          /{billingCycle === "annual" ? "yr" : "mo"}
+                        </span>
+                      )}
+                    </p>
+
+                    <div className="mt-4 space-y-2 text-xs text-muted-foreground flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5" />
+                        {tier.branches >= 999 ? "Unlimited" : tier.branches} branch{tier.branches !== 1 ? "es" : ""}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5" />
+                        {tier.members >= 99999 ? "Unlimited" : tier.members.toLocaleString()} members
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <UserCog className="w-3.5 h-3.5" />
+                        {tier.staff >= 999 ? "Unlimited" : tier.staff} staff
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      {free ? (
+                        <p className="text-[11px] text-center text-muted-foreground py-2 italic">
+                          Free tier — no renewal needed
+                        </p>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant={isCurrent ? "default" : direction === "downgrade" ? "outline" : "default"}
+                          className="w-full text-xs"
+                          onClick={() => openPaymentFor(tier.key, tier.name, billingCycle)}
+                        >
+                          {cta}
+                        </Button>
+                      )}
+                      {isCurrentPlanDifferentCycle && (
+                        <p className="text-[10px] text-center text-muted-foreground mt-1.5">
+                          You're on {account.subscription.billing_cycle} — switch cycle?
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="px-6 pb-5 text-[11px] text-muted-foreground border-t border-border/50 pt-3 flex items-center gap-1.5">
+              <AlertCircle className="w-3 h-3" />
+              Pay online via Razorpay Checkout, or record a manual payment with a transaction reference (UPI / Card / Bank / Cash).
+            </div>
+          </div>
+          )}
+
           {/* ── Two-Column: Subscription Details + Usage ──── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Subscription Details */}
-            <div className="bg-card border border-border rounded-2xl shadow-sm shadow-black/5 overflow-hidden">
+            <div className="bg-card border border-border rounded-lg shadow-level-2 shadow-black/5 overflow-hidden">
               <div className="flex items-center gap-2.5 px-6 py-4 border-b border-border">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
                   <CreditCard className="w-5 h-5 text-primary" />
                 </div>
                 <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
@@ -400,7 +618,7 @@ export default function SubscriptionPage() {
                   {fmtCurrency(account.subscription.annual_price, account.billing.currency)}
                 </DetailRow>
                 <DetailRow icon={IndianRupee} label="Current Price">
-                  <span className="font-bold text-primary">
+                  <span className="font-semibold text-primary">
                     {fmtCurrency(account.subscription.price, account.billing.currency)}
                     <span className="text-xs text-muted-foreground font-normal ml-1">
                       /{account.subscription.billing_cycle === "annual" ? "yr" : "mo"}
@@ -413,13 +631,14 @@ export default function SubscriptionPage() {
                 <DetailRow icon={CalendarCheck} label="Next Billing">
                   {fmtDate(account.subscription.next_billing_date)}
                 </DetailRow>
-                {account.subscription.trial_ends_at && (
-                  <DetailRow icon={AlertCircle} label="Trial Ends">
-                    <span className="text-amber-500 font-semibold">
-                      {fmtDate(account.subscription.trial_ends_at)}
-                    </span>
-                  </DetailRow>
-                )}
+                {account.subscription.trial_ends_at &&
+                  new Date(account.subscription.trial_ends_at).getTime() > Date.now() && (
+                    <DetailRow icon={AlertCircle} label="Trial Ends">
+                      <span className="text-warning font-semibold">
+                        {fmtDate(account.subscription.trial_ends_at)}
+                      </span>
+                    </DetailRow>
+                  )}
                 <DetailRow icon={Calendar} label="Studio Created">
                   {fmtDate(account.studio.created_at)}
                 </DetailRow>
@@ -427,9 +646,9 @@ export default function SubscriptionPage() {
             </div>
 
             {/* Usage & Limits */}
-            <div className="bg-card border border-border rounded-2xl shadow-sm shadow-black/5 overflow-hidden">
+            <div className="bg-card border border-border rounded-lg shadow-level-2 shadow-black/5 overflow-hidden">
               <div className="flex items-center gap-2.5 px-6 py-4 border-b border-border">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
                   <BarChart3 className="w-5 h-5 text-primary" />
                 </div>
                 <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
@@ -460,7 +679,7 @@ export default function SubscriptionPage() {
               {/* Billing Info */}
               <div className="border-t border-border">
                 <div className="flex items-center gap-2.5 px-6 py-4 border-b border-border/50">
-                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
                     <Wallet className="w-5 h-5 text-primary" />
                   </div>
                   <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
@@ -489,10 +708,13 @@ export default function SubscriptionPage() {
             </div>
           </div>
 
+          {/* ── Invoices ──────────────────────────────────── */}
+          <InvoicesSection focusInvoiceId={focusInvoiceId} />
+
           {/* ── Plan Features ─────────────────────────────── */}
-          <div className="bg-card border border-border rounded-2xl shadow-sm shadow-black/5 overflow-hidden">
+          <div className="bg-card border border-border rounded-lg shadow-level-2 shadow-black/5 overflow-hidden">
             <div className="flex items-center gap-2.5 px-6 py-4 border-b border-border">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
                 <Zap className="w-5 h-5 text-primary" />
               </div>
               <div>
@@ -525,7 +747,7 @@ export default function SubscriptionPage() {
                               className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs ${
                                 enabled
                                   ? "bg-success/5 text-foreground"
-                                  : "bg-muted/30 text-muted-foreground"
+                                  : "bg-canvas-soft text-muted-foreground"
                               }`}
                             >
                               {enabled ? (
@@ -544,162 +766,11 @@ export default function SubscriptionPage() {
               </div>
             </div>
 
-            {/* Upgrade banner */}
-            {account.subscription.plan !== "enterprise" && canUpgrade && (
-              <div className="border-t border-border bg-primary/5 px-6 py-4 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    Need more features?
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Upgrade your plan to unlock additional capabilities
-                  </p>
-                </div>
-                <button
-                  onClick={() => setUpgradeOpen(true)}
-                  className="inline-flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/20"
-                >
-                  <TrendingUp className="w-4 h-4" />
-                  View Plans
-                </button>
-              </div>
-            )}
           </div>
         </div>
-      ) : null}
+        );
+      })() : null}
 
-      {/* ── Upgrade Plan Dialog ──────────────────────────── */}
-      <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
-        <DialogContent className="bg-card border-border text-foreground sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
-              <Rocket className="w-5 h-5 text-primary" />
-              Choose Your Plan
-            </DialogTitle>
-          </DialogHeader>
-
-          {/* Billing toggle */}
-          <div className="flex items-center justify-center gap-3 my-4">
-            <span className={`text-sm ${billingCycle === "monthly" ? "text-foreground font-semibold" : "text-muted-foreground"}`}>
-              Monthly
-            </span>
-            <button
-              type="button"
-              onClick={() => setBillingCycle(billingCycle === "monthly" ? "annual" : "monthly")}
-              className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-                billingCycle === "annual" ? "bg-primary" : "bg-border"
-              }`}
-            >
-              <span
-                className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                  billingCycle === "annual" ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
-            <span className={`text-sm ${billingCycle === "annual" ? "text-foreground font-semibold" : "text-muted-foreground"}`}>
-              Annual <span className="text-xs text-primary">(Save ~17%)</span>
-            </span>
-          </div>
-
-          {/* Plan cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {PLAN_TIERS.map((tier) => {
-              const isCurrent = account?.subscription.plan === tier.key;
-              const price = billingCycle === "annual" ? tier.annual : tier.monthly;
-              const isDowngrade =
-                PLAN_TIERS.findIndex((t) => t.key === account?.subscription.plan) >=
-                PLAN_TIERS.findIndex((t) => t.key === tier.key);
-
-              return (
-                <div
-                  key={tier.key}
-                  className={`rounded-xl border p-5 flex flex-col ${
-                    isCurrent
-                      ? "border-primary bg-primary/5"
-                      : "border-border bg-background hover:border-primary/40 transition-colors"
-                  }`}
-                >
-                  <h3 className="text-base font-bold text-foreground">{tier.name}</h3>
-                  <p className="text-2xl font-bold text-foreground mt-2">
-                    {price === 0 ? "Free" : `₹${price.toLocaleString("en-IN")}`}
-                    {price > 0 && (
-                      <span className="text-xs text-muted-foreground font-normal">
-                        /{billingCycle === "annual" ? "yr" : "mo"}
-                      </span>
-                    )}
-                  </p>
-
-                  <div className="mt-4 space-y-2 text-xs text-muted-foreground flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5" />
-                      {tier.branches >= 999 ? "Unlimited" : tier.branches} branch{tier.branches !== 1 ? "es" : ""}
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5" />
-                      {tier.members >= 99999 ? "Unlimited" : tier.members.toLocaleString()} members
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <UserCog className="w-3.5 h-3.5" />
-                      {tier.staff >= 999 ? "Unlimited" : tier.staff} staff
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    {isCurrent ? (
-                      <span className="block text-center text-xs font-semibold text-primary py-2">
-                        Current Plan
-                      </span>
-                    ) : isDowngrade ? (
-                      <span className="block text-center text-xs text-muted-foreground py-2">
-                        —
-                      </span>
-                    ) : confirmPlan === tier.key ? (
-                      <div className="space-y-2">
-                        <p className="text-xs text-center text-amber-500 font-medium">
-                          Confirm upgrade to {tier.name}?
-                        </p>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="flex-1 text-xs"
-                            onClick={() => setConfirmPlan(null)}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="flex-1 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
-                            disabled={upgradeMutation.isPending}
-                            onClick={() =>
-                              upgradeMutation.mutate({
-                                plan: tier.key,
-                                billing_cycle: billingCycle,
-                              })
-                            }
-                          >
-                            {upgradeMutation.isPending ? "Upgrading..." : "Confirm"}
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <Button
-                        size="sm"
-                        className="w-full text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
-                        onClick={() => setConfirmPlan(tier.key)}
-                      >
-                        Upgrade to {tier.name}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Confirm Plan Change Dialog (from plan-limit-reached event) ── */}
     </AppLayout>
   );
 }

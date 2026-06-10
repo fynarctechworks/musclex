@@ -30,10 +30,10 @@ export function BusinessMetricsTile({
   });
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md flex flex-col gap-4">
+    <div className="rounded-lg border border-border bg-card p-5 shadow-level-2 transition-shadow hover:shadow-level-3 flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-canvas-soft-2 text-primary">
             <TrendingUp className="h-4 w-4" />
           </span>
           <div className="min-w-0">
@@ -162,7 +162,7 @@ function Stat({
       <div className="min-w-0">
         <p
           className={cn(
-            "truncate text-xl font-bold leading-tight tabular-nums",
+            "truncate text-xl font-semibold leading-tight tabular-nums",
             valueClass,
           )}
           title={value}

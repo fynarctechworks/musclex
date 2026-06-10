@@ -5,11 +5,15 @@ import {
   usePayments,
   useRetryPayment,
   useRefundPayment,
+  useMarkPaymentPaid,
 } from '@/hooks/use-billing';
+import { BillingDetailDrawer } from './billing-detail-drawer';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { LoadingSkeleton } from '@/components/shared/loading-skeleton';
 import { EmptyState } from '@/components/shared/empty-state';
+import { ErrorState } from '@/components/shared/error-state';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -32,7 +36,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, RefreshCw, Undo2 } from 'lucide-react';
+import { MoreHorizontal, RefreshCw, Undo2, CheckCircle2 } from 'lucide-react';
 
 function formatCurrency(amount: number, currency = 'INR') {
   return new Intl.NumberFormat('en-IN', {
@@ -55,12 +59,14 @@ function formatDateTime(date: string) {
 export default function BillingPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
-  const { data, isLoading } = usePayments({
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+  const { data, isLoading, isError, refetch } = usePayments({
     page,
     status: status || undefined,
   });
   const retry = useRetryPayment();
   const refund = useRefundPayment();
+  const markPaid = useMarkPaymentPaid();
 
   return (
     <div>
@@ -77,7 +83,7 @@ export default function BillingPage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="All Status" />
           </SelectTrigger>
           <SelectContent>
@@ -92,6 +98,12 @@ export default function BillingPage() {
 
       {isLoading ? (
         <LoadingSkeleton rows={8} />
+      ) : isError ? (
+        <ErrorState
+          title="Could not load payments"
+          description="The request failed — this is not the same as having no payments. Check that the backend is running and retry."
+          onRetry={() => refetch()}
+        />
       ) : !data?.data.length ? (
         <EmptyState />
       ) : (
@@ -110,7 +122,11 @@ export default function BillingPage() {
               </TableHeader>
               <TableBody>
                 {data.data.map((payment) => (
-                  <TableRow key={payment.id}>
+                  <TableRow
+                    key={payment.id}
+                    className="cursor-pointer"
+                    onClick={() => setSelectedTenantId(payment.tenant_id)}
+                  >
                     <TableCell className="text-[13px] font-semibold text-foreground">
                       {payment.tenant?.name || payment.tenant_id}
                     </TableCell>
@@ -126,7 +142,7 @@ export default function BillingPage() {
                     <TableCell className="text-[13px] text-muted-foreground">
                       {formatDateTime(payment.created_at)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-muted transition-colors outline-none">
                           <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
@@ -134,15 +150,38 @@ export default function BillingPage() {
                         <DropdownMenuContent align="end">
                           {payment.status === 'FAILED' && (
                             <DropdownMenuItem
-                              onClick={() => retry.mutate(payment.id)}
+                              onClick={() =>
+                                retry.mutate(payment.id, {
+                                  onSuccess: () => toast.success('Payment retried'),
+                                  onError: (e: Error) => toast.error(e.message || 'Retry failed'),
+                                })
+                              }
                             >
                               <RefreshCw className="mr-2 h-4 w-4" />
                               Retry
                             </DropdownMenuItem>
                           )}
+                          {(payment.status === 'PENDING' || payment.status === 'FAILED') && (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                markPaid.mutate(payment.id, {
+                                  onSuccess: () => toast.success('Marked as paid'),
+                                  onError: (e: Error) => toast.error(e.message || 'Failed to mark paid'),
+                                })
+                              }
+                            >
+                              <CheckCircle2 className="mr-2 h-4 w-4" />
+                              Mark as Paid
+                            </DropdownMenuItem>
+                          )}
                           {payment.status === 'PAID' && (
                             <DropdownMenuItem
-                              onClick={() => refund.mutate(payment.id)}
+                              onClick={() =>
+                                refund.mutate(payment.id, {
+                                  onSuccess: () => toast.success('Payment refunded'),
+                                  onError: (e: Error) => toast.error(e.message || 'Refund failed'),
+                                })
+                              }
                               className="text-destructive"
                             >
                               <Undo2 className="mr-2 h-4 w-4" />
@@ -182,6 +221,12 @@ export default function BillingPage() {
           </div>
         </>
       )}
+
+      <BillingDetailDrawer
+        tenantId={selectedTenantId}
+        open={!!selectedTenantId}
+        onClose={() => setSelectedTenantId(null)}
+      />
     </div>
   );
 }

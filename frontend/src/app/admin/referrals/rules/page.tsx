@@ -77,9 +77,9 @@ function ConditionPills({ conditions }: { conditions: RuleConditions }) {
   const pills: { label: string; color: string }[] = [];
 
   if (conditions.plan_ids?.length)
-    pills.push({ label: `${conditions.plan_ids.length} plan(s)`, color: 'bg-primary/10 text-primary' });
+    pills.push({ label: `${conditions.plan_ids.length} plan(s)`, color: 'bg-canvas-soft-2 text-primary' });
   if (conditions.billing_cycles?.length)
-    pills.push({ label: conditions.billing_cycles.join(', '), color: 'bg-primary/10 text-primary' });
+    pills.push({ label: conditions.billing_cycles.join(', '), color: 'bg-canvas-soft-2 text-primary' });
   if (conditions.min_subscription_amount)
     pills.push({ label: `≥ ${conditions.min_subscription_amount}`, color: 'bg-muted text-muted-foreground' });
   if (conditions.max_referrals_per_referrer)
@@ -248,7 +248,7 @@ function RuleFormDialog({
                   <button
                     key={t.label}
                     onClick={() => applyTemplate(t)}
-                    className="text-[11px] px-2.5 py-1 rounded-lg border border-border bg-muted/60 hover:bg-muted text-foreground transition-colors"
+                    className="text-[11px] px-2.5 py-1 rounded-lg border border-border bg-canvas-soft hover:bg-muted text-foreground transition-colors"
                   >
                     {t.label}
                   </button>
@@ -328,9 +328,9 @@ function RuleFormDialog({
 
             <TabsContent value="form" className="mt-3 space-y-4">
               {/* Conditions visual */}
-              <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <div className="rounded-lg border border-border bg-canvas-soft p-4">
                 <h3 className="text-[12px] font-semibold text-foreground mb-3 flex items-center gap-1.5">
-                  <span className="h-4 w-4 rounded-sm bg-primary/10 flex items-center justify-center text-[9px] text-primary font-bold">IF</span>
+                  <span className="h-4 w-4 rounded-sm bg-canvas-soft-2 flex items-center justify-center text-[9px] text-primary font-semibold">IF</span>
                   Trigger Conditions
                   <span className="text-[10px] font-normal text-muted-foreground">(ALL must match)</span>
                 </h3>
@@ -341,9 +341,9 @@ function RuleFormDialog({
               </div>
 
               {/* Rewards visual */}
-              <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <div className="rounded-lg border border-border bg-canvas-soft p-4">
                 <h3 className="text-[12px] font-semibold text-foreground mb-3 flex items-center gap-1.5">
-                  <span className="h-4 w-4 rounded-sm bg-success/10 flex items-center justify-center text-[9px] text-success font-bold">DO</span>
+                  <span className="h-4 w-4 rounded-sm bg-success/10 flex items-center justify-center text-[9px] text-success font-semibold">DO</span>
                   Reward Actions
                 </h3>
                 <RewardEditor
@@ -362,7 +362,7 @@ function RuleFormDialog({
                   value={form.conditionsJson}
                   onChange={(e) => setField('conditionsJson', e.target.value)}
                   rows={6}
-                  className="font-mono text-xs bg-muted/60"
+                  className="font-mono text-xs bg-canvas-soft"
                   placeholder='{"min_subscription_amount": 1}'
                 />
               </div>
@@ -374,7 +374,7 @@ function RuleFormDialog({
                   value={form.rewardsJson}
                   onChange={(e) => setField('rewardsJson', e.target.value)}
                   rows={6}
-                  className="font-mono text-xs bg-muted/60"
+                  className="font-mono text-xs bg-canvas-soft"
                   placeholder='[{"type": "extend_subscription", "days": 30}]'
                 />
               </div>
@@ -471,8 +471,8 @@ function ConditionEditor({ value, onChange }: { value: string; onChange: (v: str
                 className={cn(
                   'px-3 py-1 rounded-lg text-[11px] font-medium border transition-colors',
                   active
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border bg-muted/60 text-muted-foreground hover:bg-muted',
+                    ? 'border-primary bg-canvas-soft-2 text-primary'
+                    : 'border-border bg-canvas-soft text-muted-foreground hover:bg-muted',
                 )}
               >
                 {cycle}
@@ -549,7 +549,7 @@ function RewardEditor({ value, onChange }: { value: string; onChange: (v: string
               <select
                 value={r.type}
                 onChange={(e) => updateReward(i, { type: e.target.value as RewardAction['type'] })}
-                className="w-full h-8 rounded-lg border border-border bg-muted/60 text-xs text-foreground px-2 mt-1"
+                className="w-full h-8 rounded-lg border border-border bg-canvas-soft text-xs text-foreground px-2 mt-1"
               >
                 <option value="extend_subscription">Extend Subscription</option>
                 <option value="trial_extension">Extend Trial</option>
@@ -640,7 +640,7 @@ export default function AdminRulesPage() {
           </Link>
           <div className="h-4 w-px bg-border" />
           <div>
-            <h1 className="text-sm font-bold text-foreground flex items-center gap-2">
+            <h1 className="text-sm font-semibold text-foreground flex items-center gap-2">
               <Settings2 className="h-4 w-4 text-primary" />
               Reward Rules
             </h1>
@@ -658,13 +658,13 @@ export default function AdminRulesPage() {
       <div className="p-6 max-w-5xl mx-auto space-y-6">
         {/* Campaigns */}
         {(campaigns?.length ?? 0) > 0 && (
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-lg border border-border bg-card p-5">
             <h2 className="text-[12px] font-semibold text-foreground mb-3">Campaigns</h2>
             <div className="flex flex-wrap gap-3">
               {campaigns!.map((c) => (
                 <div
                   key={c.id}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2"
+                  className="flex items-center gap-3 rounded-lg border border-border bg-canvas-soft px-3 py-2"
                 >
                   <div>
                     <p className="text-[12px] font-medium text-foreground">{c.name}</p>
@@ -690,11 +690,11 @@ export default function AdminRulesPage() {
         {isLoading ? (
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-24 animate-pulse rounded-xl bg-muted" />
+              <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />
             ))}
           </div>
         ) : rules?.length === 0 ? (
-          <div className="rounded-xl border-2 border-dashed border-border p-12 text-center">
+          <div className="rounded-lg border-2 border-dashed border-border p-12 text-center">
             <Zap className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
             <p className="text-sm font-medium text-foreground">No rules configured</p>
             <p className="text-[12px] text-muted-foreground mt-1">
@@ -710,12 +710,12 @@ export default function AdminRulesPage() {
             {rules!.map((rule) => (
               <div
                 key={rule.id}
-                className="rounded-xl border border-border bg-card p-5 hover:border-border/80 transition-colors"
+                className="rounded-lg border border-border bg-card p-5 hover:border-border/80 transition-colors"
               >
                 <div className="flex items-start gap-4">
                   {/* Priority badge */}
-                  <div className="shrink-0 h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <span className="text-[11px] font-bold text-primary">{rule.priority}</span>
+                  <div className="shrink-0 h-8 w-8 rounded-lg bg-canvas-soft-2 flex items-center justify-center">
+                    <span className="text-[11px] font-semibold text-primary">{rule.priority}</span>
                   </div>
 
                   {/* Main content */}
@@ -787,7 +787,7 @@ export default function AdminRulesPage() {
         )}
 
         {/* Explanation box */}
-        <div className="rounded-xl border border-border bg-card/50 p-5">
+        <div className="rounded-lg border border-border bg-card/50 p-5">
           <h3 className="text-[12px] font-semibold text-foreground mb-2 flex items-center gap-2">
             <Info className="h-3.5 w-3.5 text-primary" />
             How the Rule Engine Works
@@ -797,7 +797,7 @@ export default function AdminRulesPage() {
             <li>• All conditions use <strong className="text-foreground">AND logic</strong> — every condition must match for a rule to fire</li>
             <li>• <strong className="text-foreground">ALL matching rules</strong> are applied — a referrer can earn multiple rewards</li>
             <li>• <strong className="text-foreground">Idempotency</strong> — the same event can never apply the same rule twice</li>
-            <li>• Subscription extension uses <code className="text-primary bg-muted/60 px-1 rounded">max(current_expiry, now) + days</code> to handle expired subscriptions</li>
+            <li>• Subscription extension uses <code className="text-primary bg-canvas-soft px-1 rounded">max(current_expiry, now) + days</code> to handle expired subscriptions</li>
             <li>• Changes take effect <strong className="text-foreground">immediately</strong> with zero deployment</li>
           </ul>
         </div>
