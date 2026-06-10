@@ -21,7 +21,11 @@ interface TenantDetail {
   trial_ends_at?: string;
   last_active_at?: string;
   created_at: string;
-  plan?: { id: string; name: string; display_name: string; price_monthly: number; max_branches: number; max_members: number; max_staff: number };
+  // Effective limits live on the tenant record (scc.tenants), not on the plan.
+  max_branches: number;
+  max_members: number;
+  max_staff: number;
+  plan?: { id: string; name: string; price_monthly: number };
   subscriptions: Array<{ id: string; status: string; start_date: string; end_date: string; plan?: { name: string } }>;
   payments: Array<{ id: string; amount: number; currency: string; status: string; created_at: string; gateway?: string }>;
 }
@@ -33,6 +37,12 @@ function fmtDate(d?: string) {
 
 function fmtMoney(amount: number, currency = 'INR') {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount);
+}
+
+function fmtLimit(value: number | undefined | null, unlimitedAt: number) {
+  if (value === undefined || value === null) return '—';
+  if (value >= unlimitedAt) return 'Unlimited';
+  return value.toLocaleString();
 }
 
 function CopyBtn({ value }: { value: string }) {
@@ -150,11 +160,11 @@ export default function CallCenterPage() {
               </div>
               {result.plan ? (
                 <>
-                  <InfoRow label="Plan" value={<span className="font-semibold">{result.plan.display_name || result.plan.name}</span>} />
-                  <InfoRow label="Price" value={fmtMoney(result.plan.price_monthly)} />
-                  <InfoRow label="Max Branches" value={result.plan.max_branches >= 999 ? 'Unlimited' : result.plan.max_branches} />
-                  <InfoRow label="Max Members" value={result.plan.max_members >= 99999 ? 'Unlimited' : result.plan.max_members.toLocaleString()} />
-                  <InfoRow label="Max Staff" value={result.plan.max_staff >= 999 ? 'Unlimited' : result.plan.max_staff} />
+                  <InfoRow label="Plan" value={<span className="font-semibold capitalize">{result.plan.name}</span>} />
+                  <InfoRow label="Price" value={fmtMoney(Number(result.plan.price_monthly))} />
+                  <InfoRow label="Max Branches" value={fmtLimit(result.max_branches, 999)} />
+                  <InfoRow label="Max Members" value={fmtLimit(result.max_members, 99999)} />
+                  <InfoRow label="Max Staff" value={fmtLimit(result.max_staff, 999)} />
                   <InfoRow label="Trial Ends" value={fmtDate(result.trial_ends_at)} />
                 </>
               ) : (

@@ -6,9 +6,11 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubscriptionPolicyService } from '../common/services/subscription-policy.service';
 import { SubscriptionGateway } from './subscription.gateway';
+import { RazorpayService } from '../payments/razorpay.service';
 import { PLAN_CONFIGS } from '../common/plan-configs';
 import { QueueService } from '../queue/queue.service';
 import {
@@ -24,8 +26,8 @@ import {
  * - renew()           : records a renewal (continuity-strict) and pushes WS event
  * - simulateRenewal() : computes the next period without persisting (preview)
  *
- * Real payment gateway integration (Razorpay/Stripe webhook) will land in a
- * follow-up — this layer is the integration point that webhook handlers call.
+ * Razorpay gateway integration is live via createRenewalOrder()/verifyAndRenew();
+ * this layer is also the integration point a webhook handler would call.
  */
 @Injectable()
 export class SubscriptionService {
@@ -38,7 +40,117 @@ export class SubscriptionService {
     private readonly queue: QueueService,
     private readonly config: ConfigService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly razorpay: RazorpayService,
   ) {}
+
+  // ────────────────────────────────────────────────────────────
+  // Razorpay gateway (subscription renewal / plan switch)
+  // ────────────────────────────────────────────────────────────
+
+  /**
+   * Create a Razorpay order for a subscription renewal / plan switch. The
+   * amount is computed server-side from the (target) plan + cycle; the plan,
+   * cycle and studio_id are stored in the order `notes` so verify can trust
+   * them instead of the client.
+   */
+  async createRenewalOrder(
+    studioId: string,
+    opts: { plan?: string; billing_cycle?: 'monthly' | 'annual' },
+  ) {
+    const studio = await this.prisma.studio.findUnique({
+      where: { id: studioId },
+      select: { subscription_plan: true, billing_cycle: true },
+    });
+    if (!studio) throw new NotFoundException('Studio not found');
+
+    const targetPlan = opts.plan ?? studio.subscription_plan;
+    const targetCycle = (opts.billing_cycle ?? studio.billing_cycle) as
+      | 'monthly'
+      | 'annual';
+    if (targetCycle !== 'monthly' && targetCycle !== 'annual') {
+      throw new BadRequestException(`Invalid billing_cycle "${targetCycle}".`);
+    }
+
+    const planInfo = await this.resolvePlanPricing(targetPlan);
+    if (!planInfo) throw new BadRequestException(`Unknown plan "${targetPlan}".`);
+
+    const amount =
+      targetCycle === 'annual' ? planInfo.annual_price : planInfo.monthly_price;
+    if (amount <= 0) {
+      throw new BadRequestException(`Plan "${targetPlan}" is free — no payment required.`);
+    }
+
+    const order = await this.razorpay.createOrder({
+      amount,
+      currency: 'INR',
+      receipt: `SUB-${studioId.slice(0, 8)}-${Date.now()}`,
+      notes: {
+        kind: 'subscription',
+        studio_id: studioId,
+        plan: targetPlan,
+        billing_cycle: targetCycle,
+      },
+    });
+
+    return {
+      order_id: order.id,
+      key_id: this.razorpay.getKeyId(),
+      amount,
+      currency: 'INR',
+      plan: targetPlan,
+      billing_cycle: targetCycle,
+      plan_display_name: planInfo.display_name,
+    };
+  }
+
+  /**
+   * Verify a Razorpay Checkout handshake for a subscription order, then record
+   * the renewal. The plan/cycle are taken from the (server-set) order notes —
+   * NOT the client — so a buyer can't pay for a cheap plan and claim a costly
+   * one. The order's studio_id note must match the caller's tenant.
+   */
+  async verifyAndRenew(params: {
+    studio_id: string;
+    actor_id: string;
+    gateway_order_id: string;
+    gateway_payment_id: string;
+    signature: string;
+    billing_info?: {
+      billing_name?: string;
+      billing_email?: string;
+      billing_address?: string;
+      tax_id?: string;
+    };
+  }) {
+    const ok = this.razorpay.verifyCheckoutSignature(
+      params.gateway_order_id,
+      params.gateway_payment_id,
+      params.signature,
+    );
+    if (!ok) throw new ForbiddenException('Invalid payment signature');
+
+    // Read the authoritative order back from Razorpay.
+    const order = await this.razorpay.getOrder(params.gateway_order_id);
+    const notes = order.notes ?? {};
+    if (notes.studio_id !== params.studio_id) {
+      throw new ForbiddenException('Order does not belong to this tenant');
+    }
+    if (order.status !== 'paid') {
+      throw new BadRequestException(`Order not paid (status: ${order.status})`);
+    }
+
+    return this.renew({
+      studio_id: params.studio_id,
+      actor_id: params.actor_id,
+      actor_type: 'user',
+      plan: notes.plan,
+      billing_cycle: notes.billing_cycle as 'monthly' | 'annual' | undefined,
+      currency: order.currency || 'INR',
+      payment_reference: params.gateway_payment_id,
+      payment_method: 'razorpay',
+      billing_info: params.billing_info,
+    });
+  }
 
   // ────────────────────────────────────────────────────────────
   // Reads
@@ -127,13 +239,12 @@ export class SubscriptionService {
    * expiry, NOT from now. After persist, push a WS event so connected clients
    * unlock immediately.
    *
-   * NB: real gateway integration (Razorpay/Stripe) will call this from a
-   * webhook handler after verifying the payment server-side. The userId
-   * passed in is the actor (owner who initiated checkout).
+   * NB: the Razorpay gateway path (verifyAndRenew) calls this after verifying
+   * the payment server-side. The userId passed in is the actor (owner who
+   * initiated checkout).
    */
-  // Whitelist of accepted payment methods. Razorpay/Stripe are flagged for
-  // gateway integration (Phase-3 of billing roadmap). Today they record the
-  // payment manually with a reference — equivalent to "marked paid".
+  // Whitelist of accepted payment methods. `razorpay` is the live gateway
+  // (create-order/verify); the rest are recorded manually with a reference.
   private static readonly ALLOWED_PAYMENT_METHODS = [
     'upi',
     'card',
@@ -141,7 +252,6 @@ export class SubscriptionService {
     'bank_transfer',
     'cash',
     'razorpay',
-    'stripe',
   ] as const;
 
   async renew(params: {
@@ -155,7 +265,7 @@ export class SubscriptionService {
     plan?: string;
     billing_cycle?: 'monthly' | 'annual';
     currency?: string;
-    payment_reference?: string; // razorpay_payment_id / stripe_pi_id / manual UTR
+    payment_reference?: string; // razorpay_payment_id / manual UTR
     payment_method?: string;
     /**
      * Optional billing info update applied BEFORE the invoice is created so the
@@ -501,7 +611,6 @@ export class SubscriptionService {
       bank_transfer: 'Bank Transfer',
       cash: 'Cash / Cheque',
       razorpay: 'Razorpay',
-      stripe: 'Stripe',
     };
     return map[method] || method;
   }
@@ -559,8 +668,8 @@ export class SubscriptionService {
         invoice_url: invoiceUrl,
         subscription_url: subscriptionUrl,
         support_email:
-          this.config.get<string>('SUPPORT_EMAIL') || 'support@fitsyncpro.app',
-        company_name: 'FitSync Pro',
+          this.config.get<string>('SUPPORT_EMAIL') || 'support@musclex.app',
+        company_name: 'MuscleX',
         year: new Date().getFullYear(),
       },
     });
@@ -591,8 +700,8 @@ export class SubscriptionService {
         reason: p.reason,
         retry_url: `${this.frontendUrl()}/${studio_slug}/settings/subscription`,
         support_email:
-          this.config.get<string>('SUPPORT_EMAIL') || 'support@fitsyncpro.app',
-        company_name: 'FitSync Pro',
+          this.config.get<string>('SUPPORT_EMAIL') || 'support@musclex.app',
+        company_name: 'MuscleX',
         year: new Date().getFullYear(),
       },
     });
@@ -626,8 +735,8 @@ export class SubscriptionService {
         reason: p.reason || '—',
         reactivate_url: `${this.frontendUrl()}/${studio_slug}/settings/subscription`,
         support_email:
-          this.config.get<string>('SUPPORT_EMAIL') || 'support@fitsyncpro.app',
-        company_name: 'FitSync Pro',
+          this.config.get<string>('SUPPORT_EMAIL') || 'support@musclex.app',
+        company_name: 'MuscleX',
         year: new Date().getFullYear(),
       },
     });
@@ -1085,10 +1194,10 @@ export class SubscriptionService {
       invoice_date: fmtDate(detail.created_at),
       status_label: detail.status.toUpperCase(),
       status_paid: detail.status === 'paid',
-      issuer_name: 'FitSync Pro',
+      issuer_name: 'MuscleX',
       issuer_address: undefined,
       issuer_email:
-        this.config.get<string>('SUPPORT_EMAIL') || 'support@fitsyncpro.app',
+        this.config.get<string>('SUPPORT_EMAIL') || 'support@musclex.app',
       billed_to_name: detail.billed_to.name,
       billed_to_email: detail.billed_to.email ?? undefined,
       billed_to_address: detail.billed_to.address ?? undefined,
@@ -1109,8 +1218,8 @@ export class SubscriptionService {
         ? prettyMethod(detail.payment_method)
         : undefined,
       payment_reference: detail.payment_reference ?? undefined,
-      footer_note: `Thank you for choosing FitSync Pro. For billing questions, contact ${
-        this.config.get<string>('SUPPORT_EMAIL') || 'support@fitsyncpro.app'
+      footer_note: `Thank you for choosing MuscleX. For billing questions, contact ${
+        this.config.get<string>('SUPPORT_EMAIL') || 'support@musclex.app'
       }.`,
     });
 

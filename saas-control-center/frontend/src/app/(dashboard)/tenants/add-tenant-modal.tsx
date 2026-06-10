@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useCreateTenant } from '@/hooks/use-tenants';
-import { usePlans } from '@/hooks/use-plans';
+import { useAssignablePlans } from '@/hooks/use-plans';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,7 +38,7 @@ function toSlug(name: string) {
 
 export function AddTenantModal({ open, onClose }: AddTenantModalProps) {
   const create = useCreateTenant();
-  const { data: plans } = usePlans();
+  const { data: plans } = useAssignablePlans();
 
   const [form, setForm] = useState({
     name: '',
@@ -208,8 +208,8 @@ export function AddTenantModal({ open, onClose }: AddTenantModalProps) {
                 <SelectItem value="none">No plan (trial only)</SelectItem>
                 {plans?.map((plan) => (
                   <SelectItem key={plan.id} value={plan.id}>
-                    {plan.display_name || plan.name}
-                    {plan.monthly_price > 0 ? ` — ₹${plan.monthly_price}/mo` : ' — Free'}
+                    <span className="capitalize">{plan.name}</span>
+                    {plan.price_monthly > 0 ? ` — ₹${plan.price_monthly}/mo` : ' — Free'}
                   </SelectItem>
                 ))}
               </SelectContent>

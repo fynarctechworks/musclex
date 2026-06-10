@@ -14,6 +14,30 @@ export function usePlans(includeInactive = false) {
   });
 }
 
+export interface AssignablePlan {
+  id: string;
+  name: string;
+  price_monthly: number;
+}
+
+/**
+ * Plans valid for tenant assignment, returned from the scc table that
+ * `Tenant.plan_id` references — so the selected id is always a valid FK target.
+ * Use this for the Add-Tenant / change-plan pickers (NOT usePlans, which lists
+ * the public onboarding catalog with different UUIDs).
+ */
+export function useAssignablePlans() {
+  return useQuery({
+    queryKey: ['plans', 'assignable'],
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<AssignablePlan[]>>(
+        '/plans/assignable',
+      );
+      return data.data;
+    },
+  });
+}
+
 export function useCreatePlan() {
   const qc = useQueryClient();
   return useMutation({

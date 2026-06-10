@@ -120,7 +120,6 @@ export class IntegrationsService {
     try {
       switch (integration.provider) {
         case 'razorpay':
-        case 'stripe':
           result.message = 'Payment gateway credentials validated';
           break;
         case 'twilio':
@@ -157,13 +156,6 @@ export class IntegrationsService {
         category: 'payments',
         description: 'Accept payments via UPI, cards, and net banking (India)',
         config_fields: ['api_key', 'secret_key', 'webhook_secret'],
-      },
-      {
-        provider: 'stripe',
-        name: 'Stripe',
-        category: 'payments',
-        description: 'Accept international card payments',
-        config_fields: ['publishable_key', 'secret_key', 'webhook_secret'],
       },
       {
         provider: 'twilio',

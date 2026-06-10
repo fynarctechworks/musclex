@@ -27,12 +27,22 @@ import * as jose from 'jose';
 export const MEMBER_AUDIENCE = 'member';
 export const MEMBER_ISSUER = 'musclex-member-bff';
 
-/** Claims carried by a member access token. Tenant + member come from here ONLY. */
+/**
+ * Claims carried by a member access token. Identity comes from here ONLY.
+ *
+ * Public-fitness-platform model: `sub`/`appUserId` is the canonical PERSON
+ * (gym-independent). `tenantId`+`memberId` are present ONLY when the person is an
+ * active member of a gym (the gym scope); they are null for PUBLIC / lead users.
+ */
 export interface MemberTokenClaims {
-  /** member_id (PK of the member row inside the tenant) */
+  /** app_user id — the canonical person; stable across gyms (== appUserId) */
   sub: string;
-  /** tenant id = the Studio UUID (drives gym_id scoping) */
-  tenantId: string;
+  /** app_user id (explicit mirror of sub) */
+  appUserId: string;
+  /** tenant id = Studio UUID (drives gym_id scoping). null = gym-less public user */
+  tenantId: string | null;
+  /** member_id inside the tenant. null = gym-less public user */
+  memberId: string | null;
   role: 'member';
 }
 
@@ -67,7 +77,12 @@ export class MemberTokenService {
 
   /** Sign a short-lived member access token. */
   async signAccessToken(claims: MemberTokenClaims): Promise<string> {
-    return new jose.SignJWT({ tenantId: claims.tenantId, role: claims.role })
+    return new jose.SignJWT({
+      appUserId: claims.appUserId,
+      tenantId: claims.tenantId,
+      memberId: claims.memberId,
+      role: claims.role,
+    })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject(claims.sub)
       .setAudience(MEMBER_AUDIENCE)
@@ -93,11 +108,26 @@ export class MemberTokenService {
     }
 
     const sub = payload.sub;
-    const tenantId = payload.tenantId as string | undefined;
-    if (!sub || !tenantId || payload.role !== 'member') {
+    if (!sub || payload.role !== 'member') {
       throw new UnauthorizedException('Malformed member token claims');
     }
-    return { sub, tenantId, role: 'member' };
+
+    const appUserId = payload.appUserId as string | undefined;
+    const tenantId = (payload.tenantId as string | null | undefined) ?? null;
+    const memberId = (payload.memberId as string | null | undefined) ?? null;
+
+    // New-format token (post public-app cutover): carries an explicit appUserId.
+    if (appUserId) {
+      return { sub, appUserId, tenantId, memberId, role: 'member' };
+    }
+
+    // LEGACY token (pre-cutover): sub == member_id and tenantId is required.
+    // Minted before app_users existed; honored transiently so live gym-member
+    // sessions survive deploy. The next refresh re-mints a new-format token.
+    if (!tenantId) {
+      throw new UnauthorizedException('Malformed member token claims');
+    }
+    return { sub, appUserId: sub, tenantId, memberId: sub, role: 'member' };
   }
 
   /** Generate an opaque rotating refresh token + its storable hash. */

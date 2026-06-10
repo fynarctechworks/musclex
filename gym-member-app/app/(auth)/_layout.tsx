@@ -1,12 +1,13 @@
 import { Stack } from 'expo-router';
-import { colors } from '../../src/design-system';
+import { useThemeColors } from '../../src/design-system';
 
 export default function AuthLayout() {
+  const theme = useThemeColors();
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: colors.canvas },
+        contentStyle: { backgroundColor: theme.canvas },
         animation: 'slide_from_right',
       }}
     >
@@ -15,6 +16,8 @@ export default function AuthLayout() {
       <Stack.Screen name="otp" />
       <Stack.Screen name="choose-gym" />
       <Stack.Screen name="goal" />
+      <Stack.Screen name="terms" />
+      <Stack.Screen name="privacy" />
     </Stack>
   );
 }

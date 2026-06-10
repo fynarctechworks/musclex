@@ -8,12 +8,11 @@ import {
   Card,
   Dialog,
   ErrorState,
-  MeshGradient,
   ProgressRing,
   Screen,
   SkeletonCard,
   Txt,
-  colors,
+  useThemeColors,
 } from '../../src/design-system';
 import { useLogWorkout, useTodayWorkout, qk } from '../../src/api/queries';
 import {
@@ -24,6 +23,7 @@ import {
 import { RestTimer } from '../../src/features/workout/RestTimer';
 
 export default function WorkoutScreen() {
+  const theme = useThemeColors();
   const router = useRouter();
   const { data: workout, isLoading, isError, refetch, isRefetching } = useTodayWorkout();
   const qc = useQueryClient();
@@ -108,7 +108,6 @@ export default function WorkoutScreen() {
     <Screen scroll padded={false} onRefresh={refetch} refreshing={isRefetching}>
       {/* Hero header with the brand mesh gradient + live session progress ring. */}
       <View className="overflow-hidden px-md pb-lg pt-md">
-        <MeshGradient opacity={0.4} />
         <Txt variant="mono" className="text-ink/70">
           {'TODAY’S SESSION'}
         </Txt>
@@ -123,7 +122,7 @@ export default function WorkoutScreen() {
               </View>
             ) : null}
           </View>
-          <ProgressRing progress={progress} size={72} strokeWidth={8} color={colors.cyan}>
+          <ProgressRing progress={progress} size={72} strokeWidth={8} color={theme.cyan}>
             <Txt variant="body-sm" weight="600" className="text-ink">
               {completedCount}/{totalTarget}
             </Txt>

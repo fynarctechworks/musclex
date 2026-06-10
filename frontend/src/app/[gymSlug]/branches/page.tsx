@@ -8,6 +8,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { FormInput } from "@/components/shared/form-fields";
+import { PhoneInput } from "@/components/shared/phone-input";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
@@ -28,11 +29,20 @@ import {
 import type { Branch } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
+import {
+  BranchLocationPicker,
+  type ResolvedLocation,
+} from "@/features/branches/components/BranchLocationPicker";
 
 interface BranchFormData {
   name: string;
   address: string;
   city: string;
+  state: string;
+  country: string;
+  postal_code: string;
+  latitude: number | null;
+  longitude: number | null;
   phone: string;
   email: string;
 }
@@ -48,17 +58,54 @@ function BranchFormModal({
   onSave: (data: BranchFormData) => void;
   saving: boolean;
 }) {
+  // Prisma Decimal columns serialize over JSON as a string/object, not a plain
+  // number — coerce so the pin pre-populates correctly in edit mode.
+  const toNum = (v: unknown): number | null => {
+    if (v === null || v === undefined) return null;
+    const n = Number((v as { toString(): string }).toString());
+    return Number.isFinite(n) ? n : null;
+  };
+
   const [form, setForm] = useState<BranchFormData>({
     name: branch?.name || "",
     address: branch?.address || "",
     city: branch?.city || "",
+    state: branch?.state || "",
+    country: branch?.country || "",
+    postal_code: branch?.postal_code || "",
+    latitude: toNum(branch?.latitude),
+    longitude: toNum(branch?.longitude),
     phone: branch?.phone || "",
     email: branch?.email || "",
   });
 
+  // The picker fires twice per selection: first coords-only (geocode pending),
+  // then again with the resolved address. On the coords-only pass we keep the
+  // existing text. On a resolved pass the PIN is the source of truth, so we
+  // replace ALL address fields from the geocode — coalescing missing parts to
+  // "" rather than keeping stale values (a town with no `city` must not inherit
+  // the previously-typed city).
+  const applyLocation = (loc: ResolvedLocation) => {
+    setForm((prev) => {
+      if (!loc.address) {
+        return { ...prev, latitude: loc.latitude, longitude: loc.longitude };
+      }
+      return {
+        ...prev,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        address: loc.address,
+        city: loc.city ?? "",
+        state: loc.state ?? "",
+        country: loc.country ?? "",
+        postal_code: loc.postal_code ?? "",
+      };
+    });
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-card border border-border rounded-lg p-6 w-full max-w-md mx-4">
+      <div className="bg-card border border-border rounded-lg p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">
             {branch ? "Edit Branch" : "Add Branch"}
@@ -88,12 +135,15 @@ function BranchFormModal({
             onChange={(e) => setForm({ ...form, city: e.target.value })}
             placeholder="Mumbai"
           />
+          <BranchLocationPicker
+            value={{ latitude: form.latitude, longitude: form.longitude }}
+            onChange={applyLocation}
+          />
           <div className="grid grid-cols-2 gap-4">
-            <FormInput
+            <PhoneInput
               label="Phone"
               value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              placeholder="+91 98765 43210"
+              onChange={(val) => setForm({ ...form, phone: val })}
             />
             <FormInput
               label="Email"

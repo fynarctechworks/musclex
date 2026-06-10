@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
-import { Card, Icon, Stepper, Txt, colors } from '../../design-system';
+import { Card, Icon, Stepper, Txt, useThemeColors } from '../../design-system';
 import type { Exercise, SetLog } from '../../api/types';
 
 export interface LoggedSet {
@@ -21,6 +21,7 @@ export function ExerciseCard({
   exercise: Exercise;
   onChange: (exerciseId: string, sets: LoggedSet[]) => void;
 }) {
+  const theme = useThemeColors();
   const target = exercise.targetSets ?? 3;
   const prefillReps = exercise.lastLog?.reps ?? exercise.targetReps ?? 10;
   const prefillWeight = exercise.lastLog?.weight ?? 20;
@@ -95,14 +96,17 @@ export function ExerciseCard({
             <Pressable
               onPress={() => patch(i, { done: !s.done })}
               hitSlop={8}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: s.done }}
+              accessibilityLabel={`Set ${i + 1} done`}
               className="h-[32px] w-[32px] items-center justify-center rounded-full"
               style={{
-                backgroundColor: s.done ? colors.successFg : 'transparent',
+                backgroundColor: s.done ? theme.successFg : 'transparent',
                 borderWidth: s.done ? 0 : 1.5,
-                borderColor: colors.hairlineStrong,
+                borderColor: theme.hairlineStrong,
               }}
             >
-              {s.done ? <Icon name="check" color={colors.canvas} size={18} /> : null}
+              {s.done ? <Icon name="check" color={theme.canvas} size={18} /> : null}
             </Pressable>
           </View>
         ))}
@@ -111,6 +115,8 @@ export function ExerciseCard({
       <Pressable
         className="mt-sm self-start"
         hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Add set"
         onPress={() =>
           update([...sets, { reps: prefillReps, weight: prefillWeight, done: false }])
         }

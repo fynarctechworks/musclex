@@ -62,11 +62,10 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground text-lg font-bold mb-3">
-            M
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo-wordmark.png" alt="MuscleX" className="h-7 w-auto mx-auto mb-3" />
           <h1 className="text-xl font-semibold tracking-tight text-foreground">
-            MuscleX Control Center
+            Control Center
           </h1>
           <p className="text-[13px] text-muted-foreground mt-1">
             Sign in to the super admin dashboard

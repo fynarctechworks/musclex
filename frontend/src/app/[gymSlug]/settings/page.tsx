@@ -6,7 +6,8 @@ import { FormInput, FormSelect, FormTextarea } from "@/components/shared";
 import { LoadingSkeleton, PageHeader, AccessDenied } from "@/components/shared";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
+import { PhoneInput } from "@/components/shared/phone-input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -158,7 +159,7 @@ function StatusPill({ status }: { status: string }) {
     status === "active"
       ? "bg-success/10 text-success ring-success/20"
       : status === "trial"
-        ? "bg-link/10 text-link ring-blue-500/20"
+        ? "bg-link/10 text-link ring-link/20"
         : status === "past_due"
           ? "bg-warning/10 text-warning ring-amber-500/20"
           : "bg-error/10 text-error ring-red-500/20";
@@ -194,7 +195,7 @@ export default function SettingsPage() {
     queryFn: () => apiClient.get("/settings/studio"),
   });
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<StudioSettingsForm>({
+  const { register, handleSubmit, reset, watch, setValue, control, formState: { errors } } = useForm<StudioSettingsForm>({
     resolver: zodResolver(settingsSchema),
   });
 
@@ -628,7 +629,18 @@ export default function SettingsPage() {
           <FormInput label="Tagline" {...register("tagline")} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormInput label="Phone" {...register("phone")} />
+            <Controller
+              name="phone"
+              control={control}
+              render={({ field }) => (
+                <PhoneInput
+                  label="Phone"
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  error={errors.phone?.message}
+                />
+              )}
+            />
             <FormInput
               label="Email"
               type="email"

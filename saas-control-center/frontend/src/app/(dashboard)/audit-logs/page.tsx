@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { LoadingSkeleton } from '@/components/shared/loading-skeleton';
 import { EmptyState } from '@/components/shared/empty-state';
+import { ErrorState } from '@/components/shared/error-state';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -31,6 +32,7 @@ const ACTIONS = [
   'ACTIVATE',
   'IMPERSONATE',
   'LOGIN',
+  'LOGOUT',
   'PLAN_CHANGE',
   'PAYMENT_RETRY',
   'REFUND',
@@ -50,7 +52,7 @@ function formatDateTime(date: string) {
 export default function AuditLogsPage() {
   const [page, setPage] = useState(1);
   const [action, setAction] = useState('');
-  const { data, isLoading } = useAuditLogs({
+  const { data, isLoading, isError, refetch } = useAuditLogs({
     page,
     action: action || undefined,
   });
@@ -70,7 +72,7 @@ export default function AuditLogsPage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="All Actions" />
           </SelectTrigger>
           <SelectContent>
@@ -86,6 +88,12 @@ export default function AuditLogsPage() {
 
       {isLoading ? (
         <LoadingSkeleton rows={10} />
+      ) : isError ? (
+        <ErrorState
+          title="Could not load audit logs"
+          description="The request failed — this is not the same as having no logs. Check that the backend is running and try again."
+          onRetry={() => refetch()}
+        />
       ) : !data?.data.length ? (
         <EmptyState />
       ) : (

@@ -22,6 +22,10 @@ import {
 } from '@/lib/location';
 import { toast } from 'sonner';
 import { OnboardingLayout } from '@/components/onboarding/onboarding-layout';
+import {
+  BranchLocationPicker,
+  type ResolvedLocation,
+} from '@/features/branches/components/BranchLocationPicker';
 
 interface BranchForm {
   branches: {
@@ -31,6 +35,8 @@ interface BranchForm {
     city: string;
     state: string;
     postal_code: string;
+    latitude: number | null;
+    longitude: number | null;
     phone: string;
   }[];
 }
@@ -87,6 +93,8 @@ export default function OnboardingBranchesPage() {
         city: branch?.city || '',
         state: branch?.state || '',
         postal_code: branch?.postal_code || '',
+        latitude: typeof branch?.latitude === 'number' ? branch.latitude : null,
+        longitude: typeof branch?.longitude === 'number' ? branch.longitude : null,
         phone: branch?.phone || '',
       })),
     );
@@ -123,6 +131,47 @@ export default function OnboardingBranchesPage() {
     }
   };
 
+  // The picker fires twice per selection: first coords-only (geocode pending),
+  // then again with resolved address fields. We always store the coordinate;
+  // the address fields are best-effort, mapped onto this form's coded selects
+  // (country/state by name → option code, city by exact option match).
+  const applyLocation = (index: number, loc: ResolvedLocation) => {
+    setValue(`branches.${index}.latitude`, loc.latitude, { shouldDirty: true });
+    setValue(`branches.${index}.longitude`, loc.longitude, { shouldDirty: true });
+    if (!loc.address) return;
+
+    setValue(`branches.${index}.address`, loc.address, { shouldDirty: true });
+
+    const matchedCountry = loc.country
+      ? countryOptions.find((c) => c.name.toLowerCase() === loc.country!.toLowerCase())
+      : undefined;
+    const countryCode = matchedCountry?.code || getValues(`branches.${index}.country`);
+    if (matchedCountry) {
+      setValue(`branches.${index}.country`, matchedCountry.code, { shouldDirty: true });
+    }
+
+    const matchedState = loc.state
+      ? getStateOptions(countryCode).find((s) => s.name.toLowerCase() === loc.state!.toLowerCase())
+      : undefined;
+    const stateCode = matchedState?.code || getValues(`branches.${index}.state`);
+    if (matchedState) {
+      setValue(`branches.${index}.state`, matchedState.code, { shouldDirty: true });
+    }
+
+    if (loc.city) {
+      const matchedCity = getCityOptions(countryCode, stateCode).find(
+        (c) => c.name.toLowerCase() === loc.city!.toLowerCase(),
+      );
+      if (matchedCity) {
+        setValue(`branches.${index}.city`, matchedCity.name, { shouldDirty: true });
+      }
+    }
+
+    if (loc.postal_code) {
+      setValue(`branches.${index}.postal_code`, loc.postal_code, { shouldDirty: true });
+    }
+  };
+
   const onSubmit = async (data: BranchForm) => {
     const validBranches = data.branches.filter((b) => b.name.trim());
     if (validBranches.length === 0) {
@@ -140,6 +189,9 @@ export default function OnboardingBranchesPage() {
             country: getCountryName(branch.country) || branch.country,
             state: getStateName(branch.country, branch.state) || branch.state,
             phone: branch.phone ? formatPhoneForStorage(branch.country, branch.phone) : '',
+            // Only forward coordinates when a real pin was dropped.
+            latitude: typeof branch.latitude === 'number' && Number.isFinite(branch.latitude) ? branch.latitude : undefined,
+            longitude: typeof branch.longitude === 'number' && Number.isFinite(branch.longitude) ? branch.longitude : undefined,
           })),
         }
       );
@@ -199,6 +251,17 @@ export default function OnboardingBranchesPage() {
               <label className="text-[13px] font-medium text-foreground">Address</label>
               <Input placeholder="Street address" className="h-10 text-[13px]" {...register(`branches.${index}.address`)} />
             </div>
+
+            {/* lat/lng are persisted via the picker; registered hidden so they reach the form payload */}
+            <input type="hidden" {...register(`branches.${index}.latitude`)} />
+            <input type="hidden" {...register(`branches.${index}.longitude`)} />
+            <BranchLocationPicker
+              value={{
+                latitude: watchedBranches?.[index]?.latitude ?? null,
+                longitude: watchedBranches?.[index]?.longitude ?? null,
+              }}
+              onChange={(loc) => applyLocation(index, loc)}
+            />
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">

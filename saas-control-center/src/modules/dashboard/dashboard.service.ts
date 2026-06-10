@@ -28,6 +28,7 @@ export class DashboardService {
       trialTenants,
       suspendedTenants,
       activeSubscriptions,
+      pastDueSubscriptions,
       expiringSoon,
       mrr,
       recentRevenue,
@@ -41,17 +42,28 @@ export class DashboardService {
       this.prisma.subscription.count({
         where: { status: SubscriptionStatus.ACTIVE },
       }),
+      // Past-due: failed auto-renewals awaiting admin follow-up (C5).
+      this.prisma.subscription.count({
+        where: { status: SubscriptionStatus.PAST_DUE },
+      }),
       this.prisma.subscription.count({
         where: {
           status: SubscriptionStatus.ACTIVE,
           end_date: { lte: sevenDaysFromNow, gte: now },
         },
       }),
-      // MRR: sum of monthly prices for all active subscriptions
-      this.prisma.subscription.findMany({
-        where: { status: SubscriptionStatus.ACTIVE },
-        include: { plan: { select: { price_monthly: true } } },
-      }),
+      // MRR via SQL aggregate — single round-trip, scales with active sub count.
+      // Tables are schema-qualified (scc.*): $queryRaw is NOT auto-qualified like
+      // Prisma model queries, and the pgbouncer transaction pooler doesn't keep a
+      // session search_path — so an unqualified `subscriptions` 500s with
+      // "relation does not exist". (subscription_plans also exists in public, so
+      // qualifying additionally pins the join to the correct table.)
+      this.prisma.$queryRaw<Array<{ mrr: number | string | null }>>`
+        SELECT COALESCE(SUM(p.price_monthly), 0)::float AS mrr
+          FROM scc.subscriptions s
+          JOIN scc.subscription_plans p ON s.plan_id = p.id
+         WHERE s.status = 'ACTIVE'
+      `,
       // Revenue last 30 days
       this.prisma.payment.aggregate({
         where: {
@@ -73,7 +85,7 @@ export class DashboardService {
       }),
     ]);
 
-    const mrrValue = mrr.reduce((sum, s) => sum + Number(s.plan?.price_monthly || 0), 0);
+    const mrrValue = Number(mrr[0]?.mrr ?? 0);
     const totalAtStartOfMonth = totalTenants - newTenantsLastMonth + churnedLastMonth;
     const churnRate = totalAtStartOfMonth > 0
       ? Math.round((churnedLastMonth / totalAtStartOfMonth) * 10000) / 100
@@ -89,6 +101,7 @@ export class DashboardService {
       },
       subscriptions: {
         active: activeSubscriptions,
+        past_due: pastDueSubscriptions,
         expiring_soon: expiringSoon,
         churned_last_30d: churnedLastMonth,
       },

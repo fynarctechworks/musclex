@@ -1,7 +1,7 @@
 import { ActivityIndicator, Pressable, PressableProps, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Txt } from './Text';
-import { colors } from './tokens';
+import { useThemeColors } from './theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'lg' | 'md' | 'sm';
@@ -55,6 +55,7 @@ export function Button({
   onPress,
   ...rest
 }: ButtonProps) {
+  const theme = useThemeColors();
   const isDisabled = disabled || loading;
   return (
     <Pressable
@@ -80,7 +81,7 @@ export function Button({
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === 'primary' ? colors.onPrimary : colors.ink}
+          color={variant === 'primary' ? theme.onPrimary : theme.ink}
           size="small"
         />
       ) : (

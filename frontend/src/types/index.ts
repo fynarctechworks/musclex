@@ -60,6 +60,11 @@ export interface Branch {
   name: string;
   address?: string;
   city?: string;
+  state?: string;
+  country?: string;
+  postal_code?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   phone?: string;
   email?: string;
   is_active: boolean;
@@ -120,6 +125,30 @@ export interface MemberMembership {
 
 // ─── Members ─────────────────────────────────────────────────
 
+/**
+ * Fitness profile collected by the member app onboarding (member_profiles row).
+ * Returned on the 360° member view (`findOne`); height/weight/body-fat are
+ * coerced to plain numbers by the API. All fields optional — members the gym
+ * added but who haven't completed onboarding have most of these empty.
+ */
+export interface MemberFitnessProfile {
+  height?: number | null; // cm
+  weight?: number | null; // kg
+  body_fat_percentage?: number | null;
+  fitness_goal?: string | null; // PRIMARY goal
+  goals?: string[]; // multi-select goals
+  activity_level?: string | null;
+  training_experience?: string | null;
+  workout_preferences?: string[];
+  height_unit?: string;
+  weight_unit?: string;
+  medical_conditions?: string[]; // also holds onboarding injuries/limitations
+  allergies?: string[];
+  blood_group?: string | null;
+  onboarding_completed_at?: string | null;
+  onboarding_step?: string | null;
+}
+
 export interface Member {
   id: string;
   member_code: string;
@@ -127,6 +156,7 @@ export interface Member {
   full_name: string;
   phone: string;
   email?: string;
+  gender?: string | null;
   date_of_birth?: string;
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
@@ -140,6 +170,7 @@ export interface Member {
   notes?: string;
   created_at: string;
   branch?: Branch;
+  profile?: MemberFitnessProfile | null;
   memberships?: MemberMembership[];
   payments?: Payment[];
   check_ins?: CheckIn[];
@@ -529,7 +560,7 @@ export interface RevenueMixItem {
   delta_pct?: number | null;
 }
 
-export type PaymentMethodKey = 'cash' | 'card' | 'upi' | 'bank_transfer' | 'razorpay' | 'stripe';
+export type PaymentMethodKey = 'cash' | 'card' | 'upi' | 'bank_transfer' | 'razorpay';
 
 export interface PaymentMethodItem {
   method: PaymentMethodKey;

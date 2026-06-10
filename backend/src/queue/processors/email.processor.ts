@@ -1,12 +1,18 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { QUEUE_NAMES } from '../queue.module';
 import { EmailJobData } from '../queue.service';
+import { reportJobFailure } from '../../common/sentry/report-job-failure';
 
 @Processor(QUEUE_NAMES.EMAIL)
 export class EmailProcessor extends WorkerHost {
   private readonly logger = new Logger(EmailProcessor.name);
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job, err: Error) {
+    reportJobFailure(QUEUE_NAMES.EMAIL, job, err);
+  }
 
   async process(job: Job<EmailJobData>): Promise<void> {
     const { to, subject, template, variables } = job.data;
@@ -23,7 +29,7 @@ export class EmailProcessor extends WorkerHost {
       }
 
       await resend.emails.send({
-        from: process.env.EMAIL_FROM || 'MuscleX <noreply@fitsyncpro.com>',
+        from: process.env.EMAIL_FROM || 'MuscleX <noreply@musclex.com>',
         to,
         subject,
         html: this.renderTemplate(template, variables),

@@ -10,12 +10,15 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Request } from 'express';
+import { AdminRole } from '@prisma/client';
 import { SubscriptionService } from './subscription.service';
 import { CurrentAdmin } from '../../common/decorators/current-admin.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CreateSubscriptionDto, SubscriptionFilterDto } from './dto/subscription.dto';
 
 @ApiTags('Subscriptions')
 @ApiBearerAuth()
+@Roles(AdminRole.SUPER, AdminRole.BILLING, AdminRole.SUPPORT)
 @Controller('subscriptions')
 export class SubscriptionController {
   constructor(private readonly subscriptionService: SubscriptionService) {}
@@ -33,6 +36,7 @@ export class SubscriptionController {
   }
 
   @Post()
+  @Roles(AdminRole.SUPER, AdminRole.BILLING)
   @ApiOperation({ summary: 'Create subscription for a tenant' })
   create(
     @Body() dto: CreateSubscriptionDto,
@@ -47,6 +51,7 @@ export class SubscriptionController {
   }
 
   @Post(':id/cancel')
+  @Roles(AdminRole.SUPER, AdminRole.BILLING)
   @ApiOperation({ summary: 'Cancel subscription' })
   cancel(
     @Param('id', ParseUUIDPipe) id: string,

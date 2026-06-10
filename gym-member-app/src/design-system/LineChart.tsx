@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 import Svg, { Circle, Path, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { colors } from './tokens';
+import { useThemeColors } from './theme';
 
 /**
  * Generic line/area sparkline (react-native-svg, no chart dep) for any numeric
@@ -12,7 +12,7 @@ export function LineChart({
   values,
   height = 160,
   width = 320,
-  color = colors.cyan,
+  color,
   showDots = false,
 }: {
   values: number[];
@@ -21,6 +21,8 @@ export function LineChart({
   color?: string;
   showDots?: boolean;
 }) {
+  const theme = useThemeColors();
+  const lineColor = color ?? theme.cyan;
   if (values.length < 2) return null;
 
   const pad = 16;
@@ -44,18 +46,18 @@ export function LineChart({
       <Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
         <Defs>
           <LinearGradient id="lcfill" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%" stopColor={color} stopOpacity={0.25} />
-            <Stop offset="100%" stopColor={color} stopOpacity={0} />
+            <Stop offset="0%" stopColor={lineColor} stopOpacity={0.25} />
+            <Stop offset="100%" stopColor={lineColor} stopOpacity={0} />
           </LinearGradient>
         </Defs>
         <Path d={area} fill="url(#lcfill)" />
-        <Path d={line} stroke={color} strokeWidth={2.5} fill="none" strokeLinejoin="round" />
+        <Path d={line} stroke={lineColor} strokeWidth={2.5} fill="none" strokeLinejoin="round" />
         {showDots
           ? values.map((v, i) => (
-              <Circle key={i} cx={x(i)} cy={y(v)} r={2.5} fill={color} />
+              <Circle key={i} cx={x(i)} cy={y(v)} r={2.5} fill={lineColor} />
             ))
           : null}
-        <Circle cx={x(values.length - 1)} cy={y(values[values.length - 1])} r={5} fill={colors.ink} />
+        <Circle cx={x(values.length - 1)} cy={y(values[values.length - 1])} r={5} fill={theme.ink} />
       </Svg>
     </View>
   );

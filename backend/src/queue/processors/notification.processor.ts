@@ -1,12 +1,18 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { QUEUE_NAMES } from '../queue.module';
 import { NotificationJobData } from '../queue.service';
+import { reportJobFailure } from '../../common/sentry/report-job-failure';
 
 @Processor(QUEUE_NAMES.NOTIFICATION)
 export class NotificationProcessor extends WorkerHost {
   private readonly logger = new Logger(NotificationProcessor.name);
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job, err: Error) {
+    reportJobFailure(QUEUE_NAMES.NOTIFICATION, job, err);
+  }
 
   async process(job: Job<NotificationJobData>): Promise<void> {
     const { type, to, message } = job.data;

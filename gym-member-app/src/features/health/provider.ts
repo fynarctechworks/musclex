@@ -30,6 +30,12 @@ export interface HealthBridge {
    * re-syncs dedupe server-side.
    */
   readSamples(since: Date): Promise<HealthSampleInput[]>;
+  /**
+   * Today's TOTAL step count from the OS health store (includes steps counted
+   * while the app was backgrounded/closed), or null if unavailable/not granted.
+   * Used to recover background steps into the live tracker on foreground.
+   */
+  readTodayStepTotal(): Promise<number | null>;
 }
 
 /** Fallback bridge for platforms with no OS health store. */
@@ -43,6 +49,9 @@ class UnsupportedHealthBridge implements HealthBridge {
   }
   async readSamples() {
     return [];
+  }
+  async readTodayStepTotal() {
+    return null;
   }
 }
 

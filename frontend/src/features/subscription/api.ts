@@ -61,6 +61,38 @@ export const subscriptionApi = {
       subscription: SubscriptionStatusResponse['subscription'];
     }>('/subscription/renew', body),
 
+  /** Create a Razorpay order for an online renewal / plan switch. */
+  createOrder: (body: { plan?: string; billing_cycle?: 'monthly' | 'annual' }) =>
+    apiClient.post<{
+      order_id: string;
+      key_id: string;
+      amount: number;
+      currency: string;
+      plan: string;
+      billing_cycle: 'monthly' | 'annual';
+      plan_display_name: string;
+    }>('/subscription/create-order', body),
+
+  /** Verify the Razorpay Checkout handshake; records the renewal server-side. */
+  verifyPayment: (body: {
+    gateway_order_id: string;
+    gateway_payment_id: string;
+    signature: string;
+    billing_name?: string;
+    billing_email?: string;
+    billing_address?: string;
+    tax_id?: string;
+  }) =>
+    apiClient.post<{
+      success: boolean;
+      invoice_number: string;
+      invoice_id: string;
+      plan: string;
+      billing_cycle: 'monthly' | 'annual';
+      plan_changed: boolean;
+      amount: number;
+    }>('/subscription/verify', body),
+
   listInvoices: (opts: { limit?: number; cursor?: string } = {}) =>
     apiClient.get<{
       items: Array<{
@@ -95,8 +127,7 @@ export type PaymentMethod =
   | 'netbanking'
   | 'bank_transfer'
   | 'cash'
-  | 'razorpay'
-  | 'stripe';
+  | 'razorpay';
 
 export const PAYMENT_METHODS: Array<{
   value: PaymentMethod;
@@ -109,6 +140,5 @@ export const PAYMENT_METHODS: Array<{
   { value: 'netbanking',    label: 'Net Banking',      description: 'IMPS / NEFT direct bank transfer. Enter UTR.' },
   { value: 'bank_transfer', label: 'Bank Transfer',    description: 'NEFT / RTGS to our settlement account. Enter UTR.' },
   { value: 'cash',          label: 'Cash / Cheque',    description: 'Manual reconciliation. Enter receipt reference.' },
-  { value: 'razorpay',      label: 'Razorpay Checkout', description: 'Auto-pay gateway. Coming soon.', comingSoon: true },
-  { value: 'stripe',        label: 'Stripe',           description: 'International cards. Coming soon.', comingSoon: true },
+  { value: 'razorpay',      label: 'Razorpay Checkout', description: 'Pay instantly by card, UPI, netbanking or wallet — auto-recorded.' },
 ];

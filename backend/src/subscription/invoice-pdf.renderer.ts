@@ -39,7 +39,7 @@ export interface InvoicePdfData {
   invoice_date: string; // formatted
   status_label: string; // "PAID" | "PENDING" | etc
   status_paid: boolean;
-  // Issuer (FitSync Pro — the platform billing the tenant)
+  // Issuer (MuscleX — the platform billing the tenant)
   issuer_name: string;
   issuer_address?: string;
   issuer_email?: string;

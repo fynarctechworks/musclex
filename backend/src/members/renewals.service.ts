@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { getTenantGymId } from '../common/tenant-context';
+import { tenantContext } from '../common/tenant-context';
 import { randomBytes } from 'crypto';
 import { CronLockService } from '../common/services/cron-lock.service';
 
@@ -132,57 +132,83 @@ export class RenewalsService {
     let failed = 0;
 
     for (const membership of candidates) {
+      // Fail-safe: a candidate without a gym_id cannot be safely scoped.
+      // Skip + log rather than write under an empty/wrong tenant scope.
+      const gymId = (membership as any).gym_id as string | null | undefined;
+      if (!gymId) {
+        this.logger.error(
+          `Skipping auto-renew for membership ${membership.id}: missing gym_id on source row`,
+        );
+        failed++;
+        continue;
+      }
+
       try {
         const plan = membership.plan;
 
-        // Wrap all three operations in a transaction to prevent orphaned state
-        await this.prisma.$transaction(async (tx) => {
-          // Mark old as renewed
-          await tx.memberMembership.update({
-            where: { id: membership.id },
-            data: { status: 'renewed' },
-          });
+        // Re-establish tenant context for this gym so every nested Prisma call
+        // inside the transaction is auto-scoped by the $use middleware (Layer 2
+        // gym_id injection + Layer 1 app.gym_id session var for RLS). This is
+        // the same scope a real HTTP request would have set up.
+        await tenantContext.run(
+          {
+            schemaName: `studio_${gymId.replace(/-/g, '_')}`,
+            gymId,
+            activeBranchId: null,
+            allowedBranchIds: 'ALL',
+            bypassBranchScope: false,
+          },
+          async () => {
+            // Wrap all three operations in a transaction to prevent orphaned state
+            await this.prisma.$transaction(async (tx) => {
+              // Mark old as renewed
+              await tx.memberMembership.update({
+                where: { id: membership.id },
+                data: { status: 'renewed' },
+              });
 
-          // Create new membership
-          const startDate = new Date();
-          const endDate = plan.duration_days
-            ? new Date(startDate.getTime() + plan.duration_days * 86400000)
-            : null;
-          const graceEndDate = endDate && plan.grace_period_days > 0
-            ? new Date(endDate.getTime() + plan.grace_period_days * 86400000)
-            : null;
+              // Create new membership
+              const startDate = new Date();
+              const endDate = plan.duration_days
+                ? new Date(startDate.getTime() + plan.duration_days * 86400000)
+                : null;
+              const graceEndDate = endDate && plan.grace_period_days > 0
+                ? new Date(endDate.getTime() + plan.grace_period_days * 86400000)
+                : null;
 
-          const newMembership = await tx.memberMembership.create({
-            data: {
-              gym_id: getTenantGymId()!,
-              member_id: membership.member_id,
-              plan_id: plan.id,
-              branch_id: membership.branch_id,
-              start_date: startDate,
-              end_date: endDate,
-              classes_remaining: plan.total_classes,
-              remaining_visits: plan.max_visits,
-              grace_end_date: graceEndDate,
-              status: 'active',
-              auto_renew: true,
-            },
-          });
+              const newMembership = await tx.memberMembership.create({
+                data: {
+                  gym_id: gymId,
+                  member_id: membership.member_id,
+                  plan_id: plan.id,
+                  branch_id: membership.branch_id,
+                  start_date: startDate,
+                  end_date: endDate,
+                  classes_remaining: plan.total_classes,
+                  remaining_visits: plan.max_visits,
+                  grace_end_date: graceEndDate,
+                  status: 'active',
+                  auto_renew: true,
+                },
+              });
 
-          // Create payment record linked to NEW membership
-          const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
-          await tx.payment.create({
-            data: {
-              gym_id: getTenantGymId()!,
-              member_id: membership.member_id,
-              membership_id: newMembership.id,
-              branch_id: membership.branch_id,
-              amount: plan.price,
-              payment_method: 'bank_transfer',
-              status: 'pending',
-              receipt_number: receiptNumber,
-            },
-          });
-        });
+              // Create payment record linked to NEW membership
+              const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
+              await tx.payment.create({
+                data: {
+                  gym_id: gymId,
+                  member_id: membership.member_id,
+                  membership_id: newMembership.id,
+                  branch_id: membership.branch_id,
+                  amount: plan.price,
+                  payment_method: 'bank_transfer',
+                  status: 'pending',
+                  receipt_number: receiptNumber,
+                },
+              });
+            });
+          },
+        );
 
         renewed++;
       } catch (error) {

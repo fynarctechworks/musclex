@@ -12,37 +12,48 @@ import type { ExpoConfig } from 'expo/config';
  * write scopes (the app only reads from the OS health stores today).
  */
 const config: ExpoConfig = {
-  name: 'FitSync',
-  slug: 'fitsync-member',
-  scheme: 'fitsync',
+  name: 'MuscleX',
+  slug: 'musclex-member',
+  scheme: 'musclex',
   version: '0.1.0',
+  icon: './assets/icon.png',
   orientation: 'portrait',
   userInterfaceStyle: 'dark',
   backgroundColor: '#0A0A0A',
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: false,
-    bundleIdentifier: 'pro.fitsync.member',
+    bundleIdentifier: 'pro.musclex.member',
     infoPlist: {
       NSCameraUsageDescription:
-        'FitSync uses the camera to scan the gym QR code for instant check-in.',
-      NSFaceIDUsageDescription: 'FitSync uses Face ID to unlock the app.',
+        'MuscleX uses the camera to scan the gym QR code for instant check-in.',
+      NSFaceIDUsageDescription: 'MuscleX uses Face ID to unlock the app.',
       NSPhotoLibraryUsageDescription:
-        'FitSync lets you attach transformation photos to your progress.',
+        'MuscleX lets you attach transformation photos to your progress.',
       NSLocationWhenInUseUsageDescription:
-        'FitSync uses your location to show the gym branch nearest to you.',
+        'MuscleX uses your location to show the gym branch nearest to you.',
+      // On-device step counting (expo-sensors Pedometer → CoreMotion).
+      NSMotionUsageDescription:
+        'MuscleX counts your steps, pace and distance as you walk so it can ' +
+        'track your daily activity and goals.',
       // HealthKit usage string is injected by the kingstinct plugin (below) —
       // not duplicated here.
     },
   },
   android: {
-    package: 'pro.fitsync.member',
+    package: 'pro.musclex.member',
+    adaptiveIcon: {
+      foregroundImage: './assets/adaptive-icon.png',
+      backgroundColor: '#FFFFFF',
+    },
     permissions: [
       'CAMERA',
       'USE_BIOMETRIC',
       'USE_FINGERPRINT',
       'ACCESS_COARSE_LOCATION',
       'ACCESS_FINE_LOCATION',
+      // On-device step counting (expo-sensors Pedometer → hardware step sensor).
+      'android.permission.ACTIVITY_RECOGNITION',
       // G3 — Health Connect READ scopes (only the metrics provider.native.ts reads)
       'android.permission.health.READ_STEPS',
       'android.permission.health.READ_ACTIVE_CALORIES_BURNED',
@@ -56,6 +67,7 @@ const config: ExpoConfig = {
   web: {
     bundler: 'metro',
     output: 'single',
+    favicon: './assets/icon.png',
   },
   plugins: [
     'expo-router',
@@ -65,14 +77,14 @@ const config: ExpoConfig = {
       'expo-camera',
       {
         cameraPermission:
-          'FitSync uses the camera to scan the gym QR code for instant check-in.',
+          'MuscleX uses the camera to scan the gym QR code for instant check-in.',
       },
     ],
     [
       'expo-location',
       {
         locationWhenInUsePermission:
-          'FitSync uses your location to show the gym branch nearest to you.',
+          'MuscleX uses your location to show the gym branch nearest to you.',
       },
     ],
     // G3 — native build properties. targetSdkVersion 35 (Play's required minimum
@@ -95,9 +107,9 @@ const config: ExpoConfig = {
       '@kingstinct/react-native-healthkit',
       {
         NSHealthShareUsageDescription:
-          'FitSync reads your steps, heart rate, sleep and workouts from Apple ' +
+          'MuscleX reads your steps, heart rate, sleep and workouts from Apple ' +
           'Health to show your activity rings and trends. Your data stays yours ' +
-          'and is only used inside FitSync.',
+          'and is only used inside MuscleX.',
         background: false,
       },
     ],

@@ -50,8 +50,12 @@ export class MemberJwtGuard implements CanActivate {
     const claims = await this.tokens.verifyAccessToken(authHeader.substring(7));
 
     const member: CurrentMemberContext = {
-      memberId: claims.sub,
-      tenantId: claims.tenantId,
+      appUserId: claims.appUserId,
+      // '' (not the appUserId) for gym-less users, so a public token can never be
+      // mistaken for a gym scope. Gym handlers sit behind GymMemberGuard.
+      memberId: claims.memberId ?? '',
+      tenantId: claims.tenantId ?? '',
+      isGymMember: !!claims.memberId && !!claims.tenantId,
     };
     request[MEMBER_REQUEST_KEY] = member;
     return true;

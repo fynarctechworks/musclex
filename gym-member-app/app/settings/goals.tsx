@@ -4,14 +4,14 @@ import { useRouter } from 'expo-router';
 import {
   Button,
   Card,
-  CollapsingHeader,
   Icon,
+  Screen,
   Stepper,
   Txt,
   health,
 } from '../../src/design-system';
 import type { IconName } from '../../src/design-system';
-import { BackButton } from '../../src/navigation/BackButton';
+import { ScreenHeader } from '../../src/navigation/ScreenHeader';
 import { track } from '../../src/analytics';
 import { useHaptics } from '../../src/lib/use-haptics';
 import { usePrefs, type DailyGoals } from '../../src/auth/prefs-store';
@@ -73,11 +73,11 @@ export default function GoalsScreen() {
   }
 
   return (
-    <CollapsingHeader
-      title="Goals"
-      subtitle="Your daily activity targets"
-      left={<BackButton className="" />}
-    >
+    <Screen scroll>
+      <ScreenHeader title="Goals" className="mb-xs" />
+      <Txt variant="body-sm" className="mb-lg text-body">
+        Your daily activity targets
+      </Txt>
       {FIELDS.map((f) => (
         <Card key={f.key} className="mb-md">
           <View className="flex-row items-center justify-between">
@@ -133,6 +133,8 @@ export default function GoalsScreen() {
       <View className="mt-lg items-center">
         <Button title="Done" variant="ghost" onPress={() => router.back()} />
       </View>
-    </CollapsingHeader>
+
+      <View className="h-2xl" />
+    </Screen>
   );
 }

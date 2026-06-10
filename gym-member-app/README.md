@@ -1,6 +1,6 @@
-# FitSync — Member App
+# MuscleX — Member App
 
-The member-facing mobile app for the FitSync Pro gym SaaS. React Native + Expo
+The member-facing mobile app for the MuscleX gym SaaS. React Native + Expo
 client on top of the **Member BFF** (`/member/v1`) that lives inside the existing
 NestJS backend. Built to the specs in `../docs/`:
 

@@ -15,7 +15,7 @@ import {
   Txt,
   health,
 } from '../../src/design-system';
-import { BackButton } from '../../src/navigation/BackButton';
+import { ScreenHeader } from '../../src/navigation/ScreenHeader';
 import { useHaptics } from '../../src/lib/use-haptics';
 
 /**
@@ -115,7 +115,7 @@ export default function MindfulnessScreen() {
 
   return (
     <Screen padded edges={['top', 'bottom']}>
-      <BackButton />
+      <ScreenHeader title="Mindfulness" />
       <View className="flex-1 items-center justify-between py-md">
         <View className="items-center">
           <Txt variant="display-md" weight="600" className="text-ink">

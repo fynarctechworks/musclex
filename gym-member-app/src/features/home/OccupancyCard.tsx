@@ -1,17 +1,21 @@
 import { View } from 'react-native';
-import { Card, Txt, colors } from '../../design-system';
+import { Card, Txt, useThemeColors, type ThemeColors } from '../../design-system';
 import type { Occupancy, OccupancyLevel } from '../../api/types';
 
-const LEVEL_META: Record<OccupancyLevel, { label: string; color: string }> = {
-  low: { label: 'Quiet now', color: colors.successFg },
-  moderate: { label: 'Filling up', color: colors.warning },
-  high: { label: 'Busy', color: colors.warning },
-  full: { label: 'Packed', color: colors.error },
+// Map each level to a theme colour KEY (not a value) so the dot/label/bar follow
+// the active light/dark palette.
+const LEVEL_META: Record<OccupancyLevel, { label: string; tone: keyof ThemeColors }> = {
+  low: { label: 'Quiet now', tone: 'successFg' },
+  moderate: { label: 'Filling up', tone: 'warning' },
+  high: { label: 'Busy', tone: 'warning' },
+  full: { label: 'Packed', tone: 'error' },
 };
 
 export function OccupancyCard({ occupancy }: { occupancy?: Occupancy }) {
+  const theme = useThemeColors();
   const level = occupancy?.level ?? 'low';
   const meta = LEVEL_META[level];
+  const color = theme[meta.tone];
   const current = occupancy?.current ?? 0;
   const capacity = occupancy?.capacity ?? 0;
   const ratio = capacity > 0 ? Math.min(1, current / capacity) : 0;
@@ -25,9 +29,9 @@ export function OccupancyCard({ occupancy }: { occupancy?: Occupancy }) {
         <View className="flex-row items-center gap-xs">
           <View
             className="h-[8px] w-[8px] rounded-full"
-            style={{ backgroundColor: meta.color }}
+            style={{ backgroundColor: color }}
           />
-          <Txt variant="caption" weight="500" style={{ color: meta.color }}>
+          <Txt variant="caption" weight="500" style={{ color }}>
             {meta.label}
           </Txt>
         </View>
@@ -54,7 +58,7 @@ export function OccupancyCard({ occupancy }: { occupancy?: Occupancy }) {
             style={{
               width: `${ratio * 100}%`,
               height: '100%',
-              backgroundColor: meta.color,
+              backgroundColor: color,
             }}
           />
         </View>

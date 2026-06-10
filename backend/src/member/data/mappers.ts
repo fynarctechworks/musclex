@@ -11,7 +11,7 @@ export function toNumber(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** member_profiles.fitness_goal → contract goal enum. */
+/** member_profiles.fitness_goal → legacy contract goal enum (3-value, back-compat). */
 export function mapGoal(fitnessGoal?: string | null): MemberProfileData['goal'] {
   switch (fitnessGoal) {
     case 'weight_loss':
@@ -20,6 +20,55 @@ export function mapGoal(fitnessGoal?: string | null): MemberProfileData['goal'] 
       return 'build_muscle';
     default:
       return 'general_fitness';
+  }
+}
+
+/**
+ * Rich onboarding goal (FitnessGoal) → legacy `member_profiles.fitness_goal`
+ * vocabulary, so we keep that column meaningful for admin tooling / the legacy
+ * `goal` field. Many-to-few, intentionally lossy.
+ */
+export function primaryGoalToLegacy(
+  primary?: string | null,
+): string | undefined {
+  switch (primary) {
+    case 'lose_weight':
+      return 'weight_loss';
+    case 'gain_muscle':
+    case 'build_strength':
+    case 'body_recomposition':
+      return 'muscle_gain';
+    case 'improve_endurance':
+    case 'athletic_performance':
+      return 'endurance';
+    case 'improve_fitness':
+    case 'stay_healthy':
+      return 'general_fitness';
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Legacy `member_profiles.fitness_goal` → a FitnessGoal, used to surface a
+ * `primaryGoal` for members onboarded before goals[] existed (back-compat).
+ */
+export function legacyToPrimaryGoal(
+  fitnessGoal?: string | null,
+): MemberProfileData['primaryGoal'] {
+  switch (fitnessGoal) {
+    case 'weight_loss':
+      return 'lose_weight';
+    case 'muscle_gain':
+      return 'gain_muscle';
+    case 'endurance':
+      return 'improve_endurance';
+    case 'rehabilitation':
+      return 'stay_healthy';
+    case 'general_fitness':
+      return 'improve_fitness';
+    default:
+      return undefined;
   }
 }
 
@@ -68,10 +117,15 @@ export function occupancyLevel(
   return 'low';
 }
 
-/** Count consecutive days ending today/yesterday from a set of check-in dates. */
-export function computeStreakDays(checkInDates: Date[]): number {
+/**
+ * Count consecutive days ending today/yesterday from a set of activity dates.
+ * Source-agnostic: dates may come from check-ins, workout logs, meal logs, or a
+ * union of all three (see MemberStreakService). Multiple entries on the same
+ * calendar day collapse to one — the Set keys on the day, not the timestamp.
+ */
+export function computeStreakDays(activityDates: Date[]): number {
   const days = new Set(
-    checkInDates.map((d) => new Date(d).toISOString().slice(0, 10)),
+    activityDates.map((d) => new Date(d).toISOString().slice(0, 10)),
   );
   if (days.size === 0) return 0;
 

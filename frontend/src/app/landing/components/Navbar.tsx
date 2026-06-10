@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Menu, X, Dumbbell } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -17,13 +17,9 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-lg flex items-center justify-center shadow-level-3 shadow-blue-500/20 group-hover:shadow-blue-500/40 transition-shadow">
-              <Dumbbell className="w-5 h-5 text-on-primary" />
-            </div>
-            <span className="text-lg font-semibold text-foreground tracking-tight">
-              MuscleX<span className="text-link">Pro</span>
-            </span>
+          <Link href="/" className="flex items-center group">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/logo-wordmark.png" alt="MuscleX" className="h-7 w-auto" />
           </Link>
 
           {/* Desktop Nav */}

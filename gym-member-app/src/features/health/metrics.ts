@@ -26,11 +26,13 @@ const round = (v: number, d = 0) =>
 export const METRIC_META: Partial<Record<HealthMetricType, MetricMeta>> = {
   steps: { label: 'Steps', unit: 'steps', icon: 'flash', agg: 'sum', format: (v) => round(v), accent: health.activity },
   calories_active: { label: 'Active energy', unit: 'kcal', icon: 'flame', agg: 'sum', format: (v) => `${round(v)} kcal`, accent: health.activity },
+  calories_resting: { label: 'Resting energy', unit: 'kcal', icon: 'flame', agg: 'sum', format: (v) => `${round(v)} kcal`, accent: health.activity },
   active_minutes: { label: 'Active minutes', unit: 'min', icon: 'flash', agg: 'sum', format: (v) => `${round(v)} min`, accent: health.activity },
   distance_m: { label: 'Distance', unit: 'km', icon: 'pin', agg: 'sum', format: (v) => `${round(v / 1000, 2)} km`, accent: health.activity },
   heart_rate: { label: 'Heart rate', unit: 'bpm', icon: 'heart', agg: 'avg', format: (v) => `${round(v)} bpm`, accent: health.heart },
   hr_resting: { label: 'Resting HR', unit: 'bpm', icon: 'heart', agg: 'avg', format: (v) => `${round(v)} bpm`, accent: health.heart },
   hrv: { label: 'HRV', unit: 'ms', icon: 'heart', agg: 'avg', format: (v) => `${round(v)} ms`, accent: health.heart },
+  respiratory_rate: { label: 'Respiratory rate', unit: 'br/min', icon: 'heart', agg: 'avg', format: (v) => `${round(v, 1)} br/min`, accent: health.oxygen },
   sleep_duration: { label: 'Sleep', unit: 'h', icon: 'chart', agg: 'sum', format: (v) => `${round(v / 3600, 1)} h`, accent: health.sleep },
   spo2: { label: 'Blood oxygen', unit: '%', icon: 'heart', agg: 'avg', format: (v) => `${round(v, 1)}%`, accent: health.oxygen },
   body_weight: { label: 'Weight', unit: 'kg', icon: 'chart', agg: 'latest', format: (v) => `${round(v, 1)} kg`, accent: health.body },

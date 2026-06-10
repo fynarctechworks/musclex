@@ -2,6 +2,27 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CronLockService } from '../../common/services/cron-lock.service';
+import { tenantContext } from '../../common/tenant-context';
+
+// M2 fix: cron handlers run off-request with no ALS tenant scope. Wrap each
+// per-row iteration so every nested Prisma call auto-scopes by gym_id and
+// the $use middleware can set app.gym_id for RLS. Fail-safe: if a source
+// row has no gym_id, skip + log rather than process under uncertain scope.
+function runForGym<T>(
+  gymId: string,
+  fn: () => Promise<T>,
+): Promise<T> {
+  return tenantContext.run(
+    {
+      schemaName: `studio_${gymId.replace(/-/g, '_')}`,
+      gymId,
+      activeBranchId: null,
+      allowedBranchIds: 'ALL',
+      bypassBranchScope: false,
+    },
+    fn,
+  );
+}
 
 @Injectable()
 export class MetricsAggregationJob {
@@ -25,7 +46,13 @@ export class MetricsAggregationJob {
         });
 
         for (const branch of branches) {
-          await this.aggregateBranchDailyMetrics(branch.id, branch.organization_id, branch.gym_id, today);
+          if (!branch.gym_id) {
+            this.logger.error(`Skipping daily metrics for branch ${branch.id}: missing gym_id`);
+            continue;
+          }
+          await runForGym(branch.gym_id, () =>
+            this.aggregateBranchDailyMetrics(branch.id, branch.organization_id, branch.gym_id, today),
+          );
         }
 
         this.logger.log(`Daily metrics aggregated for ${branches.length} branches`);
@@ -142,7 +169,13 @@ export class MetricsAggregationJob {
         });
 
         for (const branch of branches) {
-          await this.aggregateBranchRevenue(branch.id, branch.organization_id, branch.gym_id, yesterday, today);
+          if (!branch.gym_id) {
+            this.logger.error(`Skipping revenue analytics for branch ${branch.id}: missing gym_id`);
+            continue;
+          }
+          await runForGym(branch.gym_id, () =>
+            this.aggregateBranchRevenue(branch.id, branch.organization_id, branch.gym_id, yesterday, today),
+          );
         }
 
         this.logger.log(`Revenue analytics aggregated for ${branches.length} branches`);
@@ -245,7 +278,13 @@ export class MetricsAggregationJob {
         });
 
         for (const branch of branches) {
-          await this.aggregateBranchMembership(branch.id, branch.organization_id, branch.gym_id, yesterday, today);
+          if (!branch.gym_id) {
+            this.logger.error(`Skipping membership analytics for branch ${branch.id}: missing gym_id`);
+            continue;
+          }
+          await runForGym(branch.gym_id, () =>
+            this.aggregateBranchMembership(branch.id, branch.organization_id, branch.gym_id, yesterday, today),
+          );
         }
 
         this.logger.log(`Membership analytics aggregated for ${branches.length} branches`);
@@ -344,7 +383,13 @@ export class MetricsAggregationJob {
 
         for (const tmpl of templates) {
           if (!tmpl.branch_id) continue;
-          await this.aggregateClassTemplate(tmpl.id, tmpl.branch_id, tmpl.gym_id, weekAgo, today);
+          if (!tmpl.gym_id) {
+            this.logger.error(`Skipping class analytics for template ${tmpl.id}: missing gym_id`);
+            continue;
+          }
+          await runForGym(tmpl.gym_id, () =>
+            this.aggregateClassTemplate(tmpl.id, tmpl.branch_id!, tmpl.gym_id, weekAgo, today),
+          );
         }
 
         this.logger.log(`Class analytics aggregated for ${templates.length} templates`);
@@ -442,7 +487,13 @@ export class MetricsAggregationJob {
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
         for (const member of members) {
-          await this.computeMemberEngagement(member, now, thirtyDaysAgo);
+          if (!member.gym_id) {
+            this.logger.error(`Skipping member behavior for member ${member.id}: missing gym_id`);
+            continue;
+          }
+          await runForGym(member.gym_id, () =>
+            this.computeMemberEngagement(member, now, thirtyDaysAgo),
+          );
         }
 
         this.logger.log(`Member behavior aggregated for ${members.length} members`);
@@ -544,7 +595,13 @@ export class MetricsAggregationJob {
         });
 
         for (const trainer of trainers) {
-          await this.aggregateTrainer(trainer.id, trainer.branch_id, trainer.gym_id, weekAgo, today);
+          if (!trainer.gym_id) {
+            this.logger.error(`Skipping trainer analytics for trainer ${trainer.id}: missing gym_id`);
+            continue;
+          }
+          await runForGym(trainer.gym_id, () =>
+            this.aggregateTrainer(trainer.id, trainer.branch_id, trainer.gym_id, weekAgo, today),
+          );
         }
 
         this.logger.log(`Trainer analytics aggregated for ${trainers.length} trainers`);
@@ -626,7 +683,13 @@ export class MetricsAggregationJob {
         });
 
         for (const campaign of campaigns) {
-          await this.aggregateCampaign(campaign.id, campaign.gym_id);
+          if (!campaign.gym_id) {
+            this.logger.error(`Skipping campaign analytics for campaign ${campaign.id}: missing gym_id`);
+            continue;
+          }
+          await runForGym(campaign.gym_id, () =>
+            this.aggregateCampaign(campaign.id, campaign.gym_id),
+          );
         }
 
         this.logger.log(`Campaign analytics aggregated for ${campaigns.length} campaigns`);

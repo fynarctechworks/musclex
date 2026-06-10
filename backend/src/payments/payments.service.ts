@@ -6,7 +6,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BillingService } from './billing.service';
-import { randomBytes, createHmac, timingSafeEqual } from 'crypto';
+import { RazorpayService } from './razorpay.service';
+import { randomBytes } from 'crypto';
 import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class PaymentsService {
   constructor(
     private prisma: PrismaService,
     private billingService: BillingService,
+    private razorpay: RazorpayService,
   ) {}
 
   private generateReceiptNumber(): string {
@@ -102,7 +104,7 @@ export class PaymentsService {
     plan_id: string;
     branch_id: string;
     invoice_id?: string;
-    gateway: 'razorpay' | 'stripe';
+    gateway?: 'razorpay';
   }) {
     const member = await this.prisma.member.findFirst({
       where: { id: data.member_id } // tenant isolation via search_path,
@@ -124,20 +126,38 @@ export class PaymentsService {
         branch_id: data.branch_id,
         invoice_id: data.invoice_id,
         amount: plan.price,
-        payment_method: data.gateway,
+        payment_method: 'razorpay',
         status: 'pending',
         receipt_number: receiptNumber,
       },
     });
 
-    // In production, call Razorpay/Stripe SDK to create an order.
-    // For now, return the payment record as the order reference.
+    // Create a real Razorpay order and bind it to our pending payment. The
+    // Razorpay order id (order_xxx) is what Checkout needs and what the
+    // signature is computed over, so we persist it as gateway_order_id and
+    // return it as order_id.
+    const order = await this.razorpay.createOrder({
+      amount: Number(plan.price),
+      currency: payment.currency,
+      receipt: receiptNumber,
+      notes: {
+        payment_id: payment.id,
+        member_id: data.member_id,
+        plan_id: data.plan_id,
+      },
+    });
+    await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: { gateway_order_id: order.id },
+    });
     return {
-      order_id: payment.id,
+      order_id: order.id,
+      payment_id: payment.id,
+      key_id: this.razorpay.getKeyId(),
       receipt_number: receiptNumber,
       amount: Number(plan.price),
       currency: payment.currency,
-      gateway: data.gateway,
+      gateway: 'razorpay',
       plan_name: plan.name,
     };
   }
@@ -150,27 +170,19 @@ export class PaymentsService {
     plan_id: string;
     branch_id: string;
   }) {
-    // Verify HMAC signature based on payment gateway
+    // Look up the pending payment by the gateway order id (order_xxx for
+    // Razorpay) — NOT our local payment id.
     const payment = await this.prisma.payment.findFirst({
-      where: { id: data.gateway_order_id, status: 'pending' },
+      where: { gateway_order_id: data.gateway_order_id, status: 'pending' },
     });
     if (!payment) throw new NotFoundException('Pending payment not found');
 
-    // Verify gateway signature
-    const gatewayConfig = await this.prisma.paymentGatewayConfig.findFirst({
-      where: { gateway_name: payment.payment_method, is_active: true },
-    });
-
-    if (!gatewayConfig?.webhook_secret) {
-      throw new BadRequestException(
-        `Payment gateway configuration not found or missing webhook secret for ${payment.payment_method}`,
-      );
-    }
-
-    const isValid = this.verifyGatewaySignature(
-      payment.payment_method,
-      data,
-      gatewayConfig.webhook_secret,
+    // Verify the Razorpay Checkout handshake — signed `order_id|payment_id`
+    // with the KEY SECRET (timing-safe).
+    const isValid = this.razorpay.verifyCheckoutSignature(
+      data.gateway_order_id,
+      data.gateway_payment_id,
+      data.signature,
     );
     if (!isValid) {
       throw new ForbiddenException('Invalid payment signature');
@@ -185,7 +197,7 @@ export class PaymentsService {
     return this.prisma.$transaction(async (tx) => {
       // Re-fetch payment inside transaction to prevent double-processing
       const lockedPayment = await tx.payment.findFirst({
-        where: { id: data.gateway_order_id, status: 'pending' },
+        where: { id: payment.id, status: 'pending' },
       });
       if (!lockedPayment) {
         throw new BadRequestException('Payment already processed or not found');
@@ -249,44 +261,6 @@ export class PaymentsService {
 
       return { payment: updatedPayment, membership };
     });
-  }
-
-  private verifyGatewaySignature(
-    gateway: string,
-    data: { gateway_payment_id: string; gateway_order_id: string; signature: string },
-    secret: string,
-  ): boolean {
-    if (gateway === 'razorpay') {
-      const body = `${data.gateway_order_id}|${data.gateway_payment_id}`;
-      const expected = createHmac('sha256', secret).update(body).digest('hex');
-      // Use timing-safe comparison to prevent timing attacks
-      try {
-        return timingSafeEqual(Buffer.from(expected), Buffer.from(data.signature));
-      } catch {
-        return false;
-      }
-    }
-    if (gateway === 'stripe') {
-      // Stripe signature format: "t=timestamp,v1=signature1,v1=signature2"
-      // Verification: HMAC-SHA256(secret, "${timestamp}.${rawPayload}")
-      try {
-        const parts = data.signature.split(',').reduce<Record<string, string>>((acc, part) => {
-          const [k, v] = part.split('=');
-          acc[k] = v;
-          return acc;
-        }, {});
-        const timestamp = parts['t'];
-        const receivedSig = parts['v1'];
-        if (!timestamp || !receivedSig) return false;
-
-        const signedPayload = `${timestamp}.${data.gateway_payment_id}`;
-        const expected = createHmac('sha256', secret).update(signedPayload).digest('hex');
-        return timingSafeEqual(Buffer.from(expected), Buffer.from(receivedSig));
-      } catch {
-        return false;
-      }
-    }
-    return false;
   }
 
   async findAll(studioId: string, query: {
@@ -400,13 +374,13 @@ export class PaymentsService {
    */
   async handleRazorpayWebhook(orderId: string, gatewayPaymentId: string) {
     const payment = await this.prisma.payment.findFirst({
-      where: { id: orderId, status: 'pending' },
+      where: { gateway_order_id: orderId, status: 'pending' },
     });
     if (!payment) return; // Already processed or not found — idempotent
 
     await this.prisma.$transaction(async (tx) => {
       await tx.payment.update({
-        where: { id: orderId },
+        where: { id: payment.id },
         data: {
           gateway_payment_id: gatewayPaymentId,
           status: 'paid',
@@ -432,43 +406,6 @@ export class PaymentsService {
     });
   }
 
-  /**
-   * Called by Stripe webhook when payment_intent.succeeded event fires.
-   * Marks the pending payment as paid without needing frontend verification.
-   */
-  async handleStripeWebhook(orderId: string, gatewayPaymentId: string) {
-    const payment = await this.prisma.payment.findFirst({
-      where: { id: orderId, status: 'pending' },
-    });
-    if (!payment) return; // Already processed or not found — idempotent
-
-    await this.prisma.$transaction(async (tx) => {
-      await tx.payment.update({
-        where: { id: orderId },
-        data: {
-          gateway_payment_id: gatewayPaymentId,
-          status: 'paid',
-          paid_at: new Date(),
-        },
-      });
-
-      await tx.financialTransaction.create({
-        data: {
-          gym_id: getTenantGymId()!,
-          branch_id: payment.branch_id,
-          reference_type: 'payment',
-          reference_id: payment.id,
-          transaction_type: 'credit',
-          amount: payment.amount,
-          description: `Stripe payment ${payment.receipt_number} (webhook)`,
-        },
-      });
-
-      if (payment.invoice_id) {
-        await this.billingService.recalculateInvoiceStatus(payment.invoice_id);
-      }
-    });
-  }
 
   // ────────────────────────────────────────────────────────────
   // PDF receipt rendering (member payments)
@@ -549,7 +486,6 @@ export class PaymentsService {
         netbanking: 'Net Banking',
         bank_transfer: 'Bank Transfer',
         razorpay: 'Razorpay',
-        stripe: 'Stripe',
         cheque: 'Cheque',
       };
       return map[m] || m.replace(/_/g, ' ');

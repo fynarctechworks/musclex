@@ -152,7 +152,7 @@ export class DocumentDeliveryService {
     const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
 
     const result = await resend.emails.send({
-      from: process.env.EMAIL_FROM || 'MuscleX <noreply@fitsyncpro.com>',
+      from: process.env.EMAIL_FROM || 'MuscleX <noreply@musclex.com>',
       to,
       subject: `Invoice ${invoice.invoice_number}`,
       html,

@@ -1,22 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import {
+  BottomSheet,
   Button,
   Card,
   EmptyState,
   ErrorState,
   Icon,
   Input,
-  MeshGradient,
   ProgressRing,
   Screen,
   SegmentedControl,
   SkeletonCard,
   Txt,
-  colors,
+  useThemeColors,
 } from '../src/design-system';
-import { BackButton } from '../src/navigation/BackButton';
-import { BottomSheet } from '../src/design-system';
+import { ScreenHeader } from '../src/navigation/ScreenHeader';
 import { track } from '../src/analytics';
 import { useDebouncedValue } from '../src/lib/use-debounced-value';
 import {
@@ -77,6 +76,7 @@ function MacroBar({
 }
 
 export default function NutritionScreen() {
+  const theme = useThemeColors();
   const { data, isLoading, isError, refetch, isRefetching } = useNutritionToday();
   const logMeal = useLogMeal();
   const logWater = useLogWater();
@@ -102,16 +102,8 @@ export default function NutritionScreen() {
 
   return (
     <Screen scroll padded={false} onRefresh={refetch} refreshing={isRefetching}>
-      {/* Hero header with the brand mesh gradient (design.md: hero scale only). */}
-      <View className="overflow-hidden px-md pb-lg pt-md">
-        <MeshGradient opacity={0.45} />
-        <BackButton />
-        <Txt variant="mono" className="text-ink/70">
-          TODAY
-        </Txt>
-        <Txt variant="display-lg" weight="600" className="mt-xs text-ink">
-          Nutrition
-        </Txt>
+      <View className="px-md pb-sm pt-md">
+        <ScreenHeader title="Nutrition" className="mb-0" />
       </View>
 
       <View className="gap-md px-md">
@@ -133,7 +125,7 @@ export default function NutritionScreen() {
                   progress={kcalRatio}
                   size={104}
                   strokeWidth={10}
-                  color={over ? colors.warning : colors.cyan}
+                  color={over ? theme.warning : theme.cyan}
                 >
                   <View className="items-center">
                     <Txt variant="display-sm" weight="600" className="text-ink">
@@ -146,7 +138,7 @@ export default function NutritionScreen() {
                 </ProgressRing>
                 <View className="ml-lg flex-1">
                   <View className="flex-row items-center gap-xs">
-                    <Icon name="flame" color={colors.warning} size={16} />
+                    <Icon name="flame" color={theme.warning} size={16} />
                     <Txt variant="caption" className="text-mute">
                       CALORIES
                     </Txt>
@@ -155,9 +147,9 @@ export default function NutritionScreen() {
                     {r(kcalEaten)} / {r(kcalGoal)} kcal
                   </Txt>
                   <View className="mt-md gap-sm">
-                    <MacroBar label="Protein" value={totals.proteinG ?? 0} target={goal.proteinG ?? 0} color={colors.cyan} />
-                    <MacroBar label="Carbs" value={totals.carbsG ?? 0} target={goal.carbsG ?? 0} color={colors.warning} />
-                    <MacroBar label="Fat" value={totals.fatG ?? 0} target={goal.fatG ?? 0} color={colors.successFg} />
+                    <MacroBar label="Protein" value={totals.proteinG ?? 0} target={goal.proteinG ?? 0} color={theme.cyan} />
+                    <MacroBar label="Carbs" value={totals.carbsG ?? 0} target={goal.carbsG ?? 0} color={theme.warning} />
+                    <MacroBar label="Fat" value={totals.fatG ?? 0} target={goal.fatG ?? 0} color={theme.successFg} />
                   </View>
                 </View>
               </View>
@@ -174,7 +166,7 @@ export default function NutritionScreen() {
                 </Txt>
               </View>
               <View className="mt-sm h-[8px] overflow-hidden rounded-full bg-surface-2">
-                <View style={{ width: `${waterRatio * 100}%`, height: '100%', backgroundColor: colors.cyan }} />
+                <View style={{ width: `${waterRatio * 100}%`, height: '100%', backgroundColor: theme.cyan }} />
               </View>
               <View className="mt-md flex-row gap-sm">
                 {WATER_PRESETS.map((ml) => (
@@ -393,11 +385,13 @@ function LogMealSheet({
             <Pressable
               key={f.id}
               onPress={() => pickFood(f)}
+              accessibilityRole="button"
+              accessibilityLabel={`${f.name}, ${r(f.kcal)} kcal`}
               className={`flex-row items-center justify-between px-md py-sm ${
                 i > 0 ? 'border-t border-hairline' : ''
               }`}
             >
-              <Txt variant="body-sm" className="flex-1 pr-md text-ink">
+              <Txt variant="body-sm" className="flex-1 pr-md text-ink" numberOfLines={1}>
                 {f.name}
               </Txt>
               <Txt variant="caption" className="text-mute">

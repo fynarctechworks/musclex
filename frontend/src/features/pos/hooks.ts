@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/services/query-client';
 import { posApi } from './api';
 import { toast } from 'sonner';
+import { captureError, Source } from '@/lib/observability/capture';
 import type { CreatePosSalePayload, CreateReturnPayload, SalesFilters } from './types';
 
 export function useSales(filters?: SalesFilters) {
@@ -30,7 +31,10 @@ export function useCreateSale() {
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Sale completed');
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      toast.error(err.message);
+      captureError(Source.POS, err, { module: 'pos-checkout', severity: 'HIGH' });
+    },
   });
 }
 

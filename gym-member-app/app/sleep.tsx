@@ -3,15 +3,15 @@ import { View } from 'react-native';
 import {
   BarChart,
   Card,
-  CollapsingHeader,
   EmptyState,
   ErrorState,
+  Screen,
   SkeletonCard,
   Txt,
   health,
 } from '../src/design-system';
 import type { BarDatum } from '../src/design-system';
-import { BackButton } from '../src/navigation/BackButton';
+import { ScreenHeader } from '../src/navigation/ScreenHeader';
 import { track } from '../src/analytics';
 import { useHealthSummary } from '../src/api/queries';
 import type { HealthMetricSeries } from '../src/api/types';
@@ -113,13 +113,11 @@ export default function SleepScreen() {
   const hasStages = deep > 0 || rem > 0;
 
   return (
-    <CollapsingHeader
-      title="Sleep"
-      subtitle="Your last 7 nights"
-      left={<BackButton className="" />}
-      onRefresh={() => summary.refetch()}
-      refreshing={summary.isFetching}
-    >
+    <Screen scroll onRefresh={() => summary.refetch()} refreshing={summary.isFetching}>
+      <ScreenHeader title="Sleep" className="mb-xs" />
+      <Txt variant="body-sm" className="mb-lg text-body">
+        Your last 7 nights
+      </Txt>
       {summary.isLoading ? (
         <>
           <SkeletonCard />
@@ -184,6 +182,7 @@ export default function SleepScreen() {
           </Card>
         </>
       )}
-    </CollapsingHeader>
+      <View className="h-2xl" />
+    </Screen>
   );
 }

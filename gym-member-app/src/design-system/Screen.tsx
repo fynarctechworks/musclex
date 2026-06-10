@@ -6,7 +6,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
-import { colors } from './tokens';
+import { useThemeColors, useIsDark } from './theme';
 
 interface ScreenProps {
   children: ReactNode;
@@ -30,9 +30,14 @@ export function Screen({
   className,
 }: ScreenProps) {
   const pad = padded ? 'px-md' : '';
+  const theme = useThemeColors();
+  const isDark = useIsDark();
   return (
-    <SafeAreaView edges={edges} style={{ flex: 1, backgroundColor: colors.canvas }}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.canvas} />
+    <SafeAreaView edges={edges} style={{ flex: 1, backgroundColor: theme.canvas }}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.canvas}
+      />
       {scroll ? (
         <ScrollView
           className={`flex-1 ${pad} ${className ?? ''}`}
@@ -47,7 +52,7 @@ export function Screen({
               <RefreshControl
                 refreshing={!!refreshing}
                 onRefresh={onRefresh}
-                tintColor={colors.body}
+                tintColor={theme.body}
               />
             ) : undefined
           }

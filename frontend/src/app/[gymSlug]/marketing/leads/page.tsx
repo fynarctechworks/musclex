@@ -28,8 +28,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { FormInput, FormSelect, FormTextarea } from "@/components/shared";
+import { PhoneInput } from "@/components/shared/phone-input";
 import { format } from "date-fns";
 import { useRequirePermission } from "@/hooks/use-require-permission";
 
@@ -320,7 +321,7 @@ function CreateLeadDialog({
   onSubmit: (data: Parameters<ReturnType<typeof useCreateLead>["mutate"]>[0]) => void;
   loading: boolean;
 }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<CreateLeadForm>();
+  const { register, handleSubmit, control, formState: { errors } } = useForm<CreateLeadForm>();
 
   const onFormSubmit = (data: CreateLeadForm) => {
     onSubmit({
@@ -352,10 +353,12 @@ function CreateLeadDialog({
               {...register("email")}
               placeholder="john@example.com"
             />
-            <FormInput
-              label="Phone"
-              {...register("phone")}
-              placeholder="+91 98765 43210"
+            <Controller
+              name="phone"
+              control={control}
+              render={({ field }) => (
+                <PhoneInput label="Phone" value={field.value ?? ""} onChange={field.onChange} />
+              )}
             />
           </div>
           <FormSelect

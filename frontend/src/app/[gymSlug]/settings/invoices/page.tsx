@@ -37,10 +37,10 @@ interface TemplatesResponse {
 
 // ── Dummy data for preview ──────────────────────────────────────
 const DUMMY = {
-  gym_name: "FitSync Pro Gym",
+  gym_name: "MuscleX Gym",
   gym_address: "123 Fitness Street, Mumbai, MH 400001",
   gym_phone: "+91 98765 43210",
-  gym_email: "hello@fitsyncgym.com",
+  gym_email: "hello@musclexgym.com",
   member_name: "Rahul Sharma",
   member_code: "FS-20260101-0042",
   member_email: "rahul.sharma@email.com",

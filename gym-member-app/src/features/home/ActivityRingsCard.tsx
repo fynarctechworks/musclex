@@ -5,12 +5,13 @@ import {
   Card,
   Icon,
   Txt,
-  colors,
+  useThemeColors,
   health,
   type RingSpec,
 } from '../../design-system';
 import { useHealthSummary } from '../../api/queries';
 import { usePrefs } from '../../auth/prefs-store';
+import { useStepsStore } from '../steps/steps-store';
 import { METRIC_META } from '../health/metrics';
 import type { HealthMetricSeries, HealthMetricType } from '../../api/types';
 
@@ -39,6 +40,7 @@ function todayTotal(series?: HealthMetricSeries): number {
  */
 export function ActivityRingsCard() {
   const router = useRouter();
+  const theme = useThemeColors();
   const today = new Date().toISOString().slice(0, 10);
   const goals = usePrefs((s) => s.goals);
   const { data } = useHealthSummary(
@@ -55,8 +57,15 @@ export function ActivityRingsCard() {
     steps: goals.steps,
   } as Record<HealthMetricType, number>;
 
+  // Prefer the live on-device step count (counts as you walk, no wearable needed)
+  // over the server rollup for the steps ring; the rest come from the health store.
+  const localSteps = useStepsStore((s) => s.byDay[s.dayKey] ?? 0);
+
   const rows = RING_METRICS.map((m) => {
-    const value = todayTotal(byType.get(m.type));
+    const value =
+      m.type === 'steps'
+        ? Math.max(todayTotal(byType.get(m.type)), localSteps)
+        : todayTotal(byType.get(m.type));
     const goal = goalFor[m.type] || 1;
     return {
       ...m,
@@ -89,7 +98,7 @@ export function ActivityRingsCard() {
           <Txt variant="caption" className="text-mute">
             EDIT GOALS
           </Txt>
-          <Icon name="chevron-right" size={14} color={colors.mute} />
+          <Icon name="chevron-right" size={14} color={theme.mute} />
         </Pressable>
       </View>
       <View className="mt-sm flex-row items-center">

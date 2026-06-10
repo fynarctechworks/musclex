@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 import { Txt } from './Text';
 import { Icon } from './Icon';
-import { colors } from './tokens';
+import { useThemeColors } from './theme';
 
 export interface ListRowProps {
   label: string;
@@ -21,10 +21,13 @@ export interface ListRowProps {
  * one rounded container; pass `last` to the final row to drop its divider.
  */
 export function ListRow({ label, value, onPress, right, destructive, last }: ListRowProps) {
+  const theme = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
       disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={onPress ? (value ? `${label}, ${value}` : label) : undefined}
       className={`flex-row items-center justify-between px-md py-md ${
         last ? '' : 'border-b border-hairline'
       }`}
@@ -39,7 +42,7 @@ export function ListRow({ label, value, onPress, right, destructive, last }: Lis
             {value}
           </Txt>
         ) : null}
-        {right ?? (onPress ? <Icon name="chevron-right" color={colors.mute} size={18} /> : null)}
+        {right ?? (onPress ? <Icon name="chevron-right" color={theme.mute} size={18} /> : null)}
       </View>
     </Pressable>
   );

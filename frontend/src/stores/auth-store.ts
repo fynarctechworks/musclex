@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { attachSentryUserContext, clearSentryUserContext } from '@/lib/sentry-context';
 
 type PermissionModule = string;
 type ModuleAction = string;
@@ -93,10 +94,17 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: true,
           loading: false,
         });
+        // Fire-and-forget — never block auth on observability.
+        attachSentryUserContext({
+          userId: data.user.id,
+          gymId: data.user.studio_id,
+          role: data.user.role,
+        }).catch(() => {});
       },
       setLoading: (loading) => set({ loading }),
       logout: () => {
         removeAuthCookie();
+        clearSentryUserContext();
         set({
           user: null,
           studio: null,

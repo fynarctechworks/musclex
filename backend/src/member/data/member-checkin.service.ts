@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CheckInOrchestrator } from '../../check-ins/policy/check-in.orchestrator';
 import { MemberException } from '../common/member-exception';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
-import { computeStreakDays } from './mappers';
+import { MemberStreakService } from './member-streak.service';
 import type { CheckInResultData } from '../contract';
 
 /**
@@ -21,11 +21,10 @@ import type { CheckInResultData } from '../contract';
  */
 @Injectable()
 export class MemberCheckInService {
-  private readonly streakWindowDays = 90;
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly orchestrator: CheckInOrchestrator,
+    private readonly streak: MemberStreakService,
   ) {}
 
   async checkIn(
@@ -56,17 +55,12 @@ export class MemberCheckInService {
       );
     }
 
-    const since = new Date(Date.now() - this.streakWindowDays * 86_400_000);
-    const checkIns = await this.prisma.checkIn.findMany({
-      where: { member_id: member.memberId, checked_in_at: { gte: since } },
-      select: { checked_in_at: true },
-    });
-
     return {
       checkInId: (result.check_in as { id?: string })?.id ?? result.check_in_event_id,
       recordedAt: new Date().toISOString(),
       alreadyRecorded: false,
-      streakDays: computeStreakDays(checkIns.map((c) => c.checked_in_at)),
+      // Unified streak: the just-recorded check-in is committed, so this reflects it.
+      streakDays: await this.streak.getStreakDays(member.memberId),
     };
   }
 }

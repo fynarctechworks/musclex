@@ -23,6 +23,10 @@ export function middleware(request: NextRequest) {
     publicPaths.some((p) => pathname.startsWith(p)) ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
+    pathname.startsWith("/brand") ||
+    // any static file in /public (by extension) — these are public by definition
+    // and must not be redirected to /login (that breaks <img>/<link> on auth pages)
+    /\.(png|jpe?g|svg|gif|webp|avif|ico|css|js|map|woff2?|ttf|otf)$/i.test(pathname) ||
     pathname === "/favicon.ico"
   ) {
     const response = NextResponse.next();

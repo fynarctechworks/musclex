@@ -9,13 +9,14 @@ import {
   Screen,
   SkeletonCard,
   Txt,
-  colors,
+  useThemeColors,
 } from '../../src/design-system';
-import { BackButton } from '../../src/navigation/BackButton';
+import { ScreenHeader } from '../../src/navigation/ScreenHeader';
 import { useExercise, useToggleFavorite } from '../../src/api/queries';
 import { track } from '../../src/analytics';
 
 export default function ExerciseDetailScreen() {
+  const theme = useThemeColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, isLoading, isError, refetch, isRefetching } = useExercise(id ?? '');
   const toggleFav = useToggleFavorite();
@@ -29,7 +30,7 @@ export default function ExerciseDetailScreen() {
   return (
     <Screen scroll onRefresh={refetch} refreshing={isRefetching}>
       <View className="pt-md">
-        <BackButton />
+        <ScreenHeader />
 
         {isLoading ? (
           <View className="gap-md">
@@ -58,7 +59,7 @@ export default function ExerciseDetailScreen() {
                 <Icon
                   name="heart"
                   filled={!!data.favorited}
-                  color={data.favorited ? colors.error : colors.body}
+                  color={data.favorited ? theme.error : theme.body}
                   size={22}
                 />
               </Pressable>
@@ -70,12 +71,12 @@ export default function ExerciseDetailScreen() {
 
             {/* Media — real image/video when available; placeholder until then
                (we never fabricate media URLs). */}
-            <View className="mt-lg aspect-video overflow-hidden rounded-lg border border-hairline bg-surface-2">
+            <View className="mt-lg aspect-video overflow-hidden rounded-2xl border border-hairline bg-surface-2">
               {data.mediaUrl ? (
                 <Image source={{ uri: data.mediaUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
               ) : (
                 <View className="flex-1 items-center justify-center">
-                  <Icon name="dumbbell" color={colors.mute} size={36} />
+                  <Icon name="dumbbell" color={theme.mute} size={36} />
                   <Txt variant="caption" className="mt-xs text-mute">
                     Demo video coming soon
                   </Txt>

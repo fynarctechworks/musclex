@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 import Svg, { Circle, Path, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { Txt, colors } from '../../design-system';
+import { Txt, useThemeColors } from '../../design-system';
 import type { BodyMetric } from '../../api/types';
 
 /**
@@ -14,6 +14,7 @@ export function WeightChart({
   series: BodyMetric[];
   height?: number;
 }) {
+  const theme = useThemeColors();
   const points = series
     .filter((m) => m.weightKg != null && m.recordedAt)
     .map((m) => ({ t: new Date(m.recordedAt as string).getTime(), v: m.weightKg as number }))
@@ -22,7 +23,7 @@ export function WeightChart({
   if (points.length < 2) {
     return (
       <View
-        className="items-center justify-center rounded-lg border border-hairline bg-surface"
+        className="items-center justify-center rounded-2xl border border-hairline bg-surface"
         style={{ height }}
       >
         <Txt variant="body-sm" className="text-mute">
@@ -52,20 +53,20 @@ export function WeightChart({
   const last = points[points.length - 1];
 
   return (
-    <View className="rounded-lg border border-hairline bg-surface p-md">
+    <View className="rounded-2xl border border-hairline bg-surface p-md">
       <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`}>
         <Defs>
           <LinearGradient id="wfill" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%" stopColor={colors.cyan} stopOpacity={0.25} />
-            <Stop offset="100%" stopColor={colors.cyan} stopOpacity={0} />
+            <Stop offset="0%" stopColor={theme.cyan} stopOpacity={0.25} />
+            <Stop offset="100%" stopColor={theme.cyan} stopOpacity={0} />
           </LinearGradient>
         </Defs>
         <Path d={area} fill="url(#wfill)" />
-        <Path d={line} stroke={colors.cyan} strokeWidth={2.5} fill="none" />
+        <Path d={line} stroke={theme.cyan} strokeWidth={2.5} fill="none" />
         {points.map((p, i) => (
-          <Circle key={`${p.t}-${i}`} cx={x(p.t)} cy={y(p.v)} r={2.5} fill={colors.cyan} />
+          <Circle key={`${p.t}-${i}`} cx={x(p.t)} cy={y(p.v)} r={2.5} fill={theme.cyan} />
         ))}
-        <Circle cx={x(last.t)} cy={y(last.v)} r={5} fill={colors.ink} />
+        <Circle cx={x(last.t)} cy={y(last.v)} r={5} fill={theme.ink} />
       </Svg>
       <View className="mt-xs flex-row justify-between">
         <Txt variant="caption" className="text-mute">

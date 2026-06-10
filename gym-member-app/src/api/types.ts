@@ -49,8 +49,91 @@ export interface SessionResult {
 }
 
 // ── Profile ───────────────────────────────────────────────────────
+/** Legacy compact goal (kept for back-compat with Home / older screens). */
 export type Goal = 'lose_fat' | 'build_muscle' | 'general_fitness';
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
+
+// ── Onboarding / fitness profile vocab (mirrors the BFF contract enums) ──
+export type Gender = 'male' | 'female' | 'prefer_not_to_say';
+
+/** Rich onboarding goals (multi-select; one is the primary). */
+export type FitnessGoal =
+  | 'lose_weight'
+  | 'gain_muscle'
+  | 'build_strength'
+  | 'improve_fitness'
+  | 'improve_endurance'
+  | 'athletic_performance'
+  | 'body_recomposition'
+  | 'stay_healthy';
+
+export type ActivityLevel =
+  | 'sedentary'
+  | 'lightly_active'
+  | 'moderately_active'
+  | 'very_active'
+  | 'athlete';
+
+export type WorkoutPreference =
+  | 'gym'
+  | 'home'
+  | 'strength'
+  | 'cardio'
+  | 'hiit'
+  | 'yoga'
+  | 'crossfit'
+  | 'powerlifting'
+  | 'bodybuilding';
+
+export type HeightUnit = 'cm' | 'ft';
+export type WeightUnit = 'kg' | 'lb';
+
+/** Personalization targets computed server-side from the profile. */
+export interface Recommendation {
+  dailyCalories?: number;
+  proteinG?: number;
+  carbsG?: number;
+  fatG?: number;
+  waterMl?: number;
+  weeklyWorkouts?: number;
+  splitKey?: 'full_body' | 'push_pull_legs' | 'advanced_split';
+  split?: string;
+  bmi?: number | null;
+  bmr?: number | null;
+}
+
+// ── Phase 7: weekly progress, tools, gym profile ──────────────────
+export interface WeeklyProgress {
+  daysActive: number;
+  weightChangeKg?: number | null;
+  consistencyScore: number;
+  points: { day: string; active: boolean }[];
+}
+export interface ToolsComputeInput {
+  gender?: 'male' | 'female' | 'prefer_not_to_say';
+  age?: number;
+  heightCm?: number;
+  weightKg?: number;
+  activityLevel?: 'sedentary' | 'lightly_active' | 'moderately_active' | 'very_active' | 'athlete';
+  primaryGoal?: string;
+  trainingExperience?: 'beginner' | 'intermediate' | 'advanced';
+}
+export interface GymPlan {
+  id: string;
+  name: string;
+  price?: number | null;
+  durationDays?: number | null;
+  description?: string | null;
+}
+export interface GymProfile {
+  tenantId: string;
+  gymName: string;
+  tagline?: string | null;
+  logoUrl?: string | null;
+  city?: string | null;
+  branches: NearbyGym[];
+  plans: GymPlan[];
+}
 
 export interface MemberProfile {
   id?: string;
@@ -60,6 +143,41 @@ export interface MemberProfile {
   goal?: Goal;
   experienceLevel?: ExperienceLevel;
   avatarUrl?: string | null;
+  // fitness profile (onboarding)
+  gender?: Gender | null;
+  dateOfBirth?: string | null; // YYYY-MM-DD
+  age?: number | null;
+  heightCm?: number | null;
+  weightKg?: number | null;
+  heightUnit?: HeightUnit;
+  weightUnit?: WeightUnit;
+  primaryGoal?: FitnessGoal | null;
+  goals?: FitnessGoal[];
+  activityLevel?: ActivityLevel | null;
+  trainingExperience?: ExperienceLevel | null;
+  workoutPreferences?: WorkoutPreference[];
+  limitations?: string[];
+  onboardingCompleted?: boolean;
+  onboardingStep?: string | null;
+  recommendation?: Recommendation | null;
+}
+
+/** PATCH /me body — any subset; drives onboarding auto-save + later edits. */
+export interface UpdateProfileInput {
+  gender?: Gender;
+  dateOfBirth?: string; // YYYY-MM-DD
+  heightCm?: number;
+  weightKg?: number;
+  heightUnit?: HeightUnit;
+  weightUnit?: WeightUnit;
+  primaryGoal?: FitnessGoal;
+  goals?: FitnessGoal[];
+  activityLevel?: ActivityLevel;
+  trainingExperience?: ExperienceLevel;
+  workoutPreferences?: WorkoutPreference[];
+  limitations?: string[];
+  onboardingStep?: string;
+  onboardingComplete?: boolean;
 }
 
 // ── Home / occupancy ──────────────────────────────────────────────
@@ -273,6 +391,15 @@ export interface UploadTarget {
   photoId?: string;
   uploadUrl?: string;
   expiresIn?: number;
+}
+
+export interface AvatarUploadTarget {
+  avatarId?: string;
+  uploadUrl?: string;
+}
+
+export interface AvatarConfirmResult {
+  avatarUrl?: string;
 }
 
 // ── Nutrition (V2.1) ──────────────────────────────────────────────
@@ -579,4 +706,174 @@ export interface CommunityBadge {
 export interface BadgeList {
   badges?: CommunityBadge[];
   earnedCount?: number;
+}
+
+// ── Experience selector: /me/context ──────────────────────────────
+export type UserType = 'public' | 'member' | 'expired' | 'suspended';
+export type OnboardingState = 'not_started' | 'in_progress' | 'completed';
+
+/** Feature gates the app reads to build navigation + screens. */
+export interface MeCapabilities {
+  // Gym-only features
+  membershipCard: boolean;
+  /** True when the member's gym is operator-suspended (show banner, hide gym features). */
+  gymSuspended: boolean;
+  attendance: boolean;
+  classBooking: boolean;
+  gymSchedule: boolean;
+  gymAnnouncements: boolean;
+  trainerChat: boolean;
+  subscriptionDetails: boolean;
+  memberBenefits: boolean;
+  renewMembership: boolean;
+  // Public fitness features (always available)
+  healthDashboard: boolean;
+  weightTracking: boolean;
+  waterTracking: boolean;
+  goalTracking: boolean;
+  bmiCalculator: boolean;
+  calorieCalculator: boolean;
+  fitnessTips: boolean;
+  nearbyGyms: boolean;
+  referralProgram: boolean;
+}
+
+export interface MeMembership {
+  tenantId: string;
+  gymName: string;
+  memberId: string;
+  status: string;
+  active: boolean;
+  /** True when this gym is operator-suspended (studios.suspended_at). */
+  suspended?: boolean;
+  planName?: string | null;
+  expiresAt?: string | null;
+}
+
+export interface MeContext {
+  appUserId: string;
+  userType: UserType;
+  onboardingState: OnboardingState;
+  fullName?: string | null;
+  phone: string;
+  city?: string | null;
+  referralCode?: string | null;
+  capabilities: MeCapabilities;
+  memberships: MeMembership[];
+}
+
+// ── Public (gym-less) personal tracking ───────────────────────────
+export interface WeightEntry {
+  date: string;
+  weightKg: number;
+  bodyFatPct?: number | null;
+  note?: string | null;
+}
+export interface WeightSeries {
+  latest?: WeightEntry | null;
+  entries: WeightEntry[];
+}
+export interface WeightInput {
+  date?: string;
+  weightKg: number;
+  bodyFatPct?: number | null;
+  note?: string | null;
+}
+export interface WaterDay {
+  date: string;
+  amountMl: number;
+  goalMl?: number | null;
+}
+export interface WaterInput {
+  date?: string;
+  amountMl: number;
+  goalMl?: number | null;
+  mode?: 'set' | 'add';
+}
+export interface PublicGoal {
+  id: string;
+  type: 'weight' | 'water' | 'steps' | 'workout' | 'custom';
+  title?: string | null;
+  targetValue?: number | null;
+  currentValue?: number | null;
+  unit?: string | null;
+  targetDate?: string | null;
+  status: 'active' | 'achieved' | 'abandoned';
+}
+export interface PublicGoalList {
+  goals: PublicGoal[];
+}
+export interface PublicGoalInput {
+  type: PublicGoal['type'];
+  title?: string | null;
+  targetValue?: number | null;
+  currentValue?: number | null;
+  unit?: string | null;
+  targetDate?: string | null;
+}
+export interface PublicGoalUpdate {
+  currentValue?: number | null;
+  targetValue?: number | null;
+  title?: string | null;
+  status?: PublicGoal['status'];
+}
+export interface HealthDay {
+  date: string;
+  steps: number;
+  activeCalories?: number | null;
+  distanceM?: number | null;
+  restingHeartRate?: number | null;
+  source?: string | null;
+}
+export interface HealthSeries {
+  days: HealthDay[];
+}
+export interface HealthDailyInput {
+  date?: string;
+  steps: number;
+  activeCalories?: number | null;
+  distanceM?: number | null;
+  restingHeartRate?: number | null;
+  source?: string | null;
+}
+
+// ── Conversion: public gym directory (Phase 5) ────────────────────
+export interface NearbyGym {
+  tenantId: string;
+  gymName: string;
+  logoUrl?: string | null;
+  branchId: string;
+  branchName: string;
+  address?: string | null;
+  city?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  phone?: string | null;
+  distanceKm?: number | null;
+}
+export interface NearbyGyms {
+  gyms: NearbyGym[];
+}
+
+// ── Funnel / behaviour events (Phase 3) ───────────────────────────
+export type AppEventType =
+  | 'first_app_open'
+  | 'onboarding_started'
+  | 'onboarding_completed'
+  | 'gym_selected'
+  | 'first_dashboard_visit'
+  | 'viewed_nearby_gyms'
+  | 'viewed_gym_profile'
+  | 'inquiry_click'
+  | 'referral_share';
+
+export interface EventInput {
+  type: AppEventType;
+  occurredAt?: string;
+  platform?: 'ios' | 'android' | 'web';
+  appVersion?: string;
+  metadata?: Record<string, unknown>;
+}
+export interface EventIngestResult {
+  accepted: number;
 }

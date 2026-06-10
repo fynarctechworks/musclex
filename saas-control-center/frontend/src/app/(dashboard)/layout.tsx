@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sidebar } from '@/components/layout/sidebar';
+import { Sidebar, MobileSidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -13,6 +13,7 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const { hydrate } = useAuthStore();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     hydrate();
@@ -28,9 +29,10 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-background">
       <Sidebar />
-      <div className="ml-60">
-        <Topbar />
-        <main className="p-6">{children}</main>
+      <MobileSidebar open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+      <div className="lg:ml-60">
+        <Topbar onMenuClick={() => setMobileNavOpen(true)} />
+        <main className="p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

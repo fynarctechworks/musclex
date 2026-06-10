@@ -2,6 +2,7 @@
 
 import React from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
+import { captureError, Source } from "@/lib/observability/capture";
 
 interface Props {
   children: React.ReactNode;
@@ -24,6 +25,10 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
+    captureError(Source.FRONTEND, error, {
+      module: "react-error-boundary",
+      breadcrumbs: { componentStack: info.componentStack },
+    });
   }
 
   render() {

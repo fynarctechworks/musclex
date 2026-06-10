@@ -21,6 +21,8 @@ export interface BranchDraft {
   state: string;
   city: string;
   postal_code: string;
+  latitude: number | null;
+  longitude: number | null;
   phone: string;
 }
 
@@ -80,6 +82,8 @@ const defaultBranch: BranchDraft = {
   state: '',
   city: '',
   postal_code: '',
+  latitude: null,
+  longitude: null,
   phone: '',
 };
 

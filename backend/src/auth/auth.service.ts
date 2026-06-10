@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
@@ -45,6 +46,7 @@ import {
   SubscriptionActivatedPayload,
 } from '../referrals/events/domain-events';
 import { SubscriptionPolicyService } from '../common/services/subscription-policy.service';
+import { RazorpayService } from '../payments/razorpay.service';
 
 /** Request context passed from the controller for tracking. */
 export interface LoginContext {
@@ -71,6 +73,7 @@ export class AuthService {
     private eventEmitter: EventEmitter2,
     private sccSync: SccSyncService,
     private subscriptionPolicy: SubscriptionPolicyService,
+    private razorpay: RazorpayService,
   ) {
     this.supabase = createClient(
       this.configService.get<string>('SUPABASE_URL', ''),
@@ -232,29 +235,65 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    // ── Successful authentication ──
+    // ── Successful authentication ── delegate to the shared post-auth pipeline.
+    return this.buildAuthenticatedResponse(
+      {
+        id: data.user.id,
+        email: data.user.email ?? null,
+        user_metadata: data.user.user_metadata || {},
+        email_confirmed_at: data.user.email_confirmed_at ?? null,
+      },
+      data.session ?? null,
+      dto.email,
+      context,
+      dto.device_info,
+    );
+  }
 
-    const metadata = data.user.user_metadata || {};
+  /**
+   * Shared post-authentication pipeline used by BOTH password login and OAuth
+   * sign-in. Given an already-verified Supabase user + session, it syncs the
+   * local identity (so the JWT guard can find the user), tracks the device,
+   * intercepts 2FA, records login history, bumps SCC activity, reconciles the
+   * onboarding step, and resolves RBAC/workspaces — then returns the normalized
+   * auth payload the frontend consumes (identical shape for both entry points).
+   */
+  private async buildAuthenticatedResponse(
+    user: {
+      id: string;
+      email: string | null;
+      user_metadata: Record<string, any>;
+      email_confirmed_at?: string | null;
+    },
+    session: { access_token?: string; refresh_token?: string } | null,
+    loginEmail: string,
+    context?: LoginContext,
+    deviceInfo?: LoginDto['device_info'],
+  ) {
+    const ip = context?.ip_address;
+    const ua = context?.user_agent;
+
+    const metadata = user.user_metadata || {};
     // Derive the real onboarding step from data, healing a stale flag if a
     // studio already exists (e.g. gym created via seed/SQL/admin). This prevents
     // already-set-up owners from being bounced back into the onboarding wizard.
-    const onboardingStep = await this.reconcileOnboardingStep(data.user.id, metadata);
+    const onboardingStep = await this.reconcileOnboardingStep(user.id, metadata);
 
     // Sync identity to local table (persistent user record)
     await this.identityService.syncIdentity({
-      id: data.user.id,
-      email: data.user.email!,
+      id: user.id,
+      email: user.email!,
       full_name: metadata.full_name || '',
       phone: metadata.phone,
-      email_verified: !!data.user.email_confirmed_at,
+      email_verified: !!user.email_confirmed_at,
     });
 
     // Track device
     let deviceId: string | undefined;
-    const device = await this.deviceService.trackDevice(data.user.id, {
-      device_fingerprint: dto.device_info?.device_fingerprint,
-      device_name: dto.device_info?.device_name,
-      device_type: dto.device_info?.device_type,
+    const device = await this.deviceService.trackDevice(user.id, {
+      device_fingerprint: deviceInfo?.device_fingerprint,
+      device_name: deviceInfo?.device_name,
+      device_type: deviceInfo?.device_type,
       user_agent: ua,
       ip_address: ip,
     });
@@ -262,24 +301,24 @@ export class AuthService {
 
     // ── 2FA challenge interception ──
     const identity2fa = await this.prisma.userIdentity.findUnique({
-      where: { id: data.user.id },
+      where: { id: user.id },
       select: { two_factor_enabled: true },
     });
     if (identity2fa?.two_factor_enabled) {
       // Keep the Supabase session alive — pass encrypted tokens to temp JWT
       // They'll be returned after successful OTP verification
       const tempToken = await this.twoFactorService.generateTempToken(
-        data.user.id,
-        data.user.email!,
-        data.session ? {
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
+        user.id,
+        user.email!,
+        session?.access_token && session?.refresh_token ? {
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
         } : undefined,
       );
 
       await this.loginHistoryService.record({
-        user_id: data.user.id,
-        email: dto.email,
+        user_id: user.id,
+        email: loginEmail,
         ip_address: ip,
         user_agent: ua,
         device_id: deviceId,
@@ -295,10 +334,10 @@ export class AuthService {
 
     // Create session record
     let sessionId: string | undefined;
-    if (data.session?.access_token) {
+    if (session?.access_token) {
       sessionId = await this.sessionService.createSession({
-        user_id: data.user.id,
-        access_token: data.session.access_token,
+        user_id: user.id,
+        access_token: session.access_token,
         device_id: deviceId,
         ip_address: ip,
         studio_id: metadata.studio_id,
@@ -307,8 +346,8 @@ export class AuthService {
 
     // Record successful login
     await this.loginHistoryService.record({
-      user_id: data.user.id,
-      email: dto.email,
+      user_id: user.id,
+      email: loginEmail,
       ip_address: ip,
       user_agent: ua,
       device_id: deviceId,
@@ -316,23 +355,33 @@ export class AuthService {
       studio_id: metadata.studio_id,
     });
 
+    // Bump scc.tenants.last_active_at so the Control Center reflects real gym
+    // activity. Fire-and-forget (non-blocking) + non-fatal — never let a sync
+    // hiccup slow or fail a login.
+    if (metadata.studio_id) {
+      this.prisma.studio
+        .findUnique({ where: { id: metadata.studio_id }, select: { slug: true } })
+        .then((s) => (s?.slug ? this.sccSync.touchLastActive(s.slug) : undefined))
+        .catch(() => undefined);
+    }
+
     // If still onboarding, return minimal data with step indicator
     if (onboardingStep && onboardingStep !== 'complete') {
       // If user can log in, their email is verified — skip past verify_email step
       const effectiveStep = onboardingStep === 'verify_email' ? 'studio_info' : onboardingStep;
       if (effectiveStep !== onboardingStep) {
-        await this.supabase.auth.admin.updateUserById(data.user.id, {
+        await this.supabase.auth.admin.updateUserById(user.id, {
           user_metadata: { ...metadata, onboarding_step: effectiveStep },
         });
       }
 
       return {
-        access_token: data.session?.access_token,
-        refresh_token: data.session?.refresh_token,
+        access_token: session?.access_token,
+        refresh_token: session?.refresh_token,
         session_id: sessionId,
         user: {
-          id: data.user.id,
-          email: data.user.email,
+          id: user.id,
+          email: user.email,
           full_name: metadata.full_name,
           role: metadata.role || 'owner',
           studio_id: metadata.studio_id,
@@ -345,13 +394,13 @@ export class AuthService {
     }
 
     // ── Workspace resolution via normalized RBAC ──
-    const workspaces = await this.rbacService.getUserWorkspaces(data.user.id);
+    const workspaces = await this.rbacService.getUserWorkspaces(user.id);
 
     if (workspaces.length > 1) {
       // Multiple studios — require workspace selection
       return {
-        access_token: data.session?.access_token,
-        refresh_token: data.session?.refresh_token,
+        access_token: session?.access_token,
+        refresh_token: session?.refresh_token,
         session_id: sessionId,
         requires_workspace_selection: true,
         workspaces: workspaces.map((w) => ({
@@ -360,8 +409,8 @@ export class AuthService {
           roles: w.roles.map((r) => r.role_name),
         })),
         user: {
-          id: data.user.id,
-          email: data.user.email,
+          id: user.id,
+          email: user.email,
           full_name: metadata.full_name,
         },
         device: device.is_new ? { id: device.id, is_new_device: true } : undefined,
@@ -396,7 +445,7 @@ export class AuthService {
       }
 
       permissionCodes = await this.rbacService.resolvePermissions(
-        data.user.id, studioId,
+        user.id, studioId,
       );
     }
 
@@ -413,12 +462,12 @@ export class AuthService {
     }
 
     return {
-      access_token: data.session?.access_token,
-      refresh_token: data.session?.refresh_token,
+      access_token: session?.access_token,
+      refresh_token: session?.refresh_token,
       session_id: sessionId,
       user: {
-        id: data.user.id,
-        email: data.user.email,
+        id: user.id,
+        email: user.email,
         full_name: metadata.full_name,
         role,
         roles,
@@ -429,6 +478,104 @@ export class AuthService {
       studio,
       device: device.is_new ? { id: device.id, is_new_device: true } : undefined,
     };
+  }
+
+  /**
+   * OAuth sign-in sync (Google / Apple).
+   *
+   * The frontend completes the provider handshake with Supabase directly and
+   * lands on `/auth/callback` with a live Supabase session. It then posts those
+   * session tokens here so the backend can run the SAME post-auth pipeline as
+   * password login — crucially `syncIdentity`, without which the JWT guard
+   * would reject every subsequent request ("User not found") for a brand-new
+   * social user.
+   *
+   * Fresh social user → seeded with role=owner + onboarding_step=studio_info,
+   *                     so they drop into the onboarding wizard.
+   * Returning user    → reconcileOnboardingStep marks them complete and they
+   *                     route straight to their dashboard (identity is linked by
+   *                     verified email in Supabase, so a Google sign-in for an
+   *                     existing email/password account resolves to the same user).
+   */
+  async oauthSync(
+    accessToken: string,
+    refreshToken: string,
+    context?: LoginContext,
+    deviceInfo?: LoginDto['device_info'],
+  ) {
+    // Verify the Supabase token server-side — never trust the client blindly.
+    let authedUser;
+    try {
+      const { data, error } = await this.supabase.auth.getUser(accessToken);
+      if (error || !data.user) {
+        throw new UnauthorizedException('Invalid or expired sign-in session');
+      }
+      authedUser = data.user;
+    } catch (err) {
+      if (err instanceof UnauthorizedException) throw err;
+      this.logger.error(`OAuth token verification failed: ${(err as Error).message}`);
+      throw new UnauthorizedException('Could not verify sign-in session');
+    }
+
+    // We provision the local identity by email; a provider that returns none
+    // (e.g. an Apple private-relay opt-out) can't be onboarded here.
+    if (!authedUser.email) {
+      throw new BadRequestException(
+        'Your sign-in provider did not share an email address, which is required to create your studio. Please use email and password.',
+      );
+    }
+
+    // Collision guard: if this verified email already belongs to a DIFFERENT
+    // local account, Supabase identity-linking is off and proceeding would hit
+    // the unique-email constraint (500). Fail with an actionable message instead.
+    // In the healthy linked case the ids match, so this never triggers.
+    const emailOwner = await this.prisma.userIdentity.findUnique({
+      where: { email: authedUser.email },
+      select: { id: true },
+    });
+    if (emailOwner && emailOwner.id !== authedUser.id) {
+      throw new ConflictException(
+        'An account with this email already exists. Please sign in with your email and password.',
+      );
+    }
+
+    const metadata = authedUser.user_metadata || {};
+
+    // Seed first-login defaults for a brand-new social account. Supabase
+    // populates email/full_name/avatar from the provider, but not our app-level
+    // role/onboarding flags — without these the user has no role and no wizard.
+    const patch: Record<string, any> = {};
+    if (!metadata.role) patch.role = 'owner';
+    if (!metadata.full_name && metadata.name) patch.full_name = metadata.name;
+    // Only start the wizard for users with no studio yet; never overwrite an
+    // existing step or bounce an already-onboarded owner.
+    if (!metadata.onboarding_step && !metadata.studio_id) {
+      patch.onboarding_step = 'studio_info';
+    }
+    if (Object.keys(patch).length > 0) {
+      try {
+        await this.supabase.auth.admin.updateUserById(authedUser.id, {
+          user_metadata: { ...metadata, ...patch },
+        });
+        Object.assign(metadata, patch);
+      } catch (err) {
+        this.logger.warn(`Failed to seed OAuth user metadata: ${(err as Error).message}`);
+      }
+    }
+
+    return this.buildAuthenticatedResponse(
+      {
+        id: authedUser.id,
+        email: authedUser.email ?? null,
+        user_metadata: metadata,
+        email_confirmed_at:
+          authedUser.email_confirmed_at ?? authedUser.confirmed_at ?? new Date().toISOString(),
+      },
+      { access_token: accessToken, refresh_token: refreshToken },
+      authedUser.email ?? '',
+      context,
+      deviceInfo,
+    );
   }
 
   async logout(accessToken: string) {
@@ -867,10 +1014,7 @@ export class AuthService {
       },
     });
 
-    const frontendUrl = this.configService
-      .get('CORS_ORIGINS', 'http://localhost:3000')
-      .split(',')[0]
-      .trim();
+    const frontendUrl = this.getAppFrontendUrl();
     const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
     this.logger.log(`📧 Verification link for ${dto.email}: ${verificationUrl}`);
     const emailSent = await this.sendVerificationEmail(dto.email, dto.full_name, verificationUrl);
@@ -1046,10 +1190,7 @@ export class AuthService {
       data: { token, expires_at: expiresAt },
     });
 
-    const frontendUrl = this.configService
-      .get('CORS_ORIGINS', 'http://localhost:3000')
-      .split(',')[0]
-      .trim();
+    const frontendUrl = this.getAppFrontendUrl();
     const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
     this.logger.log(`📧 Resent verification for ${email}: ${verificationUrl}`);
     const emailSent = await this.sendVerificationEmail(email, pending.full_name, verificationUrl);
@@ -1062,6 +1203,28 @@ export class AuthService {
   }
 
   // ── Send Verification Email ──────────────────────────────
+
+  /**
+   * Canonical base URL of the gym/studio web app — used to build user-facing
+   * links (email verification, password reset). Prefers the explicit
+   * FRONTEND_URL; falls back to the first CORS origin for backwards compat.
+   *
+   * NOTE: CORS_ORIGINS[0] is NOT reliable as the app URL — in dev the SaaS
+   * Control Center and the gym app run on different ports and the first
+   * allowed origin may be the SCC (which has no /verify-email route → 404).
+   * Set FRONTEND_URL to the gym app's URL.
+   */
+  private getAppFrontendUrl(): string {
+    const explicit = this.configService.get<string>('FRONTEND_URL');
+    if (explicit && explicit.trim()) {
+      return explicit.trim().replace(/\/+$/, '');
+    }
+    return this.configService
+      .get('CORS_ORIGINS', 'http://localhost:3000')
+      .split(',')[0]
+      .trim()
+      .replace(/\/+$/, '');
+  }
 
   private async sendVerificationEmail(
     email: string,
@@ -1118,7 +1281,7 @@ export class AuthService {
 
   // ── AES-256-GCM Password Encryption (for temporary pending_registrations storage) ──
 
-  private static readonly ENCRYPTION_SALT = 'fitsync-pending-reg-v1';
+  private static readonly ENCRYPTION_SALT = 'musclex-pending-reg-v1';
 
   private deriveEncryptionKey(): Buffer {
     const secret = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY', '');
@@ -1423,6 +1586,14 @@ export class AuthService {
         const casts: string[] = ['::uuid', '', '', '', '', '', '', '', '', ''];
         const values: unknown[] = [studioId, b.name, b.address || null, b.city || null, b.state || null, b.country || null, b.postal_code || null, b.phone || null, true, 'active'];
 
+        // Geo-coordinates (member-app gym finder). Optional — only sent when the
+        // owner pinned a location during onboarding.
+        if (typeof b.latitude === 'number' && typeof b.longitude === 'number') {
+          columns.push('latitude', 'longitude');
+          casts.push('', '');
+          values.push(b.latitude, b.longitude);
+        }
+
         if (validOrgId) {
           columns.push('organization_id');
           casts.push('::uuid');
@@ -1658,6 +1829,34 @@ export class AuthService {
     const currency = dto.currency || studio.currency || DEFAULT_CURRENCY;
     const now = new Date();
 
+    // ── Verify the Razorpay payment when gateway proof is supplied ──
+    // The frontend runs Razorpay Checkout (via subscription/create-order) and
+    // posts the handshake here. We verify the signature and re-fetch the order
+    // so the amount + ownership are authoritative (never trust the client).
+    // When no gateway proof is present we fall back to the recorded amount
+    // (legacy/manual path) so older clients keep working.
+    let paidAmount = dto.amount;
+    let paymentReference: string | undefined;
+    let paymentMethod = 'card';
+    if (dto.gateway_order_id && dto.gateway_payment_id && dto.signature) {
+      const ok = this.razorpay.verifyCheckoutSignature(
+        dto.gateway_order_id,
+        dto.gateway_payment_id,
+        dto.signature,
+      );
+      if (!ok) throw new ForbiddenException('Invalid payment signature');
+      const order = await this.razorpay.getOrder(dto.gateway_order_id);
+      if (order.notes?.studio_id && order.notes.studio_id !== studioId) {
+        throw new ForbiddenException('Order does not belong to this studio');
+      }
+      if (order.status !== 'paid') {
+        throw new BadRequestException(`Order not paid (status: ${order.status})`);
+      }
+      paidAmount = order.amount / 100; // paise → major unit
+      paymentReference = dto.gateway_payment_id;
+      paymentMethod = 'razorpay';
+    }
+
     // First real payment anchors the billing period from NOW — not from the
     // trial-window date set during plan selection. recordRenewal() uses strict
     // continuity (period_start = prior next_billing_date), so we reset
@@ -1666,22 +1865,41 @@ export class AuthService {
     // lifecycle_status, the invoice, and the ledger events in one transaction.
     // Also clear trial_ends_at: the user just paid, so the trial is over even
     // though its 14-day window may still be in the future.
+    // Persist the billing information collected on the payment step so the
+    // GST tax invoice generated by recordRenewal() carries the correct
+    // bill-to details. GSTIN is optional; when present we also derive the
+    // 2-digit GST state code from its first two characters.
     await this.prisma.studio.update({
       where: { id: studioId },
-      data: { next_billing_date: now, trial_ends_at: null },
+      data: {
+        next_billing_date: now,
+        trial_ends_at: null,
+        billing_name: dto.billing_name,
+        billing_email: dto.billing_email,
+        billing_address: dto.billing_address,
+        ...(dto.gstin
+          ? { gstin: dto.gstin, gst_state_code: dto.gstin.slice(0, 2) }
+          : {}),
+      },
     });
 
     const renewal = await this.subscriptionPolicy.recordRenewal({
       studio_id: studioId,
       actor_id: userId,
       actor_type: 'user',
-      amount: dto.amount,
+      amount: paidAmount,
       currency,
       now,
       // Honor the plan the user paid for during onboarding.
       new_plan: dto.plan_id || studio.subscription_plan,
       new_billing_cycle: studio.billing_cycle,
-      metadata: { source: 'onboarding', card_brand: dto.card_brand, card_last4: dto.card_last4 },
+      metadata: {
+        source: 'onboarding',
+        payment_method: paymentMethod,
+        ...(paymentReference ? { payment_reference: paymentReference } : {}),
+        ...(dto.card_brand ? { card_brand: dto.card_brand } : {}),
+        ...(dto.card_last4 ? { card_last4: dto.card_last4 } : {}),
+      },
     });
 
     // Complete onboarding
@@ -1689,17 +1907,11 @@ export class AuthService {
       user_metadata: { ...metadata, onboarding_step: 'complete' },
     });
 
-    // Sync payment + active status to SCC
+    // Sync active status to SCC. The payment itself is mirrored centrally by
+    // SubscriptionPolicyService.recordRenewal() (called above), so we no longer
+    // upsert the payment here — that kept onboarding in sync but left renewals
+    // and plan-change payments invisible in the SCC /billing page.
     await this.sccSync.syncPlanChange(studio.slug, 'active', null, dto.plan_id);
-    await this.sccSync.upsertPayment({
-      id: renewal.invoice_id,
-      studio_slug: studio.slug,
-      amount: dto.amount,
-      currency,
-      status: 'paid',
-      invoice_number: renewal.invoice_number,
-      paid_at: now,
-    });
 
     // ── Emit referral reward event AFTER verified payment ────────────
     // This is the ONLY place a B2B referral reward is triggered. We anchor
@@ -1717,7 +1929,7 @@ export class AuthService {
         planId:         subscriptionPlan?.id ?? paidPlanName,
         planName:       paidPlanName,
         billingCycle:   (studio.billing_cycle as 'monthly' | 'annual') ?? 'monthly',
-        amountPaid:     dto.amount,
+        amountPaid:     paidAmount,
         currency,
         idempotencyKey: renewal.invoice_id,
         activatedAt:    now,
@@ -1728,10 +1940,12 @@ export class AuthService {
     return {
       invoice_id: renewal.invoice_id,
       invoice_number: renewal.invoice_number,
-      amount: dto.amount,
+      amount: paidAmount,
       currency,
       card_last4: dto.card_last4,
       card_brand: dto.card_brand,
+      payment_reference: paymentReference,
+      payment_method: paymentMethod,
       status: 'paid',
       next_billing_date: renewal.period_end.toISOString(),
       onboarding_step: 'complete',

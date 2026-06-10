@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, View } from 'react-native';
+import { Modal, Pressable } from 'react-native';
 import { Txt } from './Text';
 import { elevation } from './tokens';
 
@@ -29,10 +29,14 @@ export function Dialog({
     >
       <Pressable
         onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close dialog"
         className="flex-1 items-center justify-center bg-black/60 px-lg"
       >
         <Pressable
           onPress={() => {}}
+          accessibilityViewIsModal
+          accessibilityRole="none"
           className="w-full rounded-xl border border-hairline bg-surface p-lg"
           style={elevation.modal}
         >

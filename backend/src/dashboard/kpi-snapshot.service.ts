@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { DashboardPulseService } from './dashboard-pulse.service';
 import { resolveBranchScope } from '../common/branch-scope.util';
+import { tenantContext } from '../common/tenant-context';
 import type { JwtPayload } from '../common/decorators/current-user.decorator';
 
 const SNAPSHOT_METRICS = [
@@ -58,13 +59,29 @@ export class KpiSnapshotService {
         take: 200,
       });
       for (const s of studios) {
+        // M2 fail-safe: skip studios with no id rather than running pulse
+        // under an empty tenant scope (would compute all-zero KPIs).
+        if (!s.id) {
+          this.logger.error('Skipping KPI snapshot: studio has no id');
+          continue;
+        }
         try {
-          await this.captureNow({
-            studio_id: s.id,
-            user_id: s.owner_user_id,
-            role: 'owner',
-            branch_ids: [],
-          } as any);
+          await tenantContext.run(
+            {
+              schemaName: `studio_${s.id.replace(/-/g, '_')}`,
+              gymId: s.id,
+              activeBranchId: null,
+              allowedBranchIds: 'ALL',
+              bypassBranchScope: false,
+            },
+            () =>
+              this.captureNow({
+                studio_id: s.id,
+                user_id: s.owner_user_id,
+                role: 'owner',
+                branch_ids: [],
+              } as any),
+          );
         } catch (err) {
           this.logger.warn(
             `Snapshot for ${s.id} failed: ${(err as Error)?.message ?? err}`,

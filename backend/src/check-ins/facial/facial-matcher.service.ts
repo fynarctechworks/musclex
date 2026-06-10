@@ -39,12 +39,19 @@ export class FacialMatcherService {
   }
 
   /**
-   * Find the best face_vec match in this branch, scoped to the active
-   * tenant by the search_path set in TenantMiddleware.
+   * Find the best face_vec match in this branch.
+   *
+   * Tenant isolation: raw SQL bypasses the Prisma gym_id extension, so the
+   * query MUST filter `gym_id` explicitly — branch_id alone is not a trust
+   * boundary. Callers pass gym_id from the authenticated BiometricScope.
    *
    * Returns null if no candidate is within threshold.
    */
-  async match(input: { descriptor: number[]; branch_id: string }): Promise<{
+  async match(input: {
+    descriptor: number[];
+    branch_id: string;
+    gym_id: string;
+  }): Promise<{
     member_id: string;
     full_name: string;
     distance: number;
@@ -67,6 +74,7 @@ export class FacialMatcherService {
       SELECT id, full_name, (face_vec <=> ${vecLiteral}::vector)::float8 AS distance
       FROM studio_template.members
       WHERE face_vec IS NOT NULL
+        AND gym_id = ${input.gym_id}::uuid
         AND branch_id = ${input.branch_id}::uuid
         AND status IN ('active', 'expiring_soon', 'trial')
       ORDER BY face_vec <=> ${vecLiteral}::vector
@@ -122,6 +130,7 @@ export class FacialMatcherService {
   private async legacyMatch(input: {
     descriptor: number[];
     branch_id: string;
+    gym_id: string;
   }): Promise<{
     member_id: string;
     full_name: string;
@@ -142,6 +151,7 @@ export class FacialMatcherService {
     while (true) {
       const members = await this.prisma.member.findMany({
         where: {
+          gym_id: input.gym_id,
           branch_id: input.branch_id,
           face_descriptor: { isEmpty: false },
           status: { in: ['active', 'expiring_soon'] },

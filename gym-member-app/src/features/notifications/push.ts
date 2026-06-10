@@ -18,8 +18,12 @@ export const NOTIFICATION_CATEGORIES: { key: string; label: string }[] = [
   { key: 'workout_reminders', label: 'Workout reminders' },
   { key: 'meal_reminders', label: 'Meal reminders' },
   { key: 'streak_alerts', label: 'Streak alerts' },
-  { key: 'membership_expiry', label: 'Membership expiry' },
+  { key: 'progress_milestones', label: 'Progress milestones' },
+  { key: 'achievement_unlocks', label: 'Achievement unlocks' },
   { key: 'challenge_invitations', label: 'Challenge invitations' },
+  { key: 'community_updates', label: 'Community updates' },
+  { key: 'membership_expiry', label: 'Subscription renewal reminders' },
+  { key: 'security_alerts', label: 'Security alerts' },
 ];
 
 /** Default: everything on. */
@@ -64,7 +68,10 @@ export async function enablePush(
 
     const tok = await currentToken();
     if (!tok) return 'error';
-    await api.registerDeviceToken(tok.token, tok.platform, prefs);
+    // App-user token (works for public + gym users — segment campaigns).
+    await api.registerAppDeviceToken(tok.token, tok.platform).catch(() => {});
+    // Gym-scoped token (no-op / 403 for gym-less public users).
+    await api.registerDeviceToken(tok.token, tok.platform, prefs).catch(() => {});
     return 'granted';
   } catch {
     return 'error';
@@ -78,7 +85,8 @@ export async function syncPushPrefs(prefs: NotificationPrefs): Promise<void> {
     if (status !== 'granted') return;
     const tok = await currentToken();
     if (!tok) return;
-    await api.registerDeviceToken(tok.token, tok.platform, prefs);
+    await api.registerAppDeviceToken(tok.token, tok.platform).catch(() => {});
+    await api.registerDeviceToken(tok.token, tok.platform, prefs).catch(() => {});
   } catch {
     /* best-effort */
   }
@@ -88,7 +96,10 @@ export async function syncPushPrefs(prefs: NotificationPrefs): Promise<void> {
 export async function disablePush(): Promise<void> {
   try {
     const tok = await currentToken();
-    if (tok) await api.deleteDeviceToken(tok.token);
+    if (tok) {
+      await api.deleteAppDeviceToken(tok.token).catch(() => {});
+      await api.deleteDeviceToken(tok.token).catch(() => {});
+    }
   } catch {
     /* best-effort */
   }

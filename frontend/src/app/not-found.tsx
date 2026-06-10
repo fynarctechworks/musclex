@@ -70,7 +70,7 @@ export default function NotFound() {
       {/* Subtle divider */}
       <div className="mt-12 flex items-center gap-4" style={{ color: "#2A4A6A" }}>
         <div className="h-px w-20" style={{ background: "#2A4A6A" }} />
-        <span className="text-xs" style={{ color: "#5A7A9A" }}>FitSync Pro</span>
+        <span className="text-xs" style={{ color: "#5A7A9A" }}>MuscleX</span>
         <div className="h-px w-20" style={{ background: "#2A4A6A" }} />
       </div>
     </div>

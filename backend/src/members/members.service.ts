@@ -76,6 +76,13 @@ export class MembersService {
         return p;
       });
     }
+    // The fitness profile carries Decimal columns (height/weight/body fat) which
+    // otherwise serialize as `[object Object]` for the admin UI — coerce them.
+    if (safe.profile) {
+      safe.profile.height = toNumber(safe.profile.height);
+      safe.profile.weight = toNumber(safe.profile.weight);
+      safe.profile.body_fat_percentage = toNumber(safe.profile.body_fat_percentage);
+    }
     return safe;
   }
 

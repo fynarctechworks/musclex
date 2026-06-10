@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
-import { Button, Screen, Txt, colors } from '../../src/design-system';
+import { Button, Icon, Screen, Txt, useThemeColors, type IconName } from '../../src/design-system';
 import { usePrefs } from '../../src/auth/prefs-store';
 import { useAuth } from '../../src/auth/auth-store';
 import type { ExperienceLevel, Goal } from '../../src/api/types';
 
-const GOALS: { key: Goal; label: string; emoji: string }[] = [
-  { key: 'lose_fat', label: 'Lose fat', emoji: '🔥' },
-  { key: 'build_muscle', label: 'Build muscle', emoji: '💪' },
-  { key: 'general_fitness', label: 'Stay fit', emoji: '⚡' },
+const GOALS: { key: Goal; label: string; icon: IconName }[] = [
+  { key: 'lose_fat', label: 'Lose fat', icon: 'flame' },
+  { key: 'build_muscle', label: 'Build muscle', icon: 'dumbbell' },
+  { key: 'general_fitness', label: 'Stay fit', icon: 'flash' },
 ];
 
 const LEVELS: { key: ExperienceLevel; label: string; body: string }[] = [
@@ -31,6 +31,8 @@ function Option({
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
       className={`rounded-lg border p-md ${
         selected ? 'border-cyan bg-surface-2' : 'border-hairline bg-surface'
       } ${className ?? ''}`}
@@ -41,6 +43,7 @@ function Option({
 }
 
 export default function GoalScreen() {
+  const theme = useThemeColors();
   const name = useAuth((s) => s.profile?.name);
   const complete = usePrefs((s) => s.completeOnboarding);
   const [goal, setGoal] = useState<Goal | null>(null);
@@ -81,11 +84,14 @@ export default function GoalScreen() {
               <Option
                 selected={goal === g.key}
                 onPress={() => setGoal(g.key)}
-                className="h-full justify-center"
+                className="h-full items-center justify-center"
               >
-                <Txt variant="display-sm" className="text-center">
-                  {g.emoji}
-                </Txt>
+                <Icon
+                  name={g.icon}
+                  size={28}
+                  color={goal === g.key ? theme.primary : theme.mute}
+                  filled={goal === g.key}
+                />
                 <Txt
                   variant="body-sm"
                   weight="500"
@@ -120,8 +126,8 @@ export default function GoalScreen() {
                 <View
                   className="h-[20px] w-[20px] rounded-full border-2"
                   style={{
-                    borderColor: level === l.key ? colors.cyan : colors.hairlineStrong,
-                    backgroundColor: level === l.key ? colors.cyan : 'transparent',
+                    borderColor: level === l.key ? theme.cyan : theme.hairlineStrong,
+                    backgroundColor: level === l.key ? theme.cyan : 'transparent',
                   }}
                 />
               </View>
@@ -131,7 +137,7 @@ export default function GoalScreen() {
 
         <View className="h-2xl" />
         <Button
-          title="Enter FitSync"
+          title="Enter MuscleX"
           fullWidth
           disabled={!ready}
           loading={saving}

@@ -36,6 +36,12 @@ enum DiscountType {
   FLAT
 }
 
+enum AdminRole {
+  SUPER
+  BILLING
+  SUPPORT
+}
+
 enum AuditAction {
   CREATE
   UPDATE
@@ -54,18 +60,19 @@ enum AuditAction {
 // ─── Models ─────────────────────────────────────────────────────────────────────
 
 model AdminUser {
-  id                  String    @id @default(uuid()) @db.Uuid
-  email               String    @unique
-  password_hash       String
-  name                String
-  is_active           Boolean   @default(true)
-  last_login_at       DateTime?
-  mfa_enabled         Boolean   @default(false)
-  mfa_secret          String?
-  mfa_pending_secret  String?
-  mfa_backup_codes    String[]  @default([])
-  created_at          DateTime  @default(now())
-  updated_at          DateTime  @updatedAt
+  id                 String    @id @default(uuid()) @db.Uuid
+  email              String    @unique
+  password_hash      String
+  name               String
+  role               AdminRole @default(SUPER)
+  is_active          Boolean   @default(true)
+  last_login_at      DateTime?
+  mfa_enabled        Boolean   @default(false)
+  mfa_secret         String?
+  mfa_pending_secret String?
+  mfa_backup_codes   String[]  @default([])
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
 
   audit_logs            AuditLog[]
   password_reset_tokens PasswordResetToken[]
@@ -74,12 +81,12 @@ model AdminUser {
 }
 
 model PasswordResetToken {
-  id          String    @id @default(uuid()) @db.Uuid
-  admin_id    String    @db.Uuid
-  token_hash  String    @unique
-  expires_at  DateTime
-  used_at     DateTime?
-  created_at  DateTime  @default(now())
+  id         String    @id @default(uuid()) @db.Uuid
+  admin_id   String    @db.Uuid
+  token_hash String    @unique
+  expires_at DateTime
+  used_at    DateTime?
+  created_at DateTime  @default(now())
 
   admin AdminUser @relation(fields: [admin_id], references: [id], onDelete: Cascade)
 
@@ -88,28 +95,28 @@ model PasswordResetToken {
 }
 
 model Tenant {
-  id                  String       @id @default(uuid()) @db.Uuid
-  name                String
-  slug                String       @unique
-  owner_email         String
-  owner_name          String
-  phone               String?
-  logo_url            String?
-  account_type        String       @default("gym")
-  status              TenantStatus @default(TRIAL)
-  plan_id             String?      @db.Uuid
-  max_members         Int          @default(50)
-  max_branches        Int          @default(1)
-  max_staff           Int          @default(5)
-  storage_limit_mb    Int          @default(500)
-  is_active           Boolean      @default(true)
-  trial_ends_at       DateTime?
-  last_active_at      DateTime?
-  metadata            Json?
-  created_at          DateTime     @default(now())
-  updated_at          DateTime     @updatedAt
+  id               String       @id @default(uuid()) @db.Uuid
+  name             String
+  slug             String       @unique
+  owner_email      String
+  owner_name       String
+  phone            String?
+  logo_url         String?
+  account_type     String       @default("gym")
+  status           TenantStatus @default(TRIAL)
+  plan_id          String?      @db.Uuid
+  max_members      Int          @default(50)
+  max_branches     Int          @default(1)
+  max_staff        Int          @default(5)
+  storage_limit_mb Int          @default(500)
+  is_active        Boolean      @default(true)
+  trial_ends_at    DateTime?
+  last_active_at   DateTime?
+  metadata         Json?
+  created_at       DateTime     @default(now())
+  updated_at       DateTime     @updatedAt
 
-  plan          SubscriptionPlan? @relation(fields: [plan_id], references: [id])
+  plan          SubscriptionPlan?   @relation(fields: [plan_id], references: [id])
   subscriptions Subscription[]
   payments      Payment[]
   feature_flags TenantFeatureFlag[]
@@ -122,17 +129,17 @@ model Tenant {
 }
 
 model SubscriptionPlan {
-  id              String   @id @default(uuid()) @db.Uuid
-  name            String   @unique
-  description     String?
-  price_monthly   Decimal  @db.Decimal(10, 2)
-  price_yearly    Decimal  @db.Decimal(10, 2)
-  features        Json     @default("{}") // { "check_in": true, "ai_advisor": false, ... }
-  limits          Json     @default("{}") // { "max_members": 100, "max_branches": 3, ... }
-  sort_order      Int      @default(0)
-  is_active       Boolean  @default(true)
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String   @unique
+  description   String?
+  price_monthly Decimal  @db.Decimal(10, 2)
+  price_yearly  Decimal  @db.Decimal(10, 2)
+  features      Json     @default("{}") // { "check_in": true, "ai_advisor": false, ... }
+  limits        Json     @default("{}") // { "max_members": 100, "max_branches": 3, ... }
+  sort_order    Int      @default(0)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 
   tenants       Tenant[]
   subscriptions Subscription[]
@@ -143,16 +150,16 @@ model SubscriptionPlan {
 }
 
 model Subscription {
-  id           String             @id @default(uuid()) @db.Uuid
-  tenant_id    String             @db.Uuid
-  plan_id      String             @db.Uuid
-  status       SubscriptionStatus @default(TRIALING)
-  start_date   DateTime           @default(now())
-  end_date     DateTime
-  auto_renew   Boolean            @default(true)
-  canceled_at  DateTime?
-  created_at   DateTime           @default(now())
-  updated_at   DateTime           @updatedAt
+  id          String             @id @default(uuid()) @db.Uuid
+  tenant_id   String             @db.Uuid
+  plan_id     String             @db.Uuid
+  status      SubscriptionStatus @default(TRIALING)
+  start_date  DateTime           @default(now())
+  end_date    DateTime
+  auto_renew  Boolean            @default(true)
+  canceled_at DateTime?
+  created_at  DateTime           @default(now())
+  updated_at  DateTime           @updatedAt
 
   tenant   Tenant           @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   plan     SubscriptionPlan @relation(fields: [plan_id], references: [id])
@@ -172,7 +179,7 @@ model Payment {
   amount             Decimal       @db.Decimal(10, 2)
   currency           String        @default("INR") @db.VarChar(3)
   status             PaymentStatus @default(PENDING)
-  gateway            String?       // razorpay, stripe, manual
+  gateway            String? // razorpay, stripe, manual
   gateway_payment_id String?
   invoice_url        String?
   failure_reason     String?
@@ -215,11 +222,11 @@ model Discount {
 }
 
 model FeatureFlag {
-  id          String  @id @default(uuid()) @db.Uuid
-  key         String  @unique // e.g., "ai_advisor", "facial_recognition"
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique // e.g., "ai_advisor", "facial_recognition"
   name        String
   description String?
-  is_global   Boolean @default(false) // When true, enabled for ALL tenants
+  is_global   Boolean  @default(false) // When true, enabled for ALL tenants
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
@@ -230,10 +237,10 @@ model FeatureFlag {
 }
 
 model PlanFeatureFlag {
-  id         String @id @default(uuid()) @db.Uuid
-  plan_id    String @db.Uuid
-  flag_id    String @db.Uuid
-  enabled    Boolean @default(true)
+  id         String   @id @default(uuid()) @db.Uuid
+  plan_id    String   @db.Uuid
+  flag_id    String   @db.Uuid
+  enabled    Boolean  @default(true)
   created_at DateTime @default(now())
 
   plan SubscriptionPlan @relation(fields: [plan_id], references: [id], onDelete: Cascade)
@@ -244,10 +251,10 @@ model PlanFeatureFlag {
 }
 
 model TenantFeatureFlag {
-  id         String @id @default(uuid()) @db.Uuid
-  tenant_id  String @db.Uuid
-  flag_id    String @db.Uuid
-  enabled    Boolean @default(true)
+  id         String   @id @default(uuid()) @db.Uuid
+  tenant_id  String   @db.Uuid
+  flag_id    String   @db.Uuid
+  enabled    Boolean  @default(true)
   created_at DateTime @default(now())
 
   tenant Tenant      @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
@@ -257,11 +264,25 @@ model TenantFeatureFlag {
   @@map("tenant_feature_flags")
 }
 
+model IdempotencyKey {
+  id            String   @id @default(uuid()) @db.Uuid
+  key           String   @unique
+  endpoint      String
+  admin_id      String?  @db.Uuid
+  request_hash  String
+  response_body Json?
+  status_code   Int?
+  created_at    DateTime @default(now())
+
+  @@index([created_at])
+  @@map("idempotency_keys")
+}
+
 model AuditLog {
   id          String      @id @default(uuid()) @db.Uuid
   action      AuditAction
   admin_id    String?     @db.Uuid
-  entity_type String      // "tenant", "plan", "subscription", etc.
+  entity_type String // "tenant", "plan", "subscription", etc.
   entity_id   String?
   old_value   Json?
   new_value   Json?
@@ -277,4 +298,169 @@ model AuditLog {
   @@index([action])
   @@index([created_at])
   @@map("audit_logs")
+}
+
+// ─── System Monitoring & Observability ───────────────────────────────────────────
+// Centralized error tracking for client gym apps AND the SCC platform itself.
+// See docs/ERROR_CENTER_ARCHITECTURE.md.
+
+enum ErrorSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+enum ErrorStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  IGNORED
+  REOPENED
+}
+
+enum ErrorSource {
+  FRONTEND
+  BACKEND
+  API
+  DATABASE
+  PAYMENT
+  POS
+  BIOMETRIC
+  QR
+  CAMERA
+  AUTH
+  NETWORK
+  SCC
+}
+
+enum AppEnvironment {
+  PRODUCTION
+  STAGING
+  DEVELOPMENT
+}
+
+enum AlertChannel {
+  DASHBOARD
+  EMAIL
+  TELEGRAM
+  WHATSAPP
+}
+
+/// One row per *unique* error (the group). Occurrences roll up into this.
+model SystemError {
+  id          String         @id @default(uuid()) @db.Uuid
+  fingerprint String         @unique // sha1(normalizedMessage|topFrame|module|source)
+  title       String
+  message     String
+  source      ErrorSource
+  module      String?
+  severity    ErrorSeverity  @default(MEDIUM)
+  status      ErrorStatus    @default(OPEN)
+  environment AppEnvironment @default(PRODUCTION)
+
+  occurrence_count Int      @default(0)
+  affected_tenants Int      @default(0)
+  affected_users   Int      @default(0)
+  first_seen_at    DateTime @default(now()) @db.Timestamptz()
+  last_seen_at     DateTime @default(now()) @db.Timestamptz()
+
+  // resolution workflow — admin_id values reference admin_users.id (no FK to keep additive)
+  assigned_to     String?   @db.Uuid
+  resolution_note String?
+  resolved_at     DateTime? @db.Timestamptz()
+  resolved_by     String?   @db.Uuid
+
+  release_id String?          @db.Uuid
+  release    ReleaseTracking? @relation(fields: [release_id], references: [id])
+
+  occurrences ErrorOccurrence[]
+  activities  ErrorActivityLog[]
+  alerts      SystemAlert[]
+
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @updatedAt @db.Timestamptz()
+
+  @@index([status, severity, last_seen_at])
+  @@index([environment, source])
+  @@index([last_seen_at])
+  @@map("system_errors")
+}
+
+/// One row per individual occurrence (every time the error fires).
+model ErrorOccurrence {
+  id       String      @id @default(uuid()) @db.Uuid
+  error_id String      @db.Uuid
+  error    SystemError @relation(fields: [error_id], references: [id], onDelete: Cascade)
+
+  tenant_id        String? // gym slug/id — nullable for SCC-internal errors
+  user_id          String?
+  stack_trace      String?
+  page             String?
+  api_endpoint     String?
+  http_status      Int?
+  request_payload  Json? // scrubbed before persist
+  response_payload Json? // scrubbed before persist
+  breadcrumbs      Json? // user activity timeline
+  device_info      Json?
+  browser_info     Json?
+  ip_address       String?
+  app_version      String?
+  environment      AppEnvironment @default(PRODUCTION)
+  screenshot_url   String?
+  occurred_at      DateTime       @default(now()) @db.Timestamptz()
+
+  @@index([error_id, occurred_at])
+  @@index([tenant_id])
+  @@map("error_occurrences")
+}
+
+/// Resolution/audit timeline for a single error group.
+model ErrorActivityLog {
+  id         String      @id @default(uuid()) @db.Uuid
+  error_id   String      @db.Uuid
+  error      SystemError @relation(fields: [error_id], references: [id], onDelete: Cascade)
+  admin_id   String?     @db.Uuid
+  action     String // STATUS_CHANGE | ASSIGN | NOTE | REOPEN | BULK_RESOLVE | SEVERITY_CHANGE
+  from_value String?
+  to_value   String?
+  note       String?
+  created_at DateTime    @default(now()) @db.Timestamptz()
+
+  @@index([error_id, created_at])
+  @@map("error_activity_logs")
+}
+
+model SystemAlert {
+  id              String        @id @default(uuid()) @db.Uuid
+  error_id        String?       @db.Uuid
+  error           SystemError?  @relation(fields: [error_id], references: [id], onDelete: SetNull)
+  severity        ErrorSeverity
+  channel         AlertChannel  @default(DASHBOARD)
+  title           String
+  body            String?
+  delivered       Boolean       @default(false)
+  delivered_at    DateTime?     @db.Timestamptz()
+  acknowledged    Boolean       @default(false)
+  acknowledged_by String?       @db.Uuid
+  created_at      DateTime      @default(now()) @db.Timestamptz()
+
+  @@index([acknowledged, created_at])
+  @@index([channel, delivered])
+  @@map("system_alerts")
+}
+
+model ReleaseTracking {
+  id          String         @id @default(uuid()) @db.Uuid
+  version     String
+  app         String // frontend | backend | scc
+  environment AppEnvironment @default(PRODUCTION)
+  released_at DateTime       @default(now()) @db.Timestamptz()
+  commit_sha  String?
+  notes       String?
+  errors      SystemError[]
+
+  @@unique([app, version, environment])
+  @@map("release_tracking")
 }

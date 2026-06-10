@@ -85,7 +85,7 @@ export function SubscriptionRenewalModal() {
 
   const handlePrimary = () => {
     if (isSuspended) {
-      window.location.href = 'mailto:support@fitsyncpro.app';
+      window.location.href = 'mailto:support@musclex.app';
       return;
     }
     if (gymSlug) {

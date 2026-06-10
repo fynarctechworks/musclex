@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Card, Txt, colors } from '../../design-system';
+import { Card, Txt, useThemeColors } from '../../design-system';
 
 const PRESETS = [60, 90, 120];
 
 /** Between-sets rest timer with a haptic buzz on completion (PRD §6.4). */
 export function RestTimer() {
+  const theme = useThemeColors();
   const [remaining, setRemaining] = useState(0);
   const [running, setRunning] = useState(false);
   const interval = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -55,8 +56,10 @@ export function RestTimer() {
             <Pressable
               key={s}
               onPress={() => start(s)}
+              accessibilityRole="button"
+              accessibilityLabel={`Start ${s} second rest timer`}
               className="rounded-full px-md py-xs"
-              style={{ backgroundColor: colors.surface2 }}
+              style={{ backgroundColor: theme.surface2 }}
             >
               <Txt variant="body-sm" weight="500" className="text-ink">
                 {s}s
@@ -69,8 +72,10 @@ export function RestTimer() {
                 setRunning(false);
                 setRemaining(0);
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Stop rest timer"
               className="rounded-full px-md py-xs"
-              style={{ backgroundColor: colors.errorSoft }}
+              style={{ backgroundColor: theme.errorSoft }}
             >
               <Txt variant="body-sm" weight="500" className="text-error">
                 Stop

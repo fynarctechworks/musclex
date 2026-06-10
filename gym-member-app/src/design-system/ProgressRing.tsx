@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { colors } from './tokens';
+import { useThemeColors } from './theme';
 
 /**
  * Circular progress ring (Samsung-Health style) for the Home dashboard — daily
@@ -12,8 +12,8 @@ export function ProgressRing({
   progress,
   size = 120,
   strokeWidth = 10,
-  color = colors.cyan,
-  trackColor = colors.surface2,
+  color,
+  trackColor,
   children,
 }: {
   /** 0–1; clamped. */
@@ -24,6 +24,9 @@ export function ProgressRing({
   trackColor?: string;
   children?: ReactNode;
 }) {
+  const theme = useThemeColors();
+  const arcColor = color ?? theme.cyan;
+  const track = trackColor ?? theme.surface2;
   const p = Math.max(0, Math.min(1, progress));
   const r = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * r;
@@ -32,12 +35,12 @@ export function ProgressRing({
   return (
     <View style={{ width: size, height: size }} className="items-center justify-center">
       <Svg width={size} height={size} style={{ position: 'absolute' }}>
-        <Circle cx={center} cy={center} r={r} stroke={trackColor} strokeWidth={strokeWidth} fill="none" />
+        <Circle cx={center} cy={center} r={r} stroke={track} strokeWidth={strokeWidth} fill="none" />
         <Circle
           cx={center}
           cy={center}
           r={r}
-          stroke={color}
+          stroke={arcColor}
           strokeWidth={strokeWidth}
           fill="none"
           strokeLinecap="round"

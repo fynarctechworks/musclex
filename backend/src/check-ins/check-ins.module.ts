@@ -65,7 +65,7 @@ const BIOMETRIC_PROVIDER_CLASSES = [FaceApiPgVectorProvider, ZkTecoFingerprintPr
       inject: ALL_RULE_PROVIDERS,
     },
   ],
-  exports: [CheckInsService, CheckInsGateway, QrTokenService, BiometricRegistry, DevicesService],
+  exports: [CheckInsService, CheckInsGateway, QrTokenService, BiometricRegistry, DevicesService, CheckInOrchestrator],
 })
 export class CheckInsModule implements NestModule {
   // DeviceAuthMiddleware ONLY runs on hardware-scanner requests. JWT-based

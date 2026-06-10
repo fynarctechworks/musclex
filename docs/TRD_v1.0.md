@@ -1,6 +1,6 @@
 ⚙️
 
-**FITSYNC PRO**
+**MUSCLEX**
 
 Technical Requirements Document
 
@@ -9,7 +9,7 @@ TRD v1.0 \| Vibe Coding Edition \| 2025
   ----------------------------- -----------------------------------------
   **Attribute**                 **Value**
 
-  PRD Reference                 FitSync Pro PRD v1.0
+  PRD Reference                 MuscleX PRD v1.0
 
   Build Priority                Web → iOS/Android
 
@@ -30,7 +30,7 @@ TRD v1.0 \| Vibe Coding Edition \| 2025
 **📊 Section 1: Document Overview**
 
 This Technical Requirements Document (TRD) is the engineering blueprint
-for FitSync Pro. It is written to be AI-coding-tool friendly --- every
+for MuscleX. It is written to be AI-coding-tool friendly --- every
 table name, field name, API endpoint, and library is specified exactly
 so that Claude, Cursor, v0.dev, and Bolt can implement directly without
 ambiguity.
@@ -857,7 +857,7 @@ ambiguity.
 
 **🔌 Section 5: API Design**
 
-> **Base URL:** https://api.fitsyncpro.com/v1 --- All endpoints require
+> **Base URL:** https://api.musclex.com/v1 --- All endpoints require
 > Authorization: Bearer {jwt_token} header except /auth/\*
 >
 > **Tenant Resolution:** JWT payload contains studio_id. NestJS
@@ -1116,7 +1116,7 @@ ambiguity.
 -   Webhook endpoints (/payments/webhook/\*): verify HMAC signature
     before processing --- reject if invalid
 
--   CORS: Allow only https://app.fitsyncpro.com and localhost:3000 in
+-   CORS: Allow only https://app.musclex.com and localhost:3000 in
     development
 
 **🤖 Section 7: AI Integration**
@@ -1142,7 +1142,7 @@ ambiguity.
 
 **System Prompt Structure (inject into every /ai/chat call)**
 
-> You are FitSync AI, a business advisor for {studio_name}.
+> You are MuscleX AI, a business advisor for {studio_name}.
 >
 > Today is {current_date}. Timezone: {studio_timezone}.
 >
@@ -1234,10 +1234,10 @@ ambiguity.
   Development       localhost:3000           localhost:4000               Supabase local or
                                                                           dev project
 
-  Staging           staging.fitsyncpro.com   api-staging.fitsyncpro.com   Supabase staging
+  Staging           staging.musclex.com   api-staging.musclex.com   Supabase staging
                                                                           project
 
-  Production        app.fitsyncpro.com       api.fitsyncpro.com           Supabase production
+  Production        app.musclex.com       api.musclex.com           Supabase production
                                                                           project
   ----------------- ------------------------ ---------------------------- -------------------
 
@@ -1276,7 +1276,7 @@ ambiguity.
 
 19. Railway auto-detects Dockerfile or package.json start script
 
-20. Set custom domain: api.fitsyncpro.com → Railway-provided URL
+20. Set custom domain: api.musclex.com → Railway-provided URL
 
 21. Enable Railway\'s built-in health check on GET /health
 
@@ -1288,17 +1288,17 @@ ambiguity.
 
 24. Set environment variables in Vercel project settings (see 8.3)
 
-25. Set custom domain: app.fitsyncpro.com
+25. Set custom domain: app.musclex.com
 
 26. Vercel deploys automatically on every push to main branch
 
 **Step 5 --- External Service Configuration**
 
 27. Razorpay: Create account → get Key ID + Key Secret → configure
-    webhook URL: https://api.fitsyncpro.com/v1/payments/webhook/razorpay
+    webhook URL: https://api.musclex.com/v1/payments/webhook/razorpay
 
 28. Stripe: Create account → get Publishable + Secret keys → configure
-    webhook: https://api.fitsyncpro.com/v1/payments/webhook/stripe
+    webhook: https://api.musclex.com/v1/payments/webhook/stripe
 
 29. Twilio: Use existing account → get Account SID + Auth Token →
     configure from phone number
@@ -1828,5 +1828,5 @@ ambiguity.
 
 **END OF DOCUMENT**
 
-FitSync Pro TRD v1.0 \| Built for vibe coding \| AI tools: read this
+MuscleX TRD v1.0 \| Built for vibe coding \| AI tools: read this
 verbatim ⚡

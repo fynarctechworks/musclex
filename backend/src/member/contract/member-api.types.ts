@@ -175,6 +175,814 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        /**
+         * Update the member's fitness profile (onboarding + later edits)
+         * @description Partial update — any subset of fields. Powers per-step onboarding auto-save and later profile edits. Setting onboardingComplete=true stamps completion. Changing goal/weight/activity/experience recomputes the personalization targets (daily calories / protein / water) and upserts the member's nutrition goal. The member is always taken from the token.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateProfile"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["MemberProfile"];
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/me/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Identity + capabilities for the current app user (drives dynamic UX)
+         * @description Returns the user's type (public | member | expired) and the capability flags the app reads to show/hide features in navigation and screens. Available to ANY authenticated app user, including gym-less PUBLIC users (so it does NOT require a gym membership). memberships is empty for a public user, one entry per gym otherwise.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["MeContext"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/weight": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Personal weight history (gym-less, app_user-scoped) */
+        get: {
+            parameters: {
+                query?: {
+                    days?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["WeightSeries"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Log a weigh-in (upsert for the day) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WeightInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["WeightEntry"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/water": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Water intake for a day (defaults to today) */
+        get: {
+            parameters: {
+                query?: {
+                    date?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["WaterDay"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Set or add water for a day (upsert) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WaterInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["WaterDay"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/goals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Personal goals (app_user-scoped) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["GoalList"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create a personal goal */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GoalInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["Goal"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/goals/{goalId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update a goal's progress or status */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    goalId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GoalUpdate"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["Goal"];
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/me/health/daily": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** On-device health daily rollup history (steps/calories/distance) */
+        get: {
+            parameters: {
+                query?: {
+                    days?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["HealthSeries"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Upsert a day's on-device health rollup */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["HealthDailyInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["HealthDay"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Current app-user fitness profile + recommendation (any user)
+         * @description The gym-less counterpart of GET /me — returns the app_user's fitness profile (same MemberProfile shape) plus the computed recommendation. Powers the public onboarding flow's draft/resume + the personalized home.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["MemberProfile"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update the app-user fitness profile (public onboarding + edits) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateProfile"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["MemberProfile"];
+                        };
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/me/device-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register this device's push token to the app user (any user) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AppDeviceTokenInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["SimpleOk"];
+                        };
+                    };
+                };
+            };
+        };
+        /** Unregister a device push token */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AppDeviceTokenDelete"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["SimpleOk"];
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications/ack": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Acknowledge a campaign notification (opened / clicked) for analytics */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["NotificationAckInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["SimpleOk"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/referral": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply a referrer's code to this app user (once) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ReferralApplyInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["ReferralApplyResult"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/weekly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Weekly progress (days active, weight change, consistency) — any user */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["WeeklyProgress"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/tools/compute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Compute fitness calculators from inputs (BMI/BMR/calorie/water/protein)
+         * @description Pure calculation via the shared PersonalizationService — single source of the formulas.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ToolsComputeInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["Recommendation"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/gyms/{tenantId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public gym profile page (plans, branches, contact) — any user */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    tenantId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["GymProfile"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/nearby-gyms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public gym directory (cross-gym) for conversion — any app user
+         * @description Lists active gyms' branches with public-safe fields only (name, address, city, lat/lng, phone, logo). When lat+lng are supplied, results are sorted nearest-first with distanceKm. Available to gym-less PUBLIC users (the find-a-gym conversion surface). Never exposes member data.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    lat?: number;
+                    lng?: number;
+                    q?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["NearbyGyms"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ingest app-user funnel / behaviour events (batch, fire-and-forget)
+         * @description Records client-emitted funnel + conversion events for the authenticated app user (any user, incl. public). Append-only; the SCC computes funnels by DISTINCT user per event_type, so duplicate "first_*" emits are harmless. onboarding_started/completed also advance app_users.onboarding_state.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EventBatchInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["EventIngestResult"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -241,6 +1049,47 @@ export interface paths {
                     content: {
                         "application/json": components["schemas"]["Envelope"] & {
                             data?: components["schemas"]["Occupancy"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/gym/locations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * This gym's branches with coordinates (powers the in-app gym/branch finder)
+         * @description Returns the branches of the member's current gym (tenant), each with its address and lat/lng when set, so the app can map them and let the member find the nearest location. Scoped to the member's tenant — never returns other gyms' branches.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["GymLocations"];
                         };
                     };
                 };
@@ -485,6 +1334,139 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/classes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Upcoming classes at the member's branch (with this member's booking state)
+         * @description Returns future, non-cancelled classes scheduled at the member's own branch, soonest first. `seatsLeft` counts only ENROLLED bookings. `booked`/`bookingStatus` reflect THIS member only — other members' identities are never returned. Scoped to the member's tenant + branch.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["ClassList"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/classes/{classId}/book": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Book (enroll) the current member into a class; waitlists if full
+         * @description Idempotent. Reuses the same capacity/waitlist/duplicate rules as the front-desk enrollment path. If the class is full the member is placed on the waitlist and `status=waitlisted` with a `waitlistPosition`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Client-generated key. Server dedupes retries (offline outbox). */
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path: {
+                    classId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Booked (or waitlisted), or replayed for this idempotency key */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["ClassBookingResult"];
+                        };
+                    };
+                };
+                404: components["responses"]["NotAMember"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/classes/{classId}/booking": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cancel the current member's booking for a class
+         * @description Cancels this member's enrolled/waitlisted booking. If an enrolled seat is freed, the next waitlisted member is auto-promoted (same rule as the front-desk path).
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    classId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Cancelled */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["ClassCancelResult"];
+                        };
+                    };
+                };
+                404: components["responses"]["NotAMember"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/progress": {
         parameters: {
             query?: never;
@@ -669,7 +1651,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Register an FCM device token for push */
+        /** Register a device push token (idempotent upsert) with category prefs */
         post: {
             parameters: {
                 query?: never;
@@ -683,6 +1665,10 @@ export interface paths {
                         token: string;
                         /** @enum {string} */
                         platform: "ios" | "android";
+                        /** @description Per-category opt-in flags (true = send). Server honours these. */
+                        prefs?: {
+                            [key: string]: boolean;
+                        };
                     };
                 };
             };
@@ -696,7 +1682,876 @@ export interface paths {
                 };
             };
         };
+        /** Unregister a device push token (on disable / sign-out) */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        token: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Unregistered */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/nutrition/today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Today's nutrition — goal, running totals, water, and logged meals
+         * @description The member's nutrition for the current day (their local day boundary on the server): per-member daily goal (created with defaults on first read), macro totals summed from logged meals, total water, and the meals themselves. Scoped to the member's tenant + member_id.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["NutritionDay"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/nutrition/foods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search the gym's food catalog */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Case-insensitive name/brand prefix match. Empty = recent foods. */
+                    q?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["FoodSearch"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/nutrition/meals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Log a meal with its items (idempotent, offline-safe) */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Client-generated key. Server dedupes retries (offline outbox). */
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MealLogInput"];
+                };
+            };
+            responses: {
+                /** @description Logged */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["MealLogResult"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/nutrition/water": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Log water intake (idempotent, offline-safe) */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Client-generated key. Server dedupes retries (offline outbox). */
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WaterLogInput"];
+                };
+            };
+            responses: {
+                /** @description Logged */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["WaterLogResult"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exercises": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Browse / search the gym's exercise library
+         * @description The gym's active exercises (the same catalog trainers build plans from), optionally filtered by name and muscle group. Scoped to the member's tenant.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Case-insensitive name match. */
+                    q?: string;
+                    /** @description Filter by muscle group (chest, back, legs, …). */
+                    muscle?: string;
+                    /** @description When true, returns only the member's favorited exercises. */
+                    favorites?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["ExerciseList"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exercises/{exerciseId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One exercise's detail (instructions + media) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    exerciseId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["ExerciseDetail"];
+                        };
+                    };
+                };
+                404: components["responses"]["NotAMember"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exercises/{exerciseId}/favorite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Mark an exercise as a favorite (idempotent) */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    exerciseId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Favorited */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["FavoriteResult"];
+                        };
+                    };
+                };
+                404: components["responses"]["NotAMember"];
+            };
+        };
+        post?: never;
+        /** Remove an exercise from favorites (idempotent) */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    exerciseId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Unfavorited */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["FavoriteResult"];
+                        };
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trainer-chat/threads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The member's trainer conversations (one per assigned trainer)
+         * @description One thread per active trainer assignment (TrainerClient), with the last message and the member's unread count. Scoped to the member's tenant.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["ChatThreadList"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trainer-chat/threads/{trainerId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Messages with a trainer (marks the trainer's messages read) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    trainerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["ChatMessageList"];
+                        };
+                    };
+                };
+                404: components["responses"]["NotAMember"];
+            };
+        };
+        put?: never;
+        /** Send a message to a trainer (idempotent, offline-safe) */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Client-generated key. Server dedupes retries (offline outbox). */
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path: {
+                    trainerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SendMessageInput"];
+                };
+            };
+            responses: {
+                /** @description Sent */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["ChatMessage"];
+                        };
+                    };
+                };
+                404: components["responses"]["NotAMember"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/community/leaderboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gym attendance leaderboard (real check-ins over a period)
+         * @description Ranks the member's gym by check-ins over the last `period` days. Returns first names only (no PII), the current member flagged with `isMe`, plus the member's own rank/value. Scoped to the member's tenant.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    period?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["Leaderboard"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/community/challenges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Active gym challenges with the member's join state + real progress */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["ChallengeList"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/community/challenges/{challengeId}/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Join a challenge (idempotent) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    challengeId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Joined */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["ChallengeJoinResult"];
+                        };
+                    };
+                };
+                404: components["responses"]["NotAMember"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/community/badges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The member's badges (earned/locked, computed from real activity) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["BadgeList"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/nutrition/goal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set the member's daily nutrition goal (upsert) */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["NutritionGoalInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["NutritionGoal"];
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/samples": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Batch-ingest health samples from a wearable (idempotent)
+         * @description Push a batch of quantified-health samples (steps, heart rate, sleep, …) synced from Apple HealthKit / Google Health Connect or entered manually. Each sample is deduped server-side on (type, source, sourceUuid) so a re-sync or offline replay never double-counts. The server upserts the per-day rollups (`/health/summary`) as part of the same write.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Client-generated key. Server dedupes retries (offline outbox). */
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["HealthSampleBatchInput"];
+                };
+            };
+            responses: {
+                /** @description Ingested */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["HealthIngestResult"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Daily health rollups for a date range (dashboard/charts)
+         * @description Per-metric daily totals/averages over the requested window, read from the rollup table so it never scans raw samples. Defaults to the last 7 days when no range is supplied.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Inclusive start day (YYYY-MM-DD). Defaults to 6 days ago. */
+                    from?: string;
+                    /** @description Inclusive end day (YYYY-MM-DD). Defaults to today. */
+                    to?: string;
+                    /** @description Comma-separated metric types to include (default = all). */
+                    types?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["HealthSummary"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the member's linked wearable providers */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["WearableConnectionList"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Link a wearable provider (records explicit consent)
+         * @description Upserts a connection for the given provider and stamps `consentedAt`. Health telemetry is GDPR special-category data — the client MUST obtain the member's consent before calling this, and no `/health/samples` ingest is accepted for a provider that is not connected.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WearableConnectInput"];
+                };
+            };
+            responses: {
+                /** @description Linked */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["WearableConnection"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/connections/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke a linked wearable provider */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    provider: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Revoked */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["WearableConnection"];
+                        };
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -750,6 +2605,217 @@ export interface components {
             /** @example 900 */
             expiresIn: number;
         };
+        MeContext: {
+            appUserId: string;
+            /**
+             * @description public = no gym membership (a lead); member = active membership in >=1 gym; expired = had a membership, none active now; suspended = has an active membership but every such gym is operator-suspended.
+             * @enum {string}
+             */
+            userType: "public" | "member" | "expired" | "suspended";
+            /** @enum {string} */
+            onboardingState: "not_started" | "in_progress" | "completed";
+            fullName?: string | null;
+            phone: string;
+            city?: string | null;
+            referralCode?: string | null;
+            capabilities: components["schemas"]["MeCapabilities"];
+            /** @description One per gym the person belongs to; empty for public users. */
+            memberships: components["schemas"]["MeMembership"][];
+        };
+        /** @description Feature gates the app reads to build navigation + screens. */
+        MeCapabilities: {
+            membershipCard: boolean;
+            gymSuspended: boolean;
+            attendance: boolean;
+            classBooking: boolean;
+            gymSchedule: boolean;
+            gymAnnouncements: boolean;
+            trainerChat: boolean;
+            subscriptionDetails: boolean;
+            memberBenefits: boolean;
+            renewMembership: boolean;
+            healthDashboard: boolean;
+            weightTracking: boolean;
+            waterTracking: boolean;
+            goalTracking: boolean;
+            bmiCalculator: boolean;
+            calorieCalculator: boolean;
+            fitnessTips: boolean;
+            nearbyGyms: boolean;
+            referralProgram: boolean;
+        };
+        MeMembership: {
+            tenantId: string;
+            gymName: string;
+            memberId: string;
+            /** @description members.status */
+            status: string;
+            active: boolean;
+            /** @description True when this gym is operator-suspended (studios.suspended_at). */
+            suspended?: boolean;
+            planName?: string | null;
+            /** Format: date */
+            expiresAt?: string | null;
+        };
+        WeightEntry: {
+            /** Format: date */
+            date: string;
+            weightKg: number;
+            bodyFatPct?: number | null;
+            note?: string | null;
+        };
+        WeightSeries: {
+            latest?: components["schemas"]["WeightEntry"] | null;
+            entries: components["schemas"]["WeightEntry"][];
+        };
+        WeightInput: {
+            /**
+             * Format: date
+             * @description Defaults to today
+             */
+            date?: string;
+            weightKg: number;
+            bodyFatPct?: number | null;
+            note?: string | null;
+        };
+        WaterDay: {
+            /** Format: date */
+            date: string;
+            amountMl: number;
+            goalMl?: number | null;
+        };
+        WaterInput: {
+            /**
+             * Format: date
+             * @description Defaults to today
+             */
+            date?: string;
+            amountMl: number;
+            goalMl?: number | null;
+            /**
+             * @description add (default) increments the day's total; set replaces it.
+             * @enum {string}
+             */
+            mode?: "set" | "add";
+        };
+        Goal: {
+            id: string;
+            /** @enum {string} */
+            type: "weight" | "water" | "steps" | "workout" | "custom";
+            title?: string | null;
+            targetValue?: number | null;
+            currentValue?: number | null;
+            unit?: string | null;
+            /** Format: date */
+            targetDate?: string | null;
+            /** @enum {string} */
+            status: "active" | "achieved" | "abandoned";
+        };
+        GoalList: {
+            goals: components["schemas"]["Goal"][];
+        };
+        GoalInput: {
+            /** @enum {string} */
+            type: "weight" | "water" | "steps" | "workout" | "custom";
+            title?: string | null;
+            targetValue?: number | null;
+            currentValue?: number | null;
+            unit?: string | null;
+            /** Format: date */
+            targetDate?: string | null;
+        };
+        GoalUpdate: {
+            currentValue?: number | null;
+            targetValue?: number | null;
+            title?: string | null;
+            /** @enum {string} */
+            status?: "active" | "achieved" | "abandoned";
+        };
+        HealthDay: {
+            /** Format: date */
+            date: string;
+            steps: number;
+            activeCalories?: number | null;
+            distanceM?: number | null;
+            restingHeartRate?: number | null;
+            source?: string | null;
+        };
+        HealthSeries: {
+            days: components["schemas"]["HealthDay"][];
+        };
+        HealthDailyInput: {
+            /**
+             * Format: date
+             * @description Defaults to today
+             */
+            date?: string;
+            steps: number;
+            activeCalories?: number | null;
+            distanceM?: number | null;
+            restingHeartRate?: number | null;
+            source?: string | null;
+        };
+        SimpleOk: {
+            ok: boolean;
+        };
+        AppDeviceTokenInput: {
+            token: string;
+            /** @enum {string} */
+            platform?: "ios" | "android" | "web";
+        };
+        AppDeviceTokenDelete: {
+            token: string;
+        };
+        NotificationAckInput: {
+            deliveryId: string;
+            /** @enum {string} */
+            action: "opened" | "clicked";
+        };
+        ReferralApplyInput: {
+            code: string;
+        };
+        ReferralApplyResult: {
+            applied: boolean;
+            reason?: string | null;
+        };
+        NearbyGym: {
+            tenantId: string;
+            gymName: string;
+            logoUrl?: string | null;
+            branchId: string;
+            branchName: string;
+            address?: string | null;
+            city?: string | null;
+            latitude?: number | null;
+            longitude?: number | null;
+            phone?: string | null;
+            distanceKm?: number | null;
+        };
+        NearbyGyms: {
+            gyms: components["schemas"]["NearbyGym"][];
+        };
+        /** @enum {string} */
+        AppEventType: "first_app_open" | "onboarding_started" | "onboarding_completed" | "gym_selected" | "first_dashboard_visit" | "viewed_nearby_gyms" | "viewed_gym_profile" | "inquiry_click" | "referral_share";
+        EventInput: {
+            type: components["schemas"]["AppEventType"];
+            /**
+             * Format: date-time
+             * @description Defaults to server time
+             */
+            occurredAt?: string;
+            /** @enum {string} */
+            platform?: "ios" | "android" | "web";
+            appVersion?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        EventBatchInput: {
+            events: components["schemas"]["EventInput"][];
+        };
+        EventIngestResult: {
+            accepted: number;
+        };
         MemberProfile: {
             id?: string;
             name?: string;
@@ -760,6 +2826,115 @@ export interface components {
             /** @enum {string} */
             experienceLevel?: "beginner" | "intermediate" | "advanced";
             avatarUrl?: string | null;
+            /** @enum {string|null} */
+            gender?: "male" | "female" | "prefer_not_to_say" | null;
+            /** Format: date */
+            dateOfBirth?: string | null;
+            age?: number | null;
+            heightCm?: number | null;
+            weightKg?: number | null;
+            /** @enum {string} */
+            heightUnit?: "cm" | "ft";
+            /** @enum {string} */
+            weightUnit?: "kg" | "lb";
+            primaryGoal?: components["schemas"]["FitnessGoal"];
+            goals?: components["schemas"]["FitnessGoal"][];
+            /** @enum {string|null} */
+            activityLevel?: "sedentary" | "lightly_active" | "moderately_active" | "very_active" | "athlete" | null;
+            /** @enum {string|null} */
+            trainingExperience?: "beginner" | "intermediate" | "advanced" | null;
+            workoutPreferences?: components["schemas"]["WorkoutPreference"][];
+            /** @description Injuries / health limitations (stored as medical_conditions). */
+            limitations?: string[];
+            onboardingCompleted?: boolean;
+            onboardingStep?: string | null;
+            recommendation?: components["schemas"]["Recommendation"] | null;
+        };
+        /**
+         * @description Member-app fitness goals (multi-select; one is the primary).
+         * @enum {string}
+         */
+        FitnessGoal: "lose_weight" | "gain_muscle" | "build_strength" | "improve_fitness" | "improve_endurance" | "athletic_performance" | "body_recomposition" | "stay_healthy";
+        /** @enum {string} */
+        WorkoutPreference: "gym" | "home" | "strength" | "cardio" | "hiit" | "yoga" | "crossfit" | "powerlifting" | "bodybuilding";
+        /** @description Personalization targets computed from the member's profile. */
+        Recommendation: {
+            dailyCalories?: number;
+            proteinG?: number;
+            carbsG?: number;
+            fatG?: number;
+            waterMl?: number;
+            weeklyWorkouts?: number;
+            /** @enum {string} */
+            splitKey?: "full_body" | "push_pull_legs" | "advanced_split";
+            /** @example Full Body · 3×/week */
+            split?: string;
+            bmi?: number | null;
+            bmr?: number | null;
+        };
+        /** @description Inputs for the fitness calculators (BMI/BMR/calorie/water/protein). */
+        ToolsComputeInput: {
+            /** @enum {string} */
+            gender?: "male" | "female" | "prefer_not_to_say";
+            age?: number;
+            heightCm?: number;
+            weightKg?: number;
+            /** @enum {string} */
+            activityLevel?: "sedentary" | "lightly_active" | "moderately_active" | "very_active" | "athlete";
+            primaryGoal?: components["schemas"]["FitnessGoal"];
+            /** @enum {string} */
+            trainingExperience?: "beginner" | "intermediate" | "advanced";
+        };
+        WeeklyProgress: {
+            daysActive: number;
+            weightChangeKg?: number | null;
+            /** @description 0-100 over the last 7 days */
+            consistencyScore: number;
+            points: {
+                /** Format: date */
+                day?: string;
+                active?: boolean;
+            }[];
+        };
+        GymPlan: {
+            id?: string;
+            name?: string;
+            price?: number | null;
+            durationDays?: number | null;
+            description?: string | null;
+        };
+        GymProfile: {
+            tenantId: string;
+            gymName: string;
+            tagline?: string | null;
+            logoUrl?: string | null;
+            city?: string | null;
+            branches: components["schemas"]["NearbyGym"][];
+            plans: components["schemas"]["GymPlan"][];
+        };
+        /** @description Partial profile update (onboarding auto-save + later edits). */
+        UpdateProfile: {
+            /** @enum {string} */
+            gender?: "male" | "female" | "prefer_not_to_say";
+            /** Format: date */
+            dateOfBirth?: string;
+            heightCm?: number;
+            weightKg?: number;
+            /** @enum {string} */
+            heightUnit?: "cm" | "ft";
+            /** @enum {string} */
+            weightUnit?: "kg" | "lb";
+            primaryGoal?: components["schemas"]["FitnessGoal"];
+            goals?: components["schemas"]["FitnessGoal"][];
+            /** @enum {string} */
+            activityLevel?: "sedentary" | "lightly_active" | "moderately_active" | "very_active" | "athlete";
+            /** @enum {string} */
+            trainingExperience?: "beginner" | "intermediate" | "advanced";
+            workoutPreferences?: components["schemas"]["WorkoutPreference"][];
+            limitations?: string[];
+            onboardingStep?: string;
+            /** @description Set true to stamp onboarding completion. */
+            onboardingComplete?: boolean;
         };
         HomeDashboard: {
             /** @example Good evening, Sneha */
@@ -774,9 +2949,23 @@ export interface components {
             streak?: {
                 days?: number;
             };
+            /** @description Today's ritual status — which streak-qualifying actions the member has already done today (check-in, workout log, meal log), and whether an active streak is still at risk (no qualifying action logged yet today). */
+            today?: {
+                checkedIn?: boolean;
+                workoutLogged?: boolean;
+                mealLogged?: boolean;
+                streakAtRisk?: boolean;
+            };
             todayWorkout?: components["schemas"]["WorkoutSummary"] | null;
             nextClass?: components["schemas"]["ClassSummary"] | null;
             occupancy?: components["schemas"]["Occupancy"];
+            /** @description Today's calories eaten vs goal and water vs goal (V2.1). */
+            nutrition?: {
+                kcal?: number;
+                kcalGoal?: number;
+                waterMl?: number;
+                waterGoal?: number;
+            };
         };
         Occupancy: {
             current?: number;
@@ -785,6 +2974,21 @@ export interface components {
             level?: "low" | "moderate" | "high" | "full";
             /** Format: date-time */
             updatedAt?: string;
+        };
+        GymLocation: {
+            id?: string;
+            name?: string;
+            address?: string | null;
+            city?: string | null;
+            /** @description Decimal degrees (WGS84) */
+            latitude?: number | null;
+            longitude?: number | null;
+            phone?: string | null;
+            /** @enum {string} */
+            status?: "active" | "inactive" | "temporarily_closed" | "coming_soon" | "provisioning";
+        };
+        GymLocations: {
+            branches?: components["schemas"]["GymLocation"][];
         };
         CheckInResult: {
             checkInId?: string;
@@ -872,6 +3076,39 @@ export interface components {
             startsAt?: string;
             seatsLeft?: number;
         };
+        ClassListItem: {
+            id?: string;
+            title?: string;
+            category?: string;
+            /** Format: date-time */
+            startsAt?: string;
+            durationMinutes?: number;
+            room?: string | null;
+            trainerName?: string | null;
+            capacity?: number;
+            seatsLeft?: number;
+            /** @description true if THIS member has an active booking */
+            booked?: boolean;
+            /** @enum {string|null} */
+            bookingStatus?: "enrolled" | "waitlisted" | null;
+            waitlistPosition?: number | null;
+        };
+        ClassList: {
+            classes?: components["schemas"]["ClassListItem"][];
+        };
+        ClassBookingResult: {
+            classId?: string;
+            /** @enum {string} */
+            status?: "enrolled" | "waitlisted";
+            waitlistPosition?: number | null;
+            seatsLeft?: number;
+            message?: string;
+        };
+        ClassCancelResult: {
+            cancelled?: boolean;
+            /** @description Name of the waitlisted member auto-promoted into the freed seat, if any */
+            promotedMemberName?: string | null;
+        };
         Progress: {
             latest?: {
                 weightKg?: number | null;
@@ -905,6 +3142,269 @@ export interface components {
             photoId?: string;
             /** @description Signed PUT URL */
             uploadUrl?: string;
+        };
+        NutritionTotals: {
+            kcal?: number;
+            proteinG?: number;
+            carbsG?: number;
+            fatG?: number;
+        };
+        /** @description Per-member daily targets. */
+        NutritionGoal: {
+            kcal?: number;
+            proteinG?: number;
+            carbsG?: number;
+            fatG?: number;
+            waterMl?: number;
+        };
+        NutritionGoalInput: {
+            kcal?: number;
+            proteinG?: number;
+            carbsG?: number;
+            fatG?: number;
+            waterMl?: number;
+        };
+        FoodItem: {
+            id?: string;
+            name?: string;
+            brand?: string | null;
+            barcode?: string | null;
+            servingSize?: number;
+            servingUnit?: string;
+            kcal?: number;
+            proteinG?: number;
+            carbsG?: number;
+            fatG?: number;
+            /** @enum {string} */
+            source?: "custom" | "catalog" | "barcode";
+        };
+        FoodSearch: {
+            foods?: components["schemas"]["FoodItem"][];
+        };
+        NutritionMealItem: {
+            id?: string;
+            foodItemId?: string | null;
+            name?: string;
+            quantity?: number;
+            unit?: string;
+            kcal?: number;
+            proteinG?: number;
+            carbsG?: number;
+            fatG?: number;
+        };
+        NutritionMeal: {
+            id?: string;
+            /** @enum {string} */
+            mealType?: "breakfast" | "lunch" | "dinner" | "snack";
+            /** Format: date-time */
+            loggedAt?: string;
+            notes?: string | null;
+            totals?: components["schemas"]["NutritionTotals"];
+            items?: components["schemas"]["NutritionMealItem"][];
+        };
+        NutritionDay: {
+            /** Format: date */
+            date?: string;
+            goal?: components["schemas"]["NutritionGoal"];
+            totals?: components["schemas"]["NutritionTotals"];
+            waterMl?: number;
+            meals?: components["schemas"]["NutritionMeal"][];
+        };
+        MealLogItemInput: {
+            foodItemId?: string | null;
+            name: string;
+            quantity?: number;
+            unit?: string;
+            kcal?: number;
+            proteinG?: number;
+            carbsG?: number;
+            fatG?: number;
+        };
+        MealLogInput: {
+            /** @enum {string} */
+            mealType: "breakfast" | "lunch" | "dinner" | "snack";
+            /** Format: date-time */
+            loggedAt?: string;
+            notes?: string;
+            items: components["schemas"]["MealLogItemInput"][];
+        };
+        MealLogResult: {
+            mealId?: string;
+        };
+        WaterLogInput: {
+            amountMl: number;
+            /** Format: date-time */
+            loggedAt?: string;
+        };
+        WaterLogResult: {
+            waterId?: string;
+            totalMl?: number;
+        };
+        HealthSampleInput: {
+            /** @description steps | calories_active | calories_resting | distance_m | active_minutes | heart_rate | hr_resting | hrv | sleep_duration | sleep_deep | sleep_rem | spo2 | stress | body_weight | body_fat | vo2max | respiratory_rate | mood */
+            type: string;
+            value: number;
+            /** @description count, kcal, m, min, bpm, ms, %, kg, … */
+            unit: string;
+            /** Format: date-time */
+            startAt: string;
+            /** Format: date-time */
+            endAt: string;
+            /** @enum {string} */
+            source: "apple_health" | "health_connect" | "fitbit" | "garmin" | "scale" | "manual";
+            /** @description Provider-side id → dedupe key */
+            sourceUuid: string;
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        HealthSampleBatchInput: {
+            samples: components["schemas"]["HealthSampleInput"][];
+        };
+        HealthIngestResult: {
+            /** @description Newly stored samples */
+            accepted?: number;
+            /** @description Skipped (already ingested) */
+            duplicates?: number;
+            daysAffected?: number;
+        };
+        HealthDailyPoint: {
+            /** Format: date */
+            day?: string;
+            total?: number;
+            min?: number | null;
+            max?: number | null;
+            avg?: number | null;
+            sampleCount?: number;
+        };
+        HealthMetricSeries: {
+            type?: string;
+            unit?: string;
+            points?: components["schemas"]["HealthDailyPoint"][];
+        };
+        HealthSummary: {
+            /** Format: date */
+            from?: string;
+            /** Format: date */
+            to?: string;
+            metrics?: components["schemas"]["HealthMetricSeries"][];
+        };
+        WearableConnection: {
+            provider?: string;
+            /** @enum {string} */
+            status?: "connected" | "revoked";
+            /** Format: date-time */
+            consentedAt?: string;
+            /** Format: date-time */
+            lastSyncedAt?: string | null;
+        };
+        WearableConnectionList: {
+            connections?: components["schemas"]["WearableConnection"][];
+        };
+        WearableConnectInput: {
+            /** @enum {string} */
+            provider: "apple_health" | "health_connect" | "fitbit" | "garmin" | "scale";
+            externalUserId?: string | null;
+            scopes?: string[];
+        };
+        ExerciseListItem: {
+            id?: string;
+            name?: string;
+            muscleGroup?: string | null;
+            equipment?: string | null;
+            mediaUrl?: string | null;
+            hasInstructions?: boolean;
+            favorited?: boolean;
+        };
+        ExerciseList: {
+            exercises?: components["schemas"]["ExerciseListItem"][];
+        };
+        ExerciseDetail: {
+            id?: string;
+            name?: string;
+            muscleGroup?: string | null;
+            equipment?: string | null;
+            mediaUrl?: string | null;
+            instructions?: string | null;
+            favorited?: boolean;
+        };
+        FavoriteResult: {
+            favorited?: boolean;
+        };
+        ChatThread: {
+            trainerId?: string;
+            trainerName?: string;
+            trainerAvatarUrl?: string | null;
+            lastMessage?: string | null;
+            /** Format: date-time */
+            lastMessageAt?: string | null;
+            unreadCount?: number;
+        };
+        ChatThreadList: {
+            threads?: components["schemas"]["ChatThread"][];
+        };
+        ChatMessage: {
+            id?: string;
+            /** @enum {string} */
+            sender?: "member" | "trainer";
+            body?: string;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        ChatMessageList: {
+            trainerId?: string;
+            trainerName?: string;
+            messages?: components["schemas"]["ChatMessage"][];
+        };
+        SendMessageInput: {
+            body: string;
+        };
+        LeaderboardEntry: {
+            rank?: number;
+            name?: string;
+            value?: number;
+            isMe?: boolean;
+        };
+        Leaderboard: {
+            /** @example checkins */
+            metric?: string;
+            periodDays?: number;
+            entries?: components["schemas"]["LeaderboardEntry"][];
+            myRank?: number | null;
+            myValue?: number;
+        };
+        ChallengeItem: {
+            id?: string;
+            title?: string;
+            description?: string | null;
+            /** @enum {string} */
+            metric?: "checkins" | "workouts";
+            goal?: number;
+            /** Format: date-time */
+            startsAt?: string;
+            /** Format: date-time */
+            endsAt?: string;
+            joined?: boolean;
+            progress?: number;
+            completed?: boolean;
+            participantCount?: number;
+        };
+        ChallengeList: {
+            challenges?: components["schemas"]["ChallengeItem"][];
+        };
+        ChallengeJoinResult: {
+            joined?: boolean;
+            progress?: number;
+        };
+        Badge: {
+            key?: string;
+            label?: string;
+            description?: string;
+            earned?: boolean;
+        };
+        BadgeList: {
+            badges?: components["schemas"]["Badge"][];
+            earnedCount?: number;
             expiresIn?: number;
         };
     };

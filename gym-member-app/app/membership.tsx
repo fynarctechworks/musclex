@@ -8,9 +8,9 @@ import {
   Screen,
   SkeletonCard,
   Txt,
-  colors,
+  useThemeColors,
 } from '../src/design-system';
-import { BackButton } from '../src/navigation/BackButton';
+import { ScreenHeader } from '../src/navigation/ScreenHeader';
 import { useMembership, useRenew } from '../src/api/queries';
 import { formatDate, formatMoney } from '../src/lib/format';
 import type { MembershipStatus } from '../src/api/types';
@@ -25,6 +25,7 @@ const STATUS_TONE: Record<MembershipStatus, 'success' | 'warning' | 'error'> = {
 const DAY = 86_400_000;
 
 export default function MembershipScreen() {
+  const theme = useThemeColors();
   const { data, isLoading, isError, refetch, isRefetching } = useMembership();
   const renew = useRenew();
 
@@ -61,16 +62,12 @@ export default function MembershipScreen() {
       : null;
   const daysLeft = expires != null ? Math.ceil((expires - now) / DAY) : null;
   const barColor =
-    status === 'expired' ? colors.error : status === 'expiring' ? colors.warning : colors.cyan;
+    status === 'expired' ? theme.error : status === 'expiring' ? theme.warning : theme.cyan;
 
   return (
     <Screen scroll onRefresh={refetch} refreshing={isRefetching}>
       <View className="pt-md">
-        <BackButton />
-
-        <Txt variant="display-lg" weight="600" className="text-ink">
-          Membership
-        </Txt>
+        <ScreenHeader title="Membership" />
 
         {isLoading ? (
           <View className="mt-lg gap-md">

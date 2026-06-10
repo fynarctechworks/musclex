@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveBranchScope } from '../common/branch-scope.util';
+import { getTenantGymId } from '../common/tenant-context';
 import type { JwtPayload } from '../common/decorators/current-user.decorator';
 
 export interface BranchScorecard {
@@ -387,7 +388,13 @@ export class PortfolioService {
     asOf: Date,
   ): Promise<Array<[string, number]>> {
     if (branchIds.length === 0) return [];
+    const gymId = getTenantGymId();
+    if (!gymId) return [];
     try {
+      // Raw SQL bypasses Prisma's $use middleware. Even though branchIds
+      // were resolved from the gym-scoped branch.findMany above, the raw
+      // query must carry its own `gym_id` filter — never rely on the
+      // upstream filter being correct or on RLS being in place.
       const rows = await this.prisma.$queryRawUnsafe<
         { branch_id: string; mrr: number }[]
       >(
@@ -400,12 +407,14 @@ export class PortfolioService {
          FROM member_memberships mm
          JOIN membership_plans p ON p.id = mm.plan_id
          WHERE mm.status = 'active'
+           AND mm.gym_id = $3::uuid
            AND mm.start_date <= $1
            AND mm.end_date >= $1
            AND mm.branch_id = ANY($2::uuid[])
          GROUP BY mm.branch_id`,
         asOf,
         branchIds,
+        gymId,
       );
       return rows.map((r) => [r.branch_id, Math.round(Number(r.mrr ?? 0))]);
     } catch (err) {
@@ -432,11 +441,15 @@ export class PortfolioService {
   ): Promise<Map<string, number[]>> {
     const out = new Map<string, number[]>();
     if (branchIds.length === 0) return out;
+    const gymId = getTenantGymId();
+    if (!gymId) return out;
 
     const valueExpr = amountCol ? `COALESCE(SUM(${amountCol}), 0)` : 'COUNT(*)';
     const statusFilter = isPaid
       ? "AND status = 'paid'"
       : "AND status = 'success'";
+    // Raw SQL — explicit gym_id filter (defense in depth against $use
+    // middleware bypass + RLS-relied-upon-not-being-BYPASSRLS).
     const sql = `
       SELECT branch_id,
              DATE_TRUNC('day', ${whenCol}) AS day,
@@ -444,6 +457,7 @@ export class PortfolioService {
       FROM ${table}
       WHERE ${whenCol} >= $1
         ${statusFilter}
+        AND gym_id = $3::uuid
         AND branch_id = ANY($2::uuid[])
       GROUP BY branch_id, DATE_TRUNC('day', ${whenCol})
       ORDER BY branch_id, day
@@ -451,7 +465,7 @@ export class PortfolioService {
     try {
       const rows = await this.prisma.$queryRawUnsafe<
         { branch_id: string; day: Date; value: number }[]
-      >(sql, fromDay, branchIds);
+      >(sql, fromDay, branchIds, gymId);
 
       // Bucketize per-branch into a dense 14-day array.
       const perBranch = new Map<string, Map<string, number>>();

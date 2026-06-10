@@ -10,6 +10,7 @@ import { useProgressSummary } from "@/features/progress";
 import { useEnsureMemberCode } from "@/features/member-referrals";
 import type { Member, CheckIn } from "@/types";
 import { statusToVariant, statusLabels } from "./member-utils";
+import { MemberFitnessProfile } from "./MemberFitnessProfile";
 import { resolvePlanPrice, planHasBranchPricing } from "@/lib/plan-pricing";
 
 // Lazy-load QR to avoid SSR issues
@@ -231,6 +232,16 @@ export function MemberOverview({ member, checkIns }: MemberOverviewProps) {
           <InfoRow label="Phone" value={member.phone} />
           <InfoRow label="Email" value={member.email || "--"} />
           <InfoRow
+            label="Gender"
+            value={
+              member.gender
+                ? member.gender
+                    .replace(/[_-]+/g, " ")
+                    .replace(/\b\w/g, (c) => c.toUpperCase())
+                : "--"
+            }
+          />
+          <InfoRow
             label="Date of Birth"
             value={
               member.date_of_birth
@@ -286,6 +297,9 @@ export function MemberOverview({ member, checkIns }: MemberOverviewProps) {
           />
         </div>
       </div>
+
+      {/* Fitness Profile (member-app onboarding data) */}
+      <MemberFitnessProfile member={member} />
 
       {/* QR Code Card */}
       {member.qr_code && (

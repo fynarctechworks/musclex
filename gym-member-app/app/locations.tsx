@@ -10,9 +10,9 @@ import {
   Screen,
   SkeletonCard,
   Txt,
-  colors,
+  useThemeColors,
 } from '../src/design-system';
-import { BackButton } from '../src/navigation/BackButton';
+import { ScreenHeader } from '../src/navigation/ScreenHeader';
 import { useLocations } from '../src/api/queries';
 import { useDeviceLocation } from '../src/features/locations/use-device-location';
 import { formatDistance, haversineKm } from '../src/lib/geo';
@@ -46,6 +46,7 @@ function openInMaps(b: GymLocation) {
 }
 
 function LocationCard({ branch, distanceKm }: { branch: GymLocation; distanceKm: number | null }) {
+  const theme = useThemeColors();
   const hasCoords = branch.latitude != null && branch.longitude != null;
   return (
     <Card elevated>
@@ -57,7 +58,7 @@ function LocationCard({ branch, distanceKm }: { branch: GymLocation; distanceKm:
           {branch.address ? (
             <View className="mt-xs flex-row items-start gap-xs">
               <View className="mt-[2px]">
-                <Icon name="pin" color={colors.mute} size={15} />
+                <Icon name="pin" color={theme.mute} size={15} />
               </View>
               <Txt variant="body-sm" className="flex-1 text-body">
                 {branch.address}
@@ -103,7 +104,7 @@ function LocationCard({ branch, distanceKm }: { branch: GymLocation; distanceKm:
             onPress={() => Linking.openURL(`tel:${branch.phone}`)}
             className="h-[44px] w-[44px] items-center justify-center rounded-md border border-hairline bg-surface-2"
           >
-            <Icon name="phone" color={colors.ink} size={18} />
+            <Icon name="phone" color={theme.ink} size={18} />
           </Pressable>
         ) : null}
       </View>
@@ -119,6 +120,7 @@ function LocationBanner({
   status: ReturnType<typeof useDeviceLocation>['status'];
   onRetry: () => void;
 }) {
+  const theme = useThemeColors();
   if (status === 'granted') {
     return (
       <Txt variant="caption" className="mb-sm text-mute">
@@ -141,7 +143,7 @@ function LocationBanner({
   return (
     <Card soft className="mb-md">
       <View className="flex-row items-center gap-sm">
-        <Icon name="pin" color={colors.mute} size={18} />
+        <Icon name="pin" color={theme.mute} size={18} />
         <Txt variant="body-sm" className="flex-1 text-body">
           {message}
         </Txt>
@@ -181,11 +183,7 @@ export default function LocationsScreen() {
   return (
     <Screen scroll onRefresh={refetch} refreshing={isRefetching}>
       <View className="pt-md">
-        <BackButton />
-
-        <Txt variant="display-lg" weight="600" className="text-ink">
-          Locations
-        </Txt>
+        <ScreenHeader title="Locations" />
         <Txt variant="body-sm" className="mb-lg mt-xxs text-body">
           Find a branch near you and get directions.
         </Txt>

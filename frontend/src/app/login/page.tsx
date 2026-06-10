@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import { AuthLayout } from '@/components/auth/auth-layout';
+import { SocialAuthButtons, AuthDivider } from '@/components/auth/social-auth-buttons';
 
 interface LoginFormData {
   email: string;
@@ -50,6 +51,9 @@ function LoginForm() {
 
   return (
     <AuthLayout heading="Sign in to your studio" subheading="Enter your credentials to access your dashboard.">
+      <SocialAuthButtons providers={['google', 'apple']} disabled={loading} />
+      <AuthDivider />
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-foreground leading-5">Email</label>

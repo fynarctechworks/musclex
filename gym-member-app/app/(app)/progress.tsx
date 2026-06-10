@@ -7,15 +7,16 @@ import {
   ErrorState,
   Icon,
   Input,
-  MeshGradient,
   Screen,
   SegmentedControl,
   SkeletonCard,
   Txt,
-  colors,
+  useThemeColors,
 } from '../../src/design-system';
 import { useLogMetric, useProgress, qk } from '../../src/api/queries';
 import { WeightChart } from '../../src/features/progress/WeightChart';
+import { PublicProgress } from '../../src/features/progress/PublicProgress';
+import { useCapabilities } from '../../src/auth/use-capabilities';
 import { pickAndUploadPhoto } from '../../src/features/progress/upload';
 import { formatDate } from '../../src/lib/format';
 import type { BodyMetric, BodyMetricInput, ProgressPhoto } from '../../src/api/types';
@@ -41,6 +42,14 @@ function Stat({ label, value, unit }: { label: string; value?: number | null; un
 }
 
 export default function ProgressScreen() {
+  const { isPublic } = useCapabilities();
+  // Gym-less public users get the personal (app_user-scoped) progress view.
+  if (isPublic) return <PublicProgress />;
+  return <GymProgressScreen />;
+}
+
+function GymProgressScreen() {
+  const theme = useThemeColors();
   const { data, isLoading, isError, refetch, isRefetching } = useProgress();
   const logMetric = useLogMetric();
   const qc = useQueryClient();
@@ -121,7 +130,6 @@ export default function ProgressScreen() {
     <Screen scroll padded={false} onRefresh={refetch} refreshing={isRefetching}>
       {/* Hero header with the brand mesh gradient (design.md: hero scale only). */}
       <View className="overflow-hidden px-md pb-lg pt-md">
-        <MeshGradient opacity={0.45} />
         <View className="flex-row items-center justify-between">
           <View>
             <Txt variant="mono" className="text-ink/70">
@@ -163,7 +171,7 @@ export default function ProgressScreen() {
               />
             </View>
             {logError ? (
-              <Txt variant="body-sm" className="mt-md" style={{ color: colors.error }}>
+              <Txt variant="body-sm" className="mt-md" style={{ color: theme.error }}>
                 {logError}
               </Txt>
             ) : null}
@@ -255,9 +263,12 @@ export default function ProgressScreen() {
               <Pressable
                 onPress={onAddPhoto}
                 disabled={uploading}
+                accessibilityRole="button"
+                accessibilityLabel="Add progress photo"
+                accessibilityState={{ disabled: uploading }}
                 className="h-[120px] w-[92px] items-center justify-center rounded-md border border-dashed border-hairline-strong bg-surface"
               >
-                <Icon name="camera" color={colors.body} size={24} />
+                <Icon name="camera" color={theme.body} size={24} />
                 <Txt variant="caption" className="mt-xs text-mute">
                   {uploading ? '…' : 'Add'}
                 </Txt>

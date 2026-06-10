@@ -1,6 +1,6 @@
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Icon, Txt, colors } from '../../design-system';
+import { Card, Icon, Txt, useThemeColors } from '../../design-system';
 import { useHealthSummary } from '../../api/queries';
 import { HOME_METRICS, METRIC_META } from '../health/metrics';
 import type { HealthMetricSeries } from '../../api/types';
@@ -26,6 +26,7 @@ function headline(series?: HealthMetricSeries): number | null {
  */
 export function HealthCard() {
   const router = useRouter();
+  const theme = useThemeColors();
   const today = new Date().toISOString().slice(0, 10);
   const { data } = useHealthSummary(today, today, HOME_METRICS.join(','));
 
@@ -41,13 +42,17 @@ export function HealthCard() {
   if (tiles.length === 0) return null;
 
   return (
-    <Pressable onPress={() => router.push('/health')}>
+    <Pressable
+      onPress={() => router.push('/health')}
+      accessibilityRole="button"
+      accessibilityLabel="View health details"
+    >
       <Card>
         <View className="flex-row items-center justify-between">
           <Txt variant="caption" className="text-mute">
             TODAY'S HEALTH
           </Txt>
-          <Icon name="chevron-right" size={16} color={colors.mute} />
+          <Icon name="chevron-right" size={16} color={theme.mute} />
         </View>
 
         <View className="mt-sm flex-row flex-wrap gap-y-md">

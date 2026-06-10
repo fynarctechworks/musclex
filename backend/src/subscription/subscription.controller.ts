@@ -92,7 +92,7 @@ export class SubscriptionController {
    * Amount is computed server-side from the (target) plan + cycle — clients
    * cannot pass amounts, preventing price tampering.
    *
-   * For production this is also called by the Razorpay/Stripe webhook handler
+   * For production this is also called by the Razorpay webhook handler
    * after verifying the gateway signature server-side.
    */
   @Post('renew')
@@ -121,6 +121,57 @@ export class SubscriptionController {
       currency: body.currency,
       payment_reference: body.payment_reference,
       payment_method: body.payment_method,
+      billing_info: {
+        billing_name: body.billing_name,
+        billing_email: body.billing_email,
+        billing_address: body.billing_address,
+        tax_id: body.tax_id,
+      },
+    });
+  }
+
+  /**
+   * Create a Razorpay order for an online subscription renewal / plan switch.
+   * Amount is computed server-side; the order notes carry plan/cycle/studio so
+   * verify can trust them. Returns { order_id, key_id, amount, ... } for Checkout.
+   */
+  @Post('create-order')
+  @Roles('owner', 'brand_owner')
+  createOrder(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { plan?: string; billing_cycle?: 'monthly' | 'annual' },
+  ) {
+    return this.subscription.createRenewalOrder(user.studio_id, {
+      plan: body.plan,
+      billing_cycle: body.billing_cycle,
+    });
+  }
+
+  /**
+   * Verify the Razorpay Checkout handshake and record the renewal. Plan/cycle
+   * are read from the order notes server-side (not the client).
+   */
+  @Post('verify')
+  @Roles('owner', 'brand_owner')
+  verify(
+    @CurrentUser() user: JwtPayload,
+    @Body()
+    body: {
+      gateway_order_id: string;
+      gateway_payment_id: string;
+      signature: string;
+      billing_name?: string;
+      billing_email?: string;
+      billing_address?: string;
+      tax_id?: string;
+    },
+  ) {
+    return this.subscription.verifyAndRenew({
+      studio_id: user.studio_id,
+      actor_id: user.user_id,
+      gateway_order_id: body.gateway_order_id,
+      gateway_payment_id: body.gateway_payment_id,
+      signature: body.signature,
       billing_info: {
         billing_name: body.billing_name,
         billing_email: body.billing_email,

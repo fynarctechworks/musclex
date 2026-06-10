@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
+import { View } from 'react-native';
 import {
-  CollapsingHeader,
   EmptyState,
   ErrorState,
+  Screen,
   SkeletonCard,
+  Txt,
 } from '../src/design-system';
-import { BackButton } from '../src/navigation/BackButton';
+import { ScreenHeader } from '../src/navigation/ScreenHeader';
 import { track } from '../src/analytics';
 import { useHealthSummary } from '../src/api/queries';
 import { MetricTrendCard } from '../src/features/health/MetricTrendCard';
@@ -31,29 +33,29 @@ export default function BodyScreen() {
   );
 
   return (
-    <CollapsingHeader
-      title="Body"
-      subtitle="Your last 30 days"
-      left={<BackButton className="" />}
-      onRefresh={() => summary.refetch()}
-      refreshing={summary.isFetching}
-    >
-      {summary.isLoading ? (
-        <>
-          <SkeletonCard />
-          <SkeletonCard />
-        </>
-      ) : summary.isError ? (
-        <ErrorState onRetry={() => summary.refetch()} />
-      ) : series.length === 0 ? (
-        <EmptyState
-          icon="chart"
-          title="No body data yet"
-          message="Log your weight on the Health screen, or connect a smart scale to see trends here."
-        />
-      ) : (
-        series.map((s) => <MetricTrendCard key={s.type} series={s} />)
-      )}
-    </CollapsingHeader>
+    <Screen scroll onRefresh={() => summary.refetch()} refreshing={summary.isFetching}>
+      <ScreenHeader title="Body" className="mb-xs" />
+      <Txt variant="body-sm" className="mb-lg text-body">
+        Your last 30 days
+      </Txt>
+      <View className="gap-md">
+        {summary.isLoading ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : summary.isError ? (
+          <ErrorState onRetry={() => summary.refetch()} />
+        ) : series.length === 0 ? (
+          <EmptyState
+            icon="chart"
+            title="No body data yet"
+            message="Log your weight on the Health screen, or connect a smart scale to see trends here."
+          />
+        ) : (
+          series.map((s) => <MetricTrendCard key={s.type} series={s} />)
+        )}
+      </View>
+    </Screen>
   );
 }

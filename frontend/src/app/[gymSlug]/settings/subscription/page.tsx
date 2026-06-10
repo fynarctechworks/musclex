@@ -171,7 +171,7 @@ function StatusPill({ status }: { status: string }) {
     status === "active"
       ? "bg-success/10 text-success ring-success/20"
       : status === "trial"
-        ? "bg-link/10 text-link ring-blue-500/20"
+        ? "bg-link/10 text-link ring-link/20"
         : status === "grace_period" || status === "past_due"
           ? "bg-warning/10 text-warning ring-amber-500/20"
           : "bg-error/10 text-error ring-red-500/20"; // locked | suspended | expired
@@ -584,7 +584,7 @@ export default function SubscriptionPage() {
             </div>
             <div className="px-6 pb-5 text-[11px] text-muted-foreground border-t border-border/50 pt-3 flex items-center gap-1.5">
               <AlertCircle className="w-3 h-3" />
-              Payment is recorded manually with a transaction reference (UPI / Card / Bank / Cash). Razorpay & Stripe gateway integration is coming soon.
+              Pay online via Razorpay Checkout, or record a manual payment with a transaction reference (UPI / Card / Bank / Cash).
             </div>
           </div>
           )}

@@ -18,11 +18,23 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api";
 import { useDashboardKpis } from "@/features/dashboard";
 import { useVisitHeatmap, useVisitsList } from "@/features/visits";
-import {
-  VisitHeatmap,
-  VisitTrendChart,
-  PeakHoursChart,
-} from "@/features/visits/components";
+import dynamic from "next/dynamic";
+import { VisitHeatmap } from "@/features/visits/components";
+
+const VisitTrendChart = dynamic(
+  () =>
+    import("@/features/visits/components/VisitTrendChart").then((m) => ({
+      default: m.VisitTrendChart,
+    })),
+  { ssr: false, loading: () => <LoadingSkeleton className="h-64 w-full" /> },
+);
+const PeakHoursChart = dynamic(
+  () =>
+    import("@/features/visits/components/PeakHoursChart").then((m) => ({
+      default: m.PeakHoursChart,
+    })),
+  { ssr: false, loading: () => <LoadingSkeleton className="h-64 w-full" /> },
+);
 import type { Branch } from "@/lib/types";
 
 export default function VisitsPage() {

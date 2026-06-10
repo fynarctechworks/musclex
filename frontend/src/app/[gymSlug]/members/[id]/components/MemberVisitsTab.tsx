@@ -5,8 +5,16 @@ import { Activity, TrendingUp, Calendar, Clock } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { useMemberVisitStats, useVisitsList } from "@/features/visits";
+import dynamic from "next/dynamic";
 import { MemberVisitTable } from "@/features/visits/components";
-import { VisitTrendChart } from "@/features/visits/components";
+
+const VisitTrendChart = dynamic(
+  () =>
+    import("@/features/visits/components/VisitTrendChart").then((m) => ({
+      default: m.VisitTrendChart,
+    })),
+  { ssr: false, loading: () => <LoadingSkeleton className="h-64 w-full" /> },
+);
 
 interface MemberVisitsTabProps {
   memberId: string;
@@ -65,9 +73,19 @@ export function MemberVisitsTab({ memberId }: MemberVisitsTabProps) {
             <span className="text-xs text-muted-foreground">Last Visit</span>
           </div>
           <p className="text-sm font-medium text-foreground">
-            {stats?.last_visit
-              ? format(parseISO(stats.last_visit), "MMM dd, yyyy")
-              : "Never"}
+            {(() => {
+              const lv = stats?.last_visit;
+              if (!lv) return "Never";
+              const raw =
+                typeof lv === "string"
+                  ? lv
+                  : typeof lv === "object" && "checked_in_at" in lv
+                    ? lv.checked_in_at
+                    : null;
+              if (!raw) return "Never";
+              const d = typeof raw === "string" ? parseISO(raw) : new Date(raw);
+              return isNaN(d.getTime()) ? "Never" : format(d, "MMM dd, yyyy");
+            })()}
           </p>
         </div>
       </div>

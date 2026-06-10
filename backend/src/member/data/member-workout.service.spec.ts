@@ -7,7 +7,7 @@ import { CurrentMemberContext } from '../decorators/current-member.decorator';
  * approach — capture the Prisma `where` clauses and assert member_id is applied.
  */
 describe('MemberWorkoutService', () => {
-  const memberA: CurrentMemberContext = { memberId: 'mA', tenantId: 'tA' };
+  const memberA: CurrentMemberContext = { appUserId: 'auA', memberId: 'mA', tenantId: 'tA', isGymMember: true };
   let prisma: any;
   let service: MemberWorkoutService;
 

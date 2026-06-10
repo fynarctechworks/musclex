@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { ScanFace, CameraOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { captureError, Source } from "@/lib/observability/capture";
 import { ScannerStage, type ScannerState } from "./ScannerStage";
 import { CameraBlockedPanel } from "./CameraBlockedPanel";
 import {
@@ -124,6 +125,7 @@ export function FaceScanner({ onMatch, isPending, tone = 'card' }: FaceScannerPr
       const dx = diagnoseCameraError(err);
       setDiagnosis(dx);
       setState("error");
+      captureError(Source.CAMERA, err, { module: "face-scanner", severity: "MEDIUM" });
     }
   };
 

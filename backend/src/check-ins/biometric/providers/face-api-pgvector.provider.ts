@@ -48,6 +48,7 @@ export class FaceApiPgVectorProvider implements BiometricProvider {
     const match = await this.matcher.match({
       descriptor: input.descriptor,
       branch_id: scope.branch_id,
+      gym_id: scope.gym_id,
     });
 
     if (!match) return null;
@@ -63,8 +64,7 @@ export class FaceApiPgVectorProvider implements BiometricProvider {
   async enroll(
     member_id: string,
     input: BiometricInput,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _scope: BiometricScope,
+    scope: BiometricScope,
   ): Promise<BiometricEnrollResult> {
     if (input.modality !== 'face') {
       throw new Error('FaceApiPgVectorProvider only accepts face inputs');
@@ -81,7 +81,8 @@ export class FaceApiPgVectorProvider implements BiometricProvider {
         data: { face_descriptor: input.descriptor },
       }),
       this.prisma.$executeRaw`
-        UPDATE studio_template.members SET face_vec = ${vecLiteral}::vector WHERE id = ${member_id}::uuid
+        UPDATE studio_template.members SET face_vec = ${vecLiteral}::vector
+        WHERE id = ${member_id}::uuid AND gym_id = ${scope.gym_id}::uuid
       `,
     ]);
 
@@ -94,8 +95,7 @@ export class FaceApiPgVectorProvider implements BiometricProvider {
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async revoke(enrollment_id: string, _scope: BiometricScope): Promise<void> {
+  async revoke(enrollment_id: string, scope: BiometricScope): Promise<void> {
     // enrollment_id is the member_id for this provider (1:1 mapping).
     await this.prisma.$transaction([
       this.prisma.member.update({
@@ -103,7 +103,8 @@ export class FaceApiPgVectorProvider implements BiometricProvider {
         data: { face_descriptor: [] },
       }),
       this.prisma.$executeRaw`
-        UPDATE studio_template.members SET face_vec = NULL WHERE id = ${enrollment_id}::uuid
+        UPDATE studio_template.members SET face_vec = NULL
+        WHERE id = ${enrollment_id}::uuid AND gym_id = ${scope.gym_id}::uuid
       `,
     ]);
   }

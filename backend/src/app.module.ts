@@ -11,6 +11,7 @@ import { TenantMiddleware, CorrelationIdMiddleware } from './common';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { MembersModule } from './members/members.module';
+import { MemberModule } from './member/member.module';
 import { CheckInsModule } from './check-ins/check-ins.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ClassesModule } from './classes/classes.module';
@@ -36,10 +37,13 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { DocumentsModule } from './documents/documents.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { SubscriptionModule } from './subscription/subscription.module';
+import { ObservabilityModule } from './common/observability/observability.module';
+import { IdempotencyModule } from './common/idempotency/idempotency.module';
 import { SubscriptionLockGuard } from './common/guards/subscription-lock.guard';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { RedisThrottlerStorage } from './common/throttler/redis-throttler-storage';
 import { EnhancedThrottlerGuard } from './common/throttler/enhanced-throttler.guard';
+import { SentryTenantMiddleware } from './common/sentry/sentry-tenant.middleware';
 
 @Module({
   imports: [
@@ -88,7 +92,9 @@ import { EnhancedThrottlerGuard } from './common/throttler/enhanced-throttler.gu
     AuthModule,
     BranchesModule,
     MembersModule,
+    MemberModule,
     CheckInsModule,
+    IdempotencyModule,
     PaymentsModule,
     ClassesModule,
     StaffModule,
@@ -112,6 +118,7 @@ import { EnhancedThrottlerGuard } from './common/throttler/enhanced-throttler.gu
     DocumentsModule,
     UploadsModule,
     SubscriptionModule,
+    ObservabilityModule,
   ],
   controllers: [AppController],
   providers: [
@@ -155,6 +162,14 @@ export class AppModule implements NestModule {
         { path: 'api/v1/auth/(.*)', method: RequestMethod.ALL },
         { path: 'health', method: RequestMethod.ALL },
       )
+      .forRoutes('*');
+
+    // Attach gym_id / route / hashed user to the Sentry scope. Must run AFTER
+    // TenantMiddleware so getTenantGymId() returns the resolved gym id.
+    // No-op when SENTRY_DSN is not set.
+    consumer
+      .apply(SentryTenantMiddleware)
+      .exclude({ path: 'health', method: RequestMethod.ALL })
       .forRoutes('*');
   }
 }

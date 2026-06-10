@@ -150,6 +150,86 @@ export default function SubscriptionCheckoutPage() {
     },
   });
 
+  // Razorpay: create order → open Checkout → verify (records the renewal).
+  const handleRazorpay = async () => {
+    try {
+      if (!(window as { Razorpay?: unknown }).Razorpay) {
+        await new Promise<void>((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = "https://checkout.razorpay.com/v1/checkout.js";
+          s.onload = () => resolve();
+          s.onerror = () => reject(new Error("Failed to load Razorpay"));
+          document.body.appendChild(s);
+        });
+      }
+
+      const order = await subscriptionApi.createOrder({
+        plan: planParam,
+        billing_cycle: cycle,
+      });
+
+      await new Promise<void>((resolve, reject) => {
+        const RazorpayCtor = (
+          window as unknown as {
+            Razorpay: new (o: Record<string, unknown>) => { open(): void };
+          }
+        ).Razorpay;
+        const rzp = new RazorpayCtor({
+          key: order.key_id || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+          amount: order.amount * 100, // paise
+          currency: order.currency || "INR",
+          name: account?.studio.name || "MuscleX",
+          description: `${order.plan_display_name} · ${cycle === "annual" ? "Annual" : "Monthly"}`,
+          order_id: order.order_id,
+          handler: async (response: {
+            razorpay_payment_id: string;
+            razorpay_order_id: string;
+            razorpay_signature: string;
+          }) => {
+            try {
+              const result = await subscriptionApi.verifyPayment({
+                gateway_order_id: response.razorpay_order_id,
+                gateway_payment_id: response.razorpay_payment_id,
+                signature: response.razorpay_signature,
+                billing_name: billingName.trim() || undefined,
+                billing_email: billingEmail.trim() || undefined,
+                tax_id: taxId.trim() || undefined,
+              });
+              await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["subscription"] }),
+                queryClient.invalidateQueries({ queryKey: ["account-overview"] }),
+                queryClient.invalidateQueries({ queryKey: ["settings"] }),
+                queryClient.invalidateQueries({ queryKey: ["auth", "me"] }),
+                refresh(),
+              ]);
+              toast.success(`Payment successful. Invoice ${result.invoice_number}.`);
+              router.push(
+                gymPath(
+                  `/settings/subscription?invoice=${encodeURIComponent(result.invoice_id)}`,
+                ),
+              );
+              resolve();
+            } catch (err) {
+              reject(err);
+            }
+          },
+          prefill: {
+            name: billingName || account?.studio.name || "",
+            email: billingEmail || "",
+          },
+          theme: { color: "#4A9FD4" },
+          modal: { ondismiss: () => reject(new Error("Payment cancelled")) },
+        });
+        rzp.open();
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Payment failed";
+      if (msg !== "Payment cancelled") toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   function handleSubmit() {
     const next: Record<string, string> = {};
     if (!billingName.trim()) next.billing_name = "Billing name is required.";
@@ -163,13 +243,18 @@ export default function SubscriptionCheckoutPage() {
     if (method && PAYMENT_METHODS.find((m) => m.value === method)?.comingSoon) {
       next.method = "That gateway isn't live yet — pick another method.";
     }
-    if (!reference.trim() || reference.trim().length < 3) {
+    const isGateway = method === "razorpay";
+    if (!isGateway && (!reference.trim() || reference.trim().length < 3)) {
       next.reference = "Enter the transaction reference (min 3 characters).";
     }
     setErrors(next);
     if (Object.keys(next).length) return;
     setSubmitting(true);
-    renewMutation.mutate();
+    if (isGateway) {
+      void handleRazorpay();
+    } else {
+      renewMutation.mutate();
+    }
   }
 
   if (checked && !allowed) {
@@ -354,7 +439,16 @@ export default function SubscriptionCheckoutPage() {
                   <p className="text-xs text-error">{errors.method}</p>
                 )}
 
+                {method === "razorpay" && (
+                  <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
+                    Razorpay Checkout opens when you confirm. Pay by card, UPI,
+                    netbanking or wallet — the renewal is recorded automatically
+                    once payment succeeds. No manual reference needed.
+                  </div>
+                )}
+
                 {method &&
+                  method !== "razorpay" &&
                   !PAYMENT_METHODS.find((m) => m.value === method)?.comingSoon && (
                     <div className="mt-3">
                       <Label htmlFor="reference">
@@ -442,11 +536,11 @@ export default function SubscriptionCheckoutPage() {
                   {submitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Recording payment…
+                      {method === "razorpay" ? "Opening Razorpay…" : "Recording payment…"}
                     </>
                   ) : (
                     <>
-                      Confirm payment
+                      {method === "razorpay" ? "Pay with Razorpay" : "Confirm payment"}
                       <ArrowRight className="ml-1.5 h-4 w-4" />
                     </>
                   )}

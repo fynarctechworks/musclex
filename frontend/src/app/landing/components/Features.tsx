@@ -31,7 +31,7 @@ const features = [
   {
     icon: CreditCard,
     title: 'Automated Billing',
-    description: 'Razorpay & Stripe integration with invoices and payment reminders.',
+    description: 'Razorpay integration with invoices and payment reminders.',
     color: 'text-warning bg-warning-soft border-amber-100',
   },
   {

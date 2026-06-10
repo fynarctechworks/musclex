@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import * as Sentry from '@sentry/nestjs';
 import { MemberErrorCode, ErrorEnvelope } from '../common/envelope';
 import { MemberException } from '../common/member-exception';
 
@@ -40,12 +41,18 @@ export class MemberExceptionFilter implements ExceptionFilter {
       code = this.codeForStatus(status);
       message = this.extractMessage(exception) ?? code;
       retryable = status >= 500;
+      // Server faults dressed as HttpExceptions are still bugs — report them.
+      if (status >= 500) Sentry.captureException(exception);
     } else {
       this.logger.error(
         `Unhandled member error: ${
           exception instanceof Error ? exception.stack : String(exception)
         }`,
       );
+      // This custom @Catch() handles the error before Sentry's global filter
+      // would, so capture it explicitly or unexpected 500s stay invisible.
+      // No-op when SENTRY_DSN is unset.
+      Sentry.captureException(exception);
     }
 
     const envelope: ErrorEnvelope = { error: { code, message, retryable } };

@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
+import { View } from 'react-native';
 import {
-  CollapsingHeader,
   EmptyState,
   ErrorState,
+  Screen,
   SkeletonCard,
+  Txt,
 } from '../src/design-system';
-import { BackButton } from '../src/navigation/BackButton';
+import { ScreenHeader } from '../src/navigation/ScreenHeader';
 import { track } from '../src/analytics';
 import { useHealthSummary } from '../src/api/queries';
 import { MetricTrendCard } from '../src/features/health/MetricTrendCard';
@@ -31,29 +33,29 @@ export default function HeartScreen() {
   );
 
   return (
-    <CollapsingHeader
-      title="Heart"
-      subtitle="Your last 7 days"
-      left={<BackButton className="" />}
-      onRefresh={() => summary.refetch()}
-      refreshing={summary.isFetching}
-    >
-      {summary.isLoading ? (
-        <>
-          <SkeletonCard />
-          <SkeletonCard />
-        </>
-      ) : summary.isError ? (
-        <ErrorState onRetry={() => summary.refetch()} />
-      ) : series.length === 0 ? (
-        <EmptyState
-          icon="heart"
-          title="No heart data yet"
-          message="Connect a wearable that tracks heart rate, or it will appear here after your next sync."
-        />
-      ) : (
-        series.map((s) => <MetricTrendCard key={s.type} series={s} />)
-      )}
-    </CollapsingHeader>
+    <Screen scroll onRefresh={() => summary.refetch()} refreshing={summary.isFetching}>
+      <ScreenHeader title="Heart" className="mb-xs" />
+      <Txt variant="body-sm" className="mb-lg text-body">
+        Your last 7 days
+      </Txt>
+      <View className="gap-md">
+        {summary.isLoading ? (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        ) : summary.isError ? (
+          <ErrorState onRetry={() => summary.refetch()} />
+        ) : series.length === 0 ? (
+          <EmptyState
+            icon="heart"
+            title="No heart data yet"
+            message="Connect a wearable that tracks heart rate, or it will appear here after your next sync."
+          />
+        ) : (
+          series.map((s) => <MetricTrendCard key={s.type} series={s} />)
+        )}
+      </View>
+    </Screen>
   );
 }

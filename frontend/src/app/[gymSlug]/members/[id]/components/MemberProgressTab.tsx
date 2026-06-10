@@ -14,15 +14,24 @@ import {
   useDeleteProgressPhoto,
 } from "@/features/progress";
 import type { BodyStat, CreateBodyStatPayload, CreateProgressPhotoPayload } from "@/features/progress";
+import dynamic from "next/dynamic";
 import {
   ProgressSummaryCards,
-  MeasurementChart,
   MeasurementTable,
   AddMeasurementDialog,
   EditMeasurementDialog,
   ProgressPhotoGallery,
   PhotoUploadDialog,
 } from "@/features/progress/components";
+import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
+
+const MeasurementChart = dynamic(
+  () =>
+    import("@/features/progress/components/MeasurementChart").then((m) => ({
+      default: m.MeasurementChart,
+    })),
+  { ssr: false, loading: () => <LoadingSkeleton className="h-72 w-full" /> },
+);
 
 interface MemberProgressTabProps {
   memberId: string;

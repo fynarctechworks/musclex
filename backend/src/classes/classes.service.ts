@@ -4,9 +4,12 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ResourceLimitService } from '../common/services/resource-limit.service';
 import { getTenantGymId } from '../common/tenant-context';
+
+type Tx = Prisma.TransactionClient;
 
 // LEGACY: migrate to ClassTemplate/ClassSession endpoints
 // This service operates on the legacy Class and ClassEnrollment Prisma models.
@@ -17,6 +20,47 @@ export class ClassesService {
     private prisma: PrismaService,
     private resourceLimits: ResourceLimitService,
   ) {}
+
+  // Upper bound on how far back we look for a potentially-overlapping class.
+  // No gym class realistically runs longer than this; it keeps the candidate
+  // query small without scanning the trainer's full history.
+  private static readonly MAX_CLASS_DURATION_MS = 24 * 60 * 60 * 1000;
+
+  /**
+   * Find an existing class for `trainerId` whose time range truly overlaps
+   * [startsAt, endsAt). Overlap is computed from each existing class's OWN
+   * duration (existing.end = existing.start + existing.duration_minutes), so a
+   * short earlier class that already finished does NOT count as a conflict, and
+   * a longer earlier class that is still running DOES. Back-to-back classes
+   * (existing.end === startsAt) are allowed.
+   */
+  private async findTrainerConflict(params: {
+    trainerId: string;
+    startsAt: Date;
+    endsAt: Date;
+    excludeClassId?: string;
+  }) {
+    const { trainerId, startsAt, endsAt, excludeClassId } = params;
+
+    const candidates = await this.prisma.class.findMany({
+      where: {
+        ...(excludeClassId ? { id: { not: excludeClassId } } : {}),
+        trainer_id: trainerId,
+        status: { not: 'cancelled' },
+        starts_at: {
+          lt: endsAt, // existing.start < new.end
+          gte: new Date(startsAt.getTime() - ClassesService.MAX_CLASS_DURATION_MS),
+        },
+      },
+      select: { id: true, name: true, starts_at: true, duration_minutes: true },
+    });
+
+    // Second half of the overlap test, using each class's real end time.
+    return candidates.find((c) => {
+      const existingEnd = c.starts_at.getTime() + c.duration_minutes * 60000;
+      return existingEnd > startsAt.getTime(); // existing.end > new.start
+    });
+  }
 
   async create(studioId: string, data: {
     branch_id: string;
@@ -43,19 +87,11 @@ export class ClassesService {
 
     const endsAt = new Date(startsAt.getTime() + data.duration_minutes * 60000);
 
-    // Check for trainer double-booking (SCOPED TO STUDIO)
-    const conflict = await this.prisma.class.findFirst({
-      where: {
-
-        trainer_id: data.trainer_id,
-        status: { not: 'cancelled' },
-        starts_at: { lt: endsAt },
-        AND: {
-          starts_at: {
-            gte: new Date(startsAt.getTime() - data.duration_minutes * 60000),
-          },
-        },
-      },
+    // Check for trainer double-booking (real interval overlap, SCOPED TO STUDIO)
+    const conflict = await this.findTrainerConflict({
+      trainerId: data.trainer_id,
+      startsAt,
+      endsAt,
     });
 
     if (conflict) {
@@ -160,7 +196,13 @@ export class ClassesService {
           branch: { select: { id: true, name: true } },
           trainer: { select: { id: true, full_name: true } },
           substitute_trainer: { select: { id: true, full_name: true } },
-          _count: { select: { enrollments: true } },
+          // Return only ENROLLED rows so the frontend's `enrollments.length`
+          // matches the schedule's "X/capacity" headcount (mirrors findOne).
+          // Excludes waitlisted/cancelled, which must not count toward fill.
+          enrollments: {
+            where: { status: 'enrolled' },
+            select: { id: true },
+          },
         },
         skip,
         take: limit,
@@ -230,19 +272,11 @@ export class ClassesService {
     const endsAt = new Date(startsAt.getTime() + duration * 60000);
 
     if (data.trainer_id || data.starts_at || data.duration_minutes) {
-      const conflict = await this.prisma.class.findFirst({
-        where: {
-          id: { not: id },
-  
-          trainer_id: trainerId,
-          status: { not: 'cancelled' },
-          starts_at: { lt: endsAt },
-          AND: {
-            starts_at: {
-              gte: new Date(startsAt.getTime() - duration * 60000),
-            },
-          },
-        },
+      const conflict = await this.findTrainerConflict({
+        trainerId,
+        startsAt,
+        endsAt,
+        excludeClassId: id,
       });
 
       if (conflict) {
@@ -366,89 +400,126 @@ export class ClassesService {
     });
   }
 
-  async cancelEnrollment(studioId: string, classId: string, memberId: string, data?: { branch_id?: string }) {
-    // Verify class exists in tenant schema
-    const classItem = await this.prisma.class.findFirst({
-      where: { id: classId },
-    });
-    if (!classItem) throw new NotFoundException('Class not found');
-
-    const enrollment = await this.prisma.classEnrollment.findFirst({
-      where: {
-        class_id: classId,
-        member_id: memberId,
-        status: { in: ['enrolled', 'waitlisted'] },
-      },
+  /**
+   * Compact a class's waitlist positions to a contiguous 1..N sequence,
+   * preserving current order (position, then enrollment time as a tiebreaker).
+   * Call after anyone leaves the waitlist (promotion or cancellation) so
+   * "position 1" always means the member who is next in line.
+   */
+  private async resequenceWaitlist(tx: Tx, classId: string) {
+    const waitlisted = await tx.classEnrollment.findMany({
+      where: { class_id: classId, status: 'waitlisted' },
+      orderBy: [{ waitlist_position: 'asc' }, { enrolled_at: 'asc' }],
+      select: { id: true, waitlist_position: true },
     });
 
-    if (!enrollment) {
-      throw new NotFoundException('Enrollment not found for this member');
-    }
-
-    const wasEnrolled = enrollment.status === 'enrolled';
-
-    await this.prisma.classEnrollment.update({
-      where: { id: enrollment.id },
-      data: { status: 'cancelled', waitlist_position: null },
-    });
-
-    // If the cancelled member was enrolled (not waitlisted), promote the next waitlisted member
-    let promoted = null;
-    if (wasEnrolled) {
-      const nextWaitlisted = await this.prisma.classEnrollment.findFirst({
-        where: { class_id: classId, status: 'waitlisted' },
-        orderBy: { waitlist_position: 'asc' },
-      });
-
-      if (nextWaitlisted) {
-        promoted = await this.prisma.classEnrollment.update({
-          where: { id: nextWaitlisted.id },
-          data: { status: 'enrolled', waitlist_position: null },
-          include: {
-            member: { select: { id: true, full_name: true, member_code: true } },
-          },
+    for (let i = 0; i < waitlisted.length; i++) {
+      const desired = i + 1;
+      if (waitlisted[i].waitlist_position !== desired) {
+        await tx.classEnrollment.update({
+          where: { id: waitlisted[i].id },
+          data: { waitlist_position: desired },
         });
       }
     }
+  }
 
-    return {
-      cancelled: true,
-      promoted: promoted
-        ? {
-            enrollment_id: promoted.id,
-            member_name: promoted.member.full_name,
-          }
-        : null,
-    };
+  async cancelEnrollment(studioId: string, classId: string, memberId: string, data?: { branch_id?: string }) {
+    // Cancel + auto-promote must be atomic: without the transaction, two
+    // concurrent cancellations could both promote the same waitlisted member
+    // or leave the class over/under capacity.
+    return this.prisma.$transaction(async (tx) => {
+      const classItem = await tx.class.findFirst({
+        where: { id: classId },
+      });
+      if (!classItem) throw new NotFoundException('Class not found');
+
+      const enrollment = await tx.classEnrollment.findFirst({
+        where: {
+          class_id: classId,
+          member_id: memberId,
+          status: { in: ['enrolled', 'waitlisted'] },
+        },
+      });
+
+      if (!enrollment) {
+        throw new NotFoundException('Enrollment not found for this member');
+      }
+
+      const wasEnrolled = enrollment.status === 'enrolled';
+
+      await tx.classEnrollment.update({
+        where: { id: enrollment.id },
+        data: { status: 'cancelled', waitlist_position: null },
+      });
+
+      // A spot only frees up when an ENROLLED member leaves. Promote the member
+      // at the front of the waitlist (lowest position) into that spot.
+      let promoted = null;
+      if (wasEnrolled) {
+        const nextWaitlisted = await tx.classEnrollment.findFirst({
+          where: { class_id: classId, status: 'waitlisted' },
+          orderBy: [{ waitlist_position: 'asc' }, { enrolled_at: 'asc' }],
+        });
+
+        if (nextWaitlisted) {
+          promoted = await tx.classEnrollment.update({
+            where: { id: nextWaitlisted.id },
+            data: { status: 'enrolled', waitlist_position: null },
+            include: {
+              member: { select: { id: true, full_name: true, member_code: true } },
+            },
+          });
+        }
+      }
+
+      // Promoting the front member (or a waitlisted member cancelling) leaves a
+      // gap in the position sequence — close it so positions stay 1..N.
+      await this.resequenceWaitlist(tx, classId);
+
+      return {
+        cancelled: true,
+        promoted: promoted
+          ? {
+              enrollment_id: promoted.id,
+              member_name: promoted.member.full_name,
+            }
+          : null,
+      };
+    });
   }
 
   async promoteFromWaitlist(studioId: string, classId: string, enrollmentId: string, data?: { branch_id?: string }) {
-    // Verify class exists in tenant schema
-    const classItem = await this.prisma.class.findFirst({
-      where: { id: classId },
+    return this.prisma.$transaction(async (tx) => {
+      const classItem = await tx.class.findFirst({
+        where: { id: classId },
+      });
+      if (!classItem) throw new NotFoundException('Class not found');
+
+      const enrollment = await tx.classEnrollment.findFirst({
+        where: {
+          id: enrollmentId,
+          class_id: classId,
+          status: 'waitlisted',
+        },
+      });
+
+      if (!enrollment) {
+        throw new NotFoundException('Waitlisted enrollment not found');
+      }
+
+      const updated = await tx.classEnrollment.update({
+        where: { id: enrollmentId },
+        data: { status: 'enrolled', waitlist_position: null },
+        include: {
+          member: { select: { id: true, full_name: true, member_code: true } },
+        },
+      });
+
+      // Removing someone from the middle of the waitlist leaves a gap.
+      await this.resequenceWaitlist(tx, classId);
+
+      return { ...updated, message: 'Promoted from waitlist to enrolled.' };
     });
-    if (!classItem) throw new NotFoundException('Class not found');
-
-    const enrollment = await this.prisma.classEnrollment.findFirst({
-      where: {
-        id: enrollmentId,
-        class_id: classId,
-        status: 'waitlisted',
-      },
-    });
-
-    if (!enrollment) {
-      throw new NotFoundException('Waitlisted enrollment not found');
-    }
-
-    const updated = await this.prisma.classEnrollment.update({
-      where: { id: enrollmentId },
-      data: { status: 'enrolled', waitlist_position: null },
-      include: {
-        member: { select: { id: true, full_name: true, member_code: true } },
-      },
-    });
-
-    return { ...updated, message: 'Promoted from waitlist to enrolled.' };
   }
 }

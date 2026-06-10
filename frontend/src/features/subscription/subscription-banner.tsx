@@ -77,7 +77,7 @@ export function SubscriptionBanner() {
 
   const handleClick = () => {
     if (status === 'suspended') {
-      window.location.href = 'mailto:support@fitsyncpro.app';
+      window.location.href = 'mailto:support@musclex.app';
       return;
     }
     if (gymSlug) {

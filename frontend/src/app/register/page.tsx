@@ -11,6 +11,7 @@ import { authApi } from '@/features/auth';
 import { useAuthStore } from '@/stores/auth-store';
 import { toast } from 'sonner';
 import { OnboardingLayout } from '@/components/onboarding/onboarding-layout';
+import { SocialAuthButtons, AuthDivider } from '@/components/auth/social-auth-buttons';
 
 interface RegisterFormData {
   full_name: string;
@@ -89,6 +90,9 @@ export default function RegisterPage() {
           Step 1 of 7 — Create Account
         </p>
       </div>
+
+      <SocialAuthButtons providers={['google', 'apple']} disabled={loading} />
+      <AuthDivider label="or sign up with email" />
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="flex items-center gap-2 text-primary mb-2">

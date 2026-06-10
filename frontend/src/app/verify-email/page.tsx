@@ -124,6 +124,25 @@ function VerifyEmailContent() {
     }
   }, [email, router]);
 
+  // Dev/testing shortcut: the stored verification URL may carry a stale host/port
+  // (e.g. an old FRONTEND_URL). Pull just the token out and re-verify against the
+  // CURRENT origin so the click can never die on a refused connection. The real
+  // /auth/verify-email endpoint runs either way — this is not an auth bypass.
+  const handleDevVerify = useCallback(() => {
+    let verifyToken = '';
+    try {
+      verifyToken = new URL(devVerifyUrl).searchParams.get('token') || '';
+    } catch {
+      verifyToken = devVerifyUrl.match(/token=([^&]+)/)?.[1] ?? '';
+    }
+    if (!verifyToken) {
+      toast.error('No verification token available. Please resend the email.');
+      return;
+    }
+    // Same-route push: the auto-verify effect re-fires on the new ?token=.
+    router.push(`/verify-email?token=${verifyToken}`);
+  }, [devVerifyUrl, router]);
+
   // Token verification in progress
   if (status === 'verifying') {
     return (
@@ -209,14 +228,15 @@ function VerifyEmailContent() {
         {devVerifyUrl && (
           <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-center">
             <p className="text-[13px] text-muted-foreground mb-3">
-              Having trouble receiving the email? Verify directly using the link below:
+              Having trouble receiving the email? Verify directly using the button below:
             </p>
-            <a
-              href={devVerifyUrl}
+            <button
+              type="button"
+              onClick={handleDevVerify}
               className="inline-block bg-primary text-primary-foreground px-5 py-2.5 rounded-lg text-[13px] font-semibold hover:opacity-90 transition-opacity"
             >
               Verify My Email →
-            </a>
+            </button>
           </div>
         )}
 

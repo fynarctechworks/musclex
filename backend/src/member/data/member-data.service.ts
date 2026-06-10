@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MemberException } from '../common/member-exception';
 import { MemberWorkoutService } from './member-workout.service';
+import { MemberNutritionService } from './member-nutrition.service';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
 import type {
   MemberProfileData,
@@ -10,14 +11,24 @@ import type {
   BodyMetricData,
   OccupancyData,
   HomeDashboardData,
+  GymLocationsData,
+  GymLocationData,
+  ClassSummaryData,
 } from '../contract';
+import { MemberStreakService } from './member-streak.service';
+import {
+  PersonalizationService,
+  ageFromDob,
+} from './personalization.service';
+import { UpdateProfileDto } from './dto';
 import {
   toNumber,
   mapGoal,
+  primaryGoalToLegacy,
+  legacyToPrimaryGoal,
   mapMembershipStatus,
   daysUntil,
   occupancyLevel,
-  computeStreakDays,
   greeting,
 } from './mappers';
 
@@ -33,12 +44,12 @@ import {
  */
 @Injectable()
 export class MemberDataService {
-  /** How far back to scan check-ins when computing a streak. */
-  private readonly streakWindowDays = 90;
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly workouts: MemberWorkoutService,
+    private readonly nutrition: MemberNutritionService,
+    private readonly streak: MemberStreakService,
+    private readonly personalization: PersonalizationService,
   ) {}
 
   async getProfile(member: CurrentMemberContext): Promise<MemberProfileData> {
@@ -53,15 +64,155 @@ export class MemberDataService {
       select: { name: true },
     });
 
+    return this.buildProfile(m, studio?.name ?? undefined);
+  }
+
+  /**
+   * Partial profile update — powers per-step onboarding auto-save and later
+   * edits. Writes gender/DOB to `members` and the rest to `member_profiles`
+   * (upsert; gym_id injected on create). When a personalization-relevant field
+   * changes (or onboarding completes), recomputes the nutrition targets and
+   * upserts the member's NutritionGoal so Home/Nutrition reflect them. Member is
+   * always from the token — no client id is trusted.
+   */
+  async updateProfile(
+    member: CurrentMemberContext,
+    dto: UpdateProfileDto,
+  ): Promise<MemberProfileData> {
+    // members table — only gender / date_of_birth live here.
+    const memberData: { gender?: string; date_of_birth?: Date } = {};
+    if (dto.gender !== undefined) memberData.gender = dto.gender;
+    if (dto.dateOfBirth !== undefined) memberData.date_of_birth = new Date(dto.dateOfBirth);
+    if (Object.keys(memberData).length) {
+      await this.prisma.member.update({ where: { id: member.memberId }, data: memberData });
+    }
+
+    // member_profiles — the rest of the fitness profile.
+    const profileSet: Record<string, unknown> = {};
+    if (dto.heightCm !== undefined) profileSet.height = dto.heightCm;
+    if (dto.weightKg !== undefined) profileSet.weight = dto.weightKg;
+    if (dto.heightUnit !== undefined) profileSet.height_unit = dto.heightUnit;
+    if (dto.weightUnit !== undefined) profileSet.weight_unit = dto.weightUnit;
+    if (dto.goals !== undefined) profileSet.goals = dto.goals;
+    if (dto.primaryGoal !== undefined) {
+      // keep legacy fitness_goal in sync so admin tooling + the `goal` field work.
+      const legacy = primaryGoalToLegacy(dto.primaryGoal);
+      if (legacy) profileSet.fitness_goal = legacy;
+      // if no explicit goals[] given, seed it with the primary.
+      if (dto.goals === undefined) profileSet.goals = [dto.primaryGoal];
+    }
+    if (dto.activityLevel !== undefined) profileSet.activity_level = dto.activityLevel;
+    if (dto.trainingExperience !== undefined) profileSet.training_experience = dto.trainingExperience;
+    if (dto.workoutPreferences !== undefined) profileSet.workout_preferences = dto.workoutPreferences;
+    if (dto.limitations !== undefined) profileSet.medical_conditions = dto.limitations;
+    if (dto.onboardingStep !== undefined) profileSet.onboarding_step = dto.onboardingStep;
+    if (dto.onboardingComplete) {
+      profileSet.onboarding_completed_at = new Date();
+      profileSet.onboarding_step = null; // clear the resume marker on completion
+    }
+
+    await this.prisma.memberProfile.upsert({
+      where: { member_id: member.memberId },
+      create: { gym_id: member.tenantId, member_id: member.memberId, ...profileSet },
+      update: profileSet,
+    });
+
+    // Recompute personalization when a relevant input changed (or on completion)
+    // and persist the nutrition targets so the rest of the app reflects them.
+    const touchedPersonalization =
+      dto.gender !== undefined ||
+      dto.dateOfBirth !== undefined ||
+      dto.heightCm !== undefined ||
+      dto.weightKg !== undefined ||
+      dto.primaryGoal !== undefined ||
+      dto.goals !== undefined ||
+      dto.activityLevel !== undefined ||
+      dto.trainingExperience !== undefined ||
+      !!dto.onboardingComplete;
+
+    const fresh = await this.prisma.member.findFirst({
+      where: { id: member.memberId },
+      include: { profile: true },
+    });
+    if (!fresh) throw MemberException.notFound('Member not found.');
+
+    if (touchedPersonalization) {
+      const rec = this.recommendationFor(fresh);
+      if (rec?.dailyCalories) {
+        await this.nutrition.setGoal(member, {
+          kcal: rec.dailyCalories,
+          proteinG: rec.proteinG,
+          carbsG: rec.carbsG,
+          fatG: rec.fatG,
+          waterMl: rec.waterMl,
+        });
+      }
+    }
+
+    const studio = await this.prisma.studio.findUnique({
+      where: { id: member.tenantId },
+      select: { name: true },
+    });
+    return this.buildProfile(fresh, studio?.name ?? undefined);
+  }
+
+  /** Compose the full contract profile from a member (+ included profile) row. */
+  private buildProfile(
+    m: { id: string; full_name: string; phone: string; gender: string | null; date_of_birth: Date | null; profile_photo_url: string | null; profile: any },
+    gymName?: string,
+  ): MemberProfileData {
+    const p = m.profile;
+    const goals = (p?.goals ?? []) as MemberProfileData['goals'];
+    const primaryGoal =
+      (goals && goals.length ? goals[0] : undefined) ?? legacyToPrimaryGoal(p?.fitness_goal);
+
     return {
       id: m.id,
       name: m.full_name,
       phone: m.phone,
-      gymName: studio?.name ?? undefined,
-      goal: mapGoal(m.profile?.fitness_goal),
-      // experienceLevel has no backing column yet (flagged) — omit.
+      gymName,
+      // legacy compact fields (back-compat)
+      goal: mapGoal(p?.fitness_goal),
+      experienceLevel: (p?.training_experience as MemberProfileData['experienceLevel']) ?? undefined,
       avatarUrl: m.profile_photo_url ?? null,
+      // fitness profile
+      gender: (m.gender as MemberProfileData['gender']) ?? null,
+      dateOfBirth: m.date_of_birth ? m.date_of_birth.toISOString().slice(0, 10) : null,
+      age: ageFromDob(m.date_of_birth),
+      heightCm: toNumber(p?.height),
+      weightKg: toNumber(p?.weight),
+      heightUnit: (p?.height_unit as MemberProfileData['heightUnit']) ?? 'cm',
+      weightUnit: (p?.weight_unit as MemberProfileData['weightUnit']) ?? 'kg',
+      primaryGoal,
+      goals: goals ?? [],
+      activityLevel: (p?.activity_level as MemberProfileData['activityLevel']) ?? null,
+      trainingExperience: (p?.training_experience as MemberProfileData['trainingExperience']) ?? null,
+      workoutPreferences: (p?.workout_preferences ?? []) as MemberProfileData['workoutPreferences'],
+      limitations: (p?.medical_conditions ?? []) as string[],
+      onboardingCompleted: !!p?.onboarding_completed_at,
+      onboardingStep: p?.onboarding_step ?? null,
+      recommendation: this.recommendationFor(m),
     };
+  }
+
+  /** Build the personalization block from a member (+ included profile) row. */
+  private recommendationFor(m: {
+    gender: string | null;
+    date_of_birth: Date | null;
+    profile: any;
+  }): MemberProfileData['recommendation'] {
+    const p = m.profile;
+    const primaryGoal =
+      (p?.goals?.length ? p.goals[0] : undefined) ?? legacyToPrimaryGoal(p?.fitness_goal);
+    return this.personalization.compute({
+      gender: m.gender as any,
+      age: ageFromDob(m.date_of_birth),
+      heightCm: toNumber(p?.height),
+      weightKg: toNumber(p?.weight),
+      activityLevel: p?.activity_level as any,
+      primaryGoal: primaryGoal ?? null,
+      trainingExperience: p?.training_experience as any,
+    });
   }
 
   async getMembership(member: CurrentMemberContext): Promise<MembershipData> {
@@ -178,6 +329,41 @@ export class MemberDataService {
     return this.occupancyForBranch(m.branch_id);
   }
 
+  /**
+   * Branches of the member's gym, for the in-app location finder. gym_id is
+   * auto-injected by the tenant-scoped Prisma client, so this can never return
+   * another gym's branches. Decimal lat/lng are coerced to plain numbers.
+   * The app sorts by distance from the device; the BFF returns an unranked list.
+   */
+  async getLocations(_member: CurrentMemberContext): Promise<GymLocationsData> {
+    const branches = await this.prisma.branch.findMany({
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        city: true,
+        latitude: true,
+        longitude: true,
+        phone: true,
+        status: true,
+      },
+    });
+
+    return {
+      branches: branches.map((b) => ({
+        id: b.id,
+        name: b.name,
+        address: b.address ?? undefined,
+        city: b.city ?? undefined,
+        latitude: toNumber(b.latitude),
+        longitude: toNumber(b.longitude),
+        phone: b.phone ?? undefined,
+        status: b.status as GymLocationData['status'],
+      })),
+    };
+  }
+
   async getHome(member: CurrentMemberContext): Promise<HomeDashboardData> {
     const m = await this.prisma.member.findFirst({
       where: { id: member.memberId },
@@ -185,25 +371,67 @@ export class MemberDataService {
     });
     if (!m) throw MemberException.notFound('Member not found.');
 
-    const since = new Date(Date.now() - this.streakWindowDays * 86_400_000);
-    const [membership, occupancy, checkIns, todayWorkout] = await Promise.all([
-      this.membershipSummary(member),
-      this.occupancyForBranch(m.branch_id),
-      this.prisma.checkIn.findMany({
-        where: { member_id: member.memberId, checked_in_at: { gte: since } },
-        select: { checked_in_at: true },
-      }),
-      this.workouts.getTodaySummary(member),
-    ]);
+    const [membership, occupancy, streakDays, todayActivity, todayWorkout, nextClass, nutrition] =
+      await Promise.all([
+        this.membershipSummary(member),
+        this.occupancyForBranch(m.branch_id),
+        this.streak.getStreakDays(member.memberId),
+        this.streak.getTodayActivity(member.memberId),
+        this.workouts.getTodaySummary(member),
+        this.nextClassForBranch(m.branch_id),
+        this.nutrition.getTodaySummary(member),
+      ]);
+
+    const didSomethingToday =
+      todayActivity.checkedIn || todayActivity.workoutLogged || todayActivity.mealLogged;
 
     return {
       greeting: greeting(m.full_name),
       membership,
-      streak: { days: computeStreakDays(checkIns.map((c) => c.checked_in_at)) },
+      streak: { days: streakDays },
+      today: {
+        ...todayActivity,
+        // A streak only counts as "at risk" if it exists and nothing has kept it alive yet today.
+        streakAtRisk: streakDays > 0 && !didSomethingToday,
+      },
       todayWorkout,
-      // Class domain is Phase 2 (flagged) — null-safe per contract.
-      nextClass: null,
+      nextClass,
       occupancy,
+      nutrition,
+    };
+  }
+
+  /**
+   * The next upcoming class at the member's branch (or null). Surfaces the same
+   * legacy Class/ClassEnrollment rows the admin Schedule writes, so what the gym
+   * staff create appears on the member's Home. gym_id is auto-injected by the
+   * tenant-scoped Prisma client and we additionally pin branch_id — this can
+   * never read another gym's (or another branch's) classes. `seatsLeft` counts
+   * only ENROLLED rows (waitlisted/cancelled don't occupy a seat).
+   */
+  private async nextClassForBranch(
+    branchId: string,
+  ): Promise<ClassSummaryData | null> {
+    const cls = await this.prisma.class.findFirst({
+      where: {
+        branch_id: branchId,
+        status: { not: 'cancelled' },
+        starts_at: { gte: new Date() },
+      },
+      orderBy: { starts_at: 'asc' },
+      select: { id: true, name: true, starts_at: true, capacity: true },
+    });
+    if (!cls) return null;
+
+    const enrolled = await this.prisma.classEnrollment.count({
+      where: { class_id: cls.id, status: 'enrolled' },
+    });
+
+    return {
+      id: cls.id,
+      title: cls.name,
+      startsAt: cls.starts_at.toISOString(),
+      seatsLeft: Math.max(0, cls.capacity - enrolled),
     };
   }
 

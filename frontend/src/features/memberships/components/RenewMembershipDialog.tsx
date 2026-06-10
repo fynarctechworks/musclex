@@ -145,7 +145,6 @@ export function RenewMembershipDialog({
                 <SelectItem value="upi">UPI</SelectItem>
                 <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                 <SelectItem value="razorpay">Razorpay</SelectItem>
-                <SelectItem value="stripe">Stripe</SelectItem>
               </SelectContent>
             </Select>
             {errors.payment_method && <p className="mt-1 text-xs text-destructive">{errors.payment_method.message}</p>}

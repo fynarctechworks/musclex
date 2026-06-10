@@ -101,24 +101,23 @@ describe('DashboardService', () => {
 
   describe('getBranchComparison', () => {
     it('should return branch comparison data', async () => {
+      // Current impl ([dashboard.service.ts:283-318]) does NOT use groupBy;
+      // it fans out per-branch with member.count + payment.aggregate +
+      // checkIn.count.
       prisma.branch.findMany.mockResolvedValue([
         { id: 'branch-1', name: 'Main Branch' },
       ]);
-      prisma.member.groupBy.mockResolvedValue([
-        { branch_id: 'branch-1', _count: { _all: 50 } },
-      ]);
-      prisma.payment.groupBy.mockResolvedValue([
-        { branch_id: 'branch-1', _sum: { amount: 100000 } },
-      ]);
-      prisma.checkIn.groupBy.mockResolvedValue([
-        { branch_id: 'branch-1', _count: { _all: 30 } },
-      ]);
+      prisma.member.count.mockResolvedValue(50);
+      prisma.payment.aggregate.mockResolvedValue({ _sum: { amount: 100000 } });
+      prisma.checkIn.count.mockResolvedValue(30);
 
-      const result = await service.getBranchComparison() as any[];
+      const result = (await service.getBranchComparison()) as any[];
       expect(result).toBeDefined();
       expect(result).toHaveLength(1);
       expect(result[0].branch_name).toBe('Main Branch');
       expect(result[0].active_members).toBe(50);
+      expect(result[0].monthly_revenue).toBe(100000);
+      expect(result[0].monthly_check_ins).toBe(30);
     });
   });
 });

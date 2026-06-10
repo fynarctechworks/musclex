@@ -7,6 +7,7 @@ import {
   usePlanDistribution,
 } from '@/hooks/use-analytics';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/shared/error-state';
 import {
   AreaChart,
   Area,
@@ -40,9 +41,9 @@ function formatCurrency(amount: number) {
 }
 
 export default function AnalyticsPage() {
-  const { data: revenue, isLoading: loadingRevenue } = useRevenueTrend(12);
-  const { data: growth, isLoading: loadingGrowth } = useGrowthMetrics(12);
-  const { data: distribution, isLoading: loadingDist } = usePlanDistribution();
+  const { data: revenue, isLoading: loadingRevenue, isError: errorRevenue, refetch: refetchRevenue } = useRevenueTrend(12);
+  const { data: growth, isLoading: loadingGrowth, isError: errorGrowth, refetch: refetchGrowth } = useGrowthMetrics(12);
+  const { data: distribution, isLoading: loadingDist, isError: errorDist, refetch: refetchDist } = usePlanDistribution();
 
   return (
     <div>
@@ -56,6 +57,8 @@ export default function AnalyticsPage() {
           <h3 className="text-base font-semibold text-foreground mb-4">Revenue Trend</h3>
           {loadingRevenue ? (
             <Skeleton className="h-[300px] rounded-lg" />
+          ) : errorRevenue ? (
+            <ErrorState title="Could not load revenue trend" onRetry={() => refetchRevenue()} />
           ) : (
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -100,6 +103,8 @@ export default function AnalyticsPage() {
           <h3 className="text-base font-semibold text-foreground mb-4">Tenant Growth</h3>
           {loadingGrowth ? (
             <Skeleton className="h-[300px] rounded-lg" />
+          ) : errorGrowth ? (
+            <ErrorState title="Could not load tenant growth" onRetry={() => refetchGrowth()} />
           ) : (
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -137,6 +142,8 @@ export default function AnalyticsPage() {
           <h3 className="text-base font-semibold text-foreground mb-4">Plan Distribution</h3>
           {loadingDist ? (
             <Skeleton className="h-[350px] rounded-lg" />
+          ) : errorDist ? (
+            <ErrorState title="Could not load plan distribution" onRetry={() => refetchDist()} />
           ) : (
             <div className="h-[350px]">
               <ResponsiveContainer width="100%" height="100%">

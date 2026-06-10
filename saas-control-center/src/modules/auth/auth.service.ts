@@ -18,7 +18,7 @@ import Redis from 'ioredis';
 import { PrismaService } from '../../database/prisma.service';
 import { REDIS_CLIENT } from '../../config/redis.module';
 import { AuditLogsService, AuditContext } from '../audit-logs/audit-logs.service';
-import { AuditAction } from '@prisma/client';
+import { AdminRole, AuditAction } from '@prisma/client';
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_SECONDS = 900; // 15 minutes
@@ -56,6 +56,7 @@ export class AuthService implements OnModuleInit {
         email,
         password_hash: await bcrypt.hash(password, SALT_ROUNDS),
         name: 'Super Admin',
+        role: AdminRole.SUPER,
       },
     });
   }
@@ -229,7 +230,7 @@ export class AuthService implements OnModuleInit {
   async getProfile(adminId: string) {
     const admin = await this.prisma.adminUser.findUniqueOrThrow({
       where: { id: adminId },
-      select: { id: true, email: true, name: true, mfa_enabled: true, last_login_at: true, created_at: true, mfa_backup_codes: true },
+      select: { id: true, email: true, name: true, role: true, mfa_enabled: true, last_login_at: true, created_at: true, mfa_backup_codes: true },
     });
     return {
       ...admin,
@@ -242,7 +243,7 @@ export class AuthService implements OnModuleInit {
     const updated = await this.prisma.adminUser.update({
       where: { id: adminId },
       data: { name },
-      select: { id: true, email: true, name: true, mfa_enabled: true },
+      select: { id: true, email: true, name: true, role: true, mfa_enabled: true },
     });
     return updated;
   }
@@ -344,7 +345,10 @@ export class AuthService implements OnModuleInit {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
-  private async issueFullSession(admin: { id: string; email: string; name: string }, ctx: Omit<AuditContext, 'admin_id'>) {
+  private async issueFullSession(
+    admin: { id: string; email: string; name: string; role?: AdminRole },
+    ctx: Omit<AuditContext, 'admin_id'>,
+  ) {
     await this.prisma.adminUser.update({ where: { id: admin.id }, data: { last_login_at: new Date() } });
     const tokens = await this.generateTokens(admin.id, admin.email);
     await this.audit.log(AuditAction.LOGIN, 'admin_user', admin.id, { admin_id: admin.id, ...ctx });
@@ -352,7 +356,12 @@ export class AuthService implements OnModuleInit {
       requires_mfa: false,
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
-      admin: { id: admin.id, email: admin.email, name: admin.name },
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        role: admin.role ?? AdminRole.SUPER,
+      },
     };
   }
 

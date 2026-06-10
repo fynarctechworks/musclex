@@ -1,1 +1,1 @@
-ALTER TABLE public.tenants ADD COLUMN IF NOT EXISTS account_type TEXT NOT NULL DEFAULT 'gym';
+ALTER TABLE scc.tenants ADD COLUMN IF NOT EXISTS account_type TEXT NOT NULL DEFAULT 'gym';

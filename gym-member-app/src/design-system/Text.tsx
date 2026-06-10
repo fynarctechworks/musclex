@@ -5,6 +5,7 @@ import { tracking } from './tokens';
 cssInterop(RNText, { className: 'style' });
 
 type Variant =
+  | 'display-2xl'
   | 'display-xl'
   | 'display-lg'
   | 'display-md'
@@ -15,9 +16,11 @@ type Variant =
   | 'caption'
   | 'mono';
 
-// Size + colour only. The font *family* is derived from `weight` (see FAMILY_CLASS)
-// so a custom-weight font is actually selected on native, where RN won't synthesise it.
+// Size + colour only. The font *family* is derived from the variant group + weight
+// (see familyClass) so a custom-weight font is actually selected on native, where
+// RN won't synthesise it.
 const VARIANT_CLASS: Record<Variant, string> = {
+  'display-2xl': 'text-display-2xl text-ink',
   'display-xl': 'text-display-xl text-ink',
   'display-lg': 'text-display-lg text-ink',
   'display-md': 'text-display-md text-ink',
@@ -29,8 +32,8 @@ const VARIANT_CLASS: Record<Variant, string> = {
   mono: 'text-code text-mute',
 };
 
-// Geist display weights cap at 600; body 400/500 (design.md).
 const VARIANT_TRACKING: Partial<Record<Variant, number>> = {
+  'display-2xl': tracking.displayXl,
   'display-xl': tracking.displayXl,
   'display-lg': tracking.displayLg,
   'display-md': tracking.displayMd,
@@ -42,15 +45,33 @@ export interface TxtProps extends TextProps {
   variant?: Variant;
   /** Tailwind weight/colour overrides, e.g. "text-ink font-semibold". */
   className?: string;
-  weight?: '400' | '500' | '600';
+  weight?: '400' | '500' | '600' | '700';
 }
 
-// Weight → font family (each weight is a distinct bundled family — see tailwind.config).
-const FAMILY_CLASS: Record<NonNullable<TxtProps['weight']>, string> = {
-  '400': 'font-sans',
-  '500': 'font-sans-medium',
-  '600': 'font-sans-semibold',
-};
+const isDisplay = (v: Variant) => v.startsWith('display');
+
+/**
+ * Family resolution — the two-family system (tailwind.config.js):
+ *   • PRIMARY  = Manrope (`heading*`) for display / headings / large numbers.
+ *   • SECONDARY = Inter (`sans*`) for body & captions.
+ *   • `mono`   = JetBrains Mono.
+ * Each weight is its own bundled family, so weight maps to a distinct class.
+ */
+function familyClass(variant: Variant, weight: TxtProps['weight']): string {
+  if (variant === 'mono') return 'font-mono';
+  const w = weight ?? (isDisplay(variant) ? '600' : '400');
+  if (isDisplay(variant)) {
+    return w === '700'
+      ? 'font-heading-bold'
+      : w === '600'
+        ? 'font-heading-semibold'
+        : w === '500'
+          ? 'font-heading-medium'
+          : 'font-heading';
+  }
+  // Body / caption (Inter). Inter ships 400/500/600 here; 700 maps to 600.
+  return w === '500' ? 'font-sans-medium' : w === '600' || w === '700' ? 'font-sans-semibold' : 'font-sans';
+}
 
 export function Txt({
   variant = 'body-md',
@@ -60,7 +81,7 @@ export function Txt({
   ...rest
 }: TxtProps) {
   const ls = VARIANT_TRACKING[variant];
-  const family = variant === 'mono' ? 'font-mono' : FAMILY_CLASS[weight ?? '400'];
+  const family = familyClass(variant, weight);
   return (
     <RNText
       className={[VARIANT_CLASS[variant], family, className].filter(Boolean).join(' ')}

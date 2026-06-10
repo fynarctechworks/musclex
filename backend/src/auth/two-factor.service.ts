@@ -682,7 +682,7 @@ export class TwoFactorService {
     try {
       const fromEmail = this.configService.get(
         'RESEND_FROM_EMAIL',
-        'MuscleX <security@fitsyncpro.com>',
+        'MuscleX <security@musclex.com>',
       );
       await this.resend.emails.send({
         from: fromEmail,
@@ -727,7 +727,7 @@ export class TwoFactorService {
     try {
       const fromEmail = this.configService.get(
         'RESEND_FROM_EMAIL',
-        'MuscleX <security@fitsyncpro.com>',
+        'MuscleX <security@musclex.com>',
       );
       await this.resend.emails.send({
         from: fromEmail,

@@ -28,7 +28,7 @@ async function bootstrap() {
 
   const isProduction = configService.get<string>('NODE_ENV') === 'production';
   if (isProduction) {
-    requiredEnvVars.push('CORS_ORIGINS', 'TWO_FACTOR_ENCRYPTION_KEY', 'RAZORPAY_WEBHOOK_SECRET', 'STRIPE_WEBHOOK_SECRET');
+    requiredEnvVars.push('CORS_ORIGINS', 'TWO_FACTOR_ENCRYPTION_KEY', 'RAZORPAY_WEBHOOK_SECRET');
   }
 
   for (const envVar of requiredEnvVars) {
@@ -44,9 +44,16 @@ async function bootstrap() {
   // gzip compression
   app.use(compression());
 
-  // Request body size limit (1MB)
+  // Request body size limit (1MB). Capture the raw buffer on req.rawBody so
+  // payment webhook handlers can verify HMAC signatures against the exact bytes
+  // Razorpay signed (JSON.stringify(req.body) would not byte-match).
   app.use(
-    require('express').json({ limit: '1mb' }),
+    require('express').json({
+      limit: '1mb',
+      verify: (req: any, _res: any, buf: Buffer) => {
+        req.rawBody = buf;
+      },
+    }),
     require('express').urlencoded({ limit: '1mb', extended: true }),
   );
 
@@ -76,7 +83,7 @@ async function bootstrap() {
       .split(','),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'x-studio-id', 'x-branch-id', 'x-active-branch-id', 'x-correlation-id'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'x-studio-id', 'x-branch-id', 'x-active-branch-id', 'x-correlation-id', 'Idempotency-Key'],
     maxAge: 86400,
   });
 

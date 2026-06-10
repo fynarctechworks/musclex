@@ -2,7 +2,8 @@ import { forwardRef } from 'react';
 import { TextInput, TextInputProps, View } from 'react-native';
 import { cssInterop } from 'nativewind';
 import { Txt } from './Text';
-import { colors } from './tokens';
+import { useThemeColors } from './theme';
+import { useFieldFocus } from './field-focus';
 
 cssInterop(TextInput, { className: 'style' });
 
@@ -17,6 +18,8 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   { label, error, hint, className, ...rest },
   ref,
 ) {
+  const theme = useThemeColors();
+  const { focusProps, fieldStyle } = useFieldFocus();
   return (
     <View className="w-full">
       {label ? (
@@ -26,14 +29,15 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
       ) : null}
       <TextInput
         ref={ref}
-        placeholderTextColor={colors.mute}
+        placeholderTextColor={theme.mute}
         className={[
           'h-[48px] rounded-sm border bg-surface px-md text-body-md text-ink font-sans',
-          error ? 'border-error' : 'border-hairline',
           className,
         ]
           .filter(Boolean)
           .join(' ')}
+        style={fieldStyle(!!error)}
+        {...focusProps}
         {...rest}
       />
       {error ? (

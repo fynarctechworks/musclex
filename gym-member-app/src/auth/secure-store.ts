@@ -13,8 +13,8 @@ import type { TokenPair } from '../api/types';
  * secure store; web is for local development/design preview only, never the
  * shipping member surface (the app ships as a native dev/standalone build).
  */
-const TOKENS_KEY = 'fitsync.tokens.v1';
-const TENANT_KEY = 'fitsync.tenant.v1';
+const TOKENS_KEY = 'musclex.tokens.v1';
+const TENANT_KEY = 'musclex.tenant.v1';
 
 const isWeb = Platform.OS === 'web';
 

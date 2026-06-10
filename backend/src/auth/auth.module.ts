@@ -19,6 +19,7 @@ import { TwoFactorService } from './two-factor.service';
 import { TwoFactorController, TwoFactorRecoveryController } from './two-factor.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SccSyncService } from '../common/services/scc-sync.service';
+import { RazorpayService } from '../payments/razorpay.service';
 
 @Global()
 @Module({
@@ -55,6 +56,7 @@ import { SccSyncService } from '../common/services/scc-sync.service';
     RbacSeedService,
     TwoFactorService,
     SccSyncService,
+    RazorpayService,
   ],
   exports: [
     AuthService,

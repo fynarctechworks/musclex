@@ -6,15 +6,12 @@ import { apiClient } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import dynamic from "next/dynamic";
+
+const TrainerOccupancyChart = dynamic(
+  () => import("./_chart").then((m) => ({ default: m.TrainerOccupancyChart })),
+  { ssr: false, loading: () => <LoadingSkeleton className="h-64 w-full" /> },
+);
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import { useRequirePermission } from "@/hooks/use-require-permission";
 
@@ -67,30 +64,7 @@ export default function StaffAnalyticsPage() {
             </h2>
             <div className="h-64">
               {data && data.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis
-                      dataKey="trainer_name"
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                    />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                        color: "hsl(var(--foreground))",
-                      }}
-                    />
-                    <Bar
-                      dataKey="avg_occupancy"
-                      fill="hsl(var(--primary))"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+                <TrainerOccupancyChart data={data} />
               ) : (
                 <div className="h-full flex items-center justify-center text-muted-foreground">
                   No trainer data available

@@ -1,7 +1,12 @@
 import { Body, Controller, HttpCode, Post, UseFilters } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { MemberAuthService } from './member-auth.service';
-import { OtpRequestDto, SessionDto, RefreshDto } from './dto/auth.dto';
+import {
+  OtpRequestDto,
+  SessionDto,
+  RefreshDto,
+  DevSessionDto,
+} from './dto/auth.dto';
 import { MemberExceptionFilter } from '../filters/member-exception.filter';
 import { PublicMemberRoute } from '../decorators/public-member-route.decorator';
 
@@ -35,5 +40,17 @@ export class MemberAuthController {
   @HttpCode(200)
   refresh(@Body() dto: RefreshDto) {
     return this.auth.refresh(dto.refreshToken);
+  }
+
+  /**
+   * ⚠️ DEV-ONLY OTP bypass (no SMS). 404s unless the server has the bypass
+   * enabled (non-production + MEMBER_DEV_OTP set). Same shape as POST /session.
+   */
+  @Post('dev/session')
+  @PublicMemberRoute()
+  @HttpCode(200)
+  @Throttle({ medium: { limit: 10, ttl: 60_000 } })
+  devSession(@Body() dto: DevSessionDto) {
+    return this.auth.devSession(dto.phone, dto.code, dto.tenantId);
   }
 }

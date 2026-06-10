@@ -6,6 +6,7 @@ import { KpiCard } from '@/components/dashboard/kpi-card';
 import { RevenueChart } from '@/components/dashboard/revenue-chart';
 import { PageHeader } from '@/components/layout/page-header';
 import { CardSkeleton } from '@/components/shared/loading-skeleton';
+import { ErrorState } from '@/components/shared/error-state';
 import { Button } from '@/components/ui/button';
 import { useRefreshDashboard } from '@/hooks/use-dashboard';
 import {
@@ -30,7 +31,7 @@ function formatCurrency(amount: number) {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { data: metrics, isLoading, isFetching } = useDashboardMetrics();
+  const { data: metrics, isLoading, isFetching, isError, refetch } = useDashboardMetrics();
   const refresh = useRefreshDashboard();
 
   const goToTenants = (status?: string) => {
@@ -68,15 +69,36 @@ export default function DashboardPage() {
             <CardSkeleton key={i} />
           ))}
         </div>
+      ) : isError ? (
+        <ErrorState
+          title="Could not load dashboard metrics"
+          description="The metrics request failed. Confirm the backend is running, then retry."
+          onRetry={() => refetch()}
+        />
       ) : metrics ? (
         <>
+          {metrics.subscriptions.past_due > 0 && (
+            <button
+              type="button"
+              onClick={() => goToSubscriptions('past_due')}
+              className="mb-4 flex w-full items-center gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-left text-[13px] text-amber-900 transition hover:bg-amber-100"
+            >
+              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+              <span className="flex-1">
+                <strong>{metrics.subscriptions.past_due}</strong>
+                {' '}
+                subscription{metrics.subscriptions.past_due === 1 ? ' is' : 's are'} past due — auto-renewal payment failed and needs manual review.
+              </span>
+              <span className="text-amber-700 underline">Review</span>
+            </button>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <KpiCard
               title="Total Tenants"
               value={metrics.tenants.total}
               subtitle={`+${metrics.tenants.new_last_30d} this month`}
               icon={Building2}
-              trend="up"
+              trend={metrics.tenants.new_last_30d > 0 ? 'up' : 'neutral'}
               onClick={() => goToTenants()}
             />
             <KpiCard
@@ -96,7 +118,6 @@ export default function DashboardPage() {
               value={formatCurrency(metrics.revenue.mrr)}
               subtitle={`ARR: ${formatCurrency(metrics.revenue.arr)}`}
               icon={DollarSign}
-              trend="up"
             />
             <KpiCard
               title="Active Subscriptions"
@@ -108,7 +129,6 @@ export default function DashboardPage() {
               title="Expiring Soon"
               value={metrics.subscriptions.expiring_soon}
               icon={AlertTriangle}
-              trend="down"
               onClick={() => goToSubscriptions('expiring')}
             />
             <KpiCard

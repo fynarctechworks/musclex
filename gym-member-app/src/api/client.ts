@@ -117,7 +117,13 @@ export async function request<T>(
 
   if (res.status === 204) return undefined as T;
 
-  const json = await res.json();
+  // A nullable resource (e.g. GET /workouts/today with nothing assigned) comes
+  // back as a 200 with an empty body. Treat that as null — calling res.json()
+  // on an empty body throws, which React Query would surface as an error state.
+  const text = await res.text();
+  if (!text) return null as T;
+
+  const json = JSON.parse(text);
   // Auth endpoints return raw bodies; data endpoints are enveloped.
   if (json && typeof json === 'object' && 'data' in json) {
     return (json as Envelope<T>).data;
@@ -140,6 +146,7 @@ export async function requestWithMeta<T>(
     res = await rawFetch(path, opts, refreshed.accessToken);
   }
   if (!res.ok) throw await parseError(res);
-  const json = await res.json();
-  return json as Envelope<T>;
+  const text = await res.text();
+  if (!text) return { data: null as T } as Envelope<T>;
+  return JSON.parse(text) as Envelope<T>;
 }

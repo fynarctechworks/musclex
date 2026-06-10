@@ -15,23 +15,22 @@ export function useAuth() {
   const { user, studio, isAuthenticated, loading, setAuth, setLoading, logout: clearAuth, updateUser, updateStudio } = useAuthStore();
   const { setWorkspaces, setActiveSlug } = useWorkspaceStore();
 
-  const login = useCallback(async (email: string, password: string) => {
-    setLoading(true);
-    try {
-      const data = await authApi.login(email, password);
+  // Shared post-authentication routing for BOTH password login and OAuth.
+  // Takes the normalized backend payload, hydrates auth state, picks the active
+  // branch, and redirects (2FA → workspace select → onboarding step → dashboard).
+  const applyAuthAndRoute = useCallback((data: Awaited<ReturnType<typeof authApi.login>>) => {
+    // 2FA challenge: redirect to verification page
+    if (data.requires_2fa && data.temp_token) {
+      router.push(`/verify-2fa?token=${encodeURIComponent(data.temp_token)}`);
+      return data;
+    }
 
-      // 2FA challenge: redirect to verification page
-      if (data.requires_2fa && data.temp_token) {
-        router.push(`/verify-2fa?token=${encodeURIComponent(data.temp_token)}`);
-        return data;
-      }
-
-      setAuth({
-        user: data.user,
-        studio: data.studio,
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-      });
+    setAuth({
+      user: data.user,
+      studio: data.studio,
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+    });
 
       // Auto-select branch for the logged-in user.
       // - Single-branch users (any role): pin to that branch so all queries scope correctly.
@@ -95,10 +94,34 @@ export function useAuth() {
         router.push('/onboarding/studio-info');
       }
       return data;
+  }, [setAuth, setWorkspaces, setActiveSlug, router]);
+
+  const login = useCallback(async (email: string, password: string) => {
+    setLoading(true);
+    try {
+      const data = await authApi.login(email, password);
+      return applyAuthAndRoute(data);
     } finally {
       setLoading(false);
     }
-  }, [setAuth, setLoading, setWorkspaces, setActiveSlug, router]);
+  }, [applyAuthAndRoute, setLoading]);
+
+  /**
+   * Complete a social sign-in. The Supabase OAuth handshake already produced a
+   * verified session (in /auth/callback); we hand its tokens to the backend,
+   * which syncs identity + RBAC and returns the same normalized payload as
+   * password login — so routing (fresh → onboarding, returning → dashboard) is
+   * identical for both paths.
+   */
+  const loginWithOAuth = useCallback(async (accessToken: string, refreshToken: string) => {
+    setLoading(true);
+    try {
+      const data = await authApi.oauthSync(accessToken, refreshToken);
+      return applyAuthAndRoute(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [applyAuthAndRoute, setLoading]);
 
   const selectWorkspace = useCallback(async (studioId: string) => {
     setLoading(true);
@@ -137,6 +160,7 @@ export function useAuth() {
     isAuthenticated,
     loading,
     login,
+    loginWithOAuth,
     logout,
     selectWorkspace,
     refreshProfile,

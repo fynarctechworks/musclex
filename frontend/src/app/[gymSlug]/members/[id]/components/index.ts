@@ -1,6 +1,7 @@
 export { MemberHeader } from "./MemberHeader";
 export { MemberActions } from "./MemberActions";
 export { MemberOverview } from "./MemberOverview";
+export { MemberFitnessProfile } from "./MemberFitnessProfile";
 export { MemberAttendance } from "./MemberAttendance";
 export { MemberPayments } from "./MemberPayments";
 export { MemberNotes } from "./MemberNotes";

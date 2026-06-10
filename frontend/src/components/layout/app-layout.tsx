@@ -30,6 +30,8 @@ import {
   ShoppingCart,
   BookUser,
   ScanFace,
+  Store,
+  ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -96,10 +98,25 @@ const gymNavItems: NavItem[] = [
 const gymSecondaryNavItems: NavItem[] = [
   { label: "CRM",         href: "/crm",        icon: BookUser,      feature: "member_management", module: "members" },
   { label: "Referrals",   href: "/referrals",  icon: UserPlus,      feature: "marketing_campaigns", module: "marketing" },
-  { label: "Inventory",   href: "/inventory",  icon: Package,       module: "settings" },
-  { label: "POS",         href: "/pos",        icon: ShoppingCart, module: "payments" },
-  { label: "Reports",     href: "/reports",    icon: BarChart3,     feature: "basic_reports", module: "reports" },
+  { label: "Store",       href: "/pos",        icon: Store },
   { label: "AI Advisor",  href: "/ai",         icon: Bot,           feature: "ai_advisor", module: "ai" },
+];
+
+/* ─── Store workspace nav — POS, Inventory & Reports grouped in one place.
+   Entering any of these routes swaps the sidebar to a focused Store view
+   with a "Back to Dashboard" exit. ─── */
+const commerceNavItems: NavItem[] = [
+  { label: "Point of Sale", href: "/pos",       icon: ShoppingCart, module: "payments" },
+  { label: "Inventory",     href: "/inventory", icon: Package,      module: "settings" },
+  { label: "Reports",       href: "/reports",   icon: BarChart3,    feature: "basic_reports", module: "reports" },
+];
+
+/* ─── Store workspace mobile bottom-nav (replaces global tabs inside the section) ─── */
+const commerceMobileTabs: NavItem[] = [
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "POS",       href: "/pos",       icon: ShoppingCart },
+  { label: "Inventory", href: "/inventory", icon: Package },
+  { label: "Reports",   href: "/reports",   icon: BarChart3 },
 ];
 
 const bottomNavItems: NavItem[] = [
@@ -258,13 +275,13 @@ function SidebarContent({
       {/* Logo + Collapse — Design.md nav-bar height (64 px) */}
       <div className={cn("flex h-16 items-center px-4", collapsed ? "justify-center" : "justify-between")}>
         <Link href={`${basePath}/dashboard`} className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-primary">
-            <span className="text-[11px] font-semibold text-primary-foreground">M</span>
-          </div>
-          {!collapsed && (
-            <span className="text-sm font-semibold text-foreground tracking-[-0.01em]">
-              MuscleX
-            </span>
+          {collapsed ? (
+            <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-primary">
+              <span className="text-[11px] font-semibold text-primary-foreground">M</span>
+            </div>
+          ) : (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src="/brand/logo-wordmark.png" alt="MuscleX" className="h-5 w-auto" />
           )}
         </Link>
         {!collapsed && onCollapse && (
@@ -303,6 +320,101 @@ function SidebarContent({
             </nav>
           </div>
         )}
+      </ScrollArea>
+
+      {/* Bottom: Settings */}
+      <div className="px-2.5 pb-3">
+        <div className="mx-1 mb-2 h-px bg-hairline" />
+        {bottomNavItems.map((item) => (
+          <NavLink key={item.href} item={item} basePath={basePath} pathname={pathname} collapsed={collapsed} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Store Workspace Sidebar ─── */
+function CommerceSidebarContent({
+  pathname,
+  basePath,
+  collapsed,
+  onCollapse,
+  items,
+}: {
+  pathname: string;
+  basePath: string;
+  collapsed: boolean;
+  onCollapse?: () => void;
+  items: NavItem[];
+}) {
+  const backLink = (
+    <Link
+      href={`${basePath}/dashboard`}
+      className={cn(
+        "group flex items-center gap-2 rounded-sm text-sm font-medium text-muted-foreground transition-colors hover:bg-canvas-soft hover:text-foreground",
+        collapsed ? "h-8 w-8 justify-center" : "h-8 px-2.5"
+      )}
+      aria-label="Back to Dashboard"
+    >
+      <ArrowLeft className="h-[15px] w-[15px] shrink-0" />
+      {!collapsed && <span className="truncate">Back to Dashboard</span>}
+    </Link>
+  );
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Header — Store identity */}
+      <div className={cn("flex h-16 items-center px-4", collapsed ? "justify-center" : "justify-between")}>
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-primary">
+            <Store className="h-[15px] w-[15px] text-primary-foreground" />
+          </div>
+          {!collapsed && (
+            <span className="text-sm font-semibold text-foreground tracking-[-0.01em]">Store</span>
+          )}
+        </div>
+        {!collapsed && onCollapse && (
+          <button
+            onClick={onCollapse}
+            className="hidden lg:flex h-7 w-7 items-center justify-center rounded-sm text-muted-foreground hover:bg-canvas-soft hover:text-foreground transition-colors"
+            aria-label="Collapse sidebar"
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      <div className="mx-3 h-px bg-hairline" />
+
+      {/* Back to Dashboard */}
+      <div className="px-2.5 pt-3">
+        {collapsed ? (
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>{backLink}</TooltipTrigger>
+            <TooltipContent side="right" className="text-xs">
+              Back to Dashboard
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          backLink
+        )}
+      </div>
+
+      {/* Store sections */}
+      <ScrollArea className="flex-1 px-2.5 py-3">
+        <div className="mt-2">
+          {!collapsed && (
+            <p className="mb-1.5 px-2.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              Store
+            </p>
+          )}
+          {collapsed && <div className="mx-auto my-2 h-px w-6 bg-hairline" />}
+          <nav className="flex flex-col gap-0.5" role="navigation" aria-label="Store navigation">
+            {items.map((item) => (
+              <NavLink key={item.href} item={item} basePath={basePath} pathname={pathname} collapsed={collapsed} />
+            ))}
+          </nav>
+        </div>
       </ScrollArea>
 
       {/* Bottom: Settings */}
@@ -383,9 +495,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const features: Record<string, boolean> = account?.features ?? {};
 
   const primaryNav = filterByPermissions(filterByFeatures(gymNavItems, features), hasPermission);
-  const secondaryNav = filterByPermissions(filterByFeatures(gymSecondaryNavItems, features), hasPermission);
-  const mobileNav = filterByPermissions(mobileNavTabs, hasPermission);
+  const commerceNav = filterByPermissions(filterByFeatures(commerceNavItems, features), hasPermission);
+  // Hide the "Store" entry entirely if the user can't reach any section inside it.
+  const secondaryNav = filterByPermissions(filterByFeatures(gymSecondaryNavItems, features), hasPermission)
+    .filter((item) => item.href !== "/pos" || commerceNav.length > 0);
   const secondaryLabel = "Tools";
+
+  /* Detect whether the current route is inside the Store workspace —
+     if so, the sidebar swaps to a focused Store view with a back exit. */
+  const inCommerceSection = commerceNavItems.some((item) => {
+    const full = `${basePath}${item.href}`;
+    return pathname === full || pathname.startsWith(full + "/");
+  });
+
+  const mobileNav = filterByPermissions(
+    inCommerceSection ? commerceMobileTabs : mobileNavTabs,
+    hasPermission,
+  );
 
   const { data: branches } = useQuery({
     queryKey: ["branches"],
@@ -522,21 +648,35 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             sidebarCollapsed ? "w-[64px]" : "w-[232px]"
           )}
         >
-          <SidebarContent
-            pathname={pathname}
-            basePath={basePath}
-            collapsed={sidebarCollapsed}
-            onCollapse={toggleSidebar}
-            primaryItems={primaryNav}
-            secondaryItems={secondaryNav}
-            secondaryLabel={secondaryLabel}
-          />
+          {inCommerceSection ? (
+            <CommerceSidebarContent
+              pathname={pathname}
+              basePath={basePath}
+              collapsed={sidebarCollapsed}
+              onCollapse={toggleSidebar}
+              items={commerceNav}
+            />
+          ) : (
+            <SidebarContent
+              pathname={pathname}
+              basePath={basePath}
+              collapsed={sidebarCollapsed}
+              onCollapse={toggleSidebar}
+              primaryItems={primaryNav}
+              secondaryItems={secondaryNav}
+              secondaryLabel={secondaryLabel}
+            />
+          )}
         </aside>
 
         {/* Mobile Sidebar */}
         <Sheet open={sidebarMobileOpen} onOpenChange={setSidebarMobileOpen}>
           <SheetContent side="left" className="w-[232px] bg-card p-0 border-hairline">
-            <SidebarContent pathname={pathname} basePath={basePath} collapsed={false} primaryItems={primaryNav} secondaryItems={secondaryNav} secondaryLabel={secondaryLabel} />
+            {inCommerceSection ? (
+              <CommerceSidebarContent pathname={pathname} basePath={basePath} collapsed={false} items={commerceNav} />
+            ) : (
+              <SidebarContent pathname={pathname} basePath={basePath} collapsed={false} primaryItems={primaryNav} secondaryItems={secondaryNav} secondaryLabel={secondaryLabel} />
+            )}
           </SheetContent>
         </Sheet>
 

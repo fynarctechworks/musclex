@@ -1,11 +1,49 @@
 /**
  * Design tokens — the TypeScript mirror of tailwind.config.js, for places that
  * need raw values (SVG fills, gradients, shadows, chart colours) where NativeWind
- * classes don't reach. Source of truth: docs/design.md (Vercel/Geist), translated
- * to the member app's dark-first theme.
+ * classes don't reach.
+ *
+ * Source of truth: gym-member-app/mobile-app-design.md (the Kraken-inspired
+ * system — purple `#7132f5` brand, light-first). The app ships TWO themes:
+ *   • `lightColors` (daylight) — the DEFAULT; clean white surfaces, near-black ink.
+ *   • `darkColors`  — a tasteful dark counterpart of the same purple system.
+ *
+ * Class-based styling (`bg-canvas`, `text-ink`, …) re-themes automatically via
+ * NativeWind CSS variables (see theme-vars.ts). These raw objects exist for the
+ * SVG/chart/StatusBar code that NativeWind can't reach — consume them through the
+ * reactive `useThemeColors()` hook (theme.ts), NOT by importing `colors` directly.
  */
 
-export const colors = {
+/** Daylight theme — the default. */
+export const lightColors = {
+  canvas: '#FFFFFF',
+  canvasSoft: '#F6F6FA',
+  surface: '#FFFFFF',
+  surface2: '#F1F1F5',
+  hairline: '#DEDEE5',
+  hairlineStrong: '#CBCBD6',
+
+  ink: '#101114', // near-black (Kraken text)
+  body: '#686B82', // cool gray
+  mute: '#9497A9', // silver blue
+
+  primary: '#9DD12A', // Lime — primary CTA / brand
+  onPrimary: '#101114', // dark ink — white text fails contrast on lime (~1.8:1)
+  accent: '#5B8011', // darker lime shade for links/text on white (AA, ~4.6:1)
+  accentSoft: '#E8F7DD', // lime at ~16% on white
+
+  success: '#149E61',
+  successFg: '#026B3F',
+  warning: '#F5A623',
+  warningSoft: '#FEF3E1',
+  error: '#E14B4B',
+  errorSoft: '#FCEAEA',
+
+  cyan: '#5E9415', // secondary accent (rings/charts/icons) — green, readable on white
+} as const;
+
+/** Dark counterpart — same lime system, lifted for a deep-ink canvas. */
+export const darkColors = {
   canvas: '#0A0A0A',
   canvasSoft: '#121212',
   surface: '#171717',
@@ -17,20 +55,33 @@ export const colors = {
   body: '#A1A1A1',
   mute: '#6E6E6E',
 
-  primary: '#FAFAFA',
-  onPrimary: '#0A0A0A',
-  accent: '#0070F3',
-  accentSoft: '#10243E',
+  primary: '#B3E84A', // lime lifted for contrast on dark
+  onPrimary: '#101114', // dark ink on the lime button
+  accent: '#B3E84A',
+  accentSoft: '#1E2A0C', // deep lime tint
 
-  success: '#0070F3',
-  successFg: '#3291FF',
+  success: '#2FD08A',
+  successFg: '#34D399',
   warning: '#F5A623',
   warningSoft: '#2A2008',
-  error: '#FF4D4D',
+  error: '#FF5A5F',
   errorSoft: '#2A1010',
 
-  cyan: '#50E3C2',
+  cyan: '#B3E84A', // secondary accent — green, lifted for the dark canvas
 } as const;
+
+/**
+ * Shape shared by both themes — the contract `useThemeColors()` returns. Mapped
+ * to `string` (not the literal hex of `lightColors`) so `darkColors` is assignable.
+ */
+export type ThemeColors = { readonly [K in keyof typeof lightColors]: string };
+
+/**
+ * Backwards-compatible default = the light (daylight) palette. STATIC only — use
+ * for non-reactive contexts that cannot call a hook. Reactive UI must use
+ * `useThemeColors()` so it re-themes when the member toggles light/dark.
+ */
+export const colors: ThemeColors = lightColors;
 
 /**
  * Per-category health accents — the one principle worth borrowing from One UI:
@@ -48,19 +99,6 @@ export const health = {
   oxygen: '#3DB9F5', // SpO₂, respiratory rate — sky
   mind: '#2FD08A', // mood, stress — green
 } as const;
-
-/**
- * The brand mesh gradient — the ONE decorative element (design.md: "the gradient
- * is the entire decoration system"). Used at hero scale only (Home header,
- * check-in success, onboarding), never miniaturised, never reduced to one colour.
- */
-export const meshGradient = {
-  develop: ['#007CF0', '#00DFD8'] as const,
-  preview: ['#7928CA', '#FF0080'] as const,
-  ship: ['#FF4D4D', '#F9CB28'] as const,
-  // Full multi-stop sweep for the hero atmospheric backdrop.
-  full: ['#007CF0', '#00DFD8', '#7928CA', '#FF0080', '#FF4D4D', '#F9CB28'] as const,
-};
 
 export const radius = {
   none: 0,

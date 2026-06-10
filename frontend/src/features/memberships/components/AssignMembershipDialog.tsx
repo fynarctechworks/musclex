@@ -179,7 +179,6 @@ export function AssignMembershipDialog({
                 <SelectItem value="upi">UPI</SelectItem>
                 <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                 <SelectItem value="razorpay">Razorpay</SelectItem>
-                <SelectItem value="stripe">Stripe</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -6,11 +6,10 @@ import {
   Card,
   EmptyState,
   Icon,
-  MeshGradient,
   Screen,
   SkeletonCard,
   Txt,
-  colors,
+  useThemeColors,
 } from '../../src/design-system';
 import {
   useLeaderboard,
@@ -50,7 +49,6 @@ export default function CommunityScreen() {
       refreshing={challenges.isRefetching}
     >
       <View className="overflow-hidden px-md pb-lg pt-md">
-        <MeshGradient opacity={0.5} />
         <Txt variant="mono" className="text-ink/70">
           TRAIN TOGETHER
         </Txt>
@@ -172,6 +170,7 @@ function ChallengeCard({
   onJoin: () => void;
 }) {
   const goal = c.goal ?? 0;
+  const theme = useThemeColors();
   const progress = c.progress ?? 0;
   const ratio = goal > 0 ? Math.min(1, progress / goal) : 0;
   return (
@@ -209,7 +208,7 @@ function ChallengeCard({
               style={{
                 width: `${ratio * 100}%`,
                 height: '100%',
-                backgroundColor: c.completed ? colors.successFg : colors.cyan,
+                backgroundColor: c.completed ? theme.successFg : theme.cyan,
               }}
             />
           </View>
@@ -233,7 +232,7 @@ function LeaderRow({ entry, last }: { entry: LeaderboardEntry; last: boolean }) 
         last ? '' : 'border-b border-hairline'
       } ${entry.isMe ? 'bg-surface-2' : ''}`}
     >
-      <View className="flex-row items-center gap-md">
+      <View className="flex-1 flex-row items-center gap-md pr-md">
         <Txt
           variant="body-md"
           weight="600"
@@ -242,7 +241,12 @@ function LeaderRow({ entry, last }: { entry: LeaderboardEntry; last: boolean }) 
         >
           {entry.rank}
         </Txt>
-        <Txt variant="body-md" weight={entry.isMe ? '600' : '400'} className="text-ink">
+        <Txt
+          variant="body-md"
+          weight={entry.isMe ? '600' : '400'}
+          className="flex-1 text-ink"
+          numberOfLines={1}
+        >
           {entry.name}
           {entry.isMe ? ' (you)' : ''}
         </Txt>
@@ -255,18 +259,19 @@ function LeaderRow({ entry, last }: { entry: LeaderboardEntry; last: boolean }) 
 }
 
 function BadgeTile({ badge }: { badge: CommunityBadge }) {
+  const theme = useThemeColors();
   const earned = !!badge.earned;
   return (
     <View className="items-center" style={{ width: '22%' }}>
       <View
         className="aspect-square w-full items-center justify-center rounded-xl border"
         style={{
-          backgroundColor: earned ? colors.accentSoft : colors.surface,
-          borderColor: earned ? colors.cyan : colors.hairline,
+          backgroundColor: earned ? theme.accentSoft : theme.surface,
+          borderColor: earned ? theme.cyan : theme.hairline,
           opacity: earned ? 1 : 0.5,
         }}
       >
-        <Icon name={earned ? 'check' : 'flame'} color={earned ? colors.cyan : colors.mute} size={22} />
+        <Icon name={earned ? 'check' : 'flame'} color={earned ? theme.cyan : theme.mute} size={22} />
       </View>
       <Txt variant="caption" className="mt-xxs text-center text-mute" numberOfLines={2}>
         {badge.label}

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { RefreshCw, LayoutDashboard } from "lucide-react";
+import * as Sentry from "@sentry/nextjs";
 
 export default function Error({
   error,
@@ -11,6 +12,7 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
+    Sentry.captureException(error);
     console.error("[AppError]", error);
   }, [error]);
 

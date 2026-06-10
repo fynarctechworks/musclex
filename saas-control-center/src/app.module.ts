@@ -16,6 +16,8 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { HealthModule } from './modules/health/health.module';
 import { ReferralsModule } from './modules/referrals/referrals.module';
+import { SystemMonitoringModule } from './modules/system-monitoring/system-monitoring.module';
+import { MemberAppAnalyticsModule } from './modules/member-app-analytics/member-app-analytics.module';
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { ReferralsModule } from './modules/referrals/referrals.module';
     AuditLogsModule,
     HealthModule,
     ReferralsModule,
+    SystemMonitoringModule,
+    MemberAppAnalyticsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

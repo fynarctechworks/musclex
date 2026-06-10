@@ -24,7 +24,7 @@ let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
-    dbPromise = SQLite.openDatabaseAsync('fitsync.db').then(async (db) => {
+    dbPromise = SQLite.openDatabaseAsync('musclex.db').then(async (db) => {
       await db.execAsync(`
         PRAGMA journal_mode = WAL;
         CREATE TABLE IF NOT EXISTS outbox (

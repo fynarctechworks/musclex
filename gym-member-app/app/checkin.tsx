@@ -8,11 +8,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   Button,
   Icon,
-  MeshGradient,
   ProgressRing,
   Screen,
   Txt,
-  colors,
+  useThemeColors,
 } from '../src/design-system';
 import { submitCheckIn } from '../src/features/checkin/submit';
 import { MemberApiError } from '../src/api/client';
@@ -23,6 +22,7 @@ type Phase = 'scan' | 'submitting' | 'success' | 'queued' | 'error';
 const SCAN = 240; // reticle size
 
 export default function CheckInScreen() {
+  const theme = useThemeColors();
   const router = useRouter();
   const qc = useQueryClient();
   const insets = useSafeAreaInsets();
@@ -99,8 +99,7 @@ export default function CheckInScreen() {
     const hasStreak = phase === 'success' && streak != null && streak > 0;
     return (
       <Screen padded={false} edges={['top', 'bottom']}>
-        <View className="flex-1 items-center justify-center overflow-hidden px-lg">
-          <MeshGradient opacity={0.6} />
+        <View className="flex-1 items-center justify-center overflow-hidden px-md">
           <Animated.View
             className="items-center"
             style={{ opacity: pop, transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) }] }}
@@ -110,7 +109,7 @@ export default function CheckInScreen() {
               progress={Math.min(streak as number, 7) / 7}
               size={132}
               strokeWidth={11}
-              color={colors.cyan}
+              color={theme.cyan}
             >
               <View className="items-center">
                 <Txt variant="display-lg" weight="600" className="text-ink">
@@ -123,7 +122,7 @@ export default function CheckInScreen() {
             </ProgressRing>
           ) : (
             <View className="h-[88px] w-[88px] items-center justify-center rounded-full bg-primary">
-              <Icon name="check" color={colors.onPrimary} size={44} />
+              <Icon name="check" color={theme.onPrimary} size={44} />
             </View>
           )}
           {phase === 'success' && isMilestone ? (
@@ -157,15 +156,15 @@ export default function CheckInScreen() {
       <Screen edges={['top', 'bottom']}>
         <View className="flex-1 items-center justify-center">
           <View className="h-[72px] w-[72px] items-center justify-center rounded-full bg-error-soft">
-            <Icon name="qr" color={colors.error} size={36} />
+            <Icon name="qr" color={theme.error} size={36} />
           </View>
           <Txt variant="display-sm" weight="600" className="mt-lg text-center text-ink">
             Check-in failed
           </Txt>
-          <Txt variant="body-md" className="mt-xs px-lg text-center text-body">
+          <Txt variant="body-md" className="mt-xs px-md text-center text-body">
             {errorMsg}
           </Txt>
-          <View className="mt-xl w-full gap-sm px-lg">
+          <View className="mt-xl w-full gap-sm px-md">
             <Button
               title="Try again"
               fullWidth
@@ -191,13 +190,13 @@ export default function CheckInScreen() {
   if (!permission.granted) {
     return (
       <Screen edges={['top', 'bottom']}>
-        <View className="flex-1 items-center justify-center px-lg">
-          <Icon name="camera" color={colors.body} size={48} />
+        <View className="flex-1 items-center justify-center px-md">
+          <Icon name="camera" color={theme.body} size={48} />
           <Txt variant="display-sm" weight="600" className="mt-lg text-center text-ink">
             Scan to check in
           </Txt>
           <Txt variant="body-md" className="mt-xs text-center text-body">
-            {'FitSync needs the camera to read your gym’s QR code.'}
+            {'MuscleX needs the camera to read your gym’s QR code.'}
           </Txt>
           <View className="mt-xl w-full gap-sm">
             <Button title="Enable camera" fullWidth onPress={requestPermission} />
@@ -241,7 +240,7 @@ export default function CheckInScreen() {
                 top: 8,
                 height: 2,
                 borderRadius: 1,
-                backgroundColor: colors.cyan,
+                backgroundColor: theme.cyan,
                 transform: [{ translateY: scanY }],
               }}
             />
@@ -273,7 +272,7 @@ export default function CheckInScreen() {
         style={{ position: 'absolute', top: insets.top + 8, right: 20 }}
         className="h-[40px] w-[40px] items-center justify-center rounded-full bg-black/50"
       >
-        <Icon name="flash" color={torch ? colors.cyan : colors.ink} size={20} />
+        <Icon name="flash" color={torch ? theme.cyan : theme.ink} size={20} />
       </Pressable>
 
       <View style={{ position: 'absolute', bottom: insets.bottom + 24, left: 20, right: 20 }}>
@@ -290,10 +289,11 @@ export default function CheckInScreen() {
 
 /** One corner bracket of the scan reticle. */
 function Bracket({ style }: { style: object }) {
+  const theme = useThemeColors();
   return (
     <View
       style={[
-        { position: 'absolute', width: 28, height: 28, borderColor: colors.ink },
+        { position: 'absolute', width: 28, height: 28, borderColor: theme.ink },
         style,
       ]}
     />

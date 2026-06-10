@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ExperienceLevel, Goal } from '../api/types';
+import { config } from '../config';
 
 /**
  * Local-only onboarding preferences. The BFF member record has a `goal` mapping
@@ -8,10 +9,13 @@ import type { ExperienceLevel, Goal } from '../api/types';
  * so the onboarding answers + "completed" flag live on-device for now. When the
  * backend adds the field, sync these up at completion.
  */
-const KEY = 'fitsync.prefs.v1';
+const KEY = 'musclex.prefs.v1';
 
 /** Push notification category opt-ins (true = send). */
 export type NotificationPrefs = Record<string, boolean>;
+
+/** Appearance: the daylight theme is the product default (mobile-app-design.md). */
+export type ThemeMode = 'light' | 'dark';
 
 /**
  * Daily activity-ring targets. These are *targets*, not data — sensible
@@ -31,6 +35,18 @@ export const DEFAULT_GOALS: DailyGoals = {
   activeMinutes: 30,
 };
 
+/**
+ * Body metrics used to turn raw step counts into distance + calories (the phone
+ * pedometer only reports steps). Sensible adult defaults the member can refine;
+ * never fabricated into health data — only used for on-device step math.
+ */
+export interface BodyMetrics {
+  heightCm: number;
+  weightKg: number;
+}
+
+export const DEFAULT_BODY: BodyMetrics = { heightCm: 170, weightKg: 70 };
+
 interface Prefs {
   /** Has the member finished the animated 3-page intro (pre-goal step)? */
   introSeen: boolean;
@@ -41,6 +57,10 @@ interface Prefs {
   pushEnabled: boolean;
   notificationPrefs: NotificationPrefs;
   goals: DailyGoals;
+  /** Body metrics for step→distance→calorie math (on-device step tracker). */
+  body: BodyMetrics;
+  /** Appearance theme. Defaults to 'light' (daylight). */
+  themeMode: ThemeMode;
 }
 
 interface PrefsState extends Prefs {
@@ -48,8 +68,11 @@ interface PrefsState extends Prefs {
   setOnboarding: (p: Partial<Prefs>) => Promise<void>;
   completeOnboarding: (goal: Goal, level: ExperienceLevel) => Promise<void>;
   setPush: (enabled: boolean, prefs?: NotificationPrefs) => Promise<void>;
+  setBiometric: (enabled: boolean) => Promise<void>;
   setGoals: (goals: Partial<DailyGoals>) => Promise<void>;
   setIntroSeen: (seen: boolean) => Promise<void>;
+  setThemeMode: (mode: ThemeMode) => Promise<void>;
+  setBody: (m: Partial<BodyMetrics>) => Promise<void>;
 }
 
 const DEFAULTS: Prefs = {
@@ -61,6 +84,8 @@ const DEFAULTS: Prefs = {
   pushEnabled: false,
   notificationPrefs: {},
   goals: DEFAULT_GOALS,
+  body: DEFAULT_BODY,
+  themeMode: 'light',
 };
 
 async function persist(p: Prefs) {
@@ -79,6 +104,10 @@ export const usePrefs = create<PrefsState>((set, get) => ({
         /* corrupt — keep defaults */
       }
     }
+    // ⚠️ DEV-ONLY: re-show the onboarding intro on every launch for repeated QA.
+    // In-memory only (not persisted) — swiping "Get Started" still advances to
+    // welcome within the session; a reload brings the intro back.
+    if (config.forceIntro) set({ introSeen: false });
   },
 
   setOnboarding: async (p) => {
@@ -104,6 +133,12 @@ export const usePrefs = create<PrefsState>((set, get) => ({
     await persist(next);
   },
 
+  setBiometric: async (enabled) => {
+    const next: Prefs = { ...pick(get()), biometricEnabled: enabled };
+    set(next);
+    await persist(next);
+  },
+
   setGoals: async (goals) => {
     const cur = pick(get());
     const next: Prefs = { ...cur, goals: { ...cur.goals, ...goals } };
@@ -113,6 +148,19 @@ export const usePrefs = create<PrefsState>((set, get) => ({
 
   setIntroSeen: async (seen) => {
     const next: Prefs = { ...pick(get()), introSeen: seen };
+    set(next);
+    await persist(next);
+  },
+
+  setThemeMode: async (mode) => {
+    const next: Prefs = { ...pick(get()), themeMode: mode };
+    set(next);
+    await persist(next);
+  },
+
+  setBody: async (m) => {
+    const cur = pick(get());
+    const next: Prefs = { ...cur, body: { ...cur.body, ...m } };
     set(next);
     await persist(next);
   },
@@ -128,5 +176,7 @@ function pick(s: PrefsState): Prefs {
     pushEnabled: s.pushEnabled,
     notificationPrefs: s.notificationPrefs,
     goals: s.goals,
+    body: s.body,
+    themeMode: s.themeMode,
   };
 }

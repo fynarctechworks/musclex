@@ -45,8 +45,8 @@ export class CreateGatewayOrderDto {
   @IsUUID()
   invoice_id?: string;
 
-  @IsIn(['razorpay', 'stripe'])
-  gateway: 'razorpay' | 'stripe';
+  @IsIn(['razorpay'])
+  gateway: 'razorpay';
 }
 
 export class VerifyPaymentDto {

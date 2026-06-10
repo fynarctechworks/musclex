@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Button,
   Card,
@@ -12,7 +13,7 @@ import {
   SkeletonCard,
   Txt,
 } from '../src/design-system';
-import { BackButton } from '../src/navigation/BackButton';
+import { ScreenHeader } from '../src/navigation/ScreenHeader';
 import { track } from '../src/analytics';
 import {
   useHealthSummary,
@@ -49,6 +50,7 @@ function fmtDate(iso?: string | null): string {
 
 export default function HealthScreen() {
   const router = useRouter();
+  const qc = useQueryClient();
   const summary = useHealthSummary();
   const connections = useWearableConnections();
   const connect = useConnectWearable();
@@ -91,7 +93,9 @@ export default function HealthScreen() {
     if (res.status === 'synced') {
       track({ name: 'health_synced', accepted: res.accepted ?? 0 });
       setSyncMsg(`Synced ${res.accepted ?? 0} new readings.`);
-      summary.refetch();
+      // Refresh every health-summary consumer (Home rings/card, Activity), not
+      // just this screen's query — they use different (from,to,types) keys.
+      qc.invalidateQueries({ queryKey: ['health', 'summary'] });
     } else if (res.status === 'no-data') {
       setSyncMsg('Up to date — no new readings.');
     } else if (res.status === 'unavailable') {
@@ -128,7 +132,7 @@ export default function HealthScreen() {
   if (summary.isLoading) {
     return (
       <Screen scroll>
-        <BackButton />
+        <ScreenHeader title="Health" />
         <SkeletonCard />
         <SkeletonCard />
       </Screen>
@@ -138,7 +142,7 @@ export default function HealthScreen() {
   if (summary.isError) {
     return (
       <Screen>
-        <BackButton />
+        <ScreenHeader title="Health" />
         <ErrorState onRetry={() => summary.refetch()} />
       </Screen>
     );
@@ -148,10 +152,7 @@ export default function HealthScreen() {
 
   return (
     <Screen scroll onRefresh={() => summary.refetch()} refreshing={summary.isFetching}>
-      <BackButton />
-      <Txt variant="display-md" weight="600" className="mb-xs text-ink">
-        Health
-      </Txt>
+      <ScreenHeader title="Health" className="mb-xs" />
       <Txt variant="body-sm" className="mb-lg text-mute">
         Your last 7 days, synced from your wearable and manual logs.
       </Txt>
@@ -235,6 +236,17 @@ export default function HealthScreen() {
           {syncMsg ? (
             <Txt variant="caption" className="text-mute">
               {syncMsg}
+            </Txt>
+          ) : null}
+
+          {/* Samsung Health (and Google Fit, etc.) feed Health Connect on Android,
+             so connecting Health Connect ingests their data too — no separate
+             Samsung partner integration needed. Honest about the real data path. */}
+          {Platform.OS === 'android' && nativeProvider === 'health_connect' ? (
+            <Txt variant="caption" className="text-mute">
+              Includes Samsung Health, Google Fit & other apps you’ve synced to
+              Health Connect. Enable sharing in Samsung Health → Settings → Health
+              Connect to pull its steps, heart rate & sleep here.
             </Txt>
           ) : null}
         </View>

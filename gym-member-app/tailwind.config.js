@@ -1,55 +1,54 @@
 /** @type {import('tailwindcss').Config} */
-// Token source: docs/design.md (Vercel/Geist system) translated to a mobile-dark-first
-// theme. design.md is light-first; the member app leads dark (gym context, OLED, premium
-// feel per PRD) but keeps the same ink/gray ladder + the single mesh gradient as the
-// only decorative chrome. Colors resolve through CSS-less RN, so we inline hex values.
+// Token source: gym-member-app/mobile-app-design.md — the Kraken-inspired system
+// (purple #7132f5 brand, light-first). Colors are now THEME-AWARE: each maps to a
+// CSS custom property whose channels are injected at runtime by src/design-system/
+// theme-vars.ts (lightVars / darkVars), applied on the root <View> in app/_layout.
+// This is what lets the whole app re-theme from a single light/dark toggle without
+// per-screen edits. `<alpha-value>` keeps opacity utilities (e.g. bg-canvas/80) working.
 module.exports = {
   content: ['./app/**/*.{ts,tsx}', './src/**/*.{ts,tsx}'],
   presets: [require('nativewind/preset')],
-  // The app is dark-first via literal color tokens (no `dark:` variants). NativeWind's
-  // web runtime defaults darkMode to 'media' and throws when the forced-dark scheme is
-  // applied ("Cannot manually set color scheme, as dark mode is type 'media'"). 'class'
-  // lets us control the scheme without that crash; harmless on native (no dark: utilities).
+  // 'class' lets us drive the scheme manually (NativeWind's web runtime defaults to
+  // 'media' and throws when a scheme is forced). The light/dark switch toggles it.
   darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        // ── Surfaces (dark-first ladder; mirrors design.md canvas ladder inverted) ──
-        canvas: '#0A0A0A', // page body (deep ink)
-        'canvas-soft': '#121212', // raised section
-        surface: '#171717', // card (design.md primary ink, used as card here)
-        'surface-2': '#1F1F1F', // inset / pressed
-        hairline: '#2A2A2A', // 1px dividers / borders
-        'hairline-strong': '#3A3A3A',
+        // ── Surfaces ──
+        canvas: 'rgb(var(--color-canvas) / <alpha-value>)', // page body
+        'canvas-soft': 'rgb(var(--color-canvas-soft) / <alpha-value>)', // raised section
+        surface: 'rgb(var(--color-surface) / <alpha-value>)', // card
+        'surface-2': 'rgb(var(--color-surface-2) / <alpha-value>)', // inset / pressed
+        hairline: 'rgb(var(--color-hairline) / <alpha-value>)', // 1px dividers / borders
+        'hairline-strong': 'rgb(var(--color-hairline-strong) / <alpha-value>)',
 
         // ── Text ──
-        ink: '#FAFAFA', // primary text (canvas-soft inverted)
-        body: '#A1A1A1', // secondary text (design.md gray-500)
-        mute: '#6E6E6E', // lowest-priority text
+        ink: 'rgb(var(--color-ink) / <alpha-value>)', // primary text
+        body: 'rgb(var(--color-body) / <alpha-value>)', // secondary text
+        mute: 'rgb(var(--color-mute) / <alpha-value>)', // lowest-priority text
 
         // ── Brand / action ──
-        // Inverted polarity: on dark, the conversion target is a light/accent fill.
-        primary: '#FAFAFA', // primary CTA fill (light pill on dark)
-        'on-primary': '#0A0A0A', // text on primary
-        accent: '#0070F3', // design.md link blue — interactive accent
-        'accent-soft': '#10243E',
+        primary: 'rgb(var(--color-primary) / <alpha-value>)', // Kraken Purple CTA / brand
+        'on-primary': 'rgb(var(--color-on-primary) / <alpha-value>)', // text on primary
+        accent: 'rgb(var(--color-accent) / <alpha-value>)', // links / interactive accent
+        'accent-soft': 'rgb(var(--color-accent-soft) / <alpha-value>)',
 
-        // ── Brand gradient stops (the only decoration — hero scale only) ──
-        'grad-develop-start': '#007CF0',
-        'grad-develop-end': '#00DFD8',
-        'grad-preview-start': '#7928CA',
-        'grad-preview-end': '#FF0080',
-        'grad-ship-start': '#FF4D4D',
-        'grad-ship-end': '#F9CB28',
-        cyan: '#50E3C2',
+        // ── Brand gradient stops (the hero-scale decoration — theme-independent) ──
+        'grad-develop-start': '#1F5E0A',
+        'grad-develop-end': '#6FAE1E',
+        'grad-preview-start': '#3E8214',
+        'grad-preview-end': '#9DD12A',
+        'grad-ship-start': '#9DD12A',
+        'grad-ship-end': '#E9F8C5',
+        cyan: '#5E9415',
 
         // ── Semantic ──
-        success: '#0070F3',
-        'success-fg': '#3291FF',
-        warning: '#F5A623',
-        'warning-soft': '#2A2008',
-        error: '#FF4D4D',
-        'error-soft': '#2A1010',
+        success: 'rgb(var(--color-success) / <alpha-value>)',
+        'success-fg': 'rgb(var(--color-success-fg) / <alpha-value>)',
+        warning: 'rgb(var(--color-warning) / <alpha-value>)',
+        'warning-soft': 'rgb(var(--color-warning-soft) / <alpha-value>)',
+        error: 'rgb(var(--color-error) / <alpha-value>)',
+        'error-soft': 'rgb(var(--color-error-soft) / <alpha-value>)',
       },
       borderRadius: {
         // design.md radius scale
@@ -80,6 +79,7 @@ module.exports = {
       fontSize: {
         // design.md type hierarchy (size / lineHeight). Negative tracking is applied
         // per-component via letterSpacing since NativeWind tracking is limited.
+        'display-2xl': ['52px', { lineHeight: '56px' }],
         'display-xl': ['40px', { lineHeight: '44px' }],
         'display-lg': ['30px', { lineHeight: '38px' }],
         'display-md': ['24px', { lineHeight: '32px' }],
@@ -91,13 +91,21 @@ module.exports = {
         code: ['13px', { lineHeight: '20px' }],
       },
       fontFamily: {
-        // Geist substitutes (design.md "Note on Font Substitutes"), bundled via
-        // @expo-google-fonts/inter + jetbrains-mono and loaded in app/_layout. RN can't
-        // synthesise weights for a custom family, so each weight is its own family; the
-        // Txt component picks the family from its `weight` prop. Falls back to System.
+        // Two-family system (loaded in app/_layout). PRIMARY = Manrope for display
+        // / headings / large numbers (the premium fitness feel — Nike/Peloton/WHOOP);
+        // SECONDARY = Inter for body & captions (readability for data). RN can't
+        // synthesise weights for a custom family, so each weight is its own family;
+        // the Txt component picks the family from its variant + `weight`. Falls back
+        // to System.
+        // Secondary — body / caption (Inter).
         sans: ['Inter_400Regular', 'System'],
         'sans-medium': ['Inter_500Medium', 'System'],
         'sans-semibold': ['Inter_600SemiBold', 'System'],
+        // Primary — display / headings / numbers (Manrope).
+        heading: ['Manrope_400Regular', 'System'],
+        'heading-medium': ['Manrope_500Medium', 'System'],
+        'heading-semibold': ['Manrope_600SemiBold', 'System'],
+        'heading-bold': ['Manrope_700Bold', 'System'],
         mono: ['JetBrainsMono_400Regular', 'monospace'],
       },
     },

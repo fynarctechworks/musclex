@@ -44,7 +44,7 @@ export function BackupCodesModal({ open, codes, onClose }: BackupCodesModalProps
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'fitsync-2fa-backup-codes.txt';
+    a.download = 'musclex-2fa-backup-codes.txt';
     a.click();
     URL.revokeObjectURL(url);
   };

@@ -26,9 +26,13 @@
     --mute: 0 0% 53%;              /* #888888 */
     --on-primary: 0 0% 100%;
 
-    --link: 212 100% 47%;          /* #0070f3 */
-    --link-deep: 213 100% 42%;     /* #0761d1 */
-    --link-bg-soft: 213 100% 91%;  /* #d3e5ff */
+    /* Links/accents use the primary ink, not blue — keeps the palette
+     * monochrome. Default = ink (#171717), hover/badge-text = body-ink
+     * (#4d4d4d), soft background = neutral canvas-soft-2 (#f5f5f5). These
+     * reference the ink ladder so they polarity-flip in dark mode. */
+    --link: var(--ink);            /* #171717 */
+    --link-deep: var(--body-ink);  /* #4d4d4d */
+    --link-bg-soft: var(--canvas-soft-2); /* #f5f5f5 */
 
     --error: 0 100% 47%;           /* #ee0000 */
     --error-soft: 357 67% 90%;     /* #f7d4d6 */

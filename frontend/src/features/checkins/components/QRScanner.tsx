@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { QrCode, Camera, CameraOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { captureError, Source } from "@/lib/observability/capture";
 import { ScannerStage, type ScannerState } from "./ScannerStage";
 import { CameraBlockedPanel } from "./CameraBlockedPanel";
 import {
@@ -113,6 +114,7 @@ export function QRScanner({ onScan, isPending, tone = 'card' }: QRScannerProps) 
       const dx = diagnoseCameraError(err);
       setDiagnosis(dx);
       setState("error");
+      captureError(Source.QR, err, { module: "qr-checkin-scanner", severity: "MEDIUM" });
     }
   };
 

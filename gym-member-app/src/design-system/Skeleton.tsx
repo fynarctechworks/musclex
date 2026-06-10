@@ -43,7 +43,7 @@ export function Skeleton({
 
 export function SkeletonCard() {
   return (
-    <View className="rounded-lg border border-hairline bg-surface p-lg">
+    <View className="rounded-2xl border border-hairline bg-surface p-lg">
       <Skeleton width="60%" height={20} />
       <View className="h-md" />
       <Skeleton width="100%" height={14} />

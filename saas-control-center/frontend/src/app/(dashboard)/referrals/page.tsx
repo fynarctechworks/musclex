@@ -50,6 +50,11 @@ export default function ReferralsPage() {
       ?.filter((f) => f.review_status === 'pending')
       .reduce((a, f) => a + f.count, 0) ?? 0;
 
+  // Referral data is proxied from the main app; surface outages instead of
+  // silently showing empty sections.
+  const serviceDown =
+    overview.isError || funnel.isError || topReferrers.isError || revenue.isError || ttr.isError;
+
   return (
     <div>
       <PageHeader
@@ -93,6 +98,19 @@ export default function ReferralsPage() {
           </div>
         }
       />
+
+      {/* Referral service outage banner */}
+      {serviceDown && (
+        <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-destructive" />
+          <div>
+            <p className="text-[13px] font-medium text-foreground">Referral service unavailable</p>
+            <p className="text-[12px] text-muted-foreground">
+              Referral data is served by the main MuscleX app and could not be reached. The figures below are not "zero" — they failed to load. Confirm the main backend is running, then refresh.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

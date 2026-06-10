@@ -22,6 +22,8 @@ export type AnalyticsEvent =
   | { name: 'challenge_joined'; challengeId: string }
   | { name: 'health_viewed' }
   | { name: 'activity_viewed' }
+  | { name: 'walk_session_started' }
+  | { name: 'step_goal_achieved'; steps: number }
   | { name: 'goals_updated' }
   | { name: 'onboarding_intro_completed' }
   | { name: 'sleep_viewed' }
@@ -30,7 +32,12 @@ export type AnalyticsEvent =
   | { name: 'wearable_connected'; provider: string }
   | { name: 'wearable_revoked'; provider: string }
   | { name: 'health_synced'; accepted: number }
-  | { name: 'health_manual_logged'; metric: string };
+  | { name: 'health_manual_logged'; metric: string }
+  | { name: 'onboarding_started' }
+  | { name: 'onboarding_step_viewed'; step: string; index: number }
+  | { name: 'onboarding_step_completed'; step: string; ms: number }
+  | { name: 'onboarding_skipped'; step: string }
+  | { name: 'onboarding_completed' };
 
 export interface AnalyticsSink {
   track(name: string, props: Record<string, unknown>): void;

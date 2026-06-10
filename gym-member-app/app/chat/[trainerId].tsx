@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { Icon, Input, Screen, Txt, colors } from '../../src/design-system';
-import { BackButton } from '../../src/navigation/BackButton';
+import { Icon, Input, Screen, Txt, useThemeColors } from '../../src/design-system';
+import { ScreenHeader } from '../../src/navigation/ScreenHeader';
 import { useChatMessages, useSendMessage, chatKeys } from '../../src/api/queries';
 import { getChatSocket, emitTyping } from '../../src/realtime/chat-socket';
 import { track } from '../../src/analytics';
@@ -14,6 +14,7 @@ import type { ChatMessageList } from '../../src/api/types';
  * offline outbox with an optimistic bubble. Text-only for now.
  */
 export default function ConversationScreen() {
+  const theme = useThemeColors();
   const { trainerId, name } = useLocalSearchParams<{ trainerId: string; name?: string }>();
   const tid = trainerId ?? '';
   const qc = useQueryClient();
@@ -24,6 +25,12 @@ export default function ConversationScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const typingSentAt = useRef(0);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Only auto-scroll to the newest message when the member is already near the
+  // bottom — otherwise a new message (or the "typing…" bubble) would yank them
+  // away from history they've scrolled up to read. Starts true so the first
+  // paint lands at the bottom.
+  const nearBottom = useRef(true);
+  const didInitialScroll = useRef(false);
 
   const messages = data?.messages ?? [];
   const trainerName = data?.trainerName ?? name ?? 'Trainer';
@@ -85,6 +92,7 @@ export default function ConversationScreen() {
   function onSend() {
     const body = text.trim();
     if (!body) return;
+    nearBottom.current = true; // always follow the member's own outgoing message
     send.mutate(body);
     track({ name: 'trainer_message_sent', trainerId: tid });
     setText('');
@@ -98,10 +106,7 @@ export default function ConversationScreen() {
       >
         {/* Header */}
         <View className="border-b border-hairline px-md pb-sm pt-md">
-          <BackButton />
-          <Txt variant="display-sm" weight="600" className="text-ink">
-            {trainerName}
-          </Txt>
+          <ScreenHeader title={trainerName} className="mb-0" />
         </View>
 
         {/* Messages */}
@@ -111,7 +116,23 @@ export default function ConversationScreen() {
           contentContainerStyle={{ paddingVertical: 16, gap: 8 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+          scrollEventThrottle={64}
+          onScroll={(e) => {
+            const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+            nearBottom.current =
+              layoutMeasurement.height + contentOffset.y >= contentSize.height - 120;
+          }}
+          onContentSizeChange={() => {
+            // First paint: jump to the bottom without animation (no visible
+            // top→bottom scroll on open). After that, only follow new content
+            // when the member is already at the bottom.
+            if (!didInitialScroll.current) {
+              didInitialScroll.current = true;
+              scrollRef.current?.scrollToEnd({ animated: false });
+            } else if (nearBottom.current) {
+              scrollRef.current?.scrollToEnd({ animated: true });
+            }
+          }}
         >
           {messages.map((m) => {
             const mine = m.sender === 'member';
@@ -171,7 +192,7 @@ export default function ConversationScreen() {
             className="h-[44px] w-[44px] items-center justify-center rounded-full bg-primary"
             style={{ opacity: text.trim() ? 1 : 0.5 }}
           >
-            <Icon name="chevron-right" color={colors.onPrimary} size={22} />
+            <Icon name="chevron-right" color={theme.onPrimary} size={22} />
           </Pressable>
         </View>
       </KeyboardAvoidingView>

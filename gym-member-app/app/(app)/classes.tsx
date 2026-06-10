@@ -6,11 +6,10 @@ import {
   EmptyState,
   ErrorState,
   Icon,
-  MeshGradient,
   Screen,
   SkeletonCard,
   Txt,
-  colors,
+  useThemeColors,
 } from '../../src/design-system';
 import {
   useClasses,
@@ -90,7 +89,6 @@ export default function ClassesScreen() {
     <Screen scroll padded={false} onRefresh={refetch} refreshing={isRefetching}>
       {/* Hero header with the brand mesh gradient (design.md: hero scale only). */}
       <View className="overflow-hidden px-md pb-lg pt-md">
-        <MeshGradient opacity={0.5} />
         <Txt variant="mono" className="text-ink/70">
           BOOK A SPOT
         </Txt>
@@ -215,9 +213,10 @@ function ClassCard({
 }
 
 function MetaItem({ icon, label }: { icon: 'user' | 'pin' | 'users'; label: string }) {
+  const theme = useThemeColors();
   return (
     <View className="flex-row items-center gap-xs">
-      <Icon name={icon} color={colors.mute} size={15} />
+      <Icon name={icon} color={theme.mute} size={15} />
       <Txt variant="caption" className="text-body">
         {label}
       </Txt>

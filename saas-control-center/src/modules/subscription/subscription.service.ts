@@ -1,15 +1,32 @@
 import {
   Injectable,
+  Inject,
   NotFoundException,
   BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import type Redis from 'ioredis';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService, AuditContext } from '../audit-logs/audit-logs.service';
-import { AuditAction, Prisma, SubscriptionStatus, TenantStatus } from '@prisma/client';
+import {
+  AuditAction,
+  PaymentStatus,
+  Prisma,
+  SubscriptionStatus,
+  TenantStatus,
+} from '@prisma/client';
 import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { CreateSubscriptionDto, SubscriptionFilterDto } from './dto/subscription.dto';
+import { REDIS_CLIENT } from '../../config/redis.module';
+import { withCronLock } from '../../common/utils/cron-lock';
+import {
+  BILLING_GATEWAY,
+  BillingGateway,
+} from '../billing/gateway/billing-gateway.interface';
+
+const RENEWAL_PERIOD_DAYS = 30;
+const RENEWAL_LOCK_TTL_SEC = 600; // 10 min upper bound per cron tick
 
 @Injectable()
 export class SubscriptionService {
@@ -18,6 +35,8 @@ export class SubscriptionService {
   constructor(
     private prisma: PrismaService,
     private audit: AuditLogsService,
+    @Inject(REDIS_CLIENT) private redis: Redis,
+    @Inject(BILLING_GATEWAY) private gateway: BillingGateway,
   ) {}
 
   async findAll(filters: SubscriptionFilterDto) {
@@ -44,7 +63,6 @@ export class SubscriptionService {
   }
 
   async create(dto: CreateSubscriptionDto, ctx: AuditContext) {
-    // Validate tenant and plan exist
     const [tenant, plan] = await Promise.all([
       this.prisma.tenant.findUnique({ where: { id: dto.tenant_id } }),
       this.prisma.subscriptionPlan.findUnique({ where: { id: dto.plan_id } }),
@@ -53,7 +71,6 @@ export class SubscriptionService {
     if (!tenant) throw new NotFoundException('Tenant not found');
     if (!plan || !plan.is_active) throw new BadRequestException('Invalid or inactive plan');
 
-    // Cancel any active subscription for this tenant
     await this.prisma.subscription.updateMany({
       where: { tenant_id: dto.tenant_id, status: SubscriptionStatus.ACTIVE },
       data: { status: SubscriptionStatus.CANCELED, canceled_at: new Date() },
@@ -62,7 +79,7 @@ export class SubscriptionService {
     const startDate = dto.start_date ? new Date(dto.start_date) : new Date();
     const endDate = dto.end_date
       ? new Date(dto.end_date)
-      : new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+      : new Date(startDate.getTime() + RENEWAL_PERIOD_DAYS * 24 * 60 * 60 * 1000);
 
     const subscription = await this.prisma.subscription.create({
       data: {
@@ -76,7 +93,6 @@ export class SubscriptionService {
       include: { tenant: true, plan: true },
     });
 
-    // Update tenant plan reference
     await this.prisma.tenant.update({
       where: { id: dto.tenant_id },
       data: { plan_id: dto.plan_id, status: TenantStatus.ACTIVE },
@@ -148,7 +164,6 @@ export class SubscriptionService {
         `Trial expiry reminder: tenant "${tenant.name}" (${tenant.owner_email}) expires at ${tenant.trial_ends_at?.toISOString()}`,
       );
       // TODO: Send email reminder via Resend when available
-      // await this.emailService.sendTrialExpiryReminder(tenant.owner_email, tenant.name, tenant.trial_ends_at);
     }
 
     this.logger.log(`Sent ${expiringTrials.length} trial expiry reminders`);
@@ -173,8 +188,6 @@ export class SubscriptionService {
         where: { id: tenant.id },
         data: { status: TenantStatus.EXPIRED, is_active: false },
       });
-
-      // Also expire any TRIALING subscriptions for this tenant
       await this.prisma.subscription.updateMany({
         where: {
           tenant_id: tenant.id,
@@ -182,25 +195,35 @@ export class SubscriptionService {
         },
         data: { status: SubscriptionStatus.EXPIRED },
       });
-
       this.logger.log(
         `Trial expired for tenant "${tenant.name}" (${tenant.owner_email})`,
       );
-      // TODO: Send trial expired email via Resend when available
-      // await this.emailService.sendTrialExpiredNotice(tenant.owner_email, tenant.name);
     }
 
     this.logger.log(`Expired ${expiredTrials.length} trials`);
   }
 
-  // Run daily at midnight — expire subscriptions and auto-renew
+  // ── Subscription expirations + auto-renewal ──────────────────
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleExpirations() {
+    await withCronLock(
+      this.redis,
+      'subscription:handleExpirations',
+      RENEWAL_LOCK_TTL_SEC,
+      () => this.runExpirationsAndRenewals(),
+    );
+  }
+
+  /**
+   * Inner cron body — invoked under the distributed lock so two instances
+   * can't double-renew or double-expire the same subscription. Exposed for
+   * tests; production code path is always `handleExpirations`.
+   */
+  async runExpirationsAndRenewals(): Promise<void> {
     this.logger.log('Running subscription expiration check...');
     const now = new Date();
 
-    // Find expired active subscriptions
-    const expired = await this.prisma.subscription.findMany({
+    const due = await this.prisma.subscription.findMany({
       where: {
         status: SubscriptionStatus.ACTIVE,
         end_date: { lt: now },
@@ -208,44 +231,136 @@ export class SubscriptionService {
       include: { tenant: true, plan: true },
     });
 
-    for (const sub of expired) {
+    for (const sub of due) {
       if (sub.auto_renew) {
-        // Create a pending payment for renewal
-        const payment = await this.prisma.payment.create({
-          data: {
-            tenant_id: sub.tenant_id,
-            amount: sub.plan.price_monthly,
-            currency: 'INR',
-            status: 'PENDING',
-            gateway: 'auto_renewal',
-            metadata: { subscription_id: sub.id, period: 'monthly' },
-          },
-        });
-
-        // TODO: In production, call payment gateway here
-        // For now, extend subscription and mark as PAST_DUE until payment confirmed
-        await this.prisma.subscription.update({
-          where: { id: sub.id },
-          data: {
-            start_date: now,
-            end_date: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
-          },
-        });
-        this.logger.log(`Auto-renewed subscription ${sub.id}, payment ${payment.id} pending`);
+        await this.attemptAutoRenewal(sub, now);
       } else {
-        // Expire
-        await this.prisma.$transaction([
-          this.prisma.subscription.update({
-            where: { id: sub.id },
-            data: { status: SubscriptionStatus.EXPIRED },
-          }),
-          this.prisma.tenant.update({
-            where: { id: sub.tenant_id },
-            data: { status: TenantStatus.EXPIRED },
-          }),
-        ]);
-        this.logger.log(`Expired subscription ${sub.id} for tenant ${sub.tenant.name}`);
+        await this.expireSubscription(sub);
       }
     }
+  }
+
+  private async attemptAutoRenewal(
+    sub: Prisma.SubscriptionGetPayload<{ include: { tenant: true; plan: true } }>,
+    now: Date,
+  ): Promise<void> {
+    // Always record the renewal attempt as a PENDING Payment first, linked to
+    // the subscription. This fixes the M1 partial regression where prior code
+    // stuffed subscription_id into metadata rather than the FK column.
+    const payment = await this.prisma.payment.create({
+      data: {
+        tenant_id: sub.tenant_id,
+        subscription_id: sub.id,
+        amount: sub.plan.price_monthly,
+        currency: 'INR',
+        status: PaymentStatus.PENDING,
+        gateway: this.gateway.name,
+        metadata: { kind: 'auto_renewal', period_days: RENEWAL_PERIOD_DAYS } as Prisma.InputJsonValue,
+      },
+    });
+
+    const customerToken = this.extractCustomerToken(sub.tenant.metadata);
+
+    const result = await this.gateway.charge({
+      amount: Number(sub.plan.price_monthly),
+      currency: 'INR',
+      tenant_id: sub.tenant_id,
+      payment_id: payment.id,
+      description: `Auto-renewal for tenant ${sub.tenant.slug}`,
+      customer_token: customerToken,
+    });
+
+    if (result.status === 'PAID') {
+      const newEnd = new Date(now.getTime() + RENEWAL_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+      await this.prisma.$transaction([
+        this.prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: PaymentStatus.PAID,
+            gateway_payment_id: result.gateway_payment_id,
+          },
+        }),
+        this.prisma.subscription.update({
+          where: { id: sub.id },
+          data: {
+            status: SubscriptionStatus.ACTIVE,
+            start_date: now,
+            end_date: newEnd,
+          },
+        }),
+      ]);
+      this.logger.log(
+        JSON.stringify({
+          event: 'payment.paid',
+          kind: 'auto_renewal',
+          subscription_id: sub.id,
+          tenant_id: sub.tenant_id,
+          payment_id: payment.id,
+          gateway: this.gateway.name,
+          gateway_payment_id: result.gateway_payment_id,
+          amount: Number(sub.plan.price_monthly),
+          new_end_date: newEnd.toISOString(),
+        }),
+      );
+      return;
+    }
+
+    // PENDING or FAILED — DO NOT extend dates. Flip the subscription to
+    // PAST_DUE so the dashboard can surface a "needs attention" counter, but
+    // leave Tenant.status = ACTIVE (per decision: no auto-suspend).
+    const persistedPaymentStatus =
+      result.status === 'PENDING' ? PaymentStatus.PENDING : PaymentStatus.FAILED;
+
+    await this.prisma.$transaction([
+      this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: persistedPaymentStatus,
+          gateway_payment_id: result.gateway_payment_id ?? null,
+          failure_reason: result.failure_reason ?? null,
+        },
+      }),
+      this.prisma.subscription.update({
+        where: { id: sub.id },
+        data: { status: SubscriptionStatus.PAST_DUE },
+      }),
+    ]);
+
+    this.logger.warn(
+      JSON.stringify({
+        event: 'payment.failed',
+        kind: 'auto_renewal',
+        subscription_id: sub.id,
+        tenant_id: sub.tenant_id,
+        payment_id: payment.id,
+        gateway: this.gateway.name,
+        outcome: result.status,
+        failure_reason: result.failure_reason,
+        next_state: 'PAST_DUE',
+        amount: Number(sub.plan.price_monthly),
+      }),
+    );
+  }
+
+  private async expireSubscription(
+    sub: Prisma.SubscriptionGetPayload<{ include: { tenant: true; plan: true } }>,
+  ): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.subscription.update({
+        where: { id: sub.id },
+        data: { status: SubscriptionStatus.EXPIRED },
+      }),
+      this.prisma.tenant.update({
+        where: { id: sub.tenant_id },
+        data: { status: TenantStatus.EXPIRED },
+      }),
+    ]);
+    this.logger.log(`Expired subscription ${sub.id} for tenant ${sub.tenant.name}`);
+  }
+
+  private extractCustomerToken(metadata: Prisma.JsonValue | null): string | undefined {
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return undefined;
+    const token = (metadata as Record<string, unknown>).gateway_customer_token;
+    return typeof token === 'string' && token.length > 0 ? token : undefined;
   }
 }

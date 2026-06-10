@@ -9,7 +9,7 @@ interface CheckInDB extends DBSchema {
   };
 }
 
-const DB_NAME = 'fitsync-checkins';
+const DB_NAME = 'musclex-checkins';
 const DB_VERSION = 1;
 const STORE_NAME = 'offlineCheckIns';
 

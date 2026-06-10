@@ -14,6 +14,7 @@ import {
   FormTextarea,
   FormSelect,
 } from "@/components/shared/form-fields";
+import { PhoneInput } from "@/components/shared/phone-input";
 import { Button } from "@/components/ui/button";
 import { PhotoUpload } from "@/components/ui/photo-upload";
 import { apiClient } from "@/services/api-client";
@@ -46,7 +47,6 @@ const PAYMENT_METHOD_OPTIONS = [
   { label: "UPI", value: "upi" },
   { label: "Bank Transfer", value: "bank_transfer" },
   { label: "Razorpay", value: "razorpay" },
-  { label: "Stripe", value: "stripe" },
 ];
 
 export default function AddMemberPage() {
@@ -264,19 +264,28 @@ export default function AddMemberPage() {
                 error={errors.full_name?.message}
                 {...register("full_name", { required: "Full name is required" })}
               />
-              <FormInput
-                label="Phone *"
-                placeholder="+91 98765 43210"
-                error={errors.phone?.message}
-                {...register("phone", {
+              <Controller
+                name="phone"
+                control={control}
+                rules={{
                   required: "Phone number is required",
-                  pattern: {
-                    value: /^\+?[\d\s-]{7,15}$/,
-                    message: "Enter a valid phone number",
+                  validate: (v) => {
+                    const d = (v ?? "").replace(/\D/g, "");
+                    return (d.length >= 7 && d.length <= 15) || "Enter a valid phone number";
                   },
-                  onChange: () => setPhoneCheck({ status: 'idle' }),
-                })}
-                onBlur={(e) => checkPhone(e.target.value)}
+                }}
+                render={({ field }) => (
+                  <PhoneInput
+                    label="Phone *"
+                    value={field.value}
+                    onChange={(val) => {
+                      field.onChange(val);
+                      setPhoneCheck({ status: "idle" });
+                    }}
+                    onBlur={() => checkPhone(field.value)}
+                    error={errors.phone?.message}
+                  />
+                )}
               />
             </div>
 

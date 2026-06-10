@@ -31,9 +31,14 @@ const PROVIDER: WearableProvider =
 const IOS_QUANTITY: Partial<Record<HealthMetricType, { id: string; unit: string }>> = {
   steps: { id: 'stepCount', unit: 'count' },
   calories_active: { id: 'activeEnergyBurned', unit: 'kcal' },
+  calories_resting: { id: 'basalEnergyBurned', unit: 'kcal' },
+  active_minutes: { id: 'appleExerciseTime', unit: 'min' },
   distance_m: { id: 'distanceWalkingRunning', unit: 'm' },
   heart_rate: { id: 'heartRate', unit: 'count/min' },
   hr_resting: { id: 'restingHeartRate', unit: 'count/min' },
+  // Readiness/recovery inputs (HealthKit quantity types).
+  hrv: { id: 'heartRateVariabilitySDNN', unit: 'ms' },
+  respiratory_rate: { id: 'respiratoryRate', unit: 'count/min' },
   spo2: { id: 'oxygenSaturation', unit: '%' },
   vo2max: { id: 'vo2Max', unit: 'ml/(kg*min)' },
 };
@@ -44,6 +49,9 @@ const ANDROID_RECORDS: Partial<Record<HealthMetricType, string>> = {
   distance_m: 'Distance',
   heart_rate: 'HeartRate',
   hr_resting: 'RestingHeartRate',
+  // Readiness/recovery inputs (Health Connect record types).
+  hrv: 'HeartRateVariabilityRmssd',
+  respiratory_rate: 'RespiratoryRate',
   spo2: 'OxygenSaturation',
   sleep_duration: 'SleepSession',
 };
@@ -131,6 +139,36 @@ class NativeHealthBridge implements HealthBridge {
     return out;
   }
 
+  /**
+   * Today's total steps from the OS health store. On Android this is the
+   * background-inclusive Health Connect total (sum of today's Steps records),
+   * which is how we recover steps taken while the app was killed. On iOS we
+   * return null — the CoreMotion pedometer (expo-sensors) already supplies the
+   * accurate today's total, so we don't double-query HealthKit here.
+   */
+  async readTodayStepTotal(): Promise<number | null> {
+    if (!this.mod || Platform.OS !== 'android') return null;
+    try {
+      await this.mod.initialize();
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const res = await this.mod.readRecords?.('Steps', {
+        timeRangeFilter: {
+          operator: 'between',
+          startTime: start.toISOString(),
+          endTime: new Date().toISOString(),
+        },
+      });
+      const records = res?.records ?? res ?? [];
+      if (!Array.isArray(records) || records.length === 0) return null;
+      let total = 0;
+      for (const r of records) total += Number(r.count ?? 0);
+      return total;
+    } catch {
+      return null; // Health Connect not granted / unavailable
+    }
+  }
+
   private async readAndroid(since: Date): Promise<HealthSampleInput[]> {
     const out: HealthSampleInput[] = [];
     const timeRangeFilter = {
@@ -186,6 +224,14 @@ function mapAndroidRecord(
     case 'spo2':
       value = Number(r.percentage ?? 0);
       unit = '%';
+      break;
+    case 'hrv':
+      value = Number(r.heartRateVariabilityMillis ?? 0);
+      unit = 'ms';
+      break;
+    case 'respiratory_rate':
+      value = Number(r.rate ?? 0);
+      unit = 'count/min';
       break;
     case 'sleep_duration':
       value =

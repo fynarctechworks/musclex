@@ -2,7 +2,7 @@ import { View } from 'react-native';
 import { Txt } from './Text';
 import { Button } from './Button';
 import { Icon, IconName } from './Icon';
-import { colors } from './tokens';
+import { useThemeColors } from './theme';
 
 /**
  * Designed empty state (IA §4: "empty states are designed, not blank"). Use anywhere
@@ -31,10 +31,11 @@ export function EmptyState({
   onAction,
   compact,
 }: EmptyStateProps) {
+  const theme = useThemeColors();
   return (
     <View className={`items-center ${compact ? 'py-md' : 'px-lg py-3xl'}`}>
       <View className="h-[52px] w-[52px] items-center justify-center rounded-full border border-hairline bg-surface-2">
-        <Icon name={icon} color={colors.mute} size={24} />
+        <Icon name={icon} color={theme.mute} size={24} />
       </View>
       <Txt variant="body-lg" weight="600" className="mt-md text-center text-ink">
         {title}

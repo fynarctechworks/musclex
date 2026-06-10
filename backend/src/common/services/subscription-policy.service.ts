@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SccSyncService } from './scc-sync.service';
 import { PLAN_CONFIGS } from '../plan-configs';
 import {
   SubscriptionContext,
@@ -56,7 +57,10 @@ export class SubscriptionPolicyService {
   // Whitelist of suspended_at -> SUSPENDED beats locked.
   // Order of precedence: SUSPENDED > LOCKED > GRACE_PERIOD > ACTIVE.
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly sccSync: SccSyncService,
+  ) {}
 
   // ────────────────────────────────────────────────────────────
   // PURE LOGIC
@@ -395,14 +399,16 @@ export class SubscriptionPolicyService {
     plan_changed: boolean;
     plan: string;
     billing_cycle: string;
+    slug: string;
   }> {
     const now = params.now ?? new Date();
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const studio = await tx.studio.findUnique({
         where: { id: params.studio_id },
         select: {
           id: true,
+          slug: true,
           subscription_plan: true,
           billing_cycle: true,
           next_billing_date: true,
@@ -544,8 +550,28 @@ export class SubscriptionPolicyService {
         plan_changed: planChanged,
         plan: targetPlan,
         billing_cycle: targetCycle,
+        slug: studio.slug,
       };
     });
+
+    // Mirror this SaaS billing invoice into the Control Center (scc.payments)
+    // so the SCC /billing page reflects EVERY paid renewal — not just the first
+    // onboarding payment. This is the single chokepoint where invoices are
+    // created, so syncing here covers onboarding, renewals, and plan-change
+    // payments alike. Runs AFTER the transaction commits (never inside it) so a
+    // rolled-back renewal never leaks a phantom payment into SCC. upsertPayment
+    // is non-fatal — it swallows its own errors and never breaks billing.
+    await this.sccSync.upsertPayment({
+      id: result.invoice_id,
+      studio_slug: result.slug,
+      amount: params.amount ?? 0,
+      currency: params.currency ?? 'INR',
+      status: 'paid',
+      invoice_number: result.invoice_number,
+      paid_at: now,
+    });
+
+    return result;
   }
 
   /**

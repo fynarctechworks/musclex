@@ -5,6 +5,6 @@ export class RenewMemberDto {
   plan_id: string;
 
   @IsString()
-  @IsIn(['cash', 'card', 'upi', 'bank_transfer', 'razorpay', 'stripe'])
+  @IsIn(['cash', 'card', 'upi', 'bank_transfer', 'razorpay'])
   payment_method: string;
 }

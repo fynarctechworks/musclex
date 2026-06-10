@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
-import { config, isAnalyticsConfigured } from '../config';
+import { config, isAnalyticsConfigured, isSccErrorReportingConfigured } from '../config';
 import { setAnalyticsSink, type AnalyticsSink, captureError } from '../analytics';
+import { reportErrorToScc } from './scc-errors';
 
 /**
  * Monitoring wiring (Phase 5) — analytics + JS error reporting via PostHog's HTTP
@@ -65,16 +66,30 @@ const posthogSink: AnalyticsSink = {
       $exception_stack: e.stack ?? null,
       ...context,
     });
+    // Also surface in the SCC Error Center (no-op if SCC ingest isn't configured).
+    reportErrorToScc(error, context);
   },
+};
+
+/**
+ * Minimal sink used when the SCC Error Center is configured but PostHog is NOT —
+ * keeps product-event tracking a no-op while still routing caught errors to SCC.
+ */
+const sccOnlySink: AnalyticsSink = {
+  track: () => {},
+  captureError: (error, context) => reportErrorToScc(error, context),
 };
 
 let installed = false;
 
 /** Attach the real analytics sink + a global JS-error handler. Call once at start. */
 export function initMonitoring(): void {
-  if (installed || !isAnalyticsConfigured()) return;
+  // Activate if EITHER PostHog (analytics + errors) or SCC (errors only) is set.
+  if (installed || (!isAnalyticsConfigured() && !isSccErrorReportingConfigured()))
+    return;
   installed = true;
-  setAnalyticsSink(posthogSink);
+  // PostHog sink also fans errors to SCC; if only SCC is set, use the errors-only sink.
+  setAnalyticsSink(isAnalyticsConfigured() ? posthogSink : sccOnlySink);
 
   // Global JS error handler (chains the previous one so RN's red box still shows).
   const g = globalThis as unknown as {

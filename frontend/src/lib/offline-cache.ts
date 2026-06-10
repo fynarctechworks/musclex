@@ -11,7 +11,7 @@ import { openDB, type IDBPDatabase } from "idb";
  * One object store keyed by `cache_key`, value carries `{ data, ts }`.
  */
 
-const DB_NAME = "fitsync-dashboard";
+const DB_NAME = "musclex-dashboard";
 const DB_VERSION = 1;
 const STORE = "cache";
 

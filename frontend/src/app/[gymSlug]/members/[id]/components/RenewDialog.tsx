@@ -85,7 +85,6 @@ export function RenewDialog({
               <option value="upi">UPI</option>
               <option value="bank_transfer">Bank Transfer</option>
               <option value="razorpay">Razorpay</option>
-              <option value="stripe">Stripe</option>
             </select>
           </div>
         </div>

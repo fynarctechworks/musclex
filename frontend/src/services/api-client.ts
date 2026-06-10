@@ -4,6 +4,8 @@
  * All feature modules import from here — never call fetch() directly.
  */
 
+import { captureApiFailure } from '@/lib/observability/capture';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -151,6 +153,53 @@ async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
+/**
+ * Self-heal a stale onboarding token.
+ *
+ * A token minted during onboarding (at email-verification / first sign-in)
+ * predates studio creation, so it carries no `user_metadata.studio_id`. The
+ * backend's TenantMiddleware reads studio_id from the JWT to resolve gym_id;
+ * without it, tenant-scoped writes (member creation, photo upload) fail with a
+ * 400 — and because the token is *valid* (not expired), the normal 401 refresh
+ * path never fires, so it never self-heals.
+ *
+ * This decodes the current access token and, if studio_id is absent, forces a
+ * single refresh. The refresh re-mints from the user's *current* metadata
+ * (studio_id now present). Returns true if a refresh was performed.
+ */
+export async function ensureStudioScopedToken(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  const { accessToken, refreshToken } = getAuthState();
+  if (!accessToken || !refreshToken) return false;
+
+  let hasStudioId = false;
+  try {
+    const part = accessToken.split('.')[1];
+    if (!part) return false;
+    const json = atob(part.replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(
+      decodeURIComponent(
+        json
+          .split('')
+          .map((c) => '%' + c.charCodeAt(0).toString(16).padStart(2, '0'))
+          .join(''),
+      ),
+    );
+    hasStudioId = !!payload?.user_metadata?.studio_id;
+  } catch {
+    // Unparseable token — leave it; the 401 path handles genuine expiry.
+    return false;
+  }
+  if (hasStudioId) return false;
+
+  if (!refreshPromise) {
+    refreshPromise = refreshAccessToken().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return !!(await refreshPromise);
+}
+
 // ─── URL Builder ─────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -277,6 +326,19 @@ async function request<T = unknown>(
       },
     });
 
+    // Mirror true server faults (5xx) to the SCC Error Center. The reporter is
+    // statically imported (it's tiny + dependency-free) so there's no async
+    // loader to go stale under HMR; captureApiFailure never throws.
+    if (res.status >= 500) {
+      captureApiFailure({
+        endpoint,
+        method,
+        status: res.status,
+        message: msg,
+        correlationId: echoedCorrelationId,
+      });
+    }
+
     // Dispatch global event for plan limit errors → redirect to subscription page
     if (res.status === 403 && typeof window !== 'undefined' && (msg.includes('limit reached') || msg.includes('Upgrade'))) {
       window.dispatchEvent(new CustomEvent('plan-limit-reached', { detail: { message: msg } }));
@@ -320,8 +382,8 @@ export const apiClient = {
     request<T>(endpoint, { params: options?.params, signal: options?.signal }),
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  post: <T = unknown>(endpoint: string, body?: unknown, options?: { params?: Record<string, any> }) =>
-    request<T>(endpoint, { method: 'POST', body, params: options?.params }),
+  post: <T = unknown>(endpoint: string, body?: unknown, options?: { params?: Record<string, any>; headers?: Record<string, string> }) =>
+    request<T>(endpoint, { method: 'POST', body, params: options?.params, headers: options?.headers }),
 
   put: <T = unknown>(endpoint: string, body?: unknown) =>
     request<T>(endpoint, { method: 'PUT', body }),

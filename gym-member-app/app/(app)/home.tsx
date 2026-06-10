@@ -1,31 +1,33 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   Avatar,
   Badge,
-  BarChart,
   Button,
   Card,
-  EmptyState,
   ErrorState,
   Icon,
-  MeshGradient,
   ProgressRing,
   Screen,
   SkeletonCard,
   Txt,
-  colors,
+  health,
+  useThemeColors,
+  useIsDark,
 } from '../../src/design-system';
-import type { BarDatum } from '../../src/design-system';
-import { useHome, useClasses } from '../../src/api/queries';
+import { useHome, useNutritionToday } from '../../src/api/queries';
 import { useAuth } from '../../src/auth/auth-store';
+import { useCapabilities } from '../../src/auth/use-capabilities';
+import { usePrefs } from '../../src/auth/prefs-store';
+import { useStepsStore } from '../../src/features/steps/steps-store';
+import { GymSuspendedBanner } from '../../src/features/gym/GymSuspendedBanner';
+import { emitFunnelOnce } from '../../src/analytics/funnel';
+import { PublicHome } from '../../src/features/home/PublicHome';
 import { OccupancyCard } from '../../src/features/home/OccupancyCard';
-import { HealthCard } from '../../src/features/home/HealthCard';
-import { ActivityRingsCard } from '../../src/features/home/ActivityRingsCard';
 import { useHaptics } from '../../src/lib/use-haptics';
 import { formatTime, relativeFromNow } from '../../src/lib/format';
-import type { ClassListItem, MembershipStatus } from '../../src/api/types';
+import type { MealType, MembershipStatus, NutritionMeal } from '../../src/api/types';
 
 const STATUS_TONE: Record<MembershipStatus, 'success' | 'warning' | 'error'> = {
   active: 'success',
@@ -34,116 +36,93 @@ const STATUS_TONE: Record<MembershipStatus, 'success' | 'warning' | 'error'> = {
   expired: 'error',
 };
 
-/**
- * Bucket upcoming classes into the next 7 days (count per day) for the "week
- * ahead" bar chart. Real data only — the series comes straight from the classes
- * the member can see; today is highlighted.
- */
-function weekAhead(classes: ClassListItem[]): { bars: BarDatum[]; total: number } {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const bars: BarDatum[] = [];
-  let total = 0;
-  for (let i = 0; i < 7; i++) {
-    const dayStart = new Date(start);
-    dayStart.setDate(start.getDate() + i);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayStart.getDate() + 1);
-    const value = classes.filter((c) => {
-      if (!c.startsAt) return false;
-      const t = new Date(c.startsAt).getTime();
-      return t >= dayStart.getTime() && t < dayEnd.getTime();
-    }).length;
-    total += value;
-    bars.push({
-      label: dayStart.toLocaleDateString(undefined, { weekday: 'narrow' }),
-      value,
-      highlight: i === 0,
-    });
-  }
-  return { bars, total };
+const ML_PER_GLASS = 250;
+
+/** Time-of-day greeting line ("Good morning!"), matching the reference header. */
+function timeGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning!';
+  if (h < 17) return 'Good afternoon!';
+  return 'Good evening!';
 }
 
 export default function Home() {
   const router = useRouter();
   const haptic = useHaptics();
-  const { data, isLoading, isError, refetch, isRefetching } = useHome();
-  const { data: classData } = useClasses();
-  const profileName = useAuth((s) => s.profile?.name);
+  const theme = useThemeColors();
+  const { isPublic } = useCapabilities();
 
-  const greeting =
-    data?.greeting ?? (profileName ? `Hi, ${profileName.split(' ')[0]}` : 'Welcome back');
+  // Funnel: first time the dashboard is reached (once per install).
+  useEffect(() => {
+    emitFunnelOnce('first_dashboard_visit');
+  }, []);
+
+  // Gym-less public users get a dedicated dashboard (no gym data / endpoints).
+  // The gym home below is only reached by members + expired members.
+  if (isPublic) return <PublicHome />;
+
+  return <GymHome router={router} haptic={haptic} theme={theme} />;
+}
+
+function GymHome({
+  router,
+  haptic,
+  theme,
+}: {
+  router: ReturnType<typeof useRouter>;
+  haptic: ReturnType<typeof useHaptics>;
+  theme: ReturnType<typeof useThemeColors>;
+}) {
+  const isDark = useIsDark();
+  const { data, isLoading, isError, refetch, isRefetching } = useHome();
+  const { data: nutrition } = useNutritionToday();
+  const profileName = useAuth((s) => s.profile?.name);
+  const profileAvatar = useAuth((s) => s.profile?.avatarUrl);
+  const stepGoal = usePrefs((s) => s.goals.steps);
+  const steps = useStepsStore((s) => s.byDay[s.dayKey] ?? 0);
+
   const membership = data?.membership;
   const streak = data?.streak?.days ?? 0;
-  const todayStatus = data?.today;
-  const today = data?.todayWorkout;
   const nextClass = data?.nextClass;
-  const week = weekAhead(classData?.classes ?? []);
 
-  // The daily ritual: the streak-qualifying actions and whether each is done today.
-  const rituals: { key: string; label: string; icon: 'qr' | 'dumbbell' | 'flame'; done: boolean; route: string }[] = [
-    { key: 'checkin', label: 'Check in at the gym', icon: 'qr', done: !!todayStatus?.checkedIn, route: '/checkin' },
-    { key: 'workout', label: 'Log a workout', icon: 'dumbbell', done: !!todayStatus?.workoutLogged, route: '/workout' },
-    { key: 'meal', label: 'Log a meal', icon: 'flame', done: !!todayStatus?.mealLogged, route: '/nutrition' },
-  ];
-  const ritualsDone = rituals.filter((r) => r.done).length;
+  // Hydration — real glasses from the home payload (250 ml per glass).
+  const waterMl = data?.nutrition?.waterMl ?? nutrition?.waterMl ?? 0;
+  const waterGoalMl = data?.nutrition?.waterGoal ?? nutrition?.goal?.waterMl ?? 0;
+  const glasses = Math.round(waterMl / ML_PER_GLASS);
+  const goalGlasses = waterGoalMl ? Math.round(waterGoalMl / ML_PER_GLASS) : 0;
 
-  // Fire a single Success haptic the moment the day's rituals are all complete
-  // (the streak is secured). Guarded by a ref so it celebrates once, not on every
-  // re-render, and re-arms when a new day resets the count.
-  const celebrated = useRef(false);
-  useEffect(() => {
-    if (ritualsDone > 0 && ritualsDone === rituals.length) {
-      if (!celebrated.current) {
-        celebrated.current = true;
-        haptic.success();
-      }
-    } else {
-      celebrated.current = false;
-    }
-  }, [ritualsDone, rituals.length, haptic]);
-
-  const goRitual = (route: string) => {
-    haptic.tap();
-    router.push(route as never);
-  };
+  // Soft lime hero (reference "Weekly Progress" card) — saturated enough to read
+  // as the brand accent, calm enough for a large fill. Dark theme gets a deep
+  // green-tinted surface so the lime doesn't glare on the near-black canvas.
+  const heroBg = isDark ? '#22300C' : '#E2F2C2';
 
   return (
     <Screen scroll padded={false} onRefresh={refetch} refreshing={isRefetching}>
-      {/* Hero header with the brand mesh gradient (design.md: hero scale only). */}
-      <View className="overflow-hidden px-md pb-lg pt-md">
-        <MeshGradient opacity={0.5} />
-        <View className="flex-row items-start justify-between">
-          <View className="flex-1 pr-md">
-            <Txt variant="mono" className="text-ink/70">
-              {new Date()
-                .toLocaleDateString(undefined, {
-                  weekday: 'long',
-                  day: 'numeric',
-                  month: 'long',
-                })
-                .toUpperCase()}
+      {/* Header — avatar + greeting (left), calendar + notifications (right). */}
+      <View className="flex-row items-center justify-between px-md pb-md pt-xs">
+        <Pressable
+          onPress={() => router.push('/profile')}
+          accessibilityLabel="Profile"
+          className="flex-row items-center gap-sm"
+          hitSlop={8}
+        >
+          <Avatar name={profileName} uri={profileAvatar} size={44} />
+          <View>
+            <Txt variant="body-sm" className="text-mute">
+              {timeGreeting()}
             </Txt>
-            <Txt variant="display-lg" weight="600" className="mt-xs text-ink">
-              {greeting}
+            <Txt variant="body-lg" weight="600" className="text-ink">
+              {profileName ?? 'Welcome back'}
             </Txt>
           </View>
-          <View className="mt-xs flex-row items-center gap-xs">
-            <Pressable
-              onPress={() => router.push('/notifications')}
-              hitSlop={10}
-              accessibilityLabel="Notifications"
-              className="h-[40px] w-[40px] items-center justify-center rounded-full border border-hairline bg-surface"
-            >
-              <Icon name="bell" color={colors.body} size={20} />
-            </Pressable>
-            <Pressable onPress={() => router.push('/profile')} hitSlop={10} accessibilityLabel="Profile">
-              <Avatar name={profileName} size={40} />
-            </Pressable>
-          </View>
+        </Pressable>
+        <View className="flex-row items-center gap-xs">
+          <HeaderButton icon="calendar" label="Schedule" onPress={() => router.push('/classes')} theme={theme} />
+          <HeaderButton icon="bell" label="Notifications" onPress={() => router.push('/notifications')} theme={theme} dot />
         </View>
-
       </View>
+
+      <GymSuspendedBanner />
 
       <View className="gap-md px-md">
         {isLoading ? (
@@ -157,150 +136,116 @@ export default function Home() {
           </Card>
         ) : (
           <>
-            {/* Today's activity rings (Move · Active · Steps) — the signature
-               One UI hero. Self-hides until a wearable supplies real data, so
-               members without a device still lead with the streak ring below. */}
-            <ActivityRingsCard />
-
-            {/* Today's health snapshot — 2×2 of resting HR, sleep, steps, active
-               energy. Also self-hides without wearable data (no empty noise). */}
-            <HealthCard />
-
-            {/* Activity streak — the signature ring (Samsung-Health style). Driven
-               by the UNIFIED streak: a check-in, a logged workout, OR a logged meal
-               each keeps the day alive (see MemberStreakService on the BFF). */}
-            <Card elevated>
-              <View className="flex-row items-center">
-                <ProgressRing
-                  progress={Math.min(streak, 7) / 7}
-                  size={92}
-                  strokeWidth={9}
-                  color={streak > 0 ? colors.cyan : colors.surface2}
-                >
-                  <View className="items-center">
-                    <Txt variant="display-sm" weight="600" className="text-ink">
-                      {streak}
-                    </Txt>
-                    <Txt variant="caption" className="text-mute">
-                      {streak === 1 ? 'DAY' : 'DAYS'}
-                    </Txt>
-                  </View>
-                </ProgressRing>
-                <View className="ml-lg flex-1">
-                  <View className="flex-row items-center gap-xs">
-                    <Icon name="flame" color={streak > 0 ? colors.warning : colors.mute} size={16} />
-                    <Txt variant="caption" className="text-mute">
-                      ACTIVITY STREAK
-                    </Txt>
-                  </View>
-                  <Txt variant="display-sm" weight="600" className="mt-xxs text-ink">
-                    {todayStatus?.streakAtRisk
-                      ? 'Don’t break it'
-                      : streak > 0
-                        ? 'Keep it going'
-                        : 'Start today'}
-                  </Txt>
-                  <Txt variant="body-sm" className="mt-xxs text-body">
-                    {streak > 0
-                      ? todayStatus?.streakAtRisk
-                        ? `${streak}-day streak — do one thing today to keep it.`
-                        : `${streak} day${streak === 1 ? '' : 's'} in a row. Nice work.`
-                      : 'Check in, log a workout, or log a meal to begin.'}
-                  </Txt>
-                </View>
-              </View>
-            </Card>
-
-            {/* Today — the daily ritual. Each row is a streak-qualifying action with
-               an honest, server-verified done state; tapping routes to do it. */}
-            <Card elevated>
-              <View className="flex-row items-center justify-between">
-                <Txt variant="caption" className="text-mute">
-                  TODAY
-                </Txt>
-                <Txt variant="caption" className={ritualsDone === rituals.length ? 'text-success' : 'text-mute'}>
-                  {`${ritualsDone}/${rituals.length} DONE`}
-                </Txt>
-              </View>
-              <View className="mt-sm gap-xs">
-                {rituals.map((r) => (
-                  <Pressable
-                    key={r.key}
-                    onPress={() => goRitual(r.route)}
-                    disabled={r.done}
-                    accessibilityRole="button"
-                    accessibilityLabel={r.done ? `${r.label} — done` : r.label}
-                    className="flex-row items-center rounded-lg border border-hairline bg-surface px-md py-sm"
-                  >
+            {/* Hero — weekly progress ring (the reference "Your Weekly Progress").
+               Driven by the UNIFIED streak (check-in / workout / meal each keep the
+               day alive — see MemberStreakService); 7-day window. */}
+            <Pressable onPress={() => router.push('/statistic')} accessibilityLabel="View statistics">
+              <View className="overflow-hidden rounded-2xl p-lg" style={{ backgroundColor: heroBg }}>
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-1 pr-md">
                     <View
-                      className="h-[32px] w-[32px] items-center justify-center rounded-full"
-                      style={{ backgroundColor: r.done ? colors.success + '22' : colors.surface2 }}
+                      className="mb-md flex-row items-center gap-xs self-start rounded-full px-sm py-xxs"
+                      style={{ backgroundColor: theme.ink }}
                     >
-                      <Icon name={r.done ? 'check' : r.icon} color={r.done ? colors.success : colors.body} size={18} />
-                    </View>
-                    <Txt
-                      variant="body-md"
-                      weight={r.done ? '400' : '600'}
-                      className={r.done ? 'ml-md flex-1 text-mute line-through' : 'ml-md flex-1 text-ink'}
-                    >
-                      {r.label}
-                    </Txt>
-                    {r.done ? (
-                      <Txt variant="caption" className="text-success">
-                        DONE
+                      <Icon name="flash" color={theme.primary} size={13} filled />
+                      <Txt variant="caption" weight="500" style={{ color: theme.canvas }}>
+                        Daily intake
                       </Txt>
-                    ) : (
-                      <Icon name="chevron-right" color={colors.mute} size={18} />
-                    )}
-                  </Pressable>
-                ))}
+                    </View>
+                    <Txt variant="display-md" weight="600" style={{ color: '#1B2A07' }}>
+                      Your Weekly{'\n'}Progress
+                    </Txt>
+                  </View>
+                  <ProgressRing
+                    progress={Math.min(streak, 7) / 7}
+                    size={92}
+                    strokeWidth={9}
+                    color="#4F7012"
+                    trackColor={isDark ? '#3A4D18' : '#FFFFFF'}
+                  >
+                    <View className="items-center">
+                      <Txt variant="display-sm" weight="600" style={{ color: '#1B2A07' }}>
+                        {streak}
+                      </Txt>
+                      <Txt variant="caption" style={{ color: '#3E5410' }}>
+                        {streak === 1 ? 'day' : 'days'}
+                      </Txt>
+                    </View>
+                  </ProgressRing>
+                </View>
               </View>
-              {ritualsDone === rituals.length ? (
-                <Txt variant="body-sm" className="mt-sm text-success">
-                  All done today — streak secured. 🔥
-                </Txt>
-              ) : null}
-            </Card>
+            </Pressable>
 
-            {/* Week ahead — real classes bucketed per day (today highlighted). */}
-            <Card onPress={() => router.push('/classes')}>
-              <View className="flex-row items-center justify-between">
-                <Txt variant="caption" className="text-mute">
-                  YOUR WEEK AHEAD
-                </Txt>
-                <Icon name="chevron-right" color={colors.mute} size={18} />
-              </View>
-              {week.total > 0 ? (
+            {/* Check in — the core gym action (moved off the header). Prominent
+               lime CTA so it's the most obvious thing to do on arrival. */}
+            <Card onPress={() => router.push('/checkin')} style={{ backgroundColor: theme.primary }}>
+              <View className="flex-row items-center">
                 <View
-                  className="mt-md"
-                  accessibilityLabel={`Classes you can book this week: ${week.total} total across the next 7 days`}
+                  className="h-[44px] w-[44px] items-center justify-center rounded-full"
+                  style={{ backgroundColor: theme.onPrimary + '1A' }}
                 >
-                  <BarChart data={week.bars} height={116} />
-                  <Txt variant="body-sm" className="mt-sm text-body">
-                    {`${week.total} class${week.total === 1 ? '' : 'es'} you can book this week`}
+                  <Icon name="scan" color={theme.onPrimary} size={24} />
+                </View>
+                <View className="ml-md flex-1">
+                  <Txt variant="body-lg" weight="600" style={{ color: theme.onPrimary }}>
+                    Check in to your gym
+                  </Txt>
+                  <Txt variant="body-sm" style={{ color: theme.onPrimary, opacity: 0.7 }}>
+                    Scan the QR at the door
                   </Txt>
                 </View>
-              ) : (
-                <EmptyState
-                  compact
-                  icon="calendar"
-                  title="No classes this week"
-                  message="Your gym hasn't scheduled classes for the next 7 days yet."
-                />
-              )}
+                <Icon name="chevron-right" color={theme.onPrimary} size={20} />
+              </View>
             </Card>
 
-            {/* Membership status */}
+            {/* Two stat cards — steps (on-device pedometer) + hydration (real log). */}
+            <View className="flex-row gap-md">
+              <StatCard
+                icon="footsteps"
+                accent={health.activity}
+                label="Step to walk"
+                value={steps.toLocaleString()}
+                unit="steps"
+                sub={stepGoal ? `of ${stepGoal.toLocaleString()}` : undefined}
+                onPress={() => router.push('/activity')}
+                theme={theme}
+              />
+              <StatCard
+                icon="drop"
+                accent={health.oxygen}
+                label="Drink Water"
+                value={String(glasses)}
+                unit={glasses === 1 ? 'glass' : 'glass'}
+                sub={goalGlasses ? `of ${goalGlasses}` : undefined}
+                onPress={() => router.push('/nutrition')}
+                theme={theme}
+              />
+            </View>
+
+            {/* Week calendar strip — the current week, today highlighted. */}
+            <WeekStrip theme={theme} />
+
+            {/* Meals — real logged meals per type with their calories; tap + to add.
+               Always lists the four meal types so logging is one tap from Home. */}
+            <MealsSection
+              meals={nutrition?.meals ?? []}
+              onAdd={() => {
+                haptic.tap();
+                router.push('/nutrition');
+              }}
+              theme={theme}
+            />
+
+            {/* ── Below the fold: the gym essentials, in the same card language ── */}
+
+            {/* Membership status — real money path, kept prominent. */}
             <Card elevated onPress={() => router.push('/membership')}>
               <View className="flex-row items-center justify-between">
                 <Txt variant="caption" className="text-mute">
                   MEMBERSHIP
                 </Txt>
                 {membership?.status ? (
-                  <Badge
-                    label={membership.status.toUpperCase()}
-                    tone={STATUS_TONE[membership.status]}
-                  />
+                  <Badge label={membership.status.toUpperCase()} tone={STATUS_TONE[membership.status]} />
                 ) : null}
               </View>
               <View className="mt-sm flex-row items-center justify-between">
@@ -318,10 +263,9 @@ export default function Home() {
                     </Txt>
                   ) : null}
                 </View>
-                <Icon name="chevron-right" color={colors.mute} size={20} />
+                <Icon name="chevron-right" color={theme.mute} size={20} />
               </View>
-              {membership &&
-              (membership.status === 'expiring' || membership.status === 'expired') ? (
+              {membership && (membership.status === 'expiring' || membership.status === 'expired') ? (
                 <View className="mt-md">
                   <Button
                     title={membership.status === 'expired' ? 'Renew now' : 'Renew early'}
@@ -332,114 +276,7 @@ export default function Home() {
               ) : null}
             </Card>
 
-            {/* Nutrition — today's calories & water, live from the BFF (V2.1). */}
-            {(() => {
-              const n = data?.nutrition;
-              const kcalGoal = n?.kcalGoal ?? 0;
-              const kcalEaten = n?.kcal ?? 0;
-              const kcalLeft = Math.max(0, kcalGoal - kcalEaten);
-              const waterMl = n?.waterMl ?? 0;
-              const waterGoal = n?.waterGoal ?? 0;
-              const logged = kcalEaten > 0 || waterMl > 0;
-              return (
-                <Card onPress={() => router.push('/nutrition')}>
-                  <View className="flex-row items-center justify-between">
-                    <View className="flex-1 pr-md">
-                      <Txt variant="caption" className="text-mute">
-                        NUTRITION
-                      </Txt>
-                      <Txt variant="body-lg" weight="600" className="mt-xs text-ink">
-                        {logged && kcalGoal > 0
-                          ? `${kcalLeft} kcal left`
-                          : 'Track today’s meals'}
-                      </Txt>
-                      <Txt variant="body-sm" className="text-body">
-                        {logged
-                          ? `${kcalEaten} / ${kcalGoal} kcal · ${waterMl} / ${waterGoal} ml water`
-                          : 'Calories, macros & water'}
-                      </Txt>
-                    </View>
-                    <Icon name="flame" color={colors.warning} size={22} />
-                  </View>
-                </Card>
-              );
-            })()}
-
-            {/* Exercise library — browse the gym catalog with form cues (V2.2). */}
-            <Card onPress={() => router.push('/exercises')}>
-              <View className="flex-row items-center justify-between">
-                <View className="flex-1 pr-md">
-                  <Txt variant="caption" className="text-mute">
-                    EXERCISE LIBRARY
-                  </Txt>
-                  <Txt variant="body-lg" weight="600" className="mt-xs text-ink">
-                    Browse exercises
-                  </Txt>
-                  <Txt variant="body-sm" className="text-body">
-                    Muscle targeting & how-to for every lift
-                  </Txt>
-                </View>
-                <Icon name="dumbbell" color={colors.cyan} size={22} />
-              </View>
-            </Card>
-
-            {/* Trainer chat — message your assigned coach (V2.3). */}
-            <Card onPress={() => router.push('/messages')}>
-              <View className="flex-row items-center justify-between">
-                <View className="flex-1 pr-md">
-                  <Txt variant="caption" className="text-mute">
-                    TRAINER CHAT
-                  </Txt>
-                  <Txt variant="body-lg" weight="600" className="mt-xs text-ink">
-                    Message your coach
-                  </Txt>
-                  <Txt variant="body-sm" className="text-body">
-                    Form feedback & guidance
-                  </Txt>
-                </View>
-                <Icon name="users" color={colors.cyan} size={22} />
-              </View>
-            </Card>
-
-            {/* Today's workout — pressable when assigned; designed empty state otherwise.
-               (Empty is the common case until trainer/admin authoring exists — see PRD.) */}
-            {today ? (
-              <Card onPress={() => router.push('/workout')}>
-                <Txt variant="caption" className="text-mute">
-                  {'TODAY’S WORKOUT'}
-                </Txt>
-                <View className="mt-sm flex-row items-center justify-between">
-                  <View className="flex-1 pr-md">
-                    <Txt variant="body-lg" weight="600" className="text-ink">
-                      {today.title}
-                    </Txt>
-                    <Txt variant="body-sm" className="text-body">
-                      {`${today.exerciseCount ?? 0} exercises${
-                        today.assignedBy ? ` · by ${today.assignedBy}` : ''
-                      }`}
-                    </Txt>
-                  </View>
-                  <Icon name="chevron-right" color={colors.mute} size={20} />
-                </View>
-              </Card>
-            ) : (
-              <Card>
-                <Txt variant="caption" className="text-mute">
-                  {'TODAY’S WORKOUT'}
-                </Txt>
-                <EmptyState
-                  compact
-                  icon="dumbbell"
-                  title="No workout assigned yet"
-                  message="Your trainer hasn’t set today’s plan. Browse plans to get started."
-                  actionLabel="Browse plans"
-                  onAction={() => router.push('/workout')}
-                />
-              </Card>
-            )}
-
-            {/* Next class — taps through to the full schedule to book. Always
-               keep an entry point so members can browse even with none next. */}
+            {/* Next class — entry point to the schedule. */}
             {nextClass ? (
               <Card onPress={() => router.push('/classes')}>
                 <Txt variant="caption" className="text-mute">
@@ -451,16 +288,14 @@ export default function Home() {
                       {nextClass.title}
                     </Txt>
                     <Txt variant="body-sm" className="text-body">
-                      {`${formatTime(nextClass.startsAt)} · ${relativeFromNow(
-                        nextClass.startsAt,
-                      )}`}
+                      {`${formatTime(nextClass.startsAt)} · ${relativeFromNow(nextClass.startsAt)}`}
                     </Txt>
                   </View>
                   <View className="flex-row items-center gap-sm">
                     {nextClass.seatsLeft != null ? (
                       <Badge label={`${nextClass.seatsLeft} seats`} tone="neutral" />
                     ) : null}
-                    <Icon name="chevron-right" color={colors.mute} size={20} />
+                    <Icon name="chevron-right" color={theme.mute} size={20} />
                   </View>
                 </View>
               </Card>
@@ -478,7 +313,7 @@ export default function Home() {
                       Book a spot in an upcoming class
                     </Txt>
                   </View>
-                  <Icon name="chevron-right" color={colors.mute} size={20} />
+                  <Icon name="chevron-right" color={theme.mute} size={20} />
                 </View>
               </Card>
             )}
@@ -488,9 +323,233 @@ export default function Home() {
           </>
         )}
 
-        {/* Spacer so content clears the floating QR button */}
+        {/* Spacer so content clears the floating tab bar / FAB */}
         <View className="h-2xl" />
       </View>
     </Screen>
+  );
+}
+
+/** Round header action button (check-in / notifications). `accent` fills it with
+ * the lime brand (used for the high-frequency check-in action). */
+function HeaderButton({
+  icon,
+  label,
+  onPress,
+  theme,
+  dot,
+  accent,
+}: {
+  icon: 'scan' | 'bell' | 'calendar';
+  label: string;
+  onPress: () => void;
+  theme: ReturnType<typeof useThemeColors>;
+  dot?: boolean;
+  accent?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={8}
+      accessibilityLabel={label}
+      className="h-[42px] w-[42px] items-center justify-center rounded-full border"
+      style={{
+        backgroundColor: accent ? theme.primary : theme.surface,
+        borderColor: accent ? theme.primary : theme.hairline,
+      }}
+    >
+      <Icon name={icon} color={accent ? theme.onPrimary : theme.body} size={20} />
+      {dot ? (
+        <View
+          className="absolute right-[10px] top-[10px] h-[8px] w-[8px] rounded-full border-2"
+          style={{ backgroundColor: theme.primary, borderColor: theme.surface }}
+        />
+      ) : null}
+    </Pressable>
+  );
+}
+
+/** Compact metric card (steps / water) — icon chip, label, big value + unit. */
+function StatCard({
+  icon,
+  accent,
+  label,
+  value,
+  unit,
+  sub,
+  onPress,
+  theme,
+}: {
+  icon: 'footsteps' | 'drop';
+  accent: string;
+  label: string;
+  value: string;
+  unit: string;
+  sub?: string;
+  onPress: () => void;
+  theme: ReturnType<typeof useThemeColors>;
+}) {
+  return (
+    <Card onPress={onPress} className="flex-1">
+      <View
+        className="mb-sm h-[36px] w-[36px] items-center justify-center rounded-full"
+        style={{ backgroundColor: accent + '1F' }}
+      >
+        <Icon name={icon} color={accent} size={20} filled />
+      </View>
+      <Txt variant="body-sm" className="text-mute">
+        {label}
+      </Txt>
+      <View className="mt-xxs flex-row items-baseline gap-xs">
+        <Txt variant="display-sm" weight="600" className="text-ink">
+          {value}
+        </Txt>
+        <Txt variant="body-sm" className="text-body">
+          {unit}
+        </Txt>
+      </View>
+      {sub ? (
+        <Txt variant="caption" className="mt-xxs text-mute">
+          {sub}
+        </Txt>
+      ) : null}
+    </Card>
+  );
+}
+
+const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+/** Week calendar strip — current week with paging; today gets the lime pill. */
+function WeekStrip({ theme }: { theme: ReturnType<typeof useThemeColors> }) {
+  const [offset, setOffset] = useState(0); // weeks from the current week
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  const days = useMemo(() => {
+    const start = new Date(today);
+    start.setDate(today.getDate() - today.getDay() + offset * 7); // Sunday of the week
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return d;
+    });
+  }, [today, offset]);
+
+  const monthLabel = days[3]?.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) ?? '';
+
+  return (
+    <Card>
+      <View className="flex-row items-center justify-between">
+        <Txt variant="body-lg" weight="600" className="text-ink">
+          {monthLabel}
+        </Txt>
+        <View className="flex-row items-center gap-xs">
+          <Pressable
+            onPress={() => setOffset((o) => o - 1)}
+            hitSlop={8}
+            accessibilityLabel="Previous week"
+            className="h-[32px] w-[32px] items-center justify-center rounded-full border border-hairline"
+          >
+            <Icon name="chevron-left" color={theme.body} size={16} />
+          </Pressable>
+          <Pressable
+            onPress={() => setOffset((o) => o + 1)}
+            hitSlop={8}
+            accessibilityLabel="Next week"
+            className="h-[32px] w-[32px] items-center justify-center rounded-full border border-hairline"
+          >
+            <Icon name="chevron-right" color={theme.body} size={16} />
+          </Pressable>
+        </View>
+      </View>
+      <View className="mt-md flex-row justify-between">
+        {days.map((d, i) => {
+          const isToday = d.getTime() === today.getTime();
+          return (
+            <View key={d.toISOString()} className="items-center gap-xs">
+              <Txt variant="caption" className="text-mute">
+                {DOW[i]}
+              </Txt>
+              <View
+                className="h-[34px] w-[34px] items-center justify-center rounded-full"
+                style={{ backgroundColor: isToday ? theme.primary : 'transparent' }}
+              >
+                <Txt
+                  variant="body-sm"
+                  weight={isToday ? '600' : '400'}
+                  style={{ color: isToday ? theme.onPrimary : theme.body }}
+                >
+                  {d.getDate().toString().padStart(2, '0')}
+                </Txt>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    </Card>
+  );
+}
+
+const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+const MEAL_LABEL: Record<MealType, string> = {
+  breakfast: 'Breakfast',
+  lunch: 'Lunch time',
+  dinner: 'Dinner',
+  snack: 'Snacks',
+};
+
+/** Meal rows — one card per meal type with its logged calories + an add button. */
+function MealsSection({
+  meals,
+  onAdd,
+  theme,
+}: {
+  meals: NutritionMeal[];
+  onAdd: () => void;
+  theme: ReturnType<typeof useThemeColors>;
+}) {
+  // Sum logged calories per meal type (a member can log a type more than once).
+  const kcalByType = useMemo(() => {
+    const acc: Partial<Record<MealType, number>> = {};
+    for (const m of meals) {
+      if (!m.mealType) continue;
+      acc[m.mealType] = (acc[m.mealType] ?? 0) + (m.totals?.kcal ?? 0);
+    }
+    return acc;
+  }, [meals]);
+
+  return (
+    <View className="gap-md">
+      {MEAL_ORDER.map((type) => {
+        const kcal = kcalByType[type];
+        return (
+          <Card key={type} onPress={onAdd} className="flex-row items-center">
+            <View
+              className="h-[44px] w-[44px] items-center justify-center rounded-lg"
+              style={{ backgroundColor: theme.warning + '1F' }}
+            >
+              <Icon name="flame" color={theme.warning} size={22} filled />
+            </View>
+            <View className="ml-md flex-1">
+              <Txt variant="body-lg" weight="600" className="text-ink">
+                {MEAL_LABEL[type]}
+              </Txt>
+              <Txt variant="body-sm" className="text-body">
+                {kcal != null ? `${Math.round(kcal)} kcal` : 'Tap to log'}
+              </Txt>
+            </View>
+            <View
+              className="h-[36px] w-[36px] items-center justify-center rounded-full"
+              style={{ backgroundColor: theme.surface2 }}
+            >
+              <Icon name="add" color={theme.ink} size={20} />
+            </View>
+          </Card>
+        );
+      })}
+    </View>
   );
 }

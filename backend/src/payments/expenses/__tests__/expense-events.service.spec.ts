@@ -50,6 +50,10 @@ function buildPrismaMock(opts: {
   txExpense?: Partial<any>;
   txFinancial?: Partial<any>;
 } = {}) {
+  // NOTE: ExpenseEventsService accesses `this.prisma.expense.*` and
+  // `this.prisma.expenseCategory.*` directly — there is no `.tenant`
+  // namespace on PrismaService. The old shape ({ tenant: { expense } })
+  // was stale; flatten the mock to match the actual access path.
   const tenantExpense = {
     findFirst: jest.fn().mockResolvedValue(null),
     findUnique: jest.fn().mockResolvedValue(makeExpenseRow()),
@@ -72,10 +76,8 @@ function buildPrismaMock(opts: {
   };
 
   const prisma: any = {
-    tenant: {
-      expense: tenantExpense,
-      expenseCategory: tenantCategory,
-    },
+    expense: tenantExpense,
+    expenseCategory: tenantCategory,
     $transaction: jest.fn(async (fn: any) =>
       fn({ expense: txExpense, financialTransaction: txFinancial }),
     ),

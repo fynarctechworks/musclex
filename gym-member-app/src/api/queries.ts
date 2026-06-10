@@ -20,6 +20,10 @@ import type {
   ChatMessageList,
   WearableConnectInput,
   HealthSampleInput,
+  WaterInput,
+  WeightInput,
+  PublicGoalInput,
+  PublicGoalUpdate,
 } from './types';
 
 export const qk = {
@@ -32,7 +36,91 @@ export const qk = {
   todayWorkout: ['workout', 'today'] as const,
   classes: ['classes'] as const,
   nutrition: ['nutrition', 'today'] as const,
+  // Public (gym-less) personal tracking
+  meContext: ['me', 'context'] as const,
+  weight: ['me', 'weight'] as const,
+  water: ['me', 'water'] as const,
+  goals: ['me', 'goals'] as const,
+  healthDaily: ['me', 'health-daily'] as const,
 };
+
+// ── Public (gym-less) personal tracking ───────────────────────────
+export function useMeContext() {
+  return useQuery({ queryKey: qk.meContext, queryFn: api.meContext, staleTime: 60_000 });
+}
+
+export function useWeightSeries(days?: number) {
+  return useQuery({ queryKey: [...qk.weight, days ?? 90], queryFn: () => api.weightSeries(days) });
+}
+
+export function useWaterDay() {
+  return useQuery({ queryKey: qk.water, queryFn: () => api.waterDay(), staleTime: 30_000 });
+}
+
+export function usePublicGoals() {
+  return useQuery({ queryKey: qk.goals, queryFn: api.goals });
+}
+
+export function usePublicHealthDaily(days?: number) {
+  return useQuery({ queryKey: [...qk.healthDaily, days ?? 30], queryFn: () => api.healthDaily(days) });
+}
+
+export function useNearbyGyms(coords?: { lat: number; lng: number } | null, q?: string) {
+  return useQuery({
+    queryKey: ['me', 'nearby-gyms', coords?.lat ?? null, coords?.lng ?? null, q ?? ''],
+    queryFn: () => api.nearbyGyms(coords?.lat, coords?.lng, q),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useAppProfile() {
+  return useQuery({ queryKey: ['me', 'profile'], queryFn: api.appProfile, staleTime: 60_000 });
+}
+
+export function useWeekly() {
+  return useQuery({ queryKey: ['me', 'weekly'], queryFn: api.weekly, staleTime: 5 * 60_000 });
+}
+
+export function useGymProfile(tenantId: string) {
+  return useQuery({
+    queryKey: ['me', 'gym', tenantId],
+    queryFn: () => api.gymProfile(tenantId),
+    enabled: !!tenantId,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useLogPublicWater() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: WaterInput) => api.meLogWater(body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.water }),
+  });
+}
+
+export function useLogWeight() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: WeightInput) => api.logWeight(body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.weight }),
+  });
+}
+
+export function useCreateGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: PublicGoalInput) => api.createGoal(body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.goals }),
+  });
+}
+
+export function useUpdateGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: PublicGoalUpdate }) => api.updateGoal(id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.goals }),
+  });
+}
 
 // ── Reads ─────────────────────────────────────────────────────────
 export function useHome() {

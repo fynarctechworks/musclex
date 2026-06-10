@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { cn } from "@/lib/utils";
 import { PageHeader, AccessDenied, LoadingSkeleton } from "@/components/shared";
@@ -22,15 +22,15 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import dynamic from "next/dynamic";
+
+const RevenueTrendChart = dynamic(
+  () =>
+    import("@/components/dashboard/revenue-trend-chart").then((m) => ({
+      default: m.RevenueTrendChart,
+    })),
+  { ssr: false, loading: () => <LoadingSkeleton className="h-full w-full" /> },
+);
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import { SetupChecklist } from "@/components/dashboard/setup-checklist";
 import { PulseCard } from "@/components/dashboard/pulse-card";
@@ -57,10 +57,22 @@ import { DashboardFilterProvider } from "@/components/dashboard/dashboard-filter
 import { DashboardFilterBar } from "@/components/dashboard/dashboard-filter-bar";
 import { OccupancyGauge } from "@/components/dashboard/occupancy-gauge";
 import { TodaysClassesTile } from "@/components/dashboard/todays-classes-tile";
-import { RevenueMixTile } from "@/components/dashboard/revenue-mix-tile";
+const RevenueMixTile = dynamic(
+  () =>
+    import("@/components/dashboard/revenue-mix-tile").then((m) => ({
+      default: m.RevenueMixTile,
+    })),
+  { ssr: false, loading: () => <LoadingSkeleton className="h-72 w-full" /> },
+);
 import { PaymentMethodTile } from "@/components/dashboard/payment-method-tile";
 import { RevenueSummaryTile } from "@/components/dashboard/revenue-summary-tile";
-import { RetentionCurveTile } from "@/components/dashboard/retention-curve-tile";
+const RetentionCurveTile = dynamic(
+  () =>
+    import("@/components/dashboard/retention-curve-tile").then((m) => ({
+      default: m.RetentionCurveTile,
+    })),
+  { ssr: false, loading: () => <LoadingSkeleton className="h-72 w-full" /> },
+);
 import { SegmentTile } from "@/components/dashboard/segment-tile";
 import { BusinessMetricsTile } from "@/components/dashboard/business-metrics-tile";
 import { HeatmapTile } from "@/components/dashboard/heatmap-tile";
@@ -393,38 +405,7 @@ function OwnerManagerDashboard() {
             </div>
             <div className="h-64">
               {revenueData && revenueData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={revenueData}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="hsl(var(--border))"
-                    />
-                    <XAxis
-                      dataKey="month"
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                    />
-                    <YAxis
-                      stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                        color: "hsl(var(--foreground))",
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="revenue"
-                      stroke="hsl(var(--primary))"
-                      fill="hsl(var(--primary))"
-                      fillOpacity={0.2}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <RevenueTrendChart data={revenueData} />
               ) : (
                 <div className="h-full flex items-center justify-center text-muted-foreground">
                   No revenue data yet
@@ -491,12 +472,30 @@ function OwnerManagerDashboard() {
         </div>
       </div>
 
-      {/* Wave 8–14 — Personalizable Tile Grid */}
-      <DashboardTileGrid
-        branchId={branchId}
-        onInspect={(m) => setInspectMetric(m)}
-        gymPath={gymPath}
-      />
+      {/* Wave 8–14 — Personalizable Tile Grid (deferred until in-view to
+          keep the above-the-fold KPIs from competing with ~11 tile requests
+          for the browser's 6 concurrent connections). */}
+      <DeferUntilVisible
+        placeholder={
+          <section
+            className="mt-8"
+            aria-label="Dashboard analytics (loading on scroll)"
+          >
+            <header className="mb-4 flex items-baseline justify-between">
+              <h2 className="font-mono text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Deep Dive
+              </h2>
+            </header>
+            <LoadingSkeleton className="h-72 w-full" />
+          </section>
+        }
+      >
+        <DashboardTileGrid
+          branchId={branchId}
+          onInspect={(m) => setInspectMetric(m)}
+          gymPath={gymPath}
+        />
+      </DeferUntilVisible>
 
       {/* Wave 13 — System Status Bar (sticky bottom) */}
       <div className="mt-8">
@@ -564,6 +563,49 @@ const SEGMENT_CONFIG: Array<{
   { key: "inactive", title: "Inactive Members", description: "0 check-ins in last 21 days", tone: "bad" },
   { key: "recently_cancelled", title: "Recently Cancelled", description: "Cancelled in last 30 days", tone: "bad" },
 ];
+
+/**
+ * Mounts children only after the placeholder scrolls within `rootMargin` of
+ * the viewport. Used to defer the below-the-fold tile grid (~11 queries) so
+ * the above-the-fold KPI requests win the browser's HTTP/1.1 connection
+ * budget on cold load. Once mounted, children stay mounted — we never
+ * unmount on scroll-away, to preserve React Query cache and polling.
+ */
+function DeferUntilVisible({
+  children,
+  placeholder,
+  rootMargin = "200px",
+}: {
+  children: ReactNode;
+  placeholder: ReactNode;
+  rootMargin?: string;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (visible) return;
+    const node = ref.current;
+    if (!node) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [visible, rootMargin]);
+
+  return <div ref={ref}>{visible ? children : placeholder}</div>;
+}
 
 function DashboardTileGrid({ branchId, onInspect: _onInspect, gymPath: _gymPath }: TileGridProps) {
   const { layout } = useDashboardLayout();

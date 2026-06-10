@@ -26,7 +26,6 @@ const METHOD_LABELS: Record<PaymentMethodKey, string> = {
   upi: "UPI",
   bank_transfer: "Bank Transfer",
   razorpay: "Razorpay",
-  stripe: "Stripe",
 };
 
 // Primary + accent variants only (per design rules)
@@ -36,7 +35,6 @@ const METHOD_COLORS: Record<PaymentMethodKey, string> = {
   upi: "hsl(var(--primary) / 0.7)",
   bank_transfer: "hsl(var(--primary) / 0.55)",
   razorpay: "hsl(var(--primary) / 0.4)",
-  stripe: "hsl(var(--accent-foreground) / 0.6)",
 };
 
 export function PaymentMethodTile({

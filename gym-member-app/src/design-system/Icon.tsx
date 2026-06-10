@@ -1,7 +1,48 @@
 import type { ColorValue } from 'react-native';
-import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
-import { colors } from './tokens';
+import Svg, { Path } from 'react-native-svg';
+import {
+  Home,
+  Weight,
+  Chart2,
+  User,
+  Calendar,
+  Flash,
+  ScanBarcode,
+  Scan,
+  Notification,
+  ArrowRight2,
+  ArrowLeft2,
+  People,
+  TickCircle,
+  Camera,
+  Warning2,
+  Location,
+  Call,
+  Heart,
+  Drop,
+  Add,
+  Gift,
+  Medal,
+  Category,
+  Activity,
+  More,
+  Gallery,
+  SearchNormal1,
+  MessageText1,
+  type Icon as IconsaxIcon,
+} from 'iconsax-react-native';
+import { useThemeColors } from './theme';
 
+/**
+ * App icon set — now backed by **Iconsax** (`iconsax-react-native`), default
+ * variant **Linear**; `filled` (active/selected, e.g. focused tab or favorited
+ * heart) renders the **Bold** variant. This stays a thin facade over the same
+ * `<Icon name="…" />` API so every call site is untouched and every icon is
+ * automatically theme-aware (defaults to the active theme's body colour).
+ *
+ * Named imports + the package's `sideEffects:false`/ESM `module` field let the
+ * production bundle tree-shake to only the icons listed here (not all ~990).
+ */
 export type IconName =
   | 'home'
   | 'dumbbell'
@@ -10,21 +51,68 @@ export type IconName =
   | 'calendar'
   | 'flash'
   | 'qr'
+  | 'scan'
   | 'bell'
   | 'chevron-right'
+  | 'chevron-left'
   | 'flame'
+  | 'footsteps'
   | 'users'
   | 'check'
   | 'camera'
   | 'alert'
   | 'pin'
   | 'phone'
-  | 'heart';
+  | 'heart'
+  | 'drop'
+  | 'add'
+  | 'gift'
+  | 'medal'
+  | 'grid'
+  | 'activity'
+  | 'more'
+  | 'gallery'
+  | 'search'
+  | 'message';
+
+// Map our semantic names to the closest Iconsax glyph. `flame`/`footsteps` have
+// no Iconsax equivalent, so they fall back to hand-drawn paths below (matched to
+// the Linear stroke language).
+const ICONSAX: Record<Exclude<IconName, 'flame' | 'footsteps'>, IconsaxIcon> = {
+  home: Home,
+  dumbbell: Weight, // Iconsax gym weight — closest to a dumbbell
+  chart: Chart2,
+  user: User,
+  calendar: Calendar,
+  flash: Flash,
+  qr: ScanBarcode,
+  scan: Scan, // square-frame scan — the centre check-in FAB glyph
+  bell: Notification,
+  'chevron-right': ArrowRight2,
+  'chevron-left': ArrowLeft2,
+  users: People,
+  check: TickCircle,
+  camera: Camera,
+  alert: Warning2,
+  pin: Location,
+  phone: Call,
+  heart: Heart,
+  drop: Drop, // water / hydration
+  add: Add, // plus — add a meal / entry
+  gift: Gift, // rewards
+  medal: Medal, // rewards / achievements
+  grid: Category, // menu hub (all features)
+  activity: Activity, // exercise / pulse line (BPM)
+  more: More, // horizontal 3-dot overflow
+  gallery: Gallery, // meal image placeholder
+  search: SearchNormal1, // search tab
+  message: MessageText1, // advice / coaching tab
+};
 
 export function Icon({
   name,
   size = 24,
-  color = colors.body,
+  color,
   strokeWidth = 1.75,
   filled = false,
 }: {
@@ -33,128 +121,55 @@ export function Icon({
   // Accept ColorValue so it can take react-navigation's tabBarIcon `color`.
   color?: ColorValue;
   strokeWidth?: number;
-  /** Fill the shape with `color` (used by `heart` for the favorited state). */
+  /** Render the Bold (filled) variant — used for active/selected states. */
   filled?: boolean;
 }) {
-  const common = {
-    stroke: color as string,
-    strokeWidth,
-    fill: 'none',
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-  };
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      {name === 'home' && (
-        <>
-          <Path d="M3 10.5 12 3l9 7.5" {...common} />
-          <Path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5" {...common} />
-        </>
-      )}
-      {name === 'dumbbell' && (
-        <>
-          <Path d="M6.5 6.5 17.5 17.5" {...common} />
-          <Rect x="2.5" y="6" width="4" height="6" rx="1" {...common} />
-          <Rect x="17.5" y="12" width="4" height="6" rx="1" {...common} />
-          <Rect x="5" y="3.5" width="3" height="5" rx="1" {...common} />
-          <Rect x="16" y="15.5" width="3" height="5" rx="1" {...common} />
-        </>
-      )}
-      {name === 'chart' && (
-        <>
-          <Path d="M4 19V5" {...common} />
-          <Path d="M4 19h16" {...common} />
-          <Path d="m7 14 3-4 3 3 4-6" {...common} />
-        </>
-      )}
-      {name === 'user' && (
-        <>
-          <Circle cx="12" cy="8" r="4" {...common} />
-          <Path d="M4 21c0-4 4-6 8-6s8 2 8 6" {...common} />
-        </>
-      )}
-      {name === 'calendar' && (
-        <>
-          <Rect x="3.5" y="5" width="17" height="16" rx="2" {...common} />
-          <Line x1="3.5" y1="9.5" x2="20.5" y2="9.5" {...common} />
-          <Line x1="8" y1="3" x2="8" y2="6.5" {...common} />
-          <Line x1="16" y1="3" x2="16" y2="6.5" {...common} />
-        </>
-      )}
-      {name === 'flash' && (
-        <Path d="M13 2 5 13h5l-1 9 9-12h-5l1-8Z" {...common} />
-      )}
-      {name === 'qr' && (
-        <>
-          <Rect x="3" y="3" width="7" height="7" rx="1" {...common} />
-          <Rect x="14" y="3" width="7" height="7" rx="1" {...common} />
-          <Rect x="3" y="14" width="7" height="7" rx="1" {...common} />
-          <Line x1="14" y1="14" x2="14" y2="21" {...common} />
-          <Line x1="18" y1="14" x2="21" y2="14" {...common} />
-          <Line x1="21" y1="18" x2="21" y2="21" {...common} />
-          <Line x1="17" y1="18" x2="17" y2="21" {...common} />
-        </>
-      )}
-      {name === 'bell' && (
-        <>
-          <Path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" {...common} />
-          <Path d="M10 19a2 2 0 0 0 4 0" {...common} />
-        </>
-      )}
-      {name === 'chevron-right' && <Path d="m9 6 6 6-6 6" {...common} />}
-      {name === 'flame' && (
+  const theme = useThemeColors();
+  // Default to the theme's secondary text colour so icons follow light/dark.
+  const resolved = (color ?? theme.body) as string;
+
+  // `flame` (streak / meal / challenges) — no Iconsax glyph, so keep a custom
+  // path drawn in the same Linear stroke language.
+  if (name === 'flame') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24">
         <Path
           d="M12 3c1 3-2 4-2 7a2 2 0 0 0 4 0c2 2 3 3 3 6a5 5 0 0 1-10 0c0-4 5-6 5-13Z"
-          {...common}
-        />
-      )}
-      {name === 'users' && (
-        <>
-          <Circle cx="9" cy="8" r="3.5" {...common} />
-          <Path d="M3 20c0-3 3-5 6-5s6 2 6 5" {...common} />
-          <Path d="M16 5a3.5 3.5 0 0 1 0 7" {...common} />
-          <Path d="M21 20c0-2.5-1.5-4.2-4-4.8" {...common} />
-        </>
-      )}
-      {name === 'check' && <Path d="m5 13 4 4 10-11" {...common} />}
-      {name === 'camera' && (
-        <>
-          <Path d="M4 8h3l2-2h6l2 2h3v11H4z" {...common} />
-          <Circle cx="12" cy="13" r="3.5" {...common} />
-        </>
-      )}
-      {name === 'pin' && (
-        <>
-          <Path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z" {...common} />
-          <Circle cx="12" cy="10" r="2.5" {...common} />
-        </>
-      )}
-      {name === 'phone' && (
-        <Path
-          d="M5 4h3l2 5-2.5 1.5a11 11 0 0 0 5 5L16 13l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"
-          {...common}
-        />
-      )}
-      {name === 'heart' && (
-        <Path
-          d="M12 20s-7-4.35-9.33-8.64C1.4 9.27 2.36 6 5.5 6c1.94 0 3.2 1.2 4 2.3.8-1.1 2.06-2.3 4-2.3 3.14 0 4.1 3.27 2.83 5.36C19 15.65 12 20 12 20Z"
-          stroke={color as string}
+          stroke={resolved}
           strokeWidth={strokeWidth}
-          fill={filled ? (color as string) : 'none'}
-          strokeLinejoin="round"
+          fill={filled ? resolved : 'none'}
           strokeLinecap="round"
+          strokeLinejoin="round"
         />
-      )}
-      {name === 'alert' && (
-        <>
-          <Path
-            d="M10.3 4.8 2.8 17.5a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.8a2 2 0 0 0-3.4 0Z"
-            {...common}
-          />
-          <Line x1="12" y1="9.5" x2="12" y2="13.5" {...common} />
-          <Circle cx="12" cy="16.8" r="0.9" stroke={color as string} fill={color as string} />
-        </>
-      )}
-    </Svg>
-  );
+      </Svg>
+    );
+  }
+
+  // `footsteps` (step tracker) — no Iconsax glyph, so a custom two-print path in
+  // the same Linear stroke language.
+  if (name === 'footsteps') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24">
+        <Path
+          d="M7 4.5c1.2 0 2 1.3 2 3.2 0 2-.7 3.8-2 3.8s-2-1.5-2-3.5S5.8 4.5 7 4.5Zm-.5 9.3h1c.8 0 1.4.7 1.3 1.5l-.4 3.1A1.4 1.4 0 0 1 7 19.6c-.8 0-1.4-.7-1.3-1.5l.3-2.8c.05-.4.1-1.5.5-1.5Z"
+          stroke={resolved}
+          strokeWidth={strokeWidth}
+          fill={filled ? resolved : 'none'}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M17 8.5c1.2 0 2 1.3 2 3.2 0 2-.7 3.8-2 3.8s-2-1.5-2-3.5S15.8 8.5 17 8.5Zm-.5 9.3h1c.8 0 1.4.7 1.3 1.5l-.3 2.1A1.4 1.4 0 0 1 17 22.6c-.8 0-1.4-.6-1.3-1.4l.2-1.9c.05-.4.2-1.5.6-1.5Z"
+          stroke={resolved}
+          strokeWidth={strokeWidth}
+          fill={filled ? resolved : 'none'}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+    );
+  }
+
+  const Glyph = ICONSAX[name];
+  return <Glyph size={size} color={resolved} variant={filled ? 'Bold' : 'Linear'} />;
 }

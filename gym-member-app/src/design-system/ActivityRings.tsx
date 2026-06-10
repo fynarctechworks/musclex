@@ -7,7 +7,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { colors } from './tokens';
+import { useThemeColors } from './theme';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -29,6 +29,7 @@ interface RingProps {
 
 /** One concentric ring; owns its own fill animation. */
 function Ring({ spec, center, r, strokeWidth, animate }: RingProps) {
+  const theme = useThemeColors();
   const circumference = 2 * Math.PI * r;
   const p = Math.max(0, Math.min(1, spec.progress));
   const target = circumference * (1 - p);
@@ -48,7 +49,7 @@ function Ring({ spec, center, r, strokeWidth, animate }: RingProps) {
         cx={center}
         cy={center}
         r={r}
-        stroke={spec.trackColor ?? colors.surface2}
+        stroke={spec.trackColor ?? theme.surface2}
         strokeWidth={strokeWidth}
         fill="none"
       />

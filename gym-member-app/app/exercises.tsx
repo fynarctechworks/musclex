@@ -8,13 +8,12 @@ import {
   ErrorState,
   Icon,
   Input,
-  MeshGradient,
   Screen,
   SkeletonCard,
   Txt,
-  colors,
+  useThemeColors,
 } from '../src/design-system';
-import { BackButton } from '../src/navigation/BackButton';
+import { ScreenHeader } from '../src/navigation/ScreenHeader';
 import { useExercises, useToggleFavorite } from '../src/api/queries';
 import { useDebouncedValue } from '../src/lib/use-debounced-value';
 import { track } from '../src/analytics';
@@ -37,6 +36,7 @@ function subtitle(e: ExerciseListItem): string {
 }
 
 export default function ExercisesScreen() {
+  const theme = useThemeColors();
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState<string | null>(null);
@@ -60,17 +60,9 @@ export default function ExercisesScreen() {
 
   return (
     <Screen scroll padded={false} onRefresh={refetch} refreshing={isRefetching}>
-      {/* Hero header with the brand mesh gradient (design.md: hero scale only). */}
-      <View className="overflow-hidden px-md pb-lg pt-md">
-        <MeshGradient opacity={0.45} />
-        <BackButton />
-        <Txt variant="mono" className="text-ink/70">
-          TRAIN SMARTER
-        </Txt>
-        <Txt variant="display-lg" weight="600" className="mt-xs text-ink">
-          Exercises
-        </Txt>
-        <Txt variant="body-sm" className="mt-xxs text-body">
+      <View className="px-md pb-sm pt-md">
+        <ScreenHeader title="Exercises" className="mb-xs" />
+        <Txt variant="body-sm" className="text-body">
           Your gym's library — form cues for every lift
         </Txt>
       </View>
@@ -149,7 +141,7 @@ export default function ExercisesScreen() {
                     <Icon
                       name="heart"
                       filled={!!e.favorited}
-                      color={e.favorited ? colors.error : colors.mute}
+                      color={e.favorited ? theme.error : theme.mute}
                       size={22}
                     />
                   </Pressable>

@@ -23,7 +23,8 @@ export function Card({
   ...rest
 }: CardProps) {
   const classes = [
-    'rounded-lg border border-hairline overflow-hidden',
+    // Reference look: large 2xl corner radius on every card, app-wide.
+    'rounded-2xl border border-hairline overflow-hidden',
     noPadding ? '' : 'p-lg',
     soft ? 'bg-canvas-soft' : 'bg-surface',
     className,

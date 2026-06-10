@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { Loader2 } from "lucide-react";
 import { SubscriptionProvider, SubscriptionRenewalModal } from "@/features/subscription";
+import { ensureStudioScopedToken } from "@/services/api-client";
 
 export default function GymSlugLayout({
   children,
@@ -22,6 +23,14 @@ export default function GymSlugLayout({
   // If auth is already loaded in the store, skip the spinner entirely
   const alreadyReady = isAuthenticated && !!user && (user.onboarding_step === "complete" || !user.onboarding_step);
   const [checked, setChecked] = useState(alreadyReady);
+
+  // Self-heal a stale onboarding token (no studio_id → backend can't resolve
+  // gym_id → tenant-scoped writes 400). Runs once on mount; refreshes in the
+  // background so there's no spinner regression for the common case.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    ensureStudioScopedToken().catch(() => {});
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated || !user) return;

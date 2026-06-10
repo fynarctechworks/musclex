@@ -56,33 +56,6 @@ const integrations: Integration[] = [
     connected: false,
   },
   {
-    id: "stripe",
-    name: "Stripe",
-    description: "International payment processing",
-    icon: CreditCard,
-    category: "Payments",
-    fields: [
-      {
-        key: "publishable_key",
-        label: "Publishable Key",
-        placeholder: "pk_live_xxxxxxxxxx",
-      },
-      {
-        key: "secret_key",
-        label: "Secret Key",
-        placeholder: "sk_live_xxxxxxxxxx",
-        type: "password",
-      },
-      {
-        key: "webhook_secret",
-        label: "Webhook Secret",
-        placeholder: "whsec_xxxxxxxxxx",
-        type: "password",
-      },
-    ],
-    connected: false,
-  },
-  {
     id: "resend",
     name: "Resend",
     description: "Transactional and marketing emails",

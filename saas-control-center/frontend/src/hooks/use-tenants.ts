@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
-import type { Tenant, ApiResponse } from '@/types';
+import type { Tenant, ApiResponse, TenantOperationalDetail } from '@/types';
 
 interface TenantFilters {
   page?: number;
@@ -33,6 +33,19 @@ export function useTenant(id: string) {
     queryKey: ['tenants', id],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<Tenant>>(`/tenants/${id}`);
+      return data.data;
+    },
+    enabled: !!id,
+  });
+}
+
+export function useTenantOperational(id: string | null) {
+  return useQuery({
+    queryKey: ['tenant-operational', id],
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<TenantOperationalDetail>>(
+        `/tenants/${id}/operational`,
+      );
       return data.data;
     },
     enabled: !!id,
@@ -73,5 +86,50 @@ export function useActivateTenant() {
       return data.data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tenants'] }),
+  });
+}
+
+export function useChangeTenantPlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, plan_id }: { id: string; plan_id: string }) => {
+      const { data } = await api.patch<ApiResponse<unknown>>(
+        `/tenants/${id}/plan`,
+        { plan_id },
+      );
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tenants'] });
+      qc.invalidateQueries({ queryKey: ['subscriptions'] });
+    },
+  });
+}
+
+export function useSyncTenants() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post<
+        ApiResponse<{ imported: number; updated: number; total: number }>
+      >('/tenants/sync');
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tenants'] });
+      qc.invalidateQueries({ queryKey: ['subscriptions'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+export function useImpersonateTenant() {
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.post<ApiResponse<{ token: string; expires_at?: string }>>(
+        `/tenants/${id}/impersonate`,
+      );
+      return data.data;
+    },
   });
 }

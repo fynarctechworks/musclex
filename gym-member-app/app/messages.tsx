@@ -6,12 +6,11 @@ import {
   Card,
   EmptyState,
   ErrorState,
-  MeshGradient,
   Screen,
   SkeletonCard,
   Txt,
 } from '../src/design-system';
-import { BackButton } from '../src/navigation/BackButton';
+import { ScreenHeader } from '../src/navigation/ScreenHeader';
 import { useChatThreads } from '../src/api/queries';
 import { relativeFromNow } from '../src/lib/format';
 
@@ -26,15 +25,8 @@ export default function MessagesScreen() {
 
   return (
     <Screen scroll padded={false} onRefresh={refetch} refreshing={isRefetching}>
-      <View className="overflow-hidden px-md pb-lg pt-md">
-        <MeshGradient opacity={0.4} />
-        <BackButton />
-        <Txt variant="mono" className="text-ink/70">
-          YOUR COACHES
-        </Txt>
-        <Txt variant="display-lg" weight="600" className="mt-xs text-ink">
-          Messages
-        </Txt>
+      <View className="px-md pb-sm pt-md">
+        <ScreenHeader title="Messages" className="mb-0" />
       </View>
 
       <View className="gap-sm px-md">
@@ -70,7 +62,12 @@ export default function MessagesScreen() {
                 <Avatar name={t.trainerName} size={48} />
                 <View className="flex-1">
                   <View className="flex-row items-center justify-between">
-                    <Txt variant="body-lg" weight="600" className="text-ink">
+                    <Txt
+                      variant="body-lg"
+                      weight="600"
+                      className="flex-1 pr-sm text-ink"
+                      numberOfLines={1}
+                    >
                       {t.trainerName}
                     </Txt>
                     {t.lastMessageAt ? (

@@ -4,16 +4,16 @@
 --
 -- Purpose: prove tenant isolation at the DB layer. Run the SAME script twice:
 --   (A) as the CURRENT app role `postgres`  → documents the leak (RLS bypassed)
---   (B) as `fitsync_app` AFTER cutover       → must INVERT to fully isolated
+--   (B) as `musclex_app` AFTER cutover       → must INVERT to fully isolated
 --
 -- This is the runbook §5 gate. It is read-only except for set_config (which is
 -- transaction-local here via the wrapping transactions). Safe to run anytime.
 --
 -- HOW TO RUN AS A SPECIFIC ROLE (in the window, connected as postgres/admin):
---   SET ROLE fitsync_app;  -- then run the probes;  RESET ROLE; when done.
---   (SET ROLE makes RLS apply as fitsync_app even on an admin connection,
+--   SET ROLE musclex_app;  -- then run the probes;  RESET ROLE; when done.
+--   (SET ROLE makes RLS apply as musclex_app even on an admin connection,
 --    EXCEPT it does NOT drop BYPASSRLS if the *session* role bypasses — so for
---    a true test, also connect directly as fitsync_app at least once.)
+--    a true test, also connect directly as musclex_app at least once.)
 --
 -- Fill in two real gym UUIDs from studio_template.members before running:
 --   \set gymA '....'   \set gymB '....'
@@ -21,7 +21,7 @@
 
 -- ── PROBE 0: who am I, and do I bypass RLS? ─────────────────────────────────
 -- EXPECT (A) postgres: rolbypassrls = true   → every probe below "fails" (leaks)
--- EXPECT (B) fitsync_app: rolbypassrls = false → probes enforce isolation
+-- EXPECT (B) musclex_app: rolbypassrls = false → probes enforce isolation
 SELECT current_user AS connected_as,
        (SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user) AS bypasses_rls;
 
@@ -63,7 +63,7 @@ ROLLBACK;
 -- EXPECT (B): ERROR  "new row violates row-level security policy"
 BEGIN;
   SELECT set_config('app.gym_id', :'gymA', true);
-  -- This should ERROR under fitsync_app. Under postgres it will (wrongly) be allowed.
+  -- This should ERROR under musclex_app. Under postgres it will (wrongly) be allowed.
   -- Wrapped in a savepoint so the rest of the script survives the expected error.
   SAVEPOINT s1;
   DO $$ BEGIN
@@ -74,13 +74,13 @@ BEGIN;
         current_setting('app.gym_id_test_wrong', true));
       RAISE NOTICE 'PROBE4: insert for wrong gym ALLOWED (expected under postgres/bypass = LEAK)';
     EXCEPTION WHEN insufficient_privilege OR check_violation THEN
-      RAISE NOTICE 'PROBE4: insert for wrong gym REJECTED by RLS (expected under fitsync_app)';
+      RAISE NOTICE 'PROBE4: insert for wrong gym REJECTED by RLS (expected under musclex_app)';
     END;
   END $$;
   ROLLBACK TO SAVEPOINT s1;
 ROLLBACK;
 
--- ── Summary of the pass criteria after cutover (role = fitsync_app) ─────────
+-- ── Summary of the pass criteria after cutover (role = musclex_app) ─────────
 --   PROBE 0: bypasses_rls = false
 --   PROBE 1: every table visible = 0
 --   PROBE 2: gymB_rows_visible = 0

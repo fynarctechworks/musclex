@@ -1,25 +1,27 @@
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { Icon, Txt, colors, type IconName } from '../design-system';
+import { Icon, Txt, useThemeColors, type IconName } from '../design-system';
 
 /**
- * The blueprint information architecture (BLUEPRINT.md §5): five evenly-spaced
- * tabs — Home · Workout · Classes · Progress · Community. The QR check-in FAB
- * floats over content from the layout (bottom-right, Samsung-Health style) so it
- * never collides with the middle tab. Built as a custom `tabBar` so the Geist
- * styling lives in one place rather than fighting react-navigation's default bar.
+ * Information architecture (reference redesign): five evenly-spaced flat tabs —
+ * Home · Search · Progress · Advice · Profile — no centre FAB. The active tab is
+ * tinted with the brand accent (filled icon + coloured label); the rest sit muted.
+ * Built as a custom `tabBar` so the Geist styling lives in one place rather than
+ * fighting react-navigation's default bar. Workout / Classes / Community / Rewards
+ * / Membership etc. are reached from the Search (discover) and Profile (account)
+ * hubs; check-in lives on the Home header.
  */
 const TAB_META: Record<string, { label: string; icon: IconName }> = {
   home: { label: 'Home', icon: 'home' },
-  workout: { label: 'Workout', icon: 'dumbbell' },
-  classes: { label: 'Classes', icon: 'calendar' },
+  search: { label: 'Search', icon: 'search' },
   progress: { label: 'Progress', icon: 'chart' },
-  community: { label: 'Community', icon: 'users' },
+  advice: { label: 'Advice', icon: 'message' },
+  profile: { label: 'Profile', icon: 'user' },
 };
 
-/** Tab order, left → right. The QR FAB floats centered above the bar. */
-const TAB_ORDER = ['home', 'workout', 'classes', 'progress', 'community'] as const;
+/** Tab order, left → right. */
+const TAB_ORDER = ['home', 'search', 'progress', 'advice', 'profile'] as const;
 
 /**
  * Minimal structural type for the subset of react-navigation's `BottomTabBarProps`
@@ -40,6 +42,7 @@ type TabBarProps = {
 
 export function FitTabBar({ state, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
+  const theme = useThemeColors();
 
   function renderTab(name: string) {
     const meta = TAB_META[name];
@@ -48,7 +51,9 @@ export function FitTabBar({ state, navigation }: TabBarProps) {
     const route = state.routes[routeIndex];
     if (!route) return null;
     const focused = state.index === routeIndex;
-    const tint = focused ? colors.ink : colors.mute;
+    // Active = brand green (vibrant lime icon + AA-readable green label); muted otherwise.
+    const iconTint = focused ? theme.primary : theme.mute;
+    const labelTint = focused ? theme.accent : theme.mute;
 
     const onPress = () => {
       Haptics.selectionAsync();
@@ -70,11 +75,11 @@ export function FitTabBar({ state, navigation }: TabBarProps) {
         className="flex-1 items-center justify-center gap-[3px]"
         hitSlop={8}
       >
-        <Icon name={meta.icon} color={tint} size={23} strokeWidth={focused ? 2 : 1.75} />
+        <Icon name={meta.icon} color={iconTint} size={23} filled={focused} />
         <Txt
           variant="caption"
           weight={focused ? '500' : '400'}
-          style={{ color: tint, fontSize: 10.5 }}
+          style={{ color: labelTint, fontSize: 10.5 }}
         >
           {meta.label}
         </Txt>
@@ -87,8 +92,8 @@ export function FitTabBar({ state, navigation }: TabBarProps) {
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.canvasSoft,
-        borderTopColor: colors.hairline,
+        backgroundColor: theme.canvasSoft,
+        borderTopColor: theme.hairline,
         borderTopWidth: 1,
         height: 60 + insets.bottom,
         paddingBottom: insets.bottom + 6,

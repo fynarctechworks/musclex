@@ -7,6 +7,7 @@ import type {
   HomeDashboard,
   Membership,
   MemberProfile,
+  UpdateProfileInput,
   Occupancy,
   GymLocations,
   Progress,
@@ -17,6 +18,8 @@ import type {
   WorkoutLogResult,
   SetLog,
   UploadTarget,
+  AvatarUploadTarget,
+  AvatarConfirmResult,
   OtpRequestResult,
   ClassList,
   ClassBookingResult,
@@ -45,6 +48,26 @@ import type {
   WearableConnection,
   WearableConnectionList,
   WearableConnectInput,
+  MeContext,
+  WeightSeries,
+  WeightEntry,
+  WeightInput,
+  WaterDay,
+  WaterInput,
+  PublicGoalList,
+  PublicGoal,
+  PublicGoalInput,
+  PublicGoalUpdate,
+  HealthSeries,
+  HealthDay,
+  HealthDailyInput,
+  EventInput,
+  EventIngestResult,
+  NearbyGyms,
+  Recommendation,
+  WeeklyProgress,
+  ToolsComputeInput,
+  GymProfile,
 } from './types';
 
 /** Typed wrappers for every Phase-1 BFF endpoint. */
@@ -64,6 +87,14 @@ export const api = {
       auth: false,
     }),
 
+  /** ⚠️ DEV-ONLY OTP bypass — 404s unless the BFF has its dev bypass enabled. */
+  devSession: (phone: string, code: string, tenantId?: string) =>
+    request<SessionResult>('/auth/dev/session', {
+      method: 'POST',
+      body: { phone, code, tenantId },
+      auth: false,
+    }),
+
   refresh: (refreshToken: string) =>
     request<TokenPair>('/auth/refresh', {
       method: 'POST',
@@ -73,6 +104,17 @@ export const api = {
 
   // ── Profile / home ──
   me: () => request<MemberProfile>('/me'),
+  /** Partial profile update (onboarding auto-save + later edits). */
+  updateMe: (patch: UpdateProfileInput) =>
+    request<MemberProfile>('/me', { method: 'PATCH', body: patch }),
+  // Public (gym-less) fitness profile — same shapes, app_user-scoped (Phase 7.1).
+  appProfile: () => request<MemberProfile>('/me/profile'),
+  updateAppProfile: (patch: UpdateProfileInput) =>
+    request<MemberProfile>('/me/profile', { method: 'PATCH', body: patch }),
+  weekly: () => request<WeeklyProgress>('/me/weekly'),
+  computeTools: (input: ToolsComputeInput) =>
+    request<Recommendation>('/me/tools/compute', { method: 'POST', body: input }),
+  gymProfile: (tenantId: string) => request<GymProfile>(`/me/gyms/${tenantId}`),
   home: () => request<HomeDashboard>('/home'),
   occupancy: () => request<Occupancy>('/gym/occupancy'),
   locations: () => request<GymLocations>('/gym/locations'),
@@ -132,6 +174,18 @@ export const api = {
     request<unknown>('/progress/photos', {
       method: 'POST',
       body: { photoId, takenAt },
+    }),
+
+  // ── Profile avatar (writes members.profile_photo_url → shows in admin too) ──
+  avatarUploadUrl: (contentType: string) =>
+    request<AvatarUploadTarget>('/me/avatar/upload-url', {
+      method: 'POST',
+      body: { contentType },
+    }),
+  confirmAvatar: (avatarId: string) =>
+    request<AvatarConfirmResult>('/me/avatar', {
+      method: 'POST',
+      body: { avatarId },
     }),
 
   // ── Notifications ──
@@ -233,4 +287,59 @@ export const api = {
     request<WearableConnection>(`/health/connections/${provider}`, {
       method: 'DELETE',
     }),
+
+  // ── Experience selector (public users allowed) ──
+  meContext: () => request<MeContext>('/me/context'),
+
+  // ── Public (gym-less) personal tracking ──
+  weightSeries: (days?: number) =>
+    request<WeightSeries>(`/me/weight${days ? `?days=${days}` : ''}`),
+  logWeight: (body: WeightInput) =>
+    request<WeightEntry>('/me/weight', { method: 'POST', body }),
+  waterDay: (date?: string) =>
+    request<WaterDay>(`/me/water${date ? `?date=${date}` : ''}`),
+  meLogWater: (body: WaterInput) =>
+    request<WaterDay>('/me/water', { method: 'POST', body }),
+  goals: () => request<PublicGoalList>('/me/goals'),
+  createGoal: (body: PublicGoalInput) =>
+    request<PublicGoal>('/me/goals', { method: 'POST', body }),
+  updateGoal: (goalId: string, body: PublicGoalUpdate) =>
+    request<PublicGoal>(`/me/goals/${goalId}`, { method: 'PATCH', body }),
+  healthDaily: (days?: number) =>
+    request<HealthSeries>(`/me/health/daily${days ? `?days=${days}` : ''}`),
+  upsertHealthDaily: (body: HealthDailyInput) =>
+    request<HealthDay>('/me/health/daily', { method: 'POST', body }),
+
+  // ── Funnel / behaviour events ──
+  logEvents: (events: EventInput[]) =>
+    request<EventIngestResult>('/me/events', { method: 'POST', body: { events } }),
+
+  // ── App-user push tokens + referral (Phase 5b/5c) ──
+  registerAppDeviceToken: (token: string, platform?: 'ios' | 'android' | 'web') =>
+    request<{ ok: boolean }>('/me/device-tokens', {
+      method: 'POST',
+      body: { token, platform },
+    }),
+  deleteAppDeviceToken: (token: string) =>
+    request<{ ok: boolean }>('/me/device-tokens', { method: 'DELETE', body: { token } }),
+  applyReferral: (code: string) =>
+    request<{ applied: boolean; reason?: string | null }>('/me/referral', {
+      method: 'POST',
+      body: { code },
+    }),
+  ackNotification: (deliveryId: string, action: 'opened' | 'clicked') =>
+    request<{ ok: boolean }>('/me/notifications/ack', {
+      method: 'POST',
+      body: { deliveryId, action },
+    }),
+
+  // ── Conversion: public gym directory ──
+  nearbyGyms: (lat?: number, lng?: number, q?: string) => {
+    const p = new URLSearchParams();
+    if (lat != null) p.set('lat', String(lat));
+    if (lng != null) p.set('lng', String(lng));
+    if (q) p.set('q', q);
+    const qs = p.toString();
+    return request<NearbyGyms>(`/me/nearby-gyms${qs ? `?${qs}` : ''}`);
+  },
 };

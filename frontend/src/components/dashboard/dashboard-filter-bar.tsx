@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { apiClient } from "@/lib/api";
+import { queryKeys } from "@/services/query-client";
 import { useAuthStore } from "@/stores/auth-store";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import {
@@ -104,7 +105,7 @@ export function DashboardFilterBar() {
   const filters = useDashboardFilters();
 
   const { data: branches } = useQuery<BranchSummary[]>({
-    queryKey: ["dashboard", "filter-bar", "branches"],
+    queryKey: queryKeys.branches.all,
     queryFn: () => apiClient.get<BranchSummary[]>("/branches"),
   });
 

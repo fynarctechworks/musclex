@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveBranchScope } from '../common/branch-scope.util';
+import { getTenantGymId } from '../common/tenant-context';
 import type { JwtPayload } from '../common/decorators/current-user.decorator';
 import {
   capabilitiesFor,
@@ -353,7 +354,12 @@ export class DashboardPulseService {
     branchFilter: BranchFilter,
     asOf: Date,
   ): Promise<number> {
-    const branchSql = this.buildBranchSql(branchFilter, 2);
+    const gymId = getTenantGymId();
+    if (!gymId) return 0;
+    // Raw SQL bypasses Prisma's $use middleware (no gym_id auto-injection,
+    // no set_config). The explicit `mm.gym_id = $2` filter is the load-
+    // bearing tenant scope here; never rely on RLS alone.
+    const branchSql = this.buildBranchSql(branchFilter, 3);
     const sql = `
       SELECT COALESCE(SUM(
         CASE WHEN COALESCE(p.duration_days, 30) > 0
@@ -363,14 +369,16 @@ export class DashboardPulseService {
       FROM member_memberships mm
       JOIN membership_plans p ON p.id = mm.plan_id
       WHERE mm.status = 'active'
+        AND mm.gym_id = $2::uuid
         AND mm.start_date <= $1
         AND mm.end_date >= $1
-        ${branchSql.clause.replace(/\$2/g, '$2').replace('branch_id', 'mm.branch_id')}
+        ${branchSql.clause.replace('branch_id', 'mm.branch_id')}
     `;
     try {
       const rows = await this.prisma.$queryRawUnsafe<{ mrr: number }[]>(
         sql,
         asOf,
+        gymId,
         ...branchSql.params,
       );
       return Math.round(Number(rows[0]?.mrr ?? 0));
@@ -410,13 +418,16 @@ export class DashboardPulseService {
     now: Date,
     horizon: Date,
   ): Promise<{ count: number; amount: number }> {
-    const branchSql = this.buildBranchSql(branchFilter, 3);
+    const gymId = getTenantGymId();
+    if (!gymId) return { count: 0, amount: 0 };
+    const branchSql = this.buildBranchSql(branchFilter, 4);
     const sql = `
       SELECT COUNT(*)::int AS count,
              COALESCE(SUM(p.price), 0)::float AS amount
       FROM member_memberships mm
       JOIN membership_plans p ON p.id = mm.plan_id
       WHERE mm.status = 'active'
+        AND mm.gym_id = $3::uuid
         AND mm.end_date >= $1
         AND mm.end_date <= $2
         ${branchSql.clause.replace('branch_id', 'mm.branch_id')}
@@ -424,7 +435,7 @@ export class DashboardPulseService {
     try {
       const rows = await this.prisma.$queryRawUnsafe<
         { count: number; amount: number }[]
-      >(sql, now, horizon, ...branchSql.params);
+      >(sql, now, horizon, gymId, ...branchSql.params);
       const r = rows[0];
       return {
         count: Number(r?.count ?? 0),
@@ -442,19 +453,22 @@ export class DashboardPulseService {
     branchFilter: BranchFilter,
     now: Date,
   ): Promise<{ amount: number; count: number; oldestAgeDays: number }> {
-    const branchSql = this.buildBranchSql(branchFilter, 1);
+    const gymId = getTenantGymId();
+    if (!gymId) return { amount: 0, count: 0, oldestAgeDays: 0 };
+    const branchSql = this.buildBranchSql(branchFilter, 2);
     const sql = `
       SELECT COUNT(*)::int AS count,
              COALESCE(SUM(total_amount), 0)::float AS amount,
              MIN(COALESCE(due_date, issued_at)) AS oldest_anchor
       FROM member_invoices
       WHERE status IN ('pending', 'partial')
+        AND gym_id = $1::uuid
       ${branchSql.clause}
     `;
     try {
       const rows = await this.prisma.$queryRawUnsafe<
         { count: number; amount: number; oldest_anchor: Date | null }[]
-      >(sql, ...branchSql.params);
+      >(sql, gymId, ...branchSql.params);
       const r = rows[0];
       const oldestAgeDays = r?.oldest_anchor
         ? Math.max(
@@ -483,32 +497,36 @@ export class DashboardPulseService {
     branchFilter: BranchFilter,
     fromDay: Date,
   ): Promise<number[]> {
-    const branchSql = this.buildBranchSql(branchFilter, 2);
+    const gymId = getTenantGymId();
+    if (!gymId) return [];
+    const branchSql = this.buildBranchSql(branchFilter, 3);
     const sql = `
       SELECT DATE_TRUNC('day', paid_at) AS day, COALESCE(SUM(amount), 0)::float AS value
       FROM payments
-      WHERE status = 'paid' AND paid_at >= $1
+      WHERE status = 'paid' AND gym_id = $2::uuid AND paid_at >= $1
       ${branchSql.clause}
       GROUP BY DATE_TRUNC('day', paid_at)
       ORDER BY day
     `;
-    return this.runSparklineSql(sql, fromDay, branchSql.params);
+    return this.runSparklineSql(sql, fromDay, [gymId, ...branchSql.params]);
   }
 
   private async dailyCheckInsSparkline(
     branchFilter: BranchFilter,
     fromDay: Date,
   ): Promise<number[]> {
-    const branchSql = this.buildBranchSql(branchFilter, 2);
+    const gymId = getTenantGymId();
+    if (!gymId) return [];
+    const branchSql = this.buildBranchSql(branchFilter, 3);
     const sql = `
       SELECT DATE_TRUNC('day', checked_in_at) AS day, COUNT(*)::float AS value
       FROM check_ins
-      WHERE status = 'success' AND checked_in_at >= $1
+      WHERE status = 'success' AND gym_id = $2::uuid AND checked_in_at >= $1
       ${branchSql.clause}
       GROUP BY DATE_TRUNC('day', checked_in_at)
       ORDER BY day
     `;
-    return this.runSparklineSql(sql, fromDay, branchSql.params);
+    return this.runSparklineSql(sql, fromDay, [gymId, ...branchSql.params]);
   }
 
   /**
@@ -521,7 +539,9 @@ export class DashboardPulseService {
     branchFilter: BranchFilter,
     fromDay: Date,
   ): Promise<number[]> {
-    const branchSql = this.buildBranchSql(branchFilter, 2);
+    const gymId = getTenantGymId();
+    if (!gymId) return [];
+    const branchSql = this.buildBranchSql(branchFilter, 3);
     const sql = `
       WITH days AS (
         SELECT generate_series($1::date, $1::date + INTERVAL '13 days', INTERVAL '1 day') AS day
@@ -531,13 +551,14 @@ export class DashboardPulseService {
                SELECT COUNT(*)::float
                FROM members m
                WHERE m.status = 'active'
+                 AND m.gym_id = $2::uuid
                  AND m.created_at <= d.day + INTERVAL '1 day'
                  ${branchSql.clause.replace('branch_id', 'm.branch_id')}
              ) AS value
       FROM days d
       ORDER BY d.day
     `;
-    return this.runSparklineSql(sql, fromDay, branchSql.params);
+    return this.runSparklineSql(sql, fromDay, [gymId, ...branchSql.params]);
   }
 
   private async runSparklineSql(

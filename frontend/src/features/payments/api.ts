@@ -27,7 +27,7 @@ export const paymentsApi = {
     member_id: string;
     plan_id: string;
     branch_id: string;
-    gateway: 'razorpay' | 'stripe';
+    gateway: 'razorpay';
   }) => apiClient.post('/payments/create-order', data),
 
   verifyPayment: (data: {
@@ -304,7 +304,7 @@ export const gatewaysApi = {
     apiClient.get('/payment-gateways'),
 
   create: (data: {
-    gateway_name: 'razorpay' | 'stripe';
+    gateway_name: 'razorpay';
     api_key: string;
     secret_key: string;
     webhook_secret?: string;

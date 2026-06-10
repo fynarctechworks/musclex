@@ -17,6 +17,7 @@ import {
   type RefundFilters,
 } from './api';
 import { toast } from 'sonner';
+import { captureError, Source } from '@/lib/observability/capture';
 
 // ── Payments ──────────────────────────────────────────────
 
@@ -37,14 +38,20 @@ export function useRecordCashPayment() {
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Cash payment recorded');
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      toast.error(err.message);
+      captureError(Source.PAYMENT, err, { module: 'cash-payment', severity: 'HIGH' });
+    },
   });
 }
 
 export function useCreatePaymentOrder() {
   return useMutation({
     mutationFn: paymentsApi.createOrder,
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      toast.error(err.message);
+      captureError(Source.PAYMENT, err, { module: 'payment-order', severity: 'HIGH' });
+    },
   });
 }
 
@@ -58,7 +65,10 @@ export function useVerifyPayment() {
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
       toast.success('Payment verified');
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      toast.error(err.message);
+      captureError(Source.PAYMENT, err, { module: 'payment-verify', severity: 'HIGH' });
+    },
   });
 }
 

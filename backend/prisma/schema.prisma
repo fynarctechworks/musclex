@@ -118,11 +118,17 @@ model MemberDirectory {
 
 // Member app refresh tokens — opaque, rotating, revocable. Only the SHA-256
 // hash of the token is stored (never the raw value). Lives in public schema
-// because a session is keyed by (member_id, tenant_id), not gym-scoped data.
+// because a session is keyed by app_user (and, for gym members, a tenant), not
+// gym-scoped data.
+//
+// app_user_id is the canonical person (always set on tokens minted after the
+// public-app cutover). member_id/tenant_id are NULL for gym-less PUBLIC users —
+// they only carry a gym scope once the person is an active member of a gym.
 model MemberRefreshToken {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  member_id   String    @db.Uuid
-  tenant_id   String    @db.Uuid // Studio UUID
+  app_user_id String?   @db.Uuid // canonical person; null only for legacy pre-cutover rows
+  member_id   String?   @db.Uuid // null for gym-less public users
+  tenant_id   String?   @db.Uuid // Studio UUID; null for gym-less public users
   token_hash  String    @unique // sha256(refreshToken)
   expires_at  DateTime  @db.Timestamptz()
   revoked_at  DateTime? @db.Timestamptz()
@@ -130,7 +136,279 @@ model MemberRefreshToken {
   created_at  DateTime  @default(now()) @db.Timestamptz()
 
   @@index([member_id, tenant_id])
+  @@index([app_user_id])
   @@map("member_refresh_tokens")
+  @@schema("public")
+}
+
+// =============================================
+// PUBLIC SCHEMA — App User (gym-independent identity)
+// =============================================
+// The canonical person behind the member app. Anyone who installs the app and
+// verifies a phone gets exactly one app_users row, whether or not they belong to
+// a gym. Personal (gym-less) tracking data hangs off this id; gym memberships are
+// LINKS (app_user_gym_links) — a person can belong to 0..N gyms. This is the
+// foundation of the public-fitness-platform model: tenant isolation is untouched
+// because a gym-less user never has a gym_id (every studio-scoped Prisma query
+// fails closed when gym_id is absent — see prisma.service.ts).
+model AppUser {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phone            String    @unique // E.164 — the login key (proved via OTP)
+  full_name        String?
+  email            String?
+  city             String?
+  gender           String? // male | female | other | prefer_not_to_say
+  date_of_birth    DateTime? @db.Date
+  referral_source  String? // how they found the app (organic | referral | campaign | ...)
+  referral_code    String?   @unique // this person's own code to share (Phase 5c)
+  referred_by_app_user_id String? @db.Uuid // the app_user who referred them
+  // ── Fitness profile (Phase 7.1) — gym-less counterpart of member_profiles.
+  //    Current weight is NOT stored here; it's the latest app_user_weight_logs row.
+  height_cm           Decimal? @db.Decimal(5, 1)
+  height_unit         String?  @default("cm") // cm | ft
+  weight_unit         String?  @default("kg") // kg | lb
+  primary_goal        String?
+  fitness_goals       Json     @default("[]") @map("goals") // onboarding goal multi-select; DB col is `goals`
+  activity_level      String?
+  training_experience String?
+  workout_preferences Json     @default("[]")
+  limitations         Json     @default("[]")
+  onboarding_step     String? // resume marker for the onboarding flow
+  onboarding_state String    @default("not_started") // not_started | in_progress | completed
+  status           String    @default("active") // active | inactive
+  created_at       DateTime  @default(now()) @db.Timestamptz()
+  updated_at       DateTime  @default(now()) @updatedAt @db.Timestamptz()
+  last_active_at   DateTime? @db.Timestamptz()
+
+  gym_links     AppUserGymLink[]
+  weight_logs   AppUserWeightLog[]
+  water_logs    AppUserWaterLog[]
+  goals         AppUserGoal[]
+  health_daily  AppUserHealthDaily[]
+  events        AppUserEvent[]
+  device_tokens AppUserDeviceToken[]
+  deliveries    AppCampaignDelivery[]
+
+  @@index([city])
+  @@index([status])
+  @@index([last_active_at])
+  @@index([created_at])
+  @@map("app_users")
+  @@schema("public")
+}
+
+// Links an app_user to each gym they are a member of. Populated by the member
+// auth path on login (from member_directory resolution) so SCC analytics can
+// join app_users → gyms without re-running phone normalization. A person with no
+// links is a PUBLIC user / lead.
+model AppUserGymLink {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id String   @db.Uuid
+  tenant_id   String   @db.Uuid // Studio UUID
+  member_id   String   @db.Uuid // members row inside studio_template
+  created_at  DateTime @default(now()) @db.Timestamptz()
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  app_user AppUser @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([app_user_id, tenant_id])
+  @@index([tenant_id])
+  @@index([member_id])
+  @@map("app_user_gym_links")
+  @@schema("public")
+}
+
+// =============================================
+// PUBLIC SCHEMA — App User personal tracking (gym-less)
+// =============================================
+// Personal fitness data for the canonical person, NOT scoped to any gym. These
+// are the public-fitness-platform counterparts of the studio-scoped tracking
+// tables (WaterLog / MemberBodyStats / MemberHealthDaily): a gym-less user tracks
+// here; gym members keep using their gym-scoped records. Keyed by app_user_id.
+
+// One weigh-in per day (upsert). BMI is computed client-side from this + height.
+model AppUserWeightLog {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id  String   @db.Uuid
+  logged_on    DateTime @db.Date
+  weight_kg    Decimal  @db.Decimal(5, 2)
+  body_fat_pct Decimal? @db.Decimal(4, 1)
+  note         String?
+  created_at   DateTime @default(now()) @db.Timestamptz()
+  updated_at   DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  app_user AppUser @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([app_user_id, logged_on])
+  @@map("app_user_weight_logs")
+  @@schema("public")
+}
+
+// Per-day water total (upsert / increment).
+model AppUserWaterLog {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id String   @db.Uuid
+  logged_on   DateTime @db.Date
+  amount_ml   Int      @default(0)
+  goal_ml     Int?
+  created_at  DateTime @default(now()) @db.Timestamptz()
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  app_user AppUser @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([app_user_id, logged_on])
+  @@map("app_user_water_logs")
+  @@schema("public")
+}
+
+// Generic personal goal (weight | water | steps | workout | custom).
+model AppUserGoal {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id   String    @db.Uuid
+  type          String
+  title         String?
+  target_value  Decimal?  @db.Decimal(10, 2)
+  current_value Decimal?  @default(0) @db.Decimal(10, 2)
+  unit          String?
+  target_date   DateTime? @db.Date
+  status        String    @default("active") // active | achieved | abandoned
+  created_at    DateTime  @default(now()) @db.Timestamptz()
+  updated_at    DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  app_user AppUser @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@index([app_user_id, status])
+  @@map("app_user_goals")
+  @@schema("public")
+}
+
+// Daily on-device health rollup (steps / active calories / distance), upsert per day.
+model AppUserHealthDaily {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id        String   @db.Uuid
+  logged_on          DateTime @db.Date
+  steps              Int      @default(0)
+  active_calories    Decimal? @db.Decimal(8, 2)
+  distance_m         Decimal? @db.Decimal(10, 2)
+  resting_heart_rate Int?
+  source             String? // pedometer | healthkit | health_connect | manual
+  created_at         DateTime @default(now()) @db.Timestamptz()
+  updated_at         DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  app_user AppUser @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([app_user_id, logged_on])
+  @@map("app_user_health_daily")
+  @@schema("public")
+}
+
+// Append-only funnel / behaviour event stream for the app_user. Drives the
+// onboarding-funnel + conversion analytics in the SCC. Only stores client-emitted
+// events (first_app_open, onboarding_started/completed, first_dashboard_visit,
+// viewed_nearby_gyms, viewed_gym_profile, inquiry_click, …); registration,
+// gym-selected and purchases are derived from existing tables, not duplicated here.
+model AppUserEvent {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id String   @db.Uuid
+  event_type  String
+  occurred_at DateTime @default(now()) @db.Timestamptz()
+  platform    String? // ios | android | web
+  app_version String?
+  metadata    Json     @default("{}")
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  app_user AppUser @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@index([app_user_id, event_type])
+  @@index([event_type, occurred_at])
+  @@map("app_user_events")
+  @@schema("public")
+}
+
+// Push device tokens for the app_user (gym-independent). Distinct from the
+// gym-scoped MemberDeviceToken: a public user has no gym but can still receive
+// segment-targeted campaign notifications (Phase 5b).
+model AppUserDeviceToken {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id  String    @db.Uuid
+  token        String    @unique
+  platform     String? // ios | android | web
+  created_at   DateTime  @default(now()) @db.Timestamptz()
+  updated_at   DateTime  @default(now()) @updatedAt @db.Timestamptz()
+  last_seen_at DateTime? @db.Timestamptz()
+
+  app_user AppUser @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@index([app_user_id])
+  @@map("app_user_device_tokens")
+  @@schema("public")
+}
+
+// Segment-targeted notification campaigns, authored + sent from the SCC (Phase 5b).
+// The SCC reads/writes this via raw SQL; the model lives here as the canonical
+// public-schema definition.
+model AppCampaign {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title          String
+  body           String
+  target_segment String // public | lead | expired | active | inactive
+  deep_link      String?
+  status         String    @default("draft") // draft | sending | sent | failed
+  recipients     Int       @default(0)
+  sent_count     Int       @default(0)
+  failed_count   Int       @default(0)
+  created_by     String?   @db.Uuid
+  scheduled_at   DateTime? @db.Timestamptz()
+  sent_at        DateTime? @db.Timestamptz()
+  created_at     DateTime  @default(now()) @db.Timestamptz()
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  @@index([status])
+  @@index([created_at])
+  @@map("app_campaigns")
+  @@schema("public")
+}
+
+// Per-recipient delivery row for a campaign or automation send (Phase 7.6).
+// Powers sent/delivered/opened/clicked analytics + automation cooldown dedup.
+model AppCampaignDelivery {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaign_id    String?   @db.Uuid
+  automation_key String?
+  app_user_id    String    @db.Uuid
+  token          String
+  status         String    @default("queued") // queued|sent|failed|opened|clicked
+  error          String?
+  sent_at        DateTime? @db.Timestamptz()
+  opened_at      DateTime? @db.Timestamptz()
+  clicked_at     DateTime? @db.Timestamptz()
+  created_at     DateTime  @default(now()) @db.Timestamptz()
+
+  app_user AppUser @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@index([campaign_id])
+  @@index([app_user_id])
+  @@index([automation_key, app_user_id, created_at])
+  @@index([status])
+  @@map("app_campaign_deliveries")
+  @@schema("public")
+}
+
+// Admin-configured triggered campaign run by an SCC cron (Phase 7.6).
+model AppCampaignAutomation {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key            String    @unique
+  title          String
+  body           String
+  target_segment String
+  deep_link      String?
+  enabled        Boolean   @default(false)
+  cooldown_days  Int       @default(7)
+  last_run_at    DateTime? @db.Timestamptz()
+  created_at     DateTime  @default(now()) @db.Timestamptz()
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  @@map("app_campaign_automations")
   @@schema("public")
 }
 
@@ -760,6 +1038,13 @@ model Member {
   assigned_workouts     AssignedWorkout[]
   workout_logs          WorkoutLog[]
   personal_records      PersonalRecord[]
+  meal_logs             MealLog[]
+  water_logs            WaterLog[]
+  nutrition_goal        NutritionGoal?
+  exercise_favorites    ExerciseFavorite[]
+  health_samples        MemberHealthSample[]
+  health_daily          MemberHealthDaily[]
+  wearable_connections  MemberWearableConnection[]
 
   @@index([organization_id])
   @@index([branch_id])
@@ -782,12 +1067,20 @@ model MemberProfile {
   height              Decimal? @db.Decimal(5, 2) // cm
   weight              Decimal? @db.Decimal(5, 2) // kg
   body_fat_percentage Decimal? @db.Decimal(5, 2)
-  fitness_goal        String? // weight_loss | muscle_gain | rehabilitation | endurance | general_fitness
-  medical_conditions  String[]
+  fitness_goal        String? // PRIMARY goal: weight_loss | muscle_gain | rehabilitation | endurance | general_fitness
+  goals               String[] // member-app multi-select goals (primary stays fitness_goal)
+  activity_level      String? // sedentary | lightly_active | moderately_active | very_active | athlete
+  training_experience String? // beginner | intermediate | advanced
+  workout_preferences String[] // gym | home | strength | cardio | hiit | yoga | crossfit | powerlifting | bodybuilding
+  height_unit         String   @default("cm") // display pref; height stored canonical cm
+  weight_unit         String   @default("kg") // display pref; weight stored canonical kg
+  medical_conditions  String[] // also holds onboarding injuries/limitations
   allergies           String[]
   emergency_contact   String?
   emergency_phone     String?
   blood_group         String?
+  onboarding_step     String? // last completed/active step for resume (null once complete)
+  onboarding_completed_at DateTime? @db.Timestamptz() // set once the member finishes onboarding
   created_at          DateTime @default(now()) @db.Timestamptz()
   updated_at          DateTime @default(now()) @updatedAt @db.Timestamptz()
 
@@ -822,6 +1115,89 @@ model MemberBodyStats {
 }
 
 // =============================================
+// PER-STUDIO SCHEMA — Health Data Platform (Member App)
+// Quantified-health telemetry synced from wearables (Apple HealthKit /
+// Google Health Connect / Fitbit / Garmin) or entered manually. `samples` is
+// the raw, idempotent time-series; `daily` is the per-metric daily rollup the
+// dashboards read so they never scan raw rows. `connections` records which
+// providers a member linked + the explicit consent timestamp (health data is
+// GDPR special-category). All gym_id-scoped + registered in TENANT_MODELS.
+// =============================================
+
+model MemberHealthSample {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id      String   @db.Uuid
+  member_id   String   @db.Uuid
+  // steps | calories_active | calories_resting | distance_m | active_minutes |
+  // heart_rate | hr_resting | hrv | sleep_duration | sleep_deep | sleep_rem |
+  // spo2 | stress | body_weight | body_fat | vo2max | respiratory_rate | mood
+  type        String
+  value       Decimal  @db.Decimal(12, 3)
+  unit        String
+  start_at    DateTime @db.Timestamptz()
+  end_at      DateTime @db.Timestamptz()
+  // apple_health | health_connect | fitbit | garmin | scale | manual
+  source      String
+  source_uuid String // provider-side id → idempotent re-sync dedupe
+  metadata    Json?
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  member Member @relation(fields: [member_id], references: [id], onDelete: Cascade)
+
+  // Re-syncing the same provider sample is a no-op (offline/replay safe).
+  @@unique([member_id, type, source, source_uuid])
+  @@index([gym_id])
+  @@index([member_id, type, start_at])
+  @@map("member_health_samples")
+  @@schema("studio_template")
+}
+
+model MemberHealthDaily {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id         String   @db.Uuid
+  member_id      String   @db.Uuid
+  day            DateTime @db.Date
+  type           String
+  total          Decimal  @db.Decimal(14, 3)
+  min            Decimal? @db.Decimal(12, 3)
+  max            Decimal? @db.Decimal(12, 3)
+  avg            Decimal? @db.Decimal(12, 3)
+  sample_count   Int      @default(0)
+  unit           String
+  primary_source String?
+  updated_at     DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  member Member @relation(fields: [member_id], references: [id], onDelete: Cascade)
+
+  @@unique([member_id, day, type])
+  @@index([gym_id])
+  @@index([member_id, type, day])
+  @@map("member_health_daily")
+  @@schema("studio_template")
+}
+
+model MemberWearableConnection {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id           String    @db.Uuid
+  member_id        String    @db.Uuid
+  provider         String // apple_health | health_connect | fitbit | garmin | scale
+  status           String    @default("connected") // connected | revoked
+  scopes           Json?
+  external_user_id String?
+  consented_at     DateTime  @db.Timestamptz()
+  last_synced_at   DateTime? @db.Timestamptz()
+  created_at       DateTime  @default(now()) @db.Timestamptz()
+  updated_at       DateTime  @default(now()) @updatedAt @db.Timestamptz()
+
+  member Member @relation(fields: [member_id], references: [id], onDelete: Cascade)
+
+  @@unique([member_id, provider])
+  @@index([gym_id])
+  @@map("member_wearable_connections")
+  @@schema("studio_template")
+}
+
+// =============================================
 // PER-STUDIO SCHEMA — Workout Domain (Member App Phase 1)
 // Trainer assigns plans in the SaaS; the member app reads the assignment
 // and writes back logged sets. Every table is gym_id-scoped (auto-injected).
@@ -842,6 +1218,7 @@ model Exercise {
   plan_entries WorkoutPlanExercise[]
   set_logs     WorkoutSetLog[]
   records      PersonalRecord[]
+  favorites    ExerciseFavorite[]
 
   @@index([gym_id])
   @@index([gym_id, muscle_group])
@@ -979,6 +1356,212 @@ model PersonalRecord {
   @@unique([member_id, exercise_id])
   @@index([member_id])
   @@map("personal_records")
+  @@schema("studio_template")
+}
+
+// ──────────────────────────────────────────────────────────────────
+// NUTRITION DOMAIN (Member App V2.1 — meal logging, macros, water).
+// All gym_id-scoped (studio_template) and registered in TENANT_MODELS so
+// the tenant extension auto-filters by gym_id, exactly like the workout
+// domain. Macro snapshots live on meal_log_items so editing the catalog
+// never rewrites logged history (same pattern as workout_set_logs).
+// ──────────────────────────────────────────────────────────────────
+model FoodItem {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id       String   @db.Uuid
+  name         String
+  brand        String?
+  barcode      String?
+  serving_size Decimal  @default(100) @db.Decimal(8, 2)
+  serving_unit String   @default("g")
+  kcal         Decimal  @default(0) @db.Decimal(8, 2)
+  protein_g    Decimal  @default(0) @db.Decimal(7, 2)
+  carbs_g      Decimal  @default(0) @db.Decimal(7, 2)
+  fat_g        Decimal  @default(0) @db.Decimal(7, 2)
+  source       String   @default("custom") // custom | catalog | barcode
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now()) @db.Timestamptz()
+  updated_at   DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  meal_items MealLogItem[]
+
+  @@index([gym_id])
+  @@index([gym_id, name])
+  @@index([gym_id, barcode])
+  @@map("food_items")
+  @@schema("studio_template")
+}
+
+model MealLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id     String   @db.Uuid
+  member_id  String   @db.Uuid
+  meal_type  String   @default("snack") // breakfast | lunch | dinner | snack
+  logged_at  DateTime @default(now()) @db.Timestamptz()
+  notes      String?
+  client_key String? // client idempotency key (offline outbox); unique per gym
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  member Member        @relation(fields: [member_id], references: [id], onDelete: Cascade)
+  items  MealLogItem[]
+
+  @@unique([gym_id, client_key])
+  @@index([member_id, logged_at])
+  @@map("meal_logs")
+  @@schema("studio_template")
+}
+
+model MealLogItem {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id       String   @db.Uuid
+  meal_log_id  String   @db.Uuid
+  food_item_id String?  @db.Uuid
+  name         String // snapshot — catalog edits don't rewrite logged history
+  quantity     Decimal  @default(1) @db.Decimal(8, 2)
+  unit         String   @default("serving")
+  kcal         Decimal  @default(0) @db.Decimal(8, 2)
+  protein_g    Decimal  @default(0) @db.Decimal(7, 2)
+  carbs_g      Decimal  @default(0) @db.Decimal(7, 2)
+  fat_g        Decimal  @default(0) @db.Decimal(7, 2)
+  created_at   DateTime @default(now()) @db.Timestamptz()
+
+  meal_log  MealLog   @relation(fields: [meal_log_id], references: [id], onDelete: Cascade)
+  food_item FoodItem? @relation(fields: [food_item_id], references: [id])
+
+  @@index([meal_log_id])
+  @@index([food_item_id])
+  @@map("meal_log_items")
+  @@schema("studio_template")
+}
+
+model WaterLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id     String   @db.Uuid
+  member_id  String   @db.Uuid
+  amount_ml  Int
+  logged_at  DateTime @default(now()) @db.Timestamptz()
+  client_key String?
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  member Member @relation(fields: [member_id], references: [id], onDelete: Cascade)
+
+  @@unique([gym_id, client_key])
+  @@index([member_id, logged_at])
+  @@map("water_logs")
+  @@schema("studio_template")
+}
+
+model NutritionGoal {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id           String   @db.Uuid
+  member_id        String   @db.Uuid
+  kcal_target      Int      @default(2000)
+  protein_g_target Int      @default(120)
+  carbs_g_target   Int      @default(220)
+  fat_g_target     Int      @default(60)
+  water_ml_target  Int      @default(2500)
+  created_at       DateTime @default(now()) @db.Timestamptz()
+  updated_at       DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  member Member @relation(fields: [member_id], references: [id], onDelete: Cascade)
+
+  @@unique([member_id])
+  @@index([gym_id])
+  @@map("nutrition_goals")
+  @@schema("studio_template")
+}
+
+model ExerciseFavorite {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id      String   @db.Uuid
+  member_id   String   @db.Uuid
+  exercise_id String   @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  member   Member   @relation(fields: [member_id], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exercise_id], references: [id], onDelete: Cascade)
+
+  @@unique([member_id, exercise_id])
+  @@index([member_id])
+  @@map("exercise_favorites")
+  @@schema("studio_template")
+}
+
+// Member ↔ trainer 1:1 chat (V2.3). member_id/trainer_id are scalar (FKs to
+// members/staff are enforced in the migration SQL, not as Prisma relations, to
+// keep the Member/Staff models untouched). The conversation pairing is governed
+// by TrainerClient — a member can only message a trainer they're assigned to.
+model TrainerChatMessage {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id             String    @db.Uuid
+  member_id          String    @db.Uuid
+  trainer_id         String    @db.Uuid
+  sender             String // 'member' | 'trainer'
+  body               String
+  client_key         String? // member-sent idempotency key (offline outbox)
+  read_by_member_at  DateTime? @db.Timestamptz()
+  read_by_trainer_at DateTime? @db.Timestamptz()
+  created_at         DateTime  @default(now()) @db.Timestamptz()
+
+  @@unique([gym_id, client_key])
+  @@index([member_id, trainer_id, created_at])
+  @@map("trainer_chat_messages")
+  @@schema("studio_template")
+}
+
+// Community (V2.5). Gym challenges + participation. Progress is COMPUTED from real
+// check-ins/workout-logs in the window (not stored), so it can't drift from truth.
+model Challenge {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id      String   @db.Uuid
+  title       String
+  description String?
+  metric      String // 'checkins' | 'workouts'
+  goal        Int
+  starts_at   DateTime @db.Timestamptz()
+  ends_at     DateTime @db.Timestamptz()
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamptz()
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  participants ChallengeParticipant[]
+
+  @@index([gym_id, is_active])
+  @@map("challenges")
+  @@schema("studio_template")
+}
+
+model ChallengeParticipant {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id       String    @db.Uuid
+  challenge_id String    @db.Uuid
+  member_id    String    @db.Uuid // scalar; FK to members enforced in migration SQL
+  joined_at    DateTime  @default(now()) @db.Timestamptz()
+  completed_at DateTime? @db.Timestamptz()
+
+  challenge Challenge @relation(fields: [challenge_id], references: [id], onDelete: Cascade)
+
+  @@unique([challenge_id, member_id])
+  @@index([member_id])
+  @@map("challenge_participants")
+  @@schema("studio_template")
+}
+
+// Member push device tokens (V2 / Phase 3). One row per device token; `prefs`
+// holds per-category opt-in flags the server honours before sending.
+model MemberDeviceToken {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id     String   @db.Uuid
+  member_id  String   @db.Uuid
+  token      String
+  platform   String // ios | android
+  prefs      Json     @default("{}")
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  @@unique([token])
+  @@index([member_id])
+  @@map("member_device_tokens")
   @@schema("studio_template")
 }
 

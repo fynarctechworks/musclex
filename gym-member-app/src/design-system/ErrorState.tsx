@@ -2,7 +2,7 @@ import { View } from 'react-native';
 import { Txt } from './Text';
 import { Button } from './Button';
 import { Icon } from './Icon';
-import { colors } from './tokens';
+import { useThemeColors } from './theme';
 
 /**
  * Inline, recoverable error state (IA §4: "errors = inline + recoverable, never a raw
@@ -25,10 +25,11 @@ export function ErrorState({
   retrying,
   compact,
 }: ErrorStateProps) {
+  const theme = useThemeColors();
   return (
     <View className={`items-center ${compact ? 'py-md' : 'px-lg py-3xl'}`}>
       <View className="h-[52px] w-[52px] items-center justify-center rounded-full bg-error-soft">
-        <Icon name="alert" color={colors.error} size={24} />
+        <Icon name="alert" color={theme.error} size={24} />
       </View>
       <Txt variant="body-lg" weight="600" className="mt-md text-center text-ink">
         {title}

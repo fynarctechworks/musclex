@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { useSubscriptions } from '@/hooks/use-subscriptions';
+import { useSubscriptions, useCancelSubscription } from '@/hooks/use-subscriptions';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { LoadingSkeleton } from '@/components/shared/loading-skeleton';
 import { EmptyState } from '@/components/shared/empty-state';
+import { ErrorState } from '@/components/shared/error-state';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import {
   Select,
   SelectContent,
@@ -34,10 +36,12 @@ function formatDate(date: string) {
 export default function SubscriptionsPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
-  const { data, isLoading } = useSubscriptions({
+  const { data, isLoading, isError, refetch } = useSubscriptions({
     page,
     status: status || undefined,
   });
+  const cancel = useCancelSubscription();
+  const CANCELABLE = ['ACTIVE', 'TRIALING', 'PAST_DUE'];
 
   return (
     <div>
@@ -54,7 +58,7 @@ export default function SubscriptionsPage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="All Status" />
           </SelectTrigger>
           <SelectContent>
@@ -70,6 +74,12 @@ export default function SubscriptionsPage() {
 
       {isLoading ? (
         <LoadingSkeleton rows={8} />
+      ) : isError ? (
+        <ErrorState
+          title="Could not load subscriptions"
+          description="The request failed — this is not the same as having no subscriptions. Check that the backend is running and retry."
+          onRetry={() => refetch()}
+        />
       ) : !data?.data.length ? (
         <EmptyState />
       ) : (
@@ -84,6 +94,7 @@ export default function SubscriptionsPage() {
                   <TableHead className="text-[13px]">Start</TableHead>
                   <TableHead className="text-[13px]">End</TableHead>
                   <TableHead className="text-[13px]">Auto Renew</TableHead>
+                  <TableHead className="text-[13px] text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -92,7 +103,7 @@ export default function SubscriptionsPage() {
                     <TableCell className="text-[13px] font-semibold text-foreground">
                       {sub.tenant?.name || sub.tenant_id}
                     </TableCell>
-                    <TableCell className="text-[13px]">{sub.plan?.name || sub.plan_id}</TableCell>
+                    <TableCell className="text-[13px] capitalize">{sub.plan?.name || sub.plan_id}</TableCell>
                     <TableCell>
                       <StatusBadge status={sub.status} />
                     </TableCell>
@@ -104,6 +115,24 @@ export default function SubscriptionsPage() {
                     </TableCell>
                     <TableCell className="text-[13px] text-muted-foreground">
                       {sub.auto_renew ? 'Yes' : 'No'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {CANCELABLE.includes(sub.status) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-[12px] text-destructive"
+                          disabled={cancel.isPending}
+                          onClick={() =>
+                            cancel.mutate(sub.id, {
+                              onSuccess: () => toast.success('Subscription canceled'),
+                              onError: (e: Error) => toast.error(e.message || 'Failed to cancel'),
+                            })
+                          }
+                        >
+                          Cancel
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
