@@ -43,6 +43,21 @@ For each service that injects `PrismaService` and uses `this.prisma.*`:
 
 **Suggested domain order** (low-risk → high): auth/registry → settings → members → classes → inventory → check-ins → member BFF → dashboards/analytics → referrals/payments.
 
+### Verification harness (branch DB only) — run after every slice
+Two faithful test gyms exist on the branch DB for isolation checks (schema_name is
+deliberately ≠ `studio_<gym_id>`, reproducing prod so routing must come from the registry):
+
+| Gym | `studios.id` (gym_id) | `schema_name` | seed |
+|---|---|---|---|
+| A | `1111…1111` | `studio_aaaaaaaa_aaaa_aaaa_aaaa_aaaaaaaaaaaa` | Alice + 1 branch |
+| B | `2222…2222` | `studio_bbbbbbbb_bbbb_bbbb_bbbb_bbbbbbbbbbbb` | Bob + 1 branch |
+
+- **Build/reset:** `bash scripts/_phase6_setup_test_gyms.sh` — clones `studio_template`
+  structure (146 tables) into both, registers studios, seeds distinguishing rows. Idempotent.
+- **Verify:** `node scripts/_phase6_isolation_check.js` — registry→schema→rows routing,
+  per-table isolation, cross-leak. **Add a line to its `PROBES` array per domain as you
+  seed more tables.**
+
 ---
 
 ## Remaining phases (not started)
