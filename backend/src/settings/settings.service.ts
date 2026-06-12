@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { QueueService } from '../queue/queue.service';
 import {
   PLAN_CONFIGS,
@@ -14,14 +15,18 @@ export class SettingsService {
   private readonly logger = new Logger(SettingsService.name);
 
   constructor(
-    private prisma: PrismaService,
+    // Fully on the Road B clients (no legacy PrismaService): registry (studio/
+    // invoice/subscriptionPlan) → pub; tenant (branch/member/staff + the
+    // clear-data tx) → tenant.client. Phase 6.
+    private pub: PublicPrismaService,
+    private tenant: TenantPrisma,
     private queueService: QueueService,
     private sccSync: SccSyncService,
     private subscriptionPolicy: SubscriptionPolicyService,
   ) {}
 
   async getStudio(studioId: string) {
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: studioId },
     });
     if (!studio) throw new NotFoundException('Studio not found');
@@ -29,7 +34,7 @@ export class SettingsService {
   }
 
   async getAccountOverview(studioId: string) {
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: studioId },
       include: { invoices: { orderBy: { created_at: 'desc' }, take: 1 } },
     });
@@ -45,9 +50,9 @@ export class SettingsService {
 
     // Fetch usage counts — tenant isolation relies on search_path set by TenantMiddleware
     const [branchCount, memberCount, staffCount] = await Promise.all([
-      this.prisma.branch.count({ where: { is_active: true } }),
-      this.prisma.member.count({ where: { status: 'active' } }),
-      this.prisma.staff.count({ where: { is_active: true } }),
+      this.tenant.client.branch.count({ where: { is_active: true } }),
+      this.tenant.client.member.count({ where: { status: 'active' } }),
+      this.tenant.client.staff.count({ where: { is_active: true } }),
     ]);
 
     const effectivePlanConfig = planConfig;
@@ -125,7 +130,7 @@ export class SettingsService {
   }
 
   async getInvoices(studioId: string) {
-    return this.prisma.invoice.findMany({
+    return this.pub.invoice.findMany({
       where: { studio_id: studioId },
       orderBy: { created_at: 'desc' },
       take: 50,
@@ -134,7 +139,7 @@ export class SettingsService {
 
   async getBranchSummary(studioId?: string) {
     // Tenant isolation via search_path. organization_id adds a secondary guard.
-    const branches = await this.prisma.branch.findMany({
+    const branches = await this.tenant.client.branch.findMany({
       where: studioId ? { organization_id: studioId } : undefined,
       include: {
         _count: { select: { members: true } },
@@ -155,7 +160,7 @@ export class SettingsService {
   }
 
   async getAvailablePlans() {
-    return fetchAvailablePlans(this.prisma);
+    return fetchAvailablePlans(this.pub);
   }
 
   async updateStudio(
@@ -188,12 +193,12 @@ export class SettingsService {
       referral_reward_days?: number;
     },
   ) {
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: studioId },
     });
     if (!studio) throw new NotFoundException('Studio not found');
 
-    const updated = await this.prisma.studio.update({
+    const updated = await this.pub.studio.update({
       where: { id: studioId },
       data,
     });
@@ -218,7 +223,7 @@ export class SettingsService {
   }
 
   async getReferralSettings(studioId: string) {
-    const studio = await this.prisma.studio.findUnique({ where: { id: studioId } });
+    const studio = await this.pub.studio.findUnique({ where: { id: studioId } });
     if (!studio) throw new NotFoundException('Studio not found');
     return {
       referral_free_days: studio.referral_free_days ?? 0,
@@ -227,9 +232,9 @@ export class SettingsService {
   }
 
   async updateReferralSettings(studioId: string, data: { referral_free_days?: number; referral_reward_days?: number }) {
-    const studio = await this.prisma.studio.findUnique({ where: { id: studioId } });
+    const studio = await this.pub.studio.findUnique({ where: { id: studioId } });
     if (!studio) throw new NotFoundException('Studio not found');
-    const updated = await this.prisma.studio.update({
+    const updated = await this.pub.studio.update({
       where: { id: studioId },
       data: {
         ...(data.referral_free_days !== undefined ? { referral_free_days: data.referral_free_days } : {}),
@@ -243,7 +248,7 @@ export class SettingsService {
   }
 
   async changePlan(studioId: string, newPlan: string, billingCycle?: string) {
-    const studio = await this.prisma.studio.findUnique({ where: { id: studioId } });
+    const studio = await this.pub.studio.findUnique({ where: { id: studioId } });
     if (!studio) throw new NotFoundException('Studio not found');
 
     const planConfig = PLAN_CONFIGS[newPlan];
@@ -252,7 +257,7 @@ export class SettingsService {
     const oldPlan = studio.subscription_plan;
     const now = new Date();
 
-    const updated = await this.prisma.studio.update({
+    const updated = await this.pub.studio.update({
       where: { id: studioId },
       data: {
         subscription_plan: newPlan,
@@ -313,10 +318,10 @@ export class SettingsService {
    * Runs within the current tenant schema context set by TenantMiddleware.
    */
   async clearTenantData(studioId: string, options: { members?: boolean; branches?: boolean; all?: boolean }) {
-    const studio = await this.prisma.studio.findUnique({ where: { id: studioId } });
+    const studio = await this.pub.studio.findUnique({ where: { id: studioId } });
     if (!studio) throw new NotFoundException('Studio not found');
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.tenant.client.$transaction(async (tx) => {
       const counts: Record<string, number> = {};
 
       if (options.all || options.members) {

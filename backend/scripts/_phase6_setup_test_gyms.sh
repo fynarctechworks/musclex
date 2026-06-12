@@ -61,6 +61,9 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO "$A_SCHEMA".members (gym_id, member_code, branch_id, full_name, phone, face_descriptor)
 VALUES ('$A_ID','A-0001','$A_BRANCH','Alice (Gym A)','+910000000001','{}')
 ON CONFLICT (member_code) DO NOTHING;
+INSERT INTO "$A_SCHEMA".staff (gym_id, full_name, role, phone, branch_ids, specializations, face_descriptor)
+VALUES ('$A_ID','Coach A','trainer','+910000000011','{}','{}','{}')
+ON CONFLICT DO NOTHING;
 
 -- Gym B: one branch + one member (Bob)
 INSERT INTO "$B_SCHEMA".branches (id, gym_id, name)
@@ -69,6 +72,9 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO "$B_SCHEMA".members (gym_id, member_code, branch_id, full_name, phone, face_descriptor)
 VALUES ('$B_ID','B-0001','$B_BRANCH','Bob (Gym B)','+910000000002','{}')
 ON CONFLICT (member_code) DO NOTHING;
+INSERT INTO "$B_SCHEMA".staff (gym_id, full_name, role, phone, branch_ids, specializations, face_descriptor)
+VALUES ('$B_ID','Coach B','trainer','+910000000012','{}','{}','{}')
+ON CONFLICT DO NOTHING;
 SQL
 
 echo "Phase-6 test gyms ready:"

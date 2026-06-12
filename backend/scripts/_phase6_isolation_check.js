@@ -29,6 +29,7 @@ const GYM_B = '22222222-2222-2222-2222-222222222222';
 const PROBES = [
   { delegate: 'member', expect: 1 },
   { delegate: 'branch', expect: 1 },
+  { delegate: 'staff', expect: 1 }, // settings domain (Phase 6.2)
 ];
 
 const tenantCache = new Map();
