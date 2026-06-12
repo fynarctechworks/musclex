@@ -60,6 +60,12 @@ deliberately ≠ `studio_<gym_id>`, reproducing prod so routing must come from t
 
 ---
 
+## Phase 6 progress log (per domain)
+| Domain | Slice | Status | Notes |
+|---|---|---|---|
+| (harness) | 6.0 | ✅ | Two seeded gym schemas + `_phase6_isolation_check.js`. |
+| auth/registry | 6.1 | ✅ registry done | `auth.service.ts`: 5 registry models (studio, pendingRegistration, userIdentity, subscriptionPlan, userRole → 29 sites) now on `pub`. **Deferred:** tenant writes (organization/branch/staff via `runInTenantContext`) → tenant-write slice; the ~14 raw-SQL `studio_template` sites + `cloneTenantSchema` → Phase 7/8. |
+
 ## Remaining phases (not started)
 - **6 (in progress):** rewire all services (playbook above) — multi-week.
 - **7:** 32 raw-SQL `studio_template` sites → schema-dynamic + lint guard banning the literal.

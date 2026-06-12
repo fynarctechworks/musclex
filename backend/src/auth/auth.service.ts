@@ -10,6 +10,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
 import { randomBytes, createCipheriv, createDecipheriv, pbkdf2Sync } from 'crypto';
 import { Resend } from 'resend';
 import { tenantContext } from '../common/tenant-context';
@@ -63,6 +64,10 @@ export class AuthService {
   constructor(
     private configService: ConfigService,
     private prisma: PrismaService,
+    // Registry (public-schema) models route through the dedicated public client.
+    // Tenant models (organization/branch/staff) + raw SQL stay on `prisma` until
+    // their Phase 7/8 slices. See PER_GYM_SCHEMA_IMPL_STATUS.md.
+    private pub: PublicPrismaService,
     private identityService: AuthIdentityService,
     private deviceService: AuthDeviceService,
     private loginHistoryService: AuthLoginHistoryService,
@@ -119,7 +124,7 @@ export class AuthService {
     if (storedStep === 'complete') return storedStep;
 
     try {
-      const studio = await this.prisma.studio.findUnique({
+      const studio = await this.pub.studio.findUnique({
         where: { id: studioId },
         select: { id: true },
       });
@@ -300,7 +305,7 @@ export class AuthService {
     if (device.id) deviceId = device.id;
 
     // ── 2FA challenge interception ──
-    const identity2fa = await this.prisma.userIdentity.findUnique({
+    const identity2fa = await this.pub.userIdentity.findUnique({
       where: { id: user.id },
       select: { two_factor_enabled: true },
     });
@@ -359,7 +364,7 @@ export class AuthService {
     // activity. Fire-and-forget (non-blocking) + non-fatal — never let a sync
     // hiccup slow or fail a login.
     if (metadata.studio_id) {
-      this.prisma.studio
+      this.pub.studio
         .findUnique({ where: { id: metadata.studio_id }, select: { slug: true } })
         .then((s) => (s?.slug ? this.sccSync.touchLastActive(s.slug) : undefined))
         .catch(() => undefined);
@@ -453,7 +458,7 @@ export class AuthService {
     let studio = null;
     if (studioId) {
       try {
-        studio = await this.prisma.studio.findUnique({
+        studio = await this.pub.studio.findUnique({
           where: { id: studioId },
         });
       } catch (err) {
@@ -529,7 +534,7 @@ export class AuthService {
     // local account, Supabase identity-linking is off and proceeding would hit
     // the unique-email constraint (500). Fail with an actionable message instead.
     // In the healthy linked case the ids match, so this never triggers.
-    const emailOwner = await this.prisma.userIdentity.findUnique({
+    const emailOwner = await this.pub.userIdentity.findUnique({
       where: { email: authedUser.email },
       select: { id: true },
     });
@@ -606,7 +611,7 @@ export class AuthService {
     let studio = null;
     if (studioId) {
       try {
-        studio = await this.prisma.studio.findUnique({ where: { id: studioId } });
+        studio = await this.pub.studio.findUnique({ where: { id: studioId } });
       } catch (err) {
         this.logger.error(`Error fetching studio on refresh: ${(err as Error).message}`);
       }
@@ -664,7 +669,7 @@ export class AuthService {
     let studio = null;
     if (studioId) {
       try {
-        studio = await this.prisma.studio.findUnique({ where: { id: studioId } });
+        studio = await this.pub.studio.findUnique({ where: { id: studioId } });
       } catch (err) {
         this.logger.error(`Error fetching studio: ${(err as Error).message}`);
       }
@@ -746,7 +751,7 @@ export class AuthService {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
 
-    const existing = await this.prisma.studio.findUnique({
+    const existing = await this.pub.studio.findUnique({
       where: { slug },
     });
     if (existing) {
@@ -773,7 +778,7 @@ export class AuthService {
 
     // Create studio
     const studioReferralCode = await this.generateUniqueReferralCode();
-    const studio = await this.prisma.studio.create({
+    const studio = await this.pub.studio.create({
       data: {
         name: dto.studio_name,
         slug,
@@ -914,7 +919,7 @@ export class AuthService {
     );
 
     // Fetch studio
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: studioId },
     });
     if (!studio) {
@@ -995,7 +1000,7 @@ export class AuthService {
     }
 
     // Remove any previous pending registration for this email (allows re-registration)
-    await this.prisma.pendingRegistration.deleteMany({ where: { email: dto.email } });
+    await this.pub.pendingRegistration.deleteMany({ where: { email: dto.email } });
 
     // Encrypt password for secure temporary storage (AES-256-GCM)
     const encryptedPassword = this.encryptPassword(dto.password);
@@ -1003,7 +1008,7 @@ export class AuthService {
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
 
-    await this.prisma.pendingRegistration.create({
+    await this.pub.pendingRegistration.create({
       data: {
         full_name: dto.full_name,
         email: dto.email,
@@ -1031,7 +1036,7 @@ export class AuthService {
   // ── Email Verification (creates Supabase account after token validated) ──────
 
   async verifyEmail(dto: VerifyEmailDto) {
-    const pending = await this.prisma.pendingRegistration.findUnique({
+    const pending = await this.pub.pendingRegistration.findUnique({
       where: { token: dto.token },
     });
 
@@ -1042,7 +1047,7 @@ export class AuthService {
     }
 
     if (pending.expires_at < new Date()) {
-      await this.prisma.pendingRegistration.delete({ where: { token: dto.token } });
+      await this.pub.pendingRegistration.delete({ where: { token: dto.token } });
       throw new BadRequestException(
         'Verification link has expired. Please register again.',
       );
@@ -1117,7 +1122,7 @@ export class AuthService {
     }
 
     // Delete the pending record — account is now real
-    await this.prisma.pendingRegistration.delete({ where: { token: dto.token } });
+    await this.pub.pendingRegistration.delete({ where: { token: dto.token } });
 
     // Sync user to local identity table so JWT guard can find them
     await this.identityService.syncIdentity({
@@ -1172,7 +1177,7 @@ export class AuthService {
   // ── Resend Verification (public — takes email in body, no JWT required) ──────
 
   async resendVerification(email: string) {
-    const pending = await this.prisma.pendingRegistration.findFirst({
+    const pending = await this.pub.pendingRegistration.findFirst({
       where: { email },
     });
 
@@ -1185,7 +1190,7 @@ export class AuthService {
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    await this.prisma.pendingRegistration.update({
+    await this.pub.pendingRegistration.update({
       where: { id: pending.id },
       data: { token, expires_at: expiresAt },
     });
@@ -1338,10 +1343,10 @@ export class AuthService {
       .replace(/(^-|-$)/g, '');
 
     const existingStudio = metadata.studio_id
-      ? await this.prisma.studio.findUnique({ where: { id: metadata.studio_id } })
-      : await this.prisma.studio.findFirst({ where: { owner_user_id: userId } });
+      ? await this.pub.studio.findUnique({ where: { id: metadata.studio_id } })
+      : await this.pub.studio.findFirst({ where: { owner_user_id: userId } });
 
-    const existing = await this.prisma.studio.findUnique({
+    const existing = await this.pub.studio.findUnique({
       where: { slug },
     });
     if (existing && existing.id !== existingStudio?.id) {
@@ -1359,7 +1364,7 @@ export class AuthService {
       : null;
 
     if (existingStudio) {
-      studio = await this.prisma.studio.update({
+      studio = await this.pub.studio.update({
         where: { id: existingStudio.id },
         data: {
           name: dto.studio_name,
@@ -1380,7 +1385,7 @@ export class AuthService {
       // Generate a unique 6-char referral code for this studio
       const referralCode = await this.generateUniqueReferralCode();
 
-      studio = await this.prisma.studio.create({
+      studio = await this.pub.studio.create({
         data: {
           name: dto.studio_name,
           slug,
@@ -1484,7 +1489,7 @@ export class AuthService {
 
     // Assign owner role
     try {
-      await this.prisma.userRole.upsert({
+      await this.pub.userRole.upsert({
         where: { user_id_studio_id_branch_id: { user_id: userId, studio_id: studio.id, branch_id: null as any } },
         create: { user_id: userId, studio_id: studio.id, role_name: 'owner', is_primary: true },
         update: { role_name: 'owner' },
@@ -1778,7 +1783,7 @@ export class AuthService {
     const nextBilling = new Date(now);
     nextBilling.setDate(nextBilling.getDate() + (billingCycle === 'annual' ? 365 : 30));
 
-    await this.prisma.studio.update({
+    await this.pub.studio.update({
       where: { id: studioId },
       data: {
         subscription_plan: planId,
@@ -1799,7 +1804,7 @@ export class AuthService {
     });
 
     // Sync plan selection to SCC (trial status — confirmed active after payment)
-    const studioRow = await this.prisma.studio.findUnique({ where: { id: studioId }, select: { slug: true } });
+    const studioRow = await this.pub.studio.findUnique({ where: { id: studioId }, select: { slug: true } });
     if (studioRow) {
       const trialEndsAt = planId !== DEFAULT_PLAN ? new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000) : null;
       await this.sccSync.syncPlanChange(studioRow.slug, planId === DEFAULT_PLAN ? 'active' : 'trial', trialEndsAt, planId);
@@ -1823,7 +1828,7 @@ export class AuthService {
     const studioId = metadata.studio_id as string;
     if (!studioId) throw new BadRequestException('Studio not yet created.');
 
-    const studio = await this.prisma.studio.findUnique({ where: { id: studioId } });
+    const studio = await this.pub.studio.findUnique({ where: { id: studioId } });
     if (!studio) throw new BadRequestException('Studio not found.');
 
     const currency = dto.currency || studio.currency || DEFAULT_CURRENCY;
@@ -1869,7 +1874,7 @@ export class AuthService {
     // GST tax invoice generated by recordRenewal() carries the correct
     // bill-to details. GSTIN is optional; when present we also derive the
     // 2-digit GST state code from its first two characters.
-    await this.prisma.studio.update({
+    await this.pub.studio.update({
       where: { id: studioId },
       data: {
         next_billing_date: now,
@@ -1920,7 +1925,7 @@ export class AuthService {
     // so the rule engine's min_subscription_amount gate sees real money.
     const paidPlanName = dto.plan_id || studio.subscription_plan;
     if (paidPlanName && paidPlanName !== DEFAULT_PLAN) {
-      const subscriptionPlan = await this.prisma.subscriptionPlan.findFirst({
+      const subscriptionPlan = await this.pub.subscriptionPlan.findFirst({
         where: { name: paidPlanName, is_active: true },
         select: { id: true },
       });
@@ -1963,7 +1968,7 @@ export class AuthService {
         .toUpperCase()
         .padStart(6, '0')
         .slice(0, 6);
-      const exists = await this.prisma.studio.findUnique({
+      const exists = await this.pub.studio.findUnique({
         where: { referral_code: raw },
         select: { id: true },
       });
