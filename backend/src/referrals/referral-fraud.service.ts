@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { Prisma } from '../../node_modules/.prisma/client-public';
 
 /**
  * Fraud Signal Engine for B2B referrals.
@@ -50,7 +50,7 @@ export class ReferralFraudService {
     velocity:          'medium',
   };
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly pub: PublicPrismaService) {}
 
   /**
    * Collect all fraud signals for a referral.
@@ -83,11 +83,11 @@ export class ReferralFraudService {
 
     // ── 2. Studio identity collisions ──────────────────────────────
     const [referrer, referred] = await Promise.all([
-      this.prisma.studio.findUnique({
+      this.pub.studio.findUnique({
         where: { id: referrerStudioId },
         select: { id: true, phone: true, email: true, tax_id: true },
       }),
-      this.prisma.studio.findUnique({
+      this.pub.studio.findUnique({
         where: { id: referredStudioId },
         select: { id: true, phone: true, email: true, tax_id: true },
       }),
@@ -122,7 +122,7 @@ export class ReferralFraudService {
 
     // ── 3. Cross-referral email reuse (different code, same email) ─
     if (referredEmail) {
-      const reused = await this.prisma.referral.count({
+      const reused = await this.pub.referral.count({
         where: {
           referred_email: referredEmail.toLowerCase(),
           id:             { not: referralId },
@@ -141,7 +141,7 @@ export class ReferralFraudService {
 
     // ── 4. Velocity: referrer signed up >3 in last 24h ─────────────
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentCount = await this.prisma.referral.count({
+    const recentCount = await this.pub.referral.count({
       where: { referrer_studio_id: referrerStudioId, created_at: { gte: since } },
     });
     if (recentCount > 3) {
@@ -173,7 +173,7 @@ export class ReferralFraudService {
 
     // Skip if an identical pending signal already exists for this referral.
     if (referralId) {
-      const dup = await this.prisma.referralFraudSignal.findFirst({
+      const dup = await this.pub.referralFraudSignal.findFirst({
         where: { referral_id: referralId, signal_type: signalType, review_status: 'pending' },
         select: { id: true },
       });
@@ -183,7 +183,7 @@ export class ReferralFraudService {
       }
     }
 
-    await this.prisma.referralFraudSignal.create({
+    await this.pub.referralFraudSignal.create({
       data: {
         referral_id:       referralId ?? null,
         subject_studio_id: subjectStudioId ?? null,
@@ -201,7 +201,7 @@ export class ReferralFraudService {
    * Clamped to [0, 100].
    */
   async recomputeRiskScore(referralId: string): Promise<number> {
-    const signals = await this.prisma.referralFraudSignal.findMany({
+    const signals = await this.pub.referralFraudSignal.findMany({
       where:  { referral_id: referralId, review_status: { in: ['pending', 'confirmed_fraud'] } },
       select: { signal_type: true },
     });
@@ -209,7 +209,7 @@ export class ReferralFraudService {
     const raw = signals.reduce((acc, s) => acc + (this.SIGNAL_WEIGHTS[s.signal_type] ?? 0), 0);
     const score = Math.max(0, Math.min(100, raw));
 
-    await this.prisma.referral.update({
+    await this.pub.referral.update({
       where: { id: referralId },
       data:  { risk_score: score },
     });
@@ -239,7 +239,7 @@ export class ReferralFraudService {
     decision: 'reviewed_ok' | 'confirmed_fraud';
     notes?: string;
   }) {
-    const updated = await this.prisma.referralFraudSignal.update({
+    const updated = await this.pub.referralFraudSignal.update({
       where: { id: params.signalId },
       data:  {
         review_status:   params.decision,
@@ -256,7 +256,7 @@ export class ReferralFraudService {
   }
 
   async listPending(opts: { severity?: string; limit?: number; offset?: number } = {}) {
-    return this.prisma.referralFraudSignal.findMany({
+    return this.pub.referralFraudSignal.findMany({
       where: {
         review_status: 'pending',
         ...(opts.severity && { severity: opts.severity }),

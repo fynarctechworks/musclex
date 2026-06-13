@@ -7,8 +7,8 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { Prisma } from '../../node_modules/.prisma/client-public';
 import {
   REFERRAL_EVENTS,
   SubscriptionActivatedPayload,
@@ -28,7 +28,7 @@ export class ReferralsService {
   private readonly logger = new Logger(ReferralsService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly pub: PublicPrismaService,
     private readonly ruleEngine: RuleEngineService,
     private readonly rewardProcessor: RewardProcessorService,
     private readonly lifecycle: ReferralLifecycleService,
@@ -51,7 +51,7 @@ export class ReferralsService {
         .slice(0, 6)
         .padEnd(6, '0');
 
-      const exists = await this.prisma.studio.findUnique({
+      const exists = await this.pub.studio.findUnique({
         where: { referral_code: code },
         select: { id: true },
       });
@@ -71,7 +71,7 @@ export class ReferralsService {
     referrer_name?: string;
     message?: string;
   }> {
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { referral_code: code },
       select: { id: true, name: true },
     });
@@ -99,7 +99,7 @@ export class ReferralsService {
     const code = dto.referral_code.toUpperCase();
 
     // ── Find the referrer ──────────────────────────────────────────
-    const referrerStudio = await this.prisma.studio.findUnique({
+    const referrerStudio = await this.pub.studio.findUnique({
       where: { referral_code: code },
       select: { id: true, name: true },
     });
@@ -111,7 +111,7 @@ export class ReferralsService {
     }
 
     // ── Duplicate referral guard ───────────────────────────────────
-    const existingReferral = await this.prisma.referral.findUnique({
+    const existingReferral = await this.pub.referral.findUnique({
       where: { referred_studio_id: referredStudioId },
     });
     if (existingReferral) {
@@ -120,7 +120,7 @@ export class ReferralsService {
 
     // ── Duplicate email guard (same email used with same code) ─────
     if (dto.referred_email) {
-      const emailConflict = await this.prisma.referral.findFirst({
+      const emailConflict = await this.pub.referral.findFirst({
         where: {
           referral_code: code,
           referred_email: dto.referred_email.toLowerCase(),
@@ -135,7 +135,7 @@ export class ReferralsService {
       }
     }
 
-    const referral = await this.prisma.referral.create({
+    const referral = await this.pub.referral.create({
       data: {
         referrer_studio_id: referrerStudio.id,
         referred_studio_id: referredStudioId,
@@ -146,14 +146,14 @@ export class ReferralsService {
     });
 
     // Also stamp the referred_by_code on the studio for immutable audit
-    await this.prisma.studio.update({
+    await this.pub.studio.update({
       where: { id: referredStudioId },
       data: { referred_by_code: code },
     });
 
     // Initial lifecycle audit (pending is the starting state — write the
     // creation event so the history is complete from t=0).
-    await this.prisma.referralLifecycleEvent.create({
+    await this.pub.referralLifecycleEvent.create({
       data: {
         referral_id: referral.id,
         from_status: null,
@@ -233,7 +233,7 @@ export class ReferralsService {
     const { studioId, idempotencyKey } = payload;
 
     // ── Find a pending referral for this studio ────────────────────
-    const referral = await this.prisma.referral.findUnique({
+    const referral = await this.pub.referral.findUnique({
       where: { referred_studio_id: studioId },
       select: { id: true, status: true },
     });
@@ -287,7 +287,7 @@ export class ReferralsService {
   async handleTrialCompleted(payload: TrialCompletedPayload): Promise<void> {
     const { studioId, idempotencyKey } = payload;
 
-    const referral = await this.prisma.referral.findUnique({
+    const referral = await this.pub.referral.findUnique({
       where: { referred_studio_id: studioId },
       include: {
         referrer_studio: { select: { id: true, country: true } },
@@ -362,7 +362,7 @@ export class ReferralsService {
 
     // ── Idempotency stamp ─────────────────────────────────────────
     const referralIdempotencyKey = `reward_${referral.id}_${idempotencyKey}`;
-    const updated = await this.prisma.referral.updateMany({
+    const updated = await this.pub.referral.updateMany({
       where: {
         id:              referral.id,
         idempotency_key: null,
@@ -422,7 +422,7 @@ export class ReferralsService {
         actorType:  'system',
         payload:    { reward_count: results.length, trigger: 'trial_completed' },
       });
-      await this.prisma.referral.update({
+      await this.pub.referral.update({
         where: { id: referral.id },
         data:  { rewarded_at: new Date() },
       });
@@ -450,7 +450,7 @@ export class ReferralsService {
     const { studioId, refundReason } = payload;
 
     // The refunded studio is the REFERRED gym. Find its referral.
-    const referral = await this.prisma.referral.findUnique({
+    const referral = await this.pub.referral.findUnique({
       where: { referred_studio_id: studioId },
       select: { id: true, status: true, referrer_studio_id: true },
     });
@@ -483,7 +483,7 @@ export class ReferralsService {
     }
 
     // ── Reverse every applied reward on this referral ────────────────
-    const appliedLogs = await this.prisma.rewardLog.findMany({
+    const appliedLogs = await this.pub.rewardLog.findMany({
       where: { referral_id: referral.id, status: 'applied' },
     });
 
@@ -524,10 +524,10 @@ export class ReferralsService {
       rewardLogs,
       myCode,
     ] = await Promise.all([
-      this.prisma.referral.count({ where: { referrer_studio_id: studioId } }),
-      this.prisma.referral.count({ where: { referrer_studio_id: studioId, status: 'pending' } }),
-      this.prisma.referral.count({ where: { referrer_studio_id: studioId, status: 'rewarded' } }),
-      this.prisma.rewardLog.findMany({
+      this.pub.referral.count({ where: { referrer_studio_id: studioId } }),
+      this.pub.referral.count({ where: { referrer_studio_id: studioId, status: 'pending' } }),
+      this.pub.referral.count({ where: { referrer_studio_id: studioId, status: 'rewarded' } }),
+      this.pub.rewardLog.findMany({
         where:   { beneficiary_studio_id: studioId, status: 'applied' },
         orderBy: { applied_at: 'desc' },
         take:    10,
@@ -540,7 +540,7 @@ export class ReferralsService {
           referral: { select: { referred_studio: { select: { name: true } } } },
         },
       }),
-      this.prisma.studio.findUnique({
+      this.pub.studio.findUnique({
         where:  { id: studioId },
         select: {
           referral_code:           true,
@@ -554,7 +554,7 @@ export class ReferralsService {
     let referralCode = myCode?.referral_code;
     if (!referralCode) {
       referralCode = await this.generateUniqueCode();
-      await this.prisma.studio.update({
+      await this.pub.studio.update({
         where: { id: studioId },
         data:  { referral_code: referralCode },
       });
@@ -595,7 +595,7 @@ export class ReferralsService {
     };
 
     const [data, total] = await Promise.all([
-      this.prisma.referral.findMany({
+      this.pub.referral.findMany({
         where: where as any,
         skip,
         take:    limit,
@@ -606,7 +606,7 @@ export class ReferralsService {
           reward_logs:     { select: { reward_type: true, reward_value: true, applied_at: true } },
         },
       }),
-      this.prisma.referral.count({ where: where as any }),
+      this.pub.referral.count({ where: where as any }),
     ]);
 
     return {

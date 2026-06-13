@@ -5,8 +5,8 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
+import { Prisma } from '../../node_modules/.prisma/client-tenant';
 import { getTenantGymId } from '../common/tenant-context';
 import { MemberReferralsService } from './member-referrals.service';
 
@@ -27,7 +27,7 @@ export class MemberReferralAdminService {
   private readonly logger = new Logger(MemberReferralAdminService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private readonly memberRefs: MemberReferralsService,
   ) {}
 
@@ -40,7 +40,7 @@ export class MemberReferralAdminService {
   // ── Programs (templates) ────────────────────────────────────────
 
   async listPrograms() {
-    return this.prisma.referralProgram.findMany({
+    return this.tenant.client.referralProgram.findMany({
       where:   { gym_id: this.gymId() },
       orderBy: { created_at: 'desc' },
     });
@@ -55,7 +55,7 @@ export class MemberReferralAdminService {
     start_date?: string;
     end_date?: string;
   }) {
-    return this.prisma.referralProgram.create({
+    return this.tenant.client.referralProgram.create({
       data: {
         gym_id:        this.gymId(),
         program_name:  dto.program_name,
@@ -80,12 +80,12 @@ export class MemberReferralAdminService {
     end_date: string | null;
     status: string;
   }>) {
-    const existing = await this.prisma.referralProgram.findFirst({
+    const existing = await this.tenant.client.referralProgram.findFirst({
       where: { id, gym_id: this.gymId() },
     });
     if (!existing) throw new NotFoundException('Program not found');
 
-    return this.prisma.referralProgram.update({
+    return this.tenant.client.referralProgram.update({
       where: { id },
       data: {
         ...(dto.program_name !== undefined && { program_name: dto.program_name }),
@@ -105,11 +105,11 @@ export class MemberReferralAdminService {
   }
 
   async setProgramStatus(id: string, status: 'active' | 'paused' | 'ended') {
-    const program = await this.prisma.referralProgram.findFirst({
+    const program = await this.tenant.client.referralProgram.findFirst({
       where: { id, gym_id: this.gymId() },
     });
     if (!program) throw new NotFoundException('Program not found');
-    return this.prisma.referralProgram.update({ where: { id }, data: { status } });
+    return this.tenant.client.referralProgram.update({ where: { id }, data: { status } });
   }
 
   // ── Manual reward ───────────────────────────────────────────────
@@ -126,14 +126,14 @@ export class MemberReferralAdminService {
     notes?: string;
   }) {
     const gymId = this.gymId();
-    const referral = await this.prisma.memberReferral.findFirst({
+    const referral = await this.tenant.client.memberReferral.findFirst({
       where: { id: params.memberReferralId, gym_id: gymId },
     });
     if (!referral) throw new NotFoundException('Member referral not found');
 
     const idempotencyKey = `manual_${referral.id}_${params.adminId}_${Date.now()}`;
 
-    const reward = await this.prisma.memberReferralReward.create({
+    const reward = await this.tenant.client.memberReferralReward.create({
       data: {
         gym_id:                gymId,
         member_referral_id:    referral.id,
@@ -147,7 +147,7 @@ export class MemberReferralAdminService {
       },
     });
 
-    await this.prisma.memberReferralEvent.create({
+    await this.tenant.client.memberReferralEvent.create({
       data: {
         gym_id:             gymId,
         member_referral_id: referral.id,
@@ -172,7 +172,7 @@ export class MemberReferralAdminService {
       throw new BadRequestException('reason required');
     }
     const gymId = this.gymId();
-    const reward = await this.prisma.memberReferralReward.findFirst({
+    const reward = await this.tenant.client.memberReferralReward.findFirst({
       where: { id: params.rewardId, gym_id: gymId },
     });
     if (!reward) throw new NotFoundException('Reward not found');
@@ -180,7 +180,7 @@ export class MemberReferralAdminService {
       throw new ConflictException('Reward already reversed');
     }
 
-    return this.prisma.memberReferralReward.update({
+    return this.tenant.client.memberReferralReward.update({
       where: { id: reward.id },
       data:  {
         status:          'reversed',
@@ -202,19 +202,19 @@ export class MemberReferralAdminService {
       throw new BadRequestException('reason required');
     }
     const gymId = this.gymId();
-    const referral = await this.prisma.memberReferral.findFirst({
+    const referral = await this.tenant.client.memberReferral.findFirst({
       where: { id: params.memberReferralId, gym_id: gymId },
     });
     if (!referral) throw new NotFoundException('Referral not found');
 
-    const last = await this.prisma.memberReferralEvent.findFirst({
+    const last = await this.tenant.client.memberReferralEvent.findFirst({
       where:   { member_referral_id: referral.id },
       orderBy: { occurred_at: 'desc' },
       select:  { to_status: true },
     });
     const fromStatus = last?.to_status ?? null;
 
-    await this.prisma.memberReferralEvent.create({
+    await this.tenant.client.memberReferralEvent.create({
       data: {
         gym_id:             gymId,
         member_referral_id: referral.id,
@@ -236,7 +236,7 @@ export class MemberReferralAdminService {
 
   async listFraudQueue(opts: { severity?: string; limit?: number; offset?: number } = {}) {
     const gymId = this.gymId();
-    return this.prisma.memberReferralFraudSignal.findMany({
+    return this.tenant.client.memberReferralFraudSignal.findMany({
       where: {
         gym_id:        gymId,
         review_status: 'pending',
@@ -255,12 +255,12 @@ export class MemberReferralAdminService {
     notes?: string;
   }) {
     const gymId = this.gymId();
-    const signal = await this.prisma.memberReferralFraudSignal.findFirst({
+    const signal = await this.tenant.client.memberReferralFraudSignal.findFirst({
       where: { id: params.signalId, gym_id: gymId },
     });
     if (!signal) throw new NotFoundException('Signal not found');
 
-    return this.prisma.memberReferralFraudSignal.update({
+    return this.tenant.client.memberReferralFraudSignal.update({
       where: { id: signal.id },
       data:  {
         review_status:  params.decision,
@@ -276,16 +276,16 @@ export class MemberReferralAdminService {
   async getOverview() {
     const gymId = this.gymId();
     const [byStatus, programs, rewards, leaderboard] = await Promise.all([
-      this.prisma.memberReferral.groupBy({
+      this.tenant.client.memberReferral.groupBy({
         by:    ['reward_status'],
         where: { gym_id: gymId },
         _count: true,
       }),
-      this.prisma.referralProgram.findMany({
+      this.tenant.client.referralProgram.findMany({
         where:  { gym_id: gymId },
         select: { id: true, program_name: true, status: true, reward_type: true, reward_value: true },
       }),
-      this.prisma.memberReferralReward.groupBy({
+      this.tenant.client.memberReferralReward.groupBy({
         by:    ['status', 'reward_type'],
         where: { gym_id: gymId },
         _count: true,

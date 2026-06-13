@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 
 /**
@@ -10,7 +11,10 @@ import { getTenantGymId } from '../common/tenant-context';
  */
 @Injectable()
 export class ReferralAnalyticsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly pub: PublicPrismaService,
+    private readonly tenant: TenantPrisma,
+  ) {}
 
   // ════════════════════════════════════════════════════════════════
   // B2B (SaaS admin)
@@ -22,7 +26,7 @@ export class ReferralAnalyticsService {
    */
   async b2bFunnel(opts: { from?: Date; to?: Date } = {}) {
     const where = this.dateWhere(opts);
-    const groups = await this.prisma.referral.groupBy({
+    const groups = await this.pub.referral.groupBy({
       by:     ['status'],
       where,
       _count: true,
@@ -45,7 +49,7 @@ export class ReferralAnalyticsService {
     const limit = opts.limit ?? 10;
     const where = this.dateWhere(opts);
 
-    const rows = await this.prisma.referral.groupBy({
+    const rows = await this.pub.referral.groupBy({
       by:    ['referrer_studio_id'],
       where: { ...where, status: 'rewarded' },
       _count: { referrer_studio_id: true },
@@ -55,11 +59,11 @@ export class ReferralAnalyticsService {
 
     const ids = rows.map((r) => r.referrer_studio_id);
     const [studios, rewardSums] = await Promise.all([
-      this.prisma.studio.findMany({
+      this.pub.studio.findMany({
         where:  { id: { in: ids } },
         select: { id: true, name: true, referral_code: true, country: true },
       }),
-      this.prisma.rewardLog.groupBy({
+      this.pub.rewardLog.groupBy({
         by:    ['beneficiary_studio_id', 'reward_type'],
         where: { beneficiary_studio_id: { in: ids }, status: 'applied' },
         _count: true,
@@ -86,7 +90,7 @@ export class ReferralAnalyticsService {
    */
   async b2bAttributedRevenue(opts: { from?: Date; to?: Date } = {}) {
     const where = this.dateWhere(opts);
-    const rewarded = await this.prisma.referral.findMany({
+    const rewarded = await this.pub.referral.findMany({
       where:  { ...where, status: 'rewarded' },
       select: { id: true },
     });
@@ -95,7 +99,7 @@ export class ReferralAnalyticsService {
       return { total_revenue: '0.00', currency: 'INR', count: 0 };
     }
 
-    const rows = await this.prisma.rewardLog.findMany({
+    const rows = await this.pub.rewardLog.findMany({
       where:  { referral_id: { in: referralIds }, status: 'applied' },
       select: { event_payload: true },
     });
@@ -122,7 +126,7 @@ export class ReferralAnalyticsService {
    */
   async b2bTimeToReward(opts: { from?: Date; to?: Date } = {}) {
     const where = this.dateWhere(opts);
-    const rows = await this.prisma.referral.findMany({
+    const rows = await this.pub.referral.findMany({
       where:  { ...where, status: 'rewarded', rewarded_at: { not: null } },
       select: { created_at: true, rewarded_at: true },
     });
@@ -146,7 +150,7 @@ export class ReferralAnalyticsService {
    * Wallet aggregate: total credits issued, debited, current outstanding, etc.
    */
   async b2bWalletAggregates() {
-    const byEntry = await this.prisma.referralWalletEntry.groupBy({
+    const byEntry = await this.pub.referralWalletEntry.groupBy({
       by:    ['entry_type'],
       _sum:  { amount: true },
       _count: true,
@@ -165,7 +169,7 @@ export class ReferralAnalyticsService {
    * Cohort-style daily counts of new referrals + rewarded referrals.
    */
   async b2bDailyTrend(opts: { from: Date; to: Date }) {
-    const rows = await this.prisma.$queryRaw<
+    const rows = await this.pub.$queryRaw<
       Array<{ day: Date; created: bigint; rewarded: bigint }>
     >`
       SELECT
@@ -192,7 +196,7 @@ export class ReferralAnalyticsService {
     const gymId = this.requireGym();
     const where = { gym_id: gymId, ...this.dateWhere(opts) };
 
-    const groups = await this.prisma.memberReferral.groupBy({
+    const groups = await this.tenant.client.memberReferral.groupBy({
       by:     ['reward_status'],
       where,
       _count: true,
@@ -212,7 +216,7 @@ export class ReferralAnalyticsService {
     const gymId = this.requireGym();
     const limit = opts.limit ?? 10;
 
-    const rows = await this.prisma.memberReferral.groupBy({
+    const rows = await this.tenant.client.memberReferral.groupBy({
       by:    ['referrer_member_id'],
       where: { gym_id: gymId, reward_status: 'awarded', ...this.dateWhere(opts) },
       _count: { referrer_member_id: true },
@@ -221,7 +225,7 @@ export class ReferralAnalyticsService {
     });
 
     const ids = rows.map((r) => r.referrer_member_id);
-    const members = await this.prisma.member.findMany({
+    const members = await this.tenant.client.member.findMany({
       where:  { id: { in: ids } },
       select: { id: true, full_name: true, referral_code: true, profile_photo_url: true },
     });
@@ -236,7 +240,7 @@ export class ReferralAnalyticsService {
 
   async b2cRewardCosts(opts: { from?: Date; to?: Date } = {}) {
     const gymId = this.requireGym();
-    const rows = await this.prisma.memberReferralReward.groupBy({
+    const rows = await this.tenant.client.memberReferralReward.groupBy({
       by:    ['reward_type', 'status'],
       where: { gym_id: gymId, ...this.dateWhere(opts, 'applied_at') },
       _count: true,
@@ -260,20 +264,20 @@ export class ReferralAnalyticsService {
     const gymId = this.requireGym();
 
     const [member, given, awardedCount, rewards, allTimeLeaderboard] = await Promise.all([
-      this.prisma.member.findUnique({
+      this.tenant.client.member.findUnique({
         where:  { id: memberId },
         select: { id: true, full_name: true, referral_code: true, gym_id: true },
       }),
-      this.prisma.memberReferral.findMany({
+      this.tenant.client.memberReferral.findMany({
         where:   { referrer_member_id: memberId, gym_id: gymId },
         orderBy: { created_at: 'desc' },
         take:    20,
         include: { referred: { select: { full_name: true } } },
       }),
-      this.prisma.memberReferral.count({
+      this.tenant.client.memberReferral.count({
         where: { referrer_member_id: memberId, gym_id: gymId, reward_status: 'awarded' },
       }),
-      this.prisma.memberReferralReward.findMany({
+      this.tenant.client.memberReferralReward.findMany({
         where:   { beneficiary_member_id: memberId, gym_id: gymId },
         orderBy: { applied_at: 'desc' },
         take:    10,

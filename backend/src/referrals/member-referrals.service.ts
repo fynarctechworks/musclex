@@ -6,8 +6,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
+import { Prisma } from '../../node_modules/.prisma/client-tenant';
 import { randomBytes } from 'crypto';
 import { getTenantGymId } from '../common/tenant-context';
 import {
@@ -47,7 +47,7 @@ export class MemberReferralsService {
   };
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -55,7 +55,7 @@ export class MemberReferralsService {
 
   /** Generate a unique per-member referral code, e.g. `RAHUL-44K2`. */
   async ensureMemberCode(memberId: string): Promise<string> {
-    const member = await this.prisma.member.findUnique({
+    const member = await this.tenant.client.member.findUnique({
       where:  { id: memberId },
       select: { referral_code: true, full_name: true },
     });
@@ -76,12 +76,12 @@ export class MemberReferralsService {
         .slice(0, 4)
         .padEnd(4, '0');
       const code = `${prefix}-${suffix}`;
-      const collision = await this.prisma.member.findUnique({
+      const collision = await this.tenant.client.member.findUnique({
         where: { referral_code: code },
         select: { id: true },
       });
       if (!collision) {
-        await this.prisma.member.update({
+        await this.tenant.client.member.update({
           where: { id: memberId },
           data:  { referral_code: code },
         });
@@ -94,7 +94,7 @@ export class MemberReferralsService {
   // ── Code validation (public, pre-registration) ──────────────────
 
   async validateCode(code: string) {
-    const member = await this.prisma.member.findUnique({
+    const member = await this.tenant.client.member.findUnique({
       where:  { referral_code: code },
       select: { id: true, full_name: true, gym_id: true },
     });
@@ -119,7 +119,7 @@ export class MemberReferralsService {
     // Resolve referrer
     let referrerId = params.referrerMemberId;
     if (!referrerId && params.referrerCode) {
-      const referrer = await this.prisma.member.findUnique({
+      const referrer = await this.tenant.client.member.findUnique({
         where:  { referral_code: params.referrerCode },
         select: { id: true, gym_id: true },
       });
@@ -135,7 +135,7 @@ export class MemberReferralsService {
       throw new BadRequestException('Cannot self-refer');
     }
 
-    const existing = await this.prisma.memberReferral.findUnique({
+    const existing = await this.tenant.client.memberReferral.findUnique({
       where: {
         referrer_member_id_referred_member_id: {
           referrer_member_id: referrerId,
@@ -145,7 +145,7 @@ export class MemberReferralsService {
     });
     if (existing) throw new ConflictException('Referral already exists');
 
-    const referral = await this.prisma.memberReferral.create({
+    const referral = await this.tenant.client.memberReferral.create({
       data: {
         gym_id:             gymId,
         referrer_member_id: referrerId,
@@ -179,7 +179,7 @@ export class MemberReferralsService {
     if (!gymId) throw new BadRequestException('Tenant context required');
 
     // Derive current effective status from the latest lifecycle event.
-    const last = await this.prisma.memberReferralEvent.findFirst({
+    const last = await this.tenant.client.memberReferralEvent.findFirst({
       where:   { member_referral_id: params.memberReferralId },
       orderBy: { occurred_at: 'desc' },
       select:  { to_status: true },
@@ -215,7 +215,7 @@ export class MemberReferralsService {
     actorId?: string;
     payload?: Record<string, unknown>;
   }) {
-    await this.prisma.memberReferralEvent.create({
+    await this.tenant.client.memberReferralEvent.create({
       data: {
         gym_id:             params.gymId,
         member_referral_id: params.memberReferralId,
@@ -237,7 +237,7 @@ export class MemberReferralsService {
     const gymId = getTenantGymId();
     if (!gymId) throw new BadRequestException('Tenant context required');
 
-    const referral = await this.prisma.memberReferral.findUnique({
+    const referral = await this.tenant.client.memberReferral.findUnique({
       where: { id: params.memberReferralId },
     });
     if (!referral) throw new NotFoundException('Referral not found');
@@ -247,7 +247,7 @@ export class MemberReferralsService {
     }
 
     // Find the active referral program for this gym.
-    const program = await this.prisma.referralProgram.findFirst({
+    const program = await this.tenant.client.referralProgram.findFirst({
       where: {
         gym_id: gymId,
         status: 'active',
@@ -263,7 +263,7 @@ export class MemberReferralsService {
 
     // max_rewards: cap total rewards issued under this program for the referrer.
     if (program.max_rewards) {
-      const issued = await this.prisma.memberReferralReward.count({
+      const issued = await this.tenant.client.memberReferralReward.count({
         where: {
           gym_id:                gymId,
           program_id:            program.id,
@@ -282,7 +282,7 @@ export class MemberReferralsService {
     const idempotencyKey = `member_reward_${referral.id}_${program.id}_${params.paymentId}`;
 
     try {
-      const reward = await this.prisma.memberReferralReward.create({
+      const reward = await this.tenant.client.memberReferralReward.create({
         data: {
           gym_id:                gymId,
           member_referral_id:    referral.id,
@@ -295,7 +295,7 @@ export class MemberReferralsService {
         },
       });
 
-      await this.prisma.memberReferral.update({
+      await this.tenant.client.memberReferral.update({
         where: { id: referral.id },
         data:  {
           reward_status: 'awarded',
@@ -374,13 +374,13 @@ export class MemberReferralsService {
 
     const [code, given, received, rewards] = await Promise.all([
       this.ensureMemberCode(memberId),
-      this.prisma.memberReferral.findMany({
+      this.tenant.client.memberReferral.findMany({
         where:   { referrer_member_id: memberId },
         orderBy: { created_at: 'desc' },
         include: { referred: { select: { full_name: true } } },
       }),
-      this.prisma.memberReferral.count({ where: { referred_member_id: memberId } }),
-      this.prisma.memberReferralReward.findMany({
+      this.tenant.client.memberReferral.count({ where: { referred_member_id: memberId } }),
+      this.tenant.client.memberReferralReward.findMany({
         where:   { gym_id: gymId, beneficiary_member_id: memberId },
         orderBy: { applied_at: 'desc' },
         take:    20,
@@ -412,7 +412,7 @@ export class MemberReferralsService {
     if (!gymId) throw new BadRequestException('Tenant context required');
     const limit = opts.limit ?? 10;
 
-    const rows = await this.prisma.memberReferral.groupBy({
+    const rows = await this.tenant.client.memberReferral.groupBy({
       by:    ['referrer_member_id'],
       where: { gym_id: gymId, reward_status: 'awarded' },
       _count: { referrer_member_id: true },
@@ -420,7 +420,7 @@ export class MemberReferralsService {
       take:  limit,
     });
 
-    const members = await this.prisma.member.findMany({
+    const members = await this.tenant.client.member.findMany({
       where:  { id: { in: rows.map((r) => r.referrer_member_id) } },
       select: { id: true, full_name: true, referral_code: true },
     });

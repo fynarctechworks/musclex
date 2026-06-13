@@ -5,8 +5,8 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { Prisma } from '../../node_modules/.prisma/client-public';
 import { ReferralLifecycleService } from './referral-lifecycle.service';
 import { ReferralFraudService } from './referral-fraud.service';
 import { ReferralWalletService } from './referral-wallet.service';
@@ -29,7 +29,7 @@ export class ReferralAdminService {
   private readonly logger = new Logger(ReferralAdminService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly pub: PublicPrismaService,
     private readonly lifecycle: ReferralLifecycleService,
     private readonly fraud: ReferralFraudService,
     private readonly wallet: ReferralWalletService,
@@ -48,7 +48,7 @@ export class ReferralAdminService {
       ...(opts.severity && { severity: opts.severity }),
     };
     const [items, total] = await Promise.all([
-      this.prisma.referralFraudSignal.findMany({
+      this.pub.referralFraudSignal.findMany({
         where,
         orderBy: [{ severity: 'desc' }, { created_at: 'desc' }],
         take:    opts.limit ?? 50,
@@ -67,7 +67,7 @@ export class ReferralAdminService {
           subject: { select: { id: true, name: true } },
         },
       }),
-      this.prisma.referralFraudSignal.count({ where }),
+      this.pub.referralFraudSignal.count({ where }),
     ]);
     return { items, total };
   }
@@ -110,7 +110,7 @@ export class ReferralAdminService {
       throw new BadRequestException('A reason (>=5 chars) is required for forced transitions');
     }
 
-    const referral = await this.prisma.referral.findUnique({
+    const referral = await this.pub.referral.findUnique({
       where: { id: params.referralId },
       select: { id: true, status: true },
     });
@@ -121,7 +121,7 @@ export class ReferralAdminService {
       throw new ConflictException('Referral already in requested status');
     }
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.pub.$transaction(async (tx) => {
       await tx.referral.update({
         where: { id: params.referralId },
         data:  { status: params.toStatus, updated_at: new Date() },
@@ -161,7 +161,7 @@ export class ReferralAdminService {
       throw new BadRequestException('reason (>=5 chars) required');
     }
 
-    const log = await this.prisma.rewardLog.findUnique({
+    const log = await this.pub.rewardLog.findUnique({
       where: { id: params.rewardLogId },
     });
     if (!log) throw new NotFoundException('Reward log not found');
@@ -171,7 +171,7 @@ export class ReferralAdminService {
 
     // Reverse wallet ledger entry if reward was wallet_credit.
     if (log.reward_type === 'wallet_credit') {
-      const ledgerEntry = await this.prisma.referralWalletEntry.findFirst({
+      const ledgerEntry = await this.pub.referralWalletEntry.findFirst({
         where: { reward_log_id: log.id, entry_type: 'credit' },
       });
       if (ledgerEntry) {
@@ -184,7 +184,7 @@ export class ReferralAdminService {
     }
 
     // Mark log row as reversed (status field only — row stays append-only otherwise).
-    await this.prisma.rewardLog.update({
+    await this.pub.rewardLog.update({
       where: { id: log.id },
       data:  {
         status:          'reversed',
@@ -194,7 +194,7 @@ export class ReferralAdminService {
     });
 
     // If this was the only reward on the referral, transition to 'reversed'.
-    const remaining = await this.prisma.rewardLog.count({
+    const remaining = await this.pub.rewardLog.count({
       where: { referral_id: log.referral_id, status: 'applied' },
     });
     if (remaining === 0) {
@@ -220,7 +220,7 @@ export class ReferralAdminService {
       throw new BadRequestException('reason required');
     }
     const wallet = await this.wallet.ensureWallet(params.studioId);
-    await this.prisma.referralWallet.update({
+    await this.pub.referralWallet.update({
       where: { id: wallet.id },
       data:  { status: 'frozen' },
     });
@@ -230,7 +230,7 @@ export class ReferralAdminService {
 
   async unfreezeWallet(params: { studioId: string; adminId: string }) {
     const wallet = await this.wallet.ensureWallet(params.studioId);
-    await this.prisma.referralWallet.update({
+    await this.pub.referralWallet.update({
       where: { id: wallet.id },
       data:  { status: 'active' },
     });
@@ -290,25 +290,25 @@ export class ReferralAdminService {
    */
   async getOverview() {
     const [byStatus, rewards, wallet, fraud] = await Promise.all([
-      this.prisma.referral.groupBy({
+      this.pub.referral.groupBy({
         by:     ['status'],
         _count: true,
       }),
-      this.prisma.rewardLog.groupBy({
+      this.pub.rewardLog.groupBy({
         by:     ['status', 'reward_type'],
         _count: true,
       }),
-      this.prisma.referralWalletEntry.groupBy({
+      this.pub.referralWalletEntry.groupBy({
         by:     ['entry_type'],
         _sum:   { amount: true },
       }),
-      this.prisma.referralFraudSignal.groupBy({
+      this.pub.referralFraudSignal.groupBy({
         by:     ['severity', 'review_status'],
         _count: true,
       }),
     ]);
 
-    const topRisk = await this.prisma.referral.findMany({
+    const topRisk = await this.pub.referral.findMany({
       where:   { risk_score: { gt: 0 }, status: { notIn: ['fraud', 'reversed'] } },
       orderBy: { risk_score: 'desc' },
       take:    10,

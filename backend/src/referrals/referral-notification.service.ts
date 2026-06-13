@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
+import { TenantTaskRunner } from '../prisma/tenant-task-runner';
 import { QueueService } from '../queue/queue.service';
 import {
   REFERRAL_EVENTS,
@@ -29,7 +31,9 @@ export class ReferralNotificationService {
   private readonly logger = new Logger(ReferralNotificationService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly pub: PublicPrismaService, // registry: referral (B2B)
+    private readonly tenant: TenantPrisma, // tenant: member / notificationLog
+    private readonly tasks: TenantTaskRunner, // event handlers have no req context
     private readonly queue: QueueService,
   ) {}
 
@@ -71,7 +75,7 @@ export class ReferralNotificationService {
       | 'referral_flagged_fraud'
       | 'referral_reward_reversed',
   ): Promise<void> {
-    const referral = await this.prisma.referral.findUnique({
+    const referral = await this.pub.referral.findUnique({
       where: { id: referralId },
       include: {
         referrer_studio: { select: { id: true, name: true, email: true, phone: true } },
@@ -139,21 +143,26 @@ export class ReferralNotificationService {
     payload: MemberReferralPaymentCompletedPayload,
   ): Promise<void> {
     try {
-      const referrer = await this.prisma.member.findUnique({
-        where:  { id: payload.referrerMemberId },
-        select: { id: true, full_name: true, phone: true, email: true, gym_id: true },
+      // member + notificationLog are tenant tables; this is an event handler with
+      // no request context, so run the tenant work in the payload's gym schema.
+      const referrer = await this.tasks.runForGym(payload.gymId, async () => {
+        const r = await this.tenant.client.member.findUnique({
+          where:  { id: payload.referrerMemberId },
+          select: { id: true, full_name: true, phone: true, email: true, gym_id: true },
+        });
+        if (!r) return null;
+        // In-app notification (NotificationLog, per-gym)
+        await this.writeInAppNotification({
+          gymId:    payload.gymId,
+          memberId: r.id,
+          title:    'Your referral just paid!',
+          body:     'You\'re about to unlock your referral reward.',
+          type:     'referral_payment',
+          data:     { member_referral_id: payload.memberReferralId },
+        });
+        return r;
       });
       if (!referrer) return;
-
-      // In-app notification (NotificationLog, per-gym)
-      await this.writeInAppNotification({
-        gymId:    payload.gymId,
-        memberId: referrer.id,
-        title:    'Your referral just paid!',
-        body:     'You\'re about to unlock your referral reward.',
-        type:     'referral_payment',
-        data:     { member_referral_id: payload.memberReferralId },
-      });
 
       // Push (if device tokens are registered — best-effort)
       if (referrer.phone) {
@@ -187,7 +196,7 @@ export class ReferralNotificationService {
     data?: Record<string, unknown>;
   }): Promise<void> {
     try {
-      await this.prisma.notificationLog.create({
+      await this.tenant.client.notificationLog.create({
         data: {
           gym_id:       params.gymId,
           member_id:    params.memberId,

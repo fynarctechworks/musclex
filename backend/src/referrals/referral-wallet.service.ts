@@ -5,8 +5,8 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { Prisma } from '../../node_modules/.prisma/client-public';
 
 /**
  * ReferralWalletService — append-only credit ledger.
@@ -28,13 +28,13 @@ import { Prisma } from '@prisma/client';
 export class ReferralWalletService {
   private readonly logger = new Logger(ReferralWalletService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly pub: PublicPrismaService) {}
 
   // ── Wallet lifecycle ─────────────────────────────────────────────
 
   /** Get or create the wallet for a studio. */
   async ensureWallet(studioId: string, currency = 'INR') {
-    return this.prisma.referralWallet.upsert({
+    return this.pub.referralWallet.upsert({
       where:  { studio_id: studioId },
       create: { studio_id: studioId, currency },
       update: {},
@@ -42,7 +42,7 @@ export class ReferralWalletService {
   }
 
   async getBalance(studioId: string): Promise<{ balance: string; currency: string }> {
-    const wallet = await this.prisma.referralWallet.findUnique({
+    const wallet = await this.pub.referralWallet.findUnique({
       where: { studio_id: studioId },
       select: { balance: true, currency: true },
     });
@@ -110,7 +110,7 @@ export class ReferralWalletService {
     reason: string;
     idempotencyKey: string;
   }) {
-    const original = await this.prisma.referralWalletEntry.findUnique({
+    const original = await this.pub.referralWalletEntry.findUnique({
       where: { id: params.originalEntryId },
       include: { wallet: { select: { studio_id: true, currency: true } } },
     });
@@ -136,7 +136,7 @@ export class ReferralWalletService {
    * Intended to be called from a cron job.
    */
   async expireStaleCredits(now = new Date()): Promise<number> {
-    const stale = await this.prisma.referralWalletEntry.findMany({
+    const stale = await this.pub.referralWalletEntry.findMany({
       where: {
         entry_type:  'credit',
         expires_at:  { not: null, lte: now },
@@ -147,13 +147,13 @@ export class ReferralWalletService {
     let expiredCount = 0;
     for (const entry of stale) {
       // Skip if we've already written an expiry counter for this credit.
-      const alreadyExpired = await this.prisma.referralWalletEntry.findFirst({
+      const alreadyExpired = await this.pub.referralWalletEntry.findFirst({
         where:  { reverses_entry_id: entry.id, entry_type: 'expiry' },
         select: { id: true },
       });
       if (alreadyExpired) continue;
 
-      const wallet = await this.prisma.referralWallet.findUnique({
+      const wallet = await this.pub.referralWallet.findUnique({
         where: { id: entry.wallet_id },
         select: { studio_id: true },
       });
@@ -195,7 +195,7 @@ export class ReferralWalletService {
     description?: string;
     metadata?: Record<string, unknown>;
   }) {
-    return this.prisma.$transaction(
+    return this.pub.$transaction(
       async (tx) => {
         const wallet = await tx.referralWallet.upsert({
           where:  { studio_id: params.studioId },
@@ -270,13 +270,13 @@ export class ReferralWalletService {
   // ── Queries ─────────────────────────────────────────────────────
 
   async listEntries(studioId: string, opts: { limit?: number; offset?: number } = {}) {
-    const wallet = await this.prisma.referralWallet.findUnique({
+    const wallet = await this.pub.referralWallet.findUnique({
       where:  { studio_id: studioId },
       select: { id: true },
     });
     if (!wallet) return [];
 
-    return this.prisma.referralWalletEntry.findMany({
+    return this.pub.referralWalletEntry.findMany({
       where:   { wallet_id: wallet.id },
       orderBy: { created_at: 'desc' },
       take:    opts.limit ?? 50,

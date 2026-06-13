@@ -68,4 +68,31 @@ export class TenantTaskRunner {
 
     return { total: studios.length, ok, failed };
   }
+
+  /**
+   * Run `fn` inside ONE gym's tenant context, given its gym_id. For event
+   * handlers / webhooks that know the gym but have no request context. Resolves
+   * the schema from the registry (never derived from gym_id). Returns undefined
+   * (and logs) if the gym has no valid schema, so callers can no-op safely.
+   */
+  async runForGym<T>(gymId: string, fn: () => Promise<T>): Promise<T | undefined> {
+    const studio = await this.pub.studio.findUnique({
+      where: { id: gymId },
+      select: { schema_name: true },
+    });
+    if (!studio || !TENANT_SCHEMA_RE.test(studio.schema_name)) {
+      this.logger.warn(`runForGym: no valid schema for gym ${gymId}`);
+      return undefined;
+    }
+    return tenantContext.run(
+      {
+        schemaName: studio.schema_name,
+        gymId,
+        activeBranchId: null,
+        allowedBranchIds: 'ALL',
+        bypassBranchScope: true,
+      },
+      fn,
+    );
+  }
 }

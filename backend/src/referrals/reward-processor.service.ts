@@ -4,8 +4,8 @@ import {
   ConflictException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { Prisma } from '../../node_modules/.prisma/client-public';
 import { RuleEngineService, MatchedRule, RewardAction } from './rule-engine.service';
 import { SubscriptionActivatedPayload } from './events/domain-events';
 
@@ -33,7 +33,7 @@ export class RewardProcessorService {
   private readonly logger = new Logger(RewardProcessorService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly pub: PublicPrismaService,
     private readonly ruleEngine: RuleEngineService,
     private readonly wallet: ReferralWalletService,
     private readonly subscriptionPolicy: SubscriptionPolicyService,
@@ -53,7 +53,7 @@ export class RewardProcessorService {
 
     for (const rule of matchedRules) {
       // ── Per-referrer cap check ──────────────────────────────────
-      const conditions = await this.prisma.referralRewardRule.findUnique({
+      const conditions = await this.pub.referralRewardRule.findUnique({
         where: { id: rule.id },
         select: { conditions: true },
       });
@@ -165,7 +165,7 @@ export class RewardProcessorService {
       ? new Date(Date.now() + rewardAction.expires_in_days * 24 * 60 * 60 * 1000)
       : undefined;
 
-    return this.prisma.$transaction(
+    return this.pub.$transaction(
       async (tx) => {
         const existing = await tx.rewardLog.findUnique({
           where: { idempotency_key: idempotencyKey },
@@ -250,7 +250,7 @@ export class RewardProcessorService {
     const days = rewardAction.days ?? 30;
     const msToAdd = days * 24 * 60 * 60 * 1000;
 
-    const result = await this.prisma.$transaction(
+    const result = await this.pub.$transaction(
       async (tx) => {
         // ── Idempotency guard (unique constraint on reward_logs) ──
         const existing = await tx.rewardLog.findUnique({
@@ -379,7 +379,7 @@ export class RewardProcessorService {
     const { referralId, rule, rewardAction, referrerStudioId, payload, eventType, idempotencyKey } =
       params;
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.pub.$transaction(async (tx) => {
       const existing = await tx.rewardLog.findUnique({
         where: { idempotency_key: idempotencyKey },
       });
@@ -442,7 +442,7 @@ export class RewardProcessorService {
     const days = rewardAction.days ?? 7;
     const msToAdd = days * 24 * 60 * 60 * 1000;
 
-    return this.prisma.$transaction(
+    return this.pub.$transaction(
       async (tx) => {
         const existing = await tx.rewardLog.findUnique({
           where: { idempotency_key: idempotencyKey },
@@ -547,7 +547,7 @@ export class RewardProcessorService {
       // trial_extension only touches trial_ends_at.
       const isExtendSub = rewardLog.reward_type === 'extend_subscription';
 
-      await this.prisma.$transaction(
+      await this.pub.$transaction(
         async (tx) => {
           const [studio] = await tx.$queryRaw<
             Array<{
@@ -626,7 +626,7 @@ export class RewardProcessorService {
     }
 
     if (rewardLog.reward_type === 'wallet_credit') {
-      const ledgerEntry = await this.prisma.referralWalletEntry.findFirst({
+      const ledgerEntry = await this.pub.referralWalletEntry.findFirst({
         where: { reward_log_id: rewardLog.id, entry_type: 'credit' },
       });
       if (ledgerEntry) {
@@ -636,7 +636,7 @@ export class RewardProcessorService {
           idempotencyKey:  `clawback_${rewardLog.id}`,
         });
       }
-      await this.prisma.rewardLog.update({
+      await this.pub.rewardLog.update({
         where: { id: rewardLog.id },
         data:  { status: 'reversed', reversed_at: new Date(), reversed_reason: reason },
       });
@@ -645,7 +645,7 @@ export class RewardProcessorService {
     }
 
     // account_credit and anything else: mark reversed; billing reconciles.
-    await this.prisma.rewardLog.update({
+    await this.pub.rewardLog.update({
       where: { id: rewardLog.id },
       data:  { status: 'reversed', reversed_at: new Date(), reversed_reason: reason },
     });
@@ -664,7 +664,7 @@ export class RewardProcessorService {
     idempotencyKey: string;
     reason: string;
   }) {
-    await this.prisma.rewardLog.create({
+    await this.pub.rewardLog.create({
       data: {
         referral_id:           params.referralId,
         rule_id:               params.rule.id,

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
 import { SubscriptionActivatedPayload } from './events/domain-events';
 
 // ── Strongly-typed shapes for JSONB fields ────────────────────────
@@ -43,7 +43,7 @@ export interface EvaluationContext {
 export class RuleEngineService {
   private readonly logger = new Logger(RuleEngineService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly pub: PublicPrismaService) {}
 
   /**
    * Evaluate all active rules against the event context.
@@ -55,7 +55,7 @@ export class RuleEngineService {
   async evaluate(ctx: EvaluationContext): Promise<MatchedRule[]> {
     const now = new Date();
 
-    const rules = await this.prisma.referralRewardRule.findMany({
+    const rules = await this.pub.referralRewardRule.findMany({
       where: {
         is_active: true,
         OR: [{ valid_from: null }, { valid_from: { lte: now } }],
@@ -152,7 +152,7 @@ export class RuleEngineService {
     referrerStudioId: string,
     maxAllowed: number,
   ): Promise<boolean> {
-    const count = await this.prisma.rewardLog.count({
+    const count = await this.pub.rewardLog.count({
       where: {
         rule_id: ruleId,
         beneficiary_studio_id: referrerStudioId,

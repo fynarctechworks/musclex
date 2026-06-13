@@ -1,7 +1,7 @@
 import { Injectable, Logger, ConflictException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { Prisma } from '../../node_modules/.prisma/client-public';
 import {
   REFERRAL_EVENTS,
   LifecycleTransitionedPayload,
@@ -43,7 +43,7 @@ export class ReferralLifecycleService {
   };
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly pub: PublicPrismaService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -63,7 +63,7 @@ export class ReferralLifecycleService {
   }): Promise<boolean> {
     const { referralId, toStatus, actorType = 'system', actorId, payload = {} } = params;
 
-    const referral = await this.prisma.referral.findUnique({
+    const referral = await this.pub.referral.findUnique({
       where: { id: referralId },
       select: { id: true, status: true },
     });
@@ -86,7 +86,7 @@ export class ReferralLifecycleService {
     }
 
     // Conditional update — only succeeds if status hasn't changed since read.
-    const updated = await this.prisma.referral.updateMany({
+    const updated = await this.pub.referral.updateMany({
       where: { id: referralId, status: fromStatus },
       data:  { status: toStatus, updated_at: new Date() },
     });
@@ -99,7 +99,7 @@ export class ReferralLifecycleService {
     }
 
     // Append-only audit row
-    await this.prisma.referralLifecycleEvent.create({
+    await this.pub.referralLifecycleEvent.create({
       data: {
         referral_id: referralId,
         from_status: fromStatus,
@@ -144,7 +144,7 @@ export class ReferralLifecycleService {
 
   /** Returns the full history for a referral, oldest-first. */
   async getHistory(referralId: string) {
-    return this.prisma.referralLifecycleEvent.findMany({
+    return this.pub.referralLifecycleEvent.findMany({
       where:   { referral_id: referralId },
       orderBy: { occurred_at: 'asc' },
     });
