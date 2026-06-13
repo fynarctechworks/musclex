@@ -1,5 +1,5 @@
 import { Injectable, Inject, forwardRef, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { DashboardGateway } from '../dashboard/dashboard.gateway';
 import { getTenantGymId } from '../common/tenant-context';
 import { DEFAULT_CURRENCY } from '../common/defaults';
@@ -21,7 +21,7 @@ export class EventProjectorService {
   private readonly logger = new Logger(EventProjectorService.name);
 
   constructor(
-    private prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     @Inject(forwardRef(() => DashboardGateway)) private dashboardGateway: DashboardGateway,
   ) {}
 
@@ -81,7 +81,7 @@ export class EventProjectorService {
     let hasMore = true;
 
     while (hasMore) {
-      const events = await this.prisma.domainEvent.findMany({
+      const events = await this.tenant.client.domainEvent.findMany({
         where: { gym_id: gymId, processed: false },
         orderBy: { version: 'asc' },
         take: 100,
@@ -127,7 +127,7 @@ export class EventProjectorService {
     this.logger.warn(`Starting FULL REPLAY for gym ${gymId} — this will reset all metrics`);
 
     // Reset all metrics rows for this gym
-    await this.prisma.dashboardMetrics.updateMany({
+    await this.tenant.client.dashboardMetrics.updateMany({
       where: { gym_id: gymId },
       data: {
         total_members: 0,
@@ -145,7 +145,7 @@ export class EventProjectorService {
     });
 
     // Mark all events as unprocessed
-    await this.prisma.domainEvent.updateMany({
+    await this.tenant.client.domainEvent.updateMany({
       where: { gym_id: gymId },
       data: { processed: false },
     });
@@ -154,7 +154,7 @@ export class EventProjectorService {
     const count = await this.catchup();
 
     // Push full snapshot to connected clients
-    const snapshot = await this.prisma.dashboardMetrics.findFirst({
+    const snapshot = await this.tenant.client.dashboardMetrics.findFirst({
       where: { gym_id: gymId, branch_id: null },
     });
     if (snapshot) {
@@ -321,7 +321,7 @@ export class EventProjectorService {
   ) {
     // Upsert: create if missing, update if exists
     try {
-      await this.prisma.dashboardMetrics.upsert({
+      await this.tenant.client.dashboardMetrics.upsert({
         where: {
           gym_id_branch_id: { gym_id: gymId, branch_id: branchId as any },
         },
@@ -336,7 +336,7 @@ export class EventProjectorService {
     } catch (e: any) {
       // If upsert fails on unique constraint race, retry with plain update
       if (e.code === 'P2002') {
-        await this.prisma.dashboardMetrics.updateMany({
+        await this.tenant.client.dashboardMetrics.updateMany({
           where: { gym_id: gymId, branch_id: branchId },
           data: updateData,
         });
@@ -347,7 +347,7 @@ export class EventProjectorService {
   }
 
   private async markProcessed(eventId: string, gymId: string) {
-    await this.prisma.domainEvent.update({
+    await this.tenant.client.domainEvent.update({
       where: { id: eventId },
       data: { processed: true },
     });

@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { ReportExportDto } from '../dto';
 import { resolveBranchScope } from '../../common/branch-scope.util';
 import type { JwtPayload } from '../../common/decorators/current-user.decorator';
@@ -15,7 +15,7 @@ export interface ReportUserScope {
 export class ReportsService {
   private readonly logger = new Logger(ReportsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   /**
    * Enforces branch scope: owners/brand_owners can pick any branch or "all";
@@ -86,7 +86,7 @@ export class ReportsService {
       ...scope.branchFilter,
     };
 
-    const records = await this.prisma.revenueAnalytics.findMany({
+    const records = await this.tenant.client.revenueAnalytics.findMany({
       where,
       orderBy: { period_start: 'desc' },
     });
@@ -112,7 +112,7 @@ export class ReportsService {
       ...scope.branchFilter,
     };
 
-    const records = await this.prisma.membershipAnalytics.findMany({
+    const records = await this.tenant.client.membershipAnalytics.findMany({
       where,
       include: { plan: { select: { name: true } } },
       orderBy: { period_start: 'desc' },
@@ -141,7 +141,7 @@ export class ReportsService {
       ...scope.branchFilter,
     };
 
-    const records = await this.prisma.dailyGymMetrics.findMany({
+    const records = await this.tenant.client.dailyGymMetrics.findMany({
       where,
       orderBy: { date: 'desc' },
     });
@@ -167,7 +167,7 @@ export class ReportsService {
       ...scope.branchFilter,
     };
 
-    const records = await this.prisma.trainerAnalytics.findMany({
+    const records = await this.tenant.client.trainerAnalytics.findMany({
       where,
       include: { trainer: { select: { full_name: true } } },
       orderBy: { revenue_generated: 'desc' },
@@ -195,7 +195,7 @@ export class ReportsService {
       ...scope.branchFilter,
     };
 
-    const records = await this.prisma.posSale.findMany({
+    const records = await this.tenant.client.posSale.findMany({
       where,
       include: {
         items: { include: { product: { select: { product_name: true } } } },
@@ -226,7 +226,7 @@ export class ReportsService {
       ...scope.branchFilter,
     };
 
-    const records = await this.prisma.dailyGymMetrics.findMany({
+    const records = await this.tenant.client.dailyGymMetrics.findMany({
       where,
       orderBy: { date: 'desc' },
     });

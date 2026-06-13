@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 
 /**
@@ -68,7 +68,7 @@ export interface DomainEventInput {
 export class EventStoreService {
   private readonly logger = new Logger(EventStoreService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   /**
    * Write a domain event inside a transaction.
@@ -122,7 +122,7 @@ export class EventStoreService {
     const gymId = getTenantGymId();
     if (!gymId) return [];
 
-    return this.prisma.domainEvent.findMany({
+    return this.tenant.client.domainEvent.findMany({
       where: { gym_id: gymId, processed: false },
       orderBy: { version: 'asc' },
       take: limit,
@@ -133,7 +133,7 @@ export class EventStoreService {
    * Get all events for a specific aggregate (event history).
    */
   async getHistory(aggregateType: AggregateType, aggregateId: string): Promise<any[]> {
-    return this.prisma.domainEvent.findMany({
+    return this.tenant.client.domainEvent.findMany({
       where: { aggregate_type: aggregateType, aggregate_id: aggregateId },
       orderBy: { version: 'asc' },
     });
@@ -146,7 +146,7 @@ export class EventStoreService {
     const gymId = getTenantGymId();
     if (!gymId) return [];
 
-    return this.prisma.domainEvent.findMany({
+    return this.tenant.client.domainEvent.findMany({
       where: {
         gym_id: gymId,
         version: { gt: afterVersion },

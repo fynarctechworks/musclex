@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
+import { Prisma } from '../../../node_modules/.prisma/client-tenant';
 import {
   AnalyticsQueryDto,
   RevenueQueryDto,
@@ -13,7 +13,7 @@ import {
 
 @Injectable()
 export class AnalyticsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   // ─── Executive Dashboard ─────────────────────────────────────
 
@@ -23,7 +23,7 @@ export class AnalyticsService {
 
     const [latestMetrics, revenueByType, membershipSummary, topClasses] =
       await Promise.all([
-        this.prisma.dailyGymMetrics.findFirst({
+        this.tenant.client.dailyGymMetrics.findFirst({
           where: { ...where, ...branchWhere },
           orderBy: { date: 'desc' },
         }),
@@ -52,17 +52,17 @@ export class AnalyticsService {
     const branchFilter = branchId ? { branch_id: branchId } : {};
 
     const [totalRevenue, newMembers, activeMembers, totalVisits] = await Promise.all([
-      this.prisma.payment.aggregate({
+      this.tenant.client.payment.aggregate({
         where: { ...branchFilter, status: 'paid', paid_at: { gte: todayStart } },
         _sum: { amount: true },
       }).then((r) => Number(r._sum.amount ?? 0)),
-      this.prisma.member.count({
+      this.tenant.client.member.count({
         where: { ...branchFilter, created_at: { gte: todayStart } },
       }),
-      this.prisma.member.count({
+      this.tenant.client.member.count({
         where: { ...branchFilter, status: 'active' },
       }),
-      this.prisma.checkIn.count({
+      this.tenant.client.checkIn.count({
         where: { ...branchFilter, checked_in_at: { gte: todayStart } },
       }),
     ]);
@@ -89,7 +89,7 @@ export class AnalyticsService {
     const where = this.buildDateFilter(query);
     const branchWhere = query.branch_id ? { branch_id: query.branch_id } : {};
 
-    return this.prisma.dailyGymMetrics.findMany({
+    return this.tenant.client.dailyGymMetrics.findMany({
       where: { ...where, ...branchWhere },
       orderBy: { date: 'desc' },
       take: 90,
@@ -100,7 +100,7 @@ export class AnalyticsService {
     const where = this.buildDateFilter(query);
     const branchWhere = query.branch_id ? { branch_id: query.branch_id } : {};
 
-    const metrics = await this.prisma.dailyGymMetrics.findMany({
+    const metrics = await this.tenant.client.dailyGymMetrics.findMany({
       where: { ...where, ...branchWhere },
       orderBy: { date: 'asc' },
       select: {
@@ -122,15 +122,15 @@ export class AnalyticsService {
     const branchFilter = query.branch_id ? { branch_id: query.branch_id } : {};
 
     const [payments, checkIns, members] = await Promise.all([
-      this.prisma.payment.findMany({
+      this.tenant.client.payment.findMany({
         where: { ...branchFilter, status: 'paid', paid_at: { gte: startDate, lte: endDate } },
         select: { paid_at: true, amount: true },
       }),
-      this.prisma.checkIn.findMany({
+      this.tenant.client.checkIn.findMany({
         where: { ...branchFilter, checked_in_at: { gte: startDate, lte: endDate } },
         select: { checked_in_at: true },
       }),
-      this.prisma.member.findMany({
+      this.tenant.client.member.findMany({
         where: { ...branchFilter, created_at: { gte: startDate, lte: endDate } },
         select: { created_at: true },
       }),
@@ -183,13 +183,13 @@ export class AnalyticsService {
       if (query.end_date) where.period_start.lte = new Date(query.end_date);
     }
 
-    const records = await this.prisma.revenueAnalytics.findMany({
+    const records = await this.tenant.client.revenueAnalytics.findMany({
       where,
       orderBy: { period_start: 'desc' },
       take: 100,
     });
 
-    const totals = await this.prisma.revenueAnalytics.groupBy({
+    const totals = await this.tenant.client.revenueAnalytics.groupBy({
       by: ['revenue_type'],
       where,
       _sum: { amount: true, transaction_count: true },
@@ -208,7 +208,7 @@ export class AnalyticsService {
       if (query.end_date) where.period_start.lte = new Date(query.end_date);
     }
 
-    return this.prisma.revenueAnalytics.groupBy({
+    return this.tenant.client.revenueAnalytics.groupBy({
       by: ['revenue_type'],
       where,
       _sum: { amount: true, transaction_count: true },
@@ -228,14 +228,14 @@ export class AnalyticsService {
       if (query.end_date) where.period_start.lte = new Date(query.end_date);
     }
 
-    const records = await this.prisma.membershipAnalytics.findMany({
+    const records = await this.tenant.client.membershipAnalytics.findMany({
       where,
       include: { plan: { select: { name: true, plan_type: true } } },
       orderBy: { period_start: 'desc' },
       take: 100,
     });
 
-    const summary = await this.prisma.membershipAnalytics.aggregate({
+    const summary = await this.tenant.client.membershipAnalytics.aggregate({
       where,
       _sum: {
         total_active: true,
@@ -255,7 +255,7 @@ export class AnalyticsService {
     if (query.branch_id) where.branch_id = query.branch_id;
 
     // Latest period summary
-    const latest = await this.prisma.membershipAnalytics.findFirst({
+    const latest = await this.tenant.client.membershipAnalytics.findFirst({
       where,
       orderBy: { period_end: 'desc' },
     });
@@ -275,7 +275,7 @@ export class AnalyticsService {
       if (query.end_date) where.period_start.lte = new Date(query.end_date);
     }
 
-    const records = await this.prisma.classAnalytics.findMany({
+    const records = await this.tenant.client.classAnalytics.findMany({
       where,
       include: {
         class_template: { select: { name: true, category: true } },
@@ -291,7 +291,7 @@ export class AnalyticsService {
     const where: Prisma.ClassAnalyticsWhereInput = {};
     if (query.branch_id) where.branch_id = query.branch_id;
 
-    return this.prisma.classAnalytics.findMany({
+    return this.tenant.client.classAnalytics.findMany({
       where,
       include: {
         class_template: { select: { name: true, category: true } },
@@ -317,7 +317,7 @@ export class AnalyticsService {
     }
 
     const [records, total] = await Promise.all([
-      this.prisma.memberBehaviorAnalytics.findMany({
+      this.tenant.client.memberBehaviorAnalytics.findMany({
         where,
         include: {
           member: {
@@ -334,7 +334,7 @@ export class AnalyticsService {
         skip: (page - 1) * limit,
         take: limit,
       }),
-      this.prisma.memberBehaviorAnalytics.count({ where }),
+      this.tenant.client.memberBehaviorAnalytics.count({ where }),
     ]);
 
     return { records, total, page, limit };
@@ -344,7 +344,7 @@ export class AnalyticsService {
     const where: Prisma.MemberBehaviorAnalyticsWhereInput = {};
     if (branchId) where.branch_id = branchId;
 
-    const riskDistribution = await this.prisma.memberBehaviorAnalytics.groupBy({
+    const riskDistribution = await this.tenant.client.memberBehaviorAnalytics.groupBy({
       by: ['churn_risk'],
       where,
       _count: true,
@@ -366,7 +366,7 @@ export class AnalyticsService {
       if (query.end_date) where.period_start.lte = new Date(query.end_date);
     }
 
-    const records = await this.prisma.trainerAnalytics.findMany({
+    const records = await this.tenant.client.trainerAnalytics.findMany({
       where,
       include: {
         trainer: {
@@ -385,7 +385,7 @@ export class AnalyticsService {
     if (branchId) where.branch_id = branchId;
 
     // Get the most recent period per trainer
-    const trainers = await this.prisma.trainerAnalytics.findMany({
+    const trainers = await this.tenant.client.trainerAnalytics.findMany({
       where,
       include: {
         trainer: {
@@ -411,7 +411,7 @@ export class AnalyticsService {
       if (query.end_date) where.computed_at.lte = new Date(query.end_date);
     }
 
-    const records = await this.prisma.campaignAnalyticsRecord.findMany({
+    const records = await this.tenant.client.campaignAnalyticsRecord.findMany({
       where,
       include: {
         campaign: { select: { name: true, segment: true, channels: true, status: true } },
@@ -421,7 +421,7 @@ export class AnalyticsService {
     });
 
     // Summary across all campaigns in range
-    const summary = await this.prisma.campaignAnalyticsRecord.aggregate({
+    const summary = await this.tenant.client.campaignAnalyticsRecord.aggregate({
       where,
       _sum: {
         sent: true,
@@ -457,7 +457,7 @@ export class AnalyticsService {
       if (endDate) where.date.lte = new Date(endDate);
     }
 
-    const comparison = await this.prisma.dailyGymMetrics.groupBy({
+    const comparison = await this.tenant.client.dailyGymMetrics.groupBy({
       by: ['branch_id'],
       where,
       _sum: {
@@ -476,7 +476,7 @@ export class AnalyticsService {
     const branchIds = comparison
       .map((c: { branch_id: string | null }) => c.branch_id)
       .filter((id): id is string => id !== null);
-    const branches = await this.prisma.branch.findMany({
+    const branches = await this.tenant.client.branch.findMany({
       where: { id: { in: branchIds } },
       select: { id: true, name: true },
     });

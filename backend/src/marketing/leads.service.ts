@@ -2,16 +2,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { CreateLeadDto, UpdateLeadDto, CreateLeadActivityDto } from './dto';
 import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class LeadsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   async create(dto: CreateLeadDto) {
-    const lead = await this.prisma.lead.create({
+    const lead = await this.tenant.client.lead.create({
       data: { ...dto, gym_id: getTenantGymId()! },
       include: {
         branch: { select: { id: true, name: true } },
@@ -20,7 +20,7 @@ export class LeadsService {
     });
 
     // Log creation activity
-    await this.prisma.leadActivity.create({
+    await this.tenant.client.leadActivity.create({
       data: {
         gym_id: getTenantGymId()!,
         lead_id: lead.id,
@@ -64,7 +64,7 @@ export class LeadsService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.lead.findMany({
+      this.tenant.client.lead.findMany({
         where,
         skip,
         take: limit,
@@ -75,14 +75,14 @@ export class LeadsService {
           _count: { select: { activities: true } },
         },
       }),
-      this.prisma.lead.count({ where }),
+      this.tenant.client.lead.count({ where }),
     ]);
 
     return { data, total, page, limit };
   }
 
   async findOne(id: string) {
-    const lead = await this.prisma.lead.findUnique({
+    const lead = await this.tenant.client.lead.findUnique({
       where: { id },
       include: {
         organization: { select: { id: true, name: true } },
@@ -101,12 +101,12 @@ export class LeadsService {
   }
 
   async update(id: string, dto: UpdateLeadDto) {
-    const lead = await this.prisma.lead.findUnique({ where: { id } });
+    const lead = await this.tenant.client.lead.findUnique({ where: { id } });
     if (!lead) throw new NotFoundException('Lead not found');
 
     // Log status change
     if (dto.status && dto.status !== lead.status) {
-      await this.prisma.leadActivity.create({
+      await this.tenant.client.leadActivity.create({
         data: {
           gym_id: getTenantGymId()!,
           lead_id: id,
@@ -116,7 +116,7 @@ export class LeadsService {
       });
     }
 
-    return this.prisma.lead.update({
+    return this.tenant.client.lead.update({
       where: { id },
       data: dto,
       include: {
@@ -127,10 +127,10 @@ export class LeadsService {
   }
 
   async addActivity(dto: CreateLeadActivityDto) {
-    const lead = await this.prisma.lead.findUnique({ where: { id: dto.lead_id } });
+    const lead = await this.tenant.client.lead.findUnique({ where: { id: dto.lead_id } });
     if (!lead) throw new NotFoundException('Lead not found');
 
-    return this.prisma.leadActivity.create({
+    return this.tenant.client.leadActivity.create({
       data: { ...dto, gym_id: getTenantGymId()! },
       include: { staff: { select: { id: true, full_name: true } } },
     });
@@ -139,14 +139,14 @@ export class LeadsService {
   async getActivities(leadId: string, page = 1, limit = 50) {
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
-      this.prisma.leadActivity.findMany({
+      this.tenant.client.leadActivity.findMany({
         where: { lead_id: leadId },
         skip,
         take: limit,
         orderBy: { created_at: 'desc' },
         include: { staff: { select: { id: true, full_name: true } } },
       }),
-      this.prisma.leadActivity.count({ where: { lead_id: leadId } }),
+      this.tenant.client.leadActivity.count({ where: { lead_id: leadId } }),
     ]);
     return { data, total, page, limit };
   }
@@ -169,13 +169,13 @@ export class LeadsService {
     }
 
     const [totalLeads, byStatus, bySource] = await Promise.all([
-      this.prisma.lead.count({ where }),
-      this.prisma.lead.groupBy({
+      this.tenant.client.lead.count({ where }),
+      this.tenant.client.lead.groupBy({
         by: ['status'],
         where,
         _count: { id: true },
       }),
-      this.prisma.lead.groupBy({
+      this.tenant.client.lead.groupBy({
         by: ['lead_source'],
         where,
         _count: { id: true },

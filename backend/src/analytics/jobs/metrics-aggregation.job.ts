@@ -1,34 +1,27 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
+import { TenantTaskRunner } from '../../prisma/tenant-task-runner';
 import { CronLockService } from '../../common/services/cron-lock.service';
-import { tenantContext } from '../../common/tenant-context';
 
-// M2 fix: cron handlers run off-request with no ALS tenant scope. Wrap each
-// per-row iteration so every nested Prisma call auto-scopes by gym_id and
-// the $use middleware can set app.gym_id for RLS. Fail-safe: if a source
-// row has no gym_id, skip + log rather than process under uncertain scope.
-function runForGym<T>(
-  gymId: string,
-  fn: () => Promise<T>,
-): Promise<T> {
-  return tenantContext.run(
-    {
-      schemaName: `studio_${gymId.replace(/-/g, '_')}`,
-      gymId,
-      activeBranchId: null,
-      allowedBranchIds: 'ALL',
-      bypassBranchScope: false,
-    },
-    fn,
-  );
-}
-
+/**
+ * Road B: these crons run off-request with no tenant scope. Each one wraps its
+ * per-gym body in `tasks.forEachTenant(...)`, which lists every studio from the
+ * REGISTRY and runs the body inside that gym's tenant context (schema resolved
+ * from `studios.schema_name`, never derived from `gym_id`). Inside the body,
+ * `this.tenant.client.*` is bound to that one gym's physical schema — so the
+ * enumeration that used to scan all gyms out of `studio_template` is now a
+ * per-gym query. The cron lock still wraps the whole sweep (one runner).
+ */
 @Injectable()
 export class MetricsAggregationJob {
   private readonly logger = new Logger(MetricsAggregationJob.name);
 
-  constructor(private prisma: PrismaService, private cronLock: CronLockService) {}
+  constructor(
+    private readonly tenant: TenantPrisma,
+    private readonly tasks: TenantTaskRunner,
+    private readonly cronLock: CronLockService,
+  ) {}
 
   // ─── Hourly: Daily Gym Metrics ───────────────────────────────
 
@@ -40,22 +33,17 @@ export class MetricsAggregationJob {
       today.setHours(0, 0, 0, 0);
 
       try {
-        const branches = await this.prisma.branch.findMany({
-          where: { is_active: true },
-          select: { id: true, organization_id: true, gym_id: true },
+        const summary = await this.tasks.forEachTenant(async ({ gymId }) => {
+          const branches = await this.tenant.client.branch.findMany({
+            where: { is_active: true },
+            select: { id: true, organization_id: true },
+          });
+          for (const branch of branches) {
+            await this.aggregateBranchDailyMetrics(branch.id, branch.organization_id, gymId, today);
+          }
         });
 
-        for (const branch of branches) {
-          if (!branch.gym_id) {
-            this.logger.error(`Skipping daily metrics for branch ${branch.id}: missing gym_id`);
-            continue;
-          }
-          await runForGym(branch.gym_id, () =>
-            this.aggregateBranchDailyMetrics(branch.id, branch.organization_id, branch.gym_id, today),
-          );
-        }
-
-        this.logger.log(`Daily metrics aggregated for ${branches.length} branches`);
+        this.logger.log(`Daily metrics aggregated across ${summary.ok}/${summary.total} gyms`);
       } catch (error) {
         this.logger.error('Failed to aggregate daily metrics', error);
       }
@@ -73,7 +61,7 @@ export class MetricsAggregationJob {
 
     const [revenue, newMembers, activeMembers, visits, classesHeld, productsSold] =
       await Promise.all([
-        this.prisma.payment.aggregate({
+        this.tenant.client.payment.aggregate({
           where: {
             branch_id: branchId,
             paid_at: { gte: date, lt: nextDay },
@@ -81,29 +69,29 @@ export class MetricsAggregationJob {
           },
           _sum: { amount: true },
         }),
-        this.prisma.member.count({
+        this.tenant.client.member.count({
           where: {
             branch_id: branchId,
             created_at: { gte: date, lt: nextDay },
           },
         }),
-        this.prisma.member.count({
+        this.tenant.client.member.count({
           where: { branch_id: branchId, status: 'active' },
         }),
-        this.prisma.checkIn.count({
+        this.tenant.client.checkIn.count({
           where: {
             branch_id: branchId,
             checked_in_at: { gte: date, lt: nextDay },
           },
         }),
-        this.prisma.classSession.count({
+        this.tenant.client.classSession.count({
           where: {
             branch_id: branchId,
             start_time: { gte: date, lt: nextDay },
             status: 'completed',
           },
         }),
-        this.prisma.posSaleItem.aggregate({
+        this.tenant.client.posSaleItem.aggregate({
           where: {
             sale: {
               branch_id: branchId,
@@ -118,7 +106,7 @@ export class MetricsAggregationJob {
     const totalRevenue = revenue._sum?.amount ?? 0;
     const totalProductsSold = productsSold._sum?.quantity ?? 0;
 
-    await this.prisma.dailyGymMetrics.upsert({
+    await this.tenant.client.dailyGymMetrics.upsert({
       where: {
         organization_id_branch_id_date: {
           organization_id: organizationId ?? '',
@@ -163,22 +151,17 @@ export class MetricsAggregationJob {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const branches = await this.prisma.branch.findMany({
-          where: { is_active: true },
-          select: { id: true, organization_id: true, gym_id: true },
+        const summary = await this.tasks.forEachTenant(async ({ gymId }) => {
+          const branches = await this.tenant.client.branch.findMany({
+            where: { is_active: true },
+            select: { id: true, organization_id: true },
+          });
+          for (const branch of branches) {
+            await this.aggregateBranchRevenue(branch.id, branch.organization_id, gymId, yesterday, today);
+          }
         });
 
-        for (const branch of branches) {
-          if (!branch.gym_id) {
-            this.logger.error(`Skipping revenue analytics for branch ${branch.id}: missing gym_id`);
-            continue;
-          }
-          await runForGym(branch.gym_id, () =>
-            this.aggregateBranchRevenue(branch.id, branch.organization_id, branch.gym_id, yesterday, today),
-          );
-        }
-
-        this.logger.log(`Revenue analytics aggregated for ${branches.length} branches`);
+        this.logger.log(`Revenue analytics aggregated across ${summary.ok}/${summary.total} gyms`);
       } catch (error) {
         this.logger.error('Failed to aggregate revenue analytics', error);
       }
@@ -192,7 +175,7 @@ export class MetricsAggregationJob {
     periodStart: Date,
     periodEnd: Date,
   ) {
-    const membershipRevenue = await this.prisma.payment.aggregate({
+    const membershipRevenue = await this.tenant.client.payment.aggregate({
       where: {
         branch_id: branchId,
         paid_at: { gte: periodStart, lt: periodEnd },
@@ -203,7 +186,7 @@ export class MetricsAggregationJob {
       _count: true,
     });
 
-    const ptRevenue = await this.prisma.payment.aggregate({
+    const ptRevenue = await this.tenant.client.payment.aggregate({
       where: {
         branch_id: branchId,
         paid_at: { gte: periodStart, lt: periodEnd },
@@ -213,7 +196,7 @@ export class MetricsAggregationJob {
       _count: true,
     });
 
-    const retailRevenue = await this.prisma.posSale.aggregate({
+    const retailRevenue = await this.tenant.client.posSale.aggregate({
       where: {
         branch_id: branchId,
         created_at: { gte: periodStart, lt: periodEnd },
@@ -230,7 +213,7 @@ export class MetricsAggregationJob {
     ];
 
     for (const rt of revenueTypes) {
-      await this.prisma.revenueAnalytics.upsert({
+      await this.tenant.client.revenueAnalytics.upsert({
         where: {
           organization_id_branch_id_revenue_type_period_start_period_end: {
             organization_id: organizationId ?? '',
@@ -272,22 +255,17 @@ export class MetricsAggregationJob {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const branches = await this.prisma.branch.findMany({
-          where: { is_active: true },
-          select: { id: true, organization_id: true, gym_id: true },
+        const summary = await this.tasks.forEachTenant(async ({ gymId }) => {
+          const branches = await this.tenant.client.branch.findMany({
+            where: { is_active: true },
+            select: { id: true, organization_id: true },
+          });
+          for (const branch of branches) {
+            await this.aggregateBranchMembership(branch.id, branch.organization_id, gymId, yesterday, today);
+          }
         });
 
-        for (const branch of branches) {
-          if (!branch.gym_id) {
-            this.logger.error(`Skipping membership analytics for branch ${branch.id}: missing gym_id`);
-            continue;
-          }
-          await runForGym(branch.gym_id, () =>
-            this.aggregateBranchMembership(branch.id, branch.organization_id, branch.gym_id, yesterday, today),
-          );
-        }
-
-        this.logger.log(`Membership analytics aggregated for ${branches.length} branches`);
+        this.logger.log(`Membership analytics aggregated across ${summary.ok}/${summary.total} gyms`);
       } catch (error) {
         this.logger.error('Failed to aggregate membership analytics', error);
       }
@@ -302,24 +280,24 @@ export class MetricsAggregationJob {
     periodEnd: Date,
   ) {
     const [active, renewals, cancellations, newSignups] = await Promise.all([
-      this.prisma.memberMembership.count({
+      this.tenant.client.memberMembership.count({
         where: { branch_id: branchId, status: 'active' },
       }),
-      this.prisma.memberMembership.count({
+      this.tenant.client.memberMembership.count({
         where: {
           branch_id: branchId,
           status: 'renewed',
           updated_at: { gte: periodStart, lt: periodEnd },
         },
       }),
-      this.prisma.memberMembership.count({
+      this.tenant.client.memberMembership.count({
         where: {
           branch_id: branchId,
           status: 'cancelled',
           updated_at: { gte: periodStart, lt: periodEnd },
         },
       }),
-      this.prisma.memberMembership.count({
+      this.tenant.client.memberMembership.count({
         where: {
           branch_id: branchId,
           created_at: { gte: periodStart, lt: periodEnd },
@@ -330,7 +308,7 @@ export class MetricsAggregationJob {
     const totalBase = active + cancellations;
     const churnRate = totalBase > 0 ? (cancellations / totalBase) * 100 : 0;
 
-    await this.prisma.membershipAnalytics.upsert({
+    await this.tenant.client.membershipAnalytics.upsert({
       where: {
         organization_id_branch_id_plan_id_period_start_period_end: {
           organization_id: organizationId ?? '',
@@ -376,23 +354,18 @@ export class MetricsAggregationJob {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const templates = await this.prisma.classTemplate.findMany({
-          where: { is_active: true },
-          select: { id: true, branch_id: true, gym_id: true },
+        const summary = await this.tasks.forEachTenant(async ({ gymId }) => {
+          const templates = await this.tenant.client.classTemplate.findMany({
+            where: { is_active: true },
+            select: { id: true, branch_id: true },
+          });
+          for (const tmpl of templates) {
+            if (!tmpl.branch_id) continue;
+            await this.aggregateClassTemplate(tmpl.id, tmpl.branch_id, gymId, weekAgo, today);
+          }
         });
 
-        for (const tmpl of templates) {
-          if (!tmpl.branch_id) continue;
-          if (!tmpl.gym_id) {
-            this.logger.error(`Skipping class analytics for template ${tmpl.id}: missing gym_id`);
-            continue;
-          }
-          await runForGym(tmpl.gym_id, () =>
-            this.aggregateClassTemplate(tmpl.id, tmpl.branch_id!, tmpl.gym_id, weekAgo, today),
-          );
-        }
-
-        this.logger.log(`Class analytics aggregated for ${templates.length} templates`);
+        this.logger.log(`Class analytics aggregated across ${summary.ok}/${summary.total} gyms`);
       } catch (error) {
         this.logger.error('Failed to aggregate class analytics', error);
       }
@@ -406,7 +379,7 @@ export class MetricsAggregationJob {
     periodStart: Date,
     periodEnd: Date,
   ) {
-    const sessions = await this.prisma.classSession.findMany({
+    const sessions = await this.tenant.client.classSession.findMany({
       where: {
         template_id: templateId,
         branch_id: branchId,
@@ -438,7 +411,7 @@ export class MetricsAggregationJob {
     const noShowRate = totalBookings > 0 ? (noShows / totalBookings) * 100 : 0;
     const occupancyRate = totalCapacity > 0 ? (totalAttended / totalCapacity) * 100 : 0;
 
-    await this.prisma.classAnalytics.upsert({
+    await this.tenant.client.classAnalytics.upsert({
       where: {
         class_template_id_branch_id_period_start_period_end: {
           class_template_id: templateId,
@@ -477,26 +450,21 @@ export class MetricsAggregationJob {
       this.logger.log('Aggregating member behavior analytics...');
 
       try {
-        const members = await this.prisma.member.findMany({
-          where: { status: 'active' },
-          select: { id: true, branch_id: true, gym_id: true, last_visit_at: true },
-        });
-
         const now = new Date();
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        for (const member of members) {
-          if (!member.gym_id) {
-            this.logger.error(`Skipping member behavior for member ${member.id}: missing gym_id`);
-            continue;
+        const summary = await this.tasks.forEachTenant(async () => {
+          const members = await this.tenant.client.member.findMany({
+            where: { status: 'active' },
+            select: { id: true, branch_id: true, gym_id: true, last_visit_at: true },
+          });
+          for (const member of members) {
+            await this.computeMemberEngagement(member, now, thirtyDaysAgo);
           }
-          await runForGym(member.gym_id, () =>
-            this.computeMemberEngagement(member, now, thirtyDaysAgo),
-          );
-        }
+        });
 
-        this.logger.log(`Member behavior aggregated for ${members.length} members`);
+        this.logger.log(`Member behavior aggregated across ${summary.ok}/${summary.total} gyms`);
       } catch (error) {
         this.logger.error('Failed to aggregate member behavior', error);
       }
@@ -509,20 +477,20 @@ export class MetricsAggregationJob {
     thirtyDaysAgo: Date,
   ) {
     const [visits, classesAttended, ptSessions] = await Promise.all([
-      this.prisma.checkIn.count({
+      this.tenant.client.checkIn.count({
         where: {
           member_id: member.id,
           checked_in_at: { gte: thirtyDaysAgo },
         },
       }),
-      this.prisma.classAttendance.count({
+      this.tenant.client.classAttendance.count({
         where: {
           member_id: member.id,
           attendance_status: { in: ['present', 'late'] },
           check_in_time: { gte: thirtyDaysAgo },
         },
       }),
-      this.prisma.trainerSession.count({
+      this.tenant.client.trainerSession.count({
         where: {
           member_id: member.id,
           status: 'completed',
@@ -550,7 +518,7 @@ export class MetricsAggregationJob {
 
     const computedAt = new Date();
 
-    await this.prisma.memberBehaviorAnalytics.create({
+    await this.tenant.client.memberBehaviorAnalytics.create({
       data: {
         gym_id: member.gym_id,
         member_id: member.id,
@@ -566,7 +534,7 @@ export class MetricsAggregationJob {
       },
     });
 
-    await this.prisma.member.update({
+    await this.tenant.client.member.update({
       where: { id: member.id },
       data: { engagement_score: score, churn_risk: churnRisk },
     });
@@ -586,25 +554,20 @@ export class MetricsAggregationJob {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const trainers = await this.prisma.staff.findMany({
-          where: {
-            status: 'active',
-            role: { in: ['trainer', 'senior_trainer', 'head_trainer'] },
-          },
-          select: { id: true, branch_id: true, gym_id: true },
+        const summary = await this.tasks.forEachTenant(async ({ gymId }) => {
+          const trainers = await this.tenant.client.staff.findMany({
+            where: {
+              status: 'active',
+              role: { in: ['trainer', 'senior_trainer', 'head_trainer'] },
+            },
+            select: { id: true, branch_id: true },
+          });
+          for (const trainer of trainers) {
+            await this.aggregateTrainer(trainer.id, trainer.branch_id, gymId, weekAgo, today);
+          }
         });
 
-        for (const trainer of trainers) {
-          if (!trainer.gym_id) {
-            this.logger.error(`Skipping trainer analytics for trainer ${trainer.id}: missing gym_id`);
-            continue;
-          }
-          await runForGym(trainer.gym_id, () =>
-            this.aggregateTrainer(trainer.id, trainer.branch_id, trainer.gym_id, weekAgo, today),
-          );
-        }
-
-        this.logger.log(`Trainer analytics aggregated for ${trainers.length} trainers`);
+        this.logger.log(`Trainer analytics aggregated across ${summary.ok}/${summary.total} gyms`);
       } catch (error) {
         this.logger.error('Failed to aggregate trainer analytics', error);
       }
@@ -619,21 +582,21 @@ export class MetricsAggregationJob {
     periodEnd: Date,
   ) {
     const [sessions, uniqueMembers, revenue] = await Promise.all([
-      this.prisma.trainerSession.count({
+      this.tenant.client.trainerSession.count({
         where: {
           trainer_id: trainerId,
           session_date: { gte: periodStart, lt: periodEnd },
           status: 'completed',
         },
       }),
-      this.prisma.trainerSession.groupBy({
+      this.tenant.client.trainerSession.groupBy({
         by: ['member_id'],
         where: {
           trainer_id: trainerId,
           session_date: { gte: periodStart, lt: periodEnd },
         },
       }),
-      this.prisma.trainerRevenue.aggregate({
+      this.tenant.client.trainerRevenue.aggregate({
         where: {
           trainer_id: trainerId,
           created_at: { gte: periodStart, lt: periodEnd },
@@ -642,7 +605,7 @@ export class MetricsAggregationJob {
       }),
     ]);
 
-    await this.prisma.trainerAnalytics.upsert({
+    await this.tenant.client.trainerAnalytics.upsert({
       where: {
         trainer_id_branch_id_period_start_period_end: {
           trainer_id: trainerId,
@@ -677,22 +640,17 @@ export class MetricsAggregationJob {
       this.logger.log('Aggregating campaign analytics...');
 
       try {
-        const campaigns = await this.prisma.campaign.findMany({
-          where: { status: { in: ['sent', 'completed'] } },
-          select: { id: true, gym_id: true },
+        const summary = await this.tasks.forEachTenant(async ({ gymId }) => {
+          const campaigns = await this.tenant.client.campaign.findMany({
+            where: { status: { in: ['sent', 'completed'] } },
+            select: { id: true },
+          });
+          for (const campaign of campaigns) {
+            await this.aggregateCampaign(campaign.id, gymId);
+          }
         });
 
-        for (const campaign of campaigns) {
-          if (!campaign.gym_id) {
-            this.logger.error(`Skipping campaign analytics for campaign ${campaign.id}: missing gym_id`);
-            continue;
-          }
-          await runForGym(campaign.gym_id, () =>
-            this.aggregateCampaign(campaign.id, campaign.gym_id),
-          );
-        }
-
-        this.logger.log(`Campaign analytics aggregated for ${campaigns.length} campaigns`);
+        this.logger.log(`Campaign analytics aggregated across ${summary.ok}/${summary.total} gyms`);
       } catch (error) {
         this.logger.error('Failed to aggregate campaign analytics', error);
       }
@@ -700,7 +658,7 @@ export class MetricsAggregationJob {
   }
 
   private async aggregateCampaign(campaignId: string, gymId: string) {
-    const audience = await this.prisma.campaignAudience.groupBy({
+    const audience = await this.tenant.client.campaignAudience.groupBy({
       by: ['status'],
       where: { campaign_id: campaignId },
       _count: { _all: true },
@@ -716,7 +674,7 @@ export class MetricsAggregationJob {
     const clicked = Number(statusMap.get('clicked') ?? 0);
     const bounced = Number(statusMap.get('bounced') ?? 0);
 
-    await this.prisma.campaignAnalyticsRecord.create({
+    await this.tenant.client.campaignAnalyticsRecord.create({
       data: {
         gym_id: gymId,
         campaign_id: campaignId,

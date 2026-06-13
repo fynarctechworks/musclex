@@ -3,12 +3,12 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class MarketingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   async findAll(query: {
     status?: string;
@@ -25,14 +25,14 @@ export class MarketingService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.campaign.findMany({ where, skip, take: limit, orderBy: { created_at: 'desc' } }),
-      this.prisma.campaign.count({ where }),
+      this.tenant.client.campaign.findMany({ where, skip, take: limit, orderBy: { created_at: 'desc' } }),
+      this.tenant.client.campaign.count({ where }),
     ]);
     return { data, total, page, limit };
   }
 
   async findOne(id: string) {
-    const campaign = await this.prisma.campaign.findUnique({
+    const campaign = await this.tenant.client.campaign.findUnique({
       where: { id },
       include: {
         created_by: { select: { id: true, full_name: true } },
@@ -52,7 +52,7 @@ export class MarketingService {
     scheduled_at?: string;
     created_by_staff_id: string;
   }) {
-    return this.prisma.campaign.create({
+    return this.tenant.client.campaign.create({
       data: {
         gym_id: getTenantGymId()!,
         name: data.name,
@@ -70,7 +70,7 @@ export class MarketingService {
   async update(id: string, data: any) {
     const existing = await this.findOne(id);
     if (existing.status === 'sent') throw new BadRequestException('Cannot update a sent campaign');
-    return this.prisma.campaign.update({ where: { id }, data });
+    return this.tenant.client.campaign.update({ where: { id }, data });
   }
 
   async remove(id: string) {
@@ -78,7 +78,7 @@ export class MarketingService {
     if (existing.status === 'sending' || existing.status === 'sent') {
       throw new BadRequestException('Cannot delete active campaign');
     }
-    await this.prisma.campaign.delete({ where: { id } });
+    await this.tenant.client.campaign.delete({ where: { id } });
     return { success: true };
   }
 
@@ -90,7 +90,7 @@ export class MarketingService {
     const memberIds = await this.getSegmentMemberIds(campaign.segment, campaign.segment_filters as any);
     if (memberIds.length === 0) throw new BadRequestException('No members match the campaign segment');
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       // Create audience records
       await tx.campaignAudience.createMany({
         data: memberIds.map((member_id) => ({
@@ -121,19 +121,19 @@ export class MarketingService {
     if (status) where.status = status;
 
     const [data, total] = await Promise.all([
-      this.prisma.campaignAudience.findMany({
+      this.tenant.client.campaignAudience.findMany({
         where,
         skip,
         take: limit,
         include: { member: { select: { id: true, full_name: true, email: true, phone: true } } },
       }),
-      this.prisma.campaignAudience.count({ where }),
+      this.tenant.client.campaignAudience.count({ where }),
     ]);
     return { data, total, page, limit };
   }
 
   async updateAudienceStatus(campaignId: string, memberId: string, status: string) {
-    const record = await this.prisma.campaignAudience.findUnique({
+    const record = await this.tenant.client.campaignAudience.findUnique({
       where: { campaign_id_member_id: { campaign_id: campaignId, member_id: memberId } },
     });
     if (!record) throw new NotFoundException('Audience record not found');
@@ -142,7 +142,7 @@ export class MarketingService {
     if (status === 'opened') data.opened_at = new Date();
     if (status === 'clicked') data.clicked_at = new Date();
 
-    return this.prisma.campaignAudience.update({
+    return this.tenant.client.campaignAudience.update({
       where: { campaign_id_member_id: { campaign_id: campaignId, member_id: memberId } },
       data,
     });
@@ -151,7 +151,7 @@ export class MarketingService {
   async getCampaignAnalytics(campaignId: string) {
     const campaign = await this.findOne(campaignId);
 
-    const audienceStats = await this.prisma.campaignAudience.groupBy({
+    const audienceStats = await this.tenant.client.campaignAudience.groupBy({
       by: ['status'],
       where: { campaign_id: campaignId },
       _count: { id: true },
@@ -223,7 +223,7 @@ export class MarketingService {
         break;
     }
 
-    const members = await this.prisma.member.findMany({ where, select: { id: true } });
+    const members = await this.tenant.client.member.findMany({ where, select: { id: true } });
     return members.map((m) => m.id);
   }
 }
