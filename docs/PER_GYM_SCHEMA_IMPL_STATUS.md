@@ -121,6 +121,13 @@ services together; type `tx: any` only as a last resort.
 
 > **Cross-cutting rule discovered (6.4):** `gym_id` is a required field in the tenant client's generated create type (no default) → **tsc fails any tenant create missing `gym_id`**, a free compile-time safety net. And `Prisma.JsonNull`/`DbNull` for tenant writes must be imported from the tenant client, not `@prisma/client`.
 
+| staff | 6.14a/b | ✅ DONE | All 5. payroll/trainer/staff-biometrics (raw `studio_template.staff` face_vec → unqualified) pure-tenant; staff+staff-invite mixed (studio/staffInvitation/userIdentity/userRole→pub, rest→tenant.client). |
+
+## ACCURATE remaining Phase-6 inventory (43 services still on legacy PrismaService, 2026-06-13)
+Measured via `grep -rln "import { PrismaService }" src --include=*.service.ts | grep -v spec`.
+Per module (count): **auth 10** (incl. the deferred onboarding tenant-write — organization/branch/staff via runInTenantContext), common/services 4, platform/services 3, organization 3, marketing 3, member/data 2 (the deferred cross-tenant: member-discovery, member-context), events 2, documents 2, branches 2, analytics/services 2, subscription 1, search 1, roles 1, referrals 1 (member-referrals? re-check), prisma 1 (legacy PrismaService itself — stays until cutover), onboarding 1, member/directory 1 (member-directory.backfill cross-tenant), compliance 1, audit 1, ai 1.
+> Domains migrated so far (~90+ services, 38 commits): auth-registry, settings, members, classes, inventory, check-ins, member-BFF (minus cross-tenant trio), dashboards, referrals, payments, staff. **Still TODO:** organization, branches, marketing, analytics, events, documents, subscription, search, roles, onboarding, compliance, audit, ai, common/services, platform/services, SCC; the deferred cross-tenant trio + auth onboarding tenant-write; then Phases 7–10.
+
 ## Remaining phases (not started)
 - **6 (in progress):** rewire all services (playbook above) — multi-week.
 - **7:** 32 raw-SQL `studio_template` sites → schema-dynamic + lint guard banning the literal.
