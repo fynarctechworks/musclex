@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { MemberException } from '../common/member-exception';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
 import { toNumber } from './mappers';
@@ -32,7 +32,7 @@ type SetInput = {
  */
 @Injectable()
 export class MemberWorkoutService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   /** Today's assigned workout (full detail) or null if nothing is assigned. */
   async getTodayWorkout(member: CurrentMemberContext): Promise<WorkoutData | null> {
@@ -89,7 +89,7 @@ export class MemberWorkoutService {
     idempotencyKey?: string,
   ): Promise<WorkoutLogResultData> {
     // Ownership gate: the assigned workout must belong to THIS member.
-    const assigned = await this.prisma.assignedWorkout.findFirst({
+    const assigned = await this.tenant.client.assignedWorkout.findFirst({
       where: { id: workoutId, member_id: member.memberId },
       select: { id: true, workout_plan_id: true },
     });
@@ -101,7 +101,7 @@ export class MemberWorkoutService {
 
     // DB-level idempotency replay (belt-and-suspenders with @Idempotent).
     if (idempotencyKey) {
-      const existing = await this.prisma.workoutLog.findFirst({
+      const existing = await this.tenant.client.workoutLog.findFirst({
         where: { client_key: idempotencyKey, member_id: member.memberId },
         select: { id: true },
       });
@@ -110,7 +110,7 @@ export class MemberWorkoutService {
 
     const gymId = member.tenantId;
 
-    const log = await this.prisma.workoutLog.create({
+    const log = await this.tenant.client.workoutLog.create({
       data: {
         gym_id: gymId,
         member_id: member.memberId,
@@ -132,7 +132,7 @@ export class MemberWorkoutService {
     });
 
     // Mark the assignment complete (idempotent — repeated calls are harmless).
-    await this.prisma.assignedWorkout.updateMany({
+    await this.tenant.client.assignedWorkout.updateMany({
       where: { id: assigned.id, member_id: member.memberId },
       data: { status: 'completed', completed_at: new Date() },
     });
@@ -153,7 +153,7 @@ export class MemberWorkoutService {
     start.setHours(0, 0, 0, 0);
     const end = new Date(start.getTime() + 86_400_000);
 
-    return this.prisma.assignedWorkout.findFirst({
+    return this.tenant.client.assignedWorkout.findFirst({
       where: {
         member_id: memberId,
         scheduled_date: { gte: start, lt: end },
@@ -180,7 +180,7 @@ export class MemberWorkoutService {
     memberId: string,
     exerciseId: string,
   ): Promise<SetLogData | undefined> {
-    const last = await this.prisma.workoutSetLog.findFirst({
+    const last = await this.tenant.client.workoutSetLog.findFirst({
       where: { exercise_id: exerciseId, workout_log: { member_id: memberId } },
       orderBy: { created_at: 'desc' },
     });
@@ -220,7 +220,7 @@ export class MemberWorkoutService {
 
     for (const [exerciseId, best] of bestByExercise) {
       if (best.weight <= 0) continue; // bodyweight/empty sets don't set weight PRs
-      const existing = await this.prisma.personalRecord.findFirst({
+      const existing = await this.tenant.client.personalRecord.findFirst({
         where: { member_id: member.memberId, exercise_id: exerciseId },
         select: { id: true, weight: true },
       });
@@ -228,7 +228,7 @@ export class MemberWorkoutService {
       if (best.weight <= prevWeight) continue;
 
       if (existing) {
-        await this.prisma.personalRecord.update({
+        await this.tenant.client.personalRecord.update({
           where: { id: existing.id },
           data: {
             weight: best.weight,
@@ -239,7 +239,7 @@ export class MemberWorkoutService {
           },
         });
       } else {
-        await this.prisma.personalRecord.create({
+        await this.tenant.client.personalRecord.create({
           data: {
             gym_id: member.tenantId,
             member_id: member.memberId,

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { computeStreakDays } from './mappers';
 
 /**
@@ -27,7 +27,7 @@ export class MemberStreakService {
   /** How far back to scan activity when computing a streak. */
   private readonly windowDays = 90;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   /**
    * The union of a member's activity dates within the window: check-ins,
@@ -37,15 +37,15 @@ export class MemberStreakService {
   async getActivityDates(memberId: string): Promise<Date[]> {
     const since = new Date(Date.now() - this.windowDays * 86_400_000);
     const [checkIns, workouts, meals] = await Promise.all([
-      this.prisma.checkIn.findMany({
+      this.tenant.client.checkIn.findMany({
         where: { member_id: memberId, checked_in_at: { gte: since } },
         select: { checked_in_at: true },
       }),
-      this.prisma.workoutLog.findMany({
+      this.tenant.client.workoutLog.findMany({
         where: { member_id: memberId, logged_at: { gte: since } },
         select: { logged_at: true },
       }),
-      this.prisma.mealLog.findMany({
+      this.tenant.client.mealLog.findMany({
         where: { member_id: memberId, logged_at: { gte: since } },
         select: { logged_at: true },
       }),
@@ -75,15 +75,15 @@ export class MemberStreakService {
     startOfToday.setHours(0, 0, 0, 0);
 
     const [checkIn, workout, meal] = await Promise.all([
-      this.prisma.checkIn.findFirst({
+      this.tenant.client.checkIn.findFirst({
         where: { member_id: memberId, checked_in_at: { gte: startOfToday } },
         select: { id: true },
       }),
-      this.prisma.workoutLog.findFirst({
+      this.tenant.client.workoutLog.findFirst({
         where: { member_id: memberId, logged_at: { gte: startOfToday } },
         select: { id: true },
       }),
-      this.prisma.mealLog.findFirst({
+      this.tenant.client.mealLog.findFirst({
         where: { member_id: memberId, logged_at: { gte: startOfToday } },
         select: { id: true },
       }),

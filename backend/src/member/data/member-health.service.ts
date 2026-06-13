@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '../../../node_modules/.prisma/client-tenant';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { MemberException } from '../common/member-exception';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
 import { toNumber } from './mappers';
@@ -33,7 +33,7 @@ import type {
  */
 @Injectable()
 export class MemberHealthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   /** Batch-ingest samples, dedupe, and refresh the affected daily rollups. */
   async ingest(
@@ -47,7 +47,7 @@ export class MemberHealthService {
       ...new Set(samples.map((s) => s.source).filter((s) => s !== 'manual')),
     ];
     if (wearableSources.length) {
-      const connected = await this.prisma.memberWearableConnection.findMany({
+      const connected = await this.tenant.client.memberWearableConnection.findMany({
         where: {
           member_id: member.memberId,
           provider: { in: wearableSources },
@@ -66,7 +66,7 @@ export class MemberHealthService {
     }
 
     // ── Insert (idempotent: dupes on the provider-uuid index are skipped).
-    const created = await this.prisma.memberHealthSample.createMany({
+    const created = await this.tenant.client.memberHealthSample.createMany({
       data: samples.map((s) => ({
         gym_id: gymId,
         member_id: member.memberId,
@@ -110,7 +110,7 @@ export class MemberHealthService {
       // across sources would double-count, so we pick ONE authoritative source
       // per (type, day) by a documented priority and roll up only its samples.
       // The winner is recorded in `primary_source` for transparency.
-      const groups = await this.prisma.memberHealthSample.groupBy({
+      const groups = await this.tenant.client.memberHealthSample.groupBy({
         by: ['source'],
         where: {
           member_id: member.memberId,
@@ -140,7 +140,7 @@ export class MemberHealthService {
         unit,
         primary_source: win.source,
       };
-      await this.prisma.memberHealthDaily.upsert({
+      await this.tenant.client.memberHealthDaily.upsert({
         where: {
           member_id_day_type: { member_id: member.memberId, day, type },
         },
@@ -151,7 +151,7 @@ export class MemberHealthService {
 
     // ── Stamp last_synced_at on the providers present in this batch.
     if (wearableSources.length) {
-      await this.prisma.memberWearableConnection.updateMany({
+      await this.tenant.client.memberWearableConnection.updateMany({
         where: { member_id: member.memberId, provider: { in: wearableSources } },
         data: { last_synced_at: new Date() },
       });
@@ -180,7 +180,7 @@ export class MemberHealthService {
       .map((t) => t.trim())
       .filter(Boolean);
 
-    const rows = await this.prisma.memberHealthDaily.findMany({
+    const rows = await this.tenant.client.memberHealthDaily.findMany({
       where: {
         member_id: member.memberId,
         day: { gte: from, lte: to },
@@ -217,7 +217,7 @@ export class MemberHealthService {
   async listConnections(
     member: CurrentMemberContext,
   ): Promise<WearableConnectionListData> {
-    const rows = await this.prisma.memberWearableConnection.findMany({
+    const rows = await this.tenant.client.memberWearableConnection.findMany({
       where: { member_id: member.memberId },
       orderBy: { created_at: 'asc' },
     });
@@ -230,7 +230,7 @@ export class MemberHealthService {
     dto: WearableConnectInput,
   ): Promise<WearableConnectionData> {
     const now = new Date();
-    const row = await this.prisma.memberWearableConnection.upsert({
+    const row = await this.tenant.client.memberWearableConnection.upsert({
       where: {
         member_id_provider: {
           member_id: member.memberId,
@@ -266,12 +266,12 @@ export class MemberHealthService {
     member: CurrentMemberContext,
     provider: string,
   ): Promise<WearableConnectionData> {
-    const existing = await this.prisma.memberWearableConnection.findFirst({
+    const existing = await this.tenant.client.memberWearableConnection.findFirst({
       where: { member_id: member.memberId, provider },
     });
     if (!existing) throw MemberException.notFound('Connection not found.');
 
-    await this.prisma.memberWearableConnection.updateMany({
+    await this.tenant.client.memberWearableConnection.updateMany({
       where: { member_id: member.memberId, provider },
       data: { status: 'revoked' },
     });

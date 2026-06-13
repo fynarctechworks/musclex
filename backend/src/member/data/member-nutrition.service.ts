@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { MemberException } from '../common/member-exception';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
 import { toNumber } from './mappers';
@@ -53,7 +53,7 @@ type GoalInput = {
  */
 @Injectable()
 export class MemberNutritionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   /** Today's nutrition: goal (created with defaults on first read), running
    * macro totals, total water, and the logged meals. */
@@ -61,13 +61,13 @@ export class MemberNutritionService {
     const { start, end } = dayBounds();
     const goal = await this.ensureGoal(member);
 
-    const meals = await this.prisma.mealLog.findMany({
+    const meals = await this.tenant.client.mealLog.findMany({
       where: { member_id: member.memberId, logged_at: { gte: start, lt: end } },
       orderBy: { logged_at: 'asc' },
       include: { items: true },
     });
 
-    const water = await this.prisma.waterLog.findMany({
+    const water = await this.tenant.client.waterLog.findMany({
       where: { member_id: member.memberId, logged_at: { gte: start, lt: end } },
       select: { amount_ml: true },
     });
@@ -119,12 +119,12 @@ export class MemberNutritionService {
   }> {
     const { start, end } = dayBounds();
     const [goalRow, meals, water] = await Promise.all([
-      this.prisma.nutritionGoal.findFirst({ where: { member_id: member.memberId } }),
-      this.prisma.mealLog.findMany({
+      this.tenant.client.nutritionGoal.findFirst({ where: { member_id: member.memberId } }),
+      this.tenant.client.mealLog.findMany({
         where: { member_id: member.memberId, logged_at: { gte: start, lt: end } },
         select: { items: { select: { kcal: true } } },
       }),
-      this.prisma.waterLog.findMany({
+      this.tenant.client.waterLog.findMany({
         where: { member_id: member.memberId, logged_at: { gte: start, lt: end } },
         select: { amount_ml: true },
       }),
@@ -146,7 +146,7 @@ export class MemberNutritionService {
     q?: string,
   ): Promise<FoodSearchData> {
     const term = (q ?? '').trim();
-    const rows = await this.prisma.foodItem.findMany({
+    const rows = await this.tenant.client.foodItem.findMany({
       where: {
         is_active: true,
         ...(term
@@ -175,7 +175,7 @@ export class MemberNutritionService {
     }
 
     if (idempotencyKey) {
-      const existing = await this.prisma.mealLog.findFirst({
+      const existing = await this.tenant.client.mealLog.findFirst({
         where: { client_key: idempotencyKey, member_id: member.memberId },
         select: { id: true },
       });
@@ -198,7 +198,7 @@ export class MemberNutritionService {
       }),
     );
 
-    const meal = await this.prisma.mealLog.create({
+    const meal = await this.tenant.client.mealLog.create({
       data: {
         gym_id: member.tenantId,
         member_id: member.memberId,
@@ -227,7 +227,7 @@ export class MemberNutritionService {
 
     let waterId: string;
     const existing = idempotencyKey
-      ? await this.prisma.waterLog.findFirst({
+      ? await this.tenant.client.waterLog.findFirst({
           where: { client_key: idempotencyKey, member_id: member.memberId },
           select: { id: true },
         })
@@ -236,7 +236,7 @@ export class MemberNutritionService {
     if (existing) {
       waterId = existing.id;
     } else {
-      const row = await this.prisma.waterLog.create({
+      const row = await this.tenant.client.waterLog.create({
         data: {
           gym_id: member.tenantId,
           member_id: member.memberId,
@@ -250,7 +250,7 @@ export class MemberNutritionService {
     }
 
     const { start, end } = dayBounds();
-    const today = await this.prisma.waterLog.findMany({
+    const today = await this.tenant.client.waterLog.findMany({
       where: { member_id: member.memberId, logged_at: { gte: start, lt: end } },
       select: { amount_ml: true },
     });
@@ -262,7 +262,7 @@ export class MemberNutritionService {
     member: CurrentMemberContext,
     input: GoalInput,
   ): Promise<NutritionGoalData> {
-    const existing = await this.prisma.nutritionGoal.findFirst({
+    const existing = await this.tenant.client.nutritionGoal.findFirst({
       where: { member_id: member.memberId },
       select: { id: true },
     });
@@ -276,8 +276,8 @@ export class MemberNutritionService {
     };
 
     const row = existing
-      ? await this.prisma.nutritionGoal.update({ where: { id: existing.id }, data })
-      : await this.prisma.nutritionGoal.create({
+      ? await this.tenant.client.nutritionGoal.update({ where: { id: existing.id }, data })
+      : await this.tenant.client.nutritionGoal.create({
           data: { gym_id: member.tenantId, member_id: member.memberId, ...data },
         });
 
@@ -290,11 +290,11 @@ export class MemberNutritionService {
   private async ensureGoal(
     member: CurrentMemberContext,
   ): Promise<NutritionGoalData> {
-    const existing = await this.prisma.nutritionGoal.findFirst({
+    const existing = await this.tenant.client.nutritionGoal.findFirst({
       where: { member_id: member.memberId },
     });
     if (existing) return mapGoal(existing);
-    const created = await this.prisma.nutritionGoal.create({
+    const created = await this.tenant.client.nutritionGoal.create({
       data: { gym_id: member.tenantId, member_id: member.memberId },
     });
     return mapGoal(created);
@@ -320,7 +320,7 @@ export class MemberNutritionService {
     }
     if (it.foodItemId) {
       // findFirst auto-scopes by gym_id; a cross-gym id simply resolves to null.
-      const food = await this.prisma.foodItem.findFirst({
+      const food = await this.tenant.client.foodItem.findFirst({
         where: { id: it.foodItemId },
       });
       if (food) {

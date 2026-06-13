@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { MemberException } from '../common/member-exception';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
 import { MemberStreakService } from './member-streak.service';
@@ -41,7 +41,7 @@ const BADGE_RULES: {
 @Injectable()
 export class MemberCommunityService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private readonly streak: MemberStreakService,
   ) {}
 
@@ -52,7 +52,7 @@ export class MemberCommunityService {
     const days = Math.min(365, Math.max(1, periodDays || 30));
     const cutoff = new Date(Date.now() - days * 86_400_000);
 
-    const grouped = await this.prisma.checkIn.groupBy({
+    const grouped = await this.tenant.client.checkIn.groupBy({
       by: ['member_id'],
       where: { checked_in_at: { gte: cutoff } },
       _count: { _all: true },
@@ -62,7 +62,7 @@ export class MemberCommunityService {
       .map((g) => ({ memberId: g.member_id, value: g._count._all }))
       .sort((a, b) => b.value - a.value);
 
-    const names = await this.prisma.member.findMany({
+    const names = await this.tenant.client.member.findMany({
       where: { id: { in: ranked.map((r) => r.memberId) } },
       select: { id: true, full_name: true },
     });
@@ -88,7 +88,7 @@ export class MemberCommunityService {
   }
 
   async challenges(member: CurrentMemberContext): Promise<ChallengeListData> {
-    const rows = await this.prisma.challenge.findMany({
+    const rows = await this.tenant.client.challenge.findMany({
       where: { is_active: true },
       orderBy: { ends_at: 'asc' },
       include: { participants: { select: { member_id: true } } },
@@ -120,17 +120,17 @@ export class MemberCommunityService {
     member: CurrentMemberContext,
     challengeId: string,
   ): Promise<ChallengeJoinResultData> {
-    const challenge = await this.prisma.challenge.findFirst({
+    const challenge = await this.tenant.client.challenge.findFirst({
       where: { id: challengeId, is_active: true },
     });
     if (!challenge) throw MemberException.notFound('Challenge not found.');
 
-    const existing = await this.prisma.challengeParticipant.findFirst({
+    const existing = await this.tenant.client.challengeParticipant.findFirst({
       where: { challenge_id: challengeId, member_id: member.memberId },
       select: { id: true },
     });
     if (!existing) {
-      await this.prisma.challengeParticipant.create({
+      await this.tenant.client.challengeParticipant.create({
         data: {
           gym_id: member.tenantId,
           challenge_id: challengeId,
@@ -144,9 +144,9 @@ export class MemberCommunityService {
 
   async badges(member: CurrentMemberContext): Promise<BadgeListData> {
     const [checkins, streak, workouts] = await Promise.all([
-      this.prisma.checkIn.count({ where: { member_id: member.memberId } }),
+      this.tenant.client.checkIn.count({ where: { member_id: member.memberId } }),
       this.streak.getStreakDays(member.memberId),
-      this.prisma.workoutLog.count({ where: { member_id: member.memberId } }),
+      this.tenant.client.workoutLog.count({ where: { member_id: member.memberId } }),
     ]);
     const stats = { checkins, streak, workouts };
 
@@ -169,11 +169,11 @@ export class MemberCommunityService {
     const now = new Date();
     const end = challenge.ends_at < now ? challenge.ends_at : now;
     if (challenge.metric === 'workouts') {
-      return this.prisma.workoutLog.count({
+      return this.tenant.client.workoutLog.count({
         where: { member_id: memberId, logged_at: { gte: start, lte: end } },
       });
     }
-    return this.prisma.checkIn.count({
+    return this.tenant.client.checkIn.count({
       where: { member_id: memberId, checked_in_at: { gte: start, lte: end } },
     });
   }

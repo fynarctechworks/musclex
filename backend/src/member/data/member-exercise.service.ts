@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { MemberException } from '../common/member-exception';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
 import type {
@@ -20,7 +20,7 @@ import type {
  */
 @Injectable()
 export class MemberExerciseService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   /** Active exercises, optionally filtered by name (q), muscle group, and/or the
    * member's favorites. Each item carries this member's `favorited` flag. */
@@ -36,7 +36,7 @@ export class MemberExerciseService {
     const favIds = await this.favoriteIds(member);
     if (favoritesOnly && favIds.size === 0) return { exercises: [] };
 
-    const rows = await this.prisma.exercise.findMany({
+    const rows = await this.tenant.client.exercise.findMany({
       where: {
         is_active: true,
         ...(term ? { name: { contains: term, mode: 'insensitive' } } : {}),
@@ -73,7 +73,7 @@ export class MemberExerciseService {
     member: CurrentMemberContext,
     exerciseId: string,
   ): Promise<ExerciseDetailData> {
-    const e = await this.prisma.exercise.findFirst({
+    const e = await this.tenant.client.exercise.findFirst({
       where: { id: exerciseId, is_active: true },
       select: {
         id: true,
@@ -86,7 +86,7 @@ export class MemberExerciseService {
     });
     if (!e) throw MemberException.notFound('Exercise not found.');
 
-    const fav = await this.prisma.exerciseFavorite.findFirst({
+    const fav = await this.tenant.client.exerciseFavorite.findFirst({
       where: { member_id: member.memberId, exercise_id: exerciseId },
       select: { id: true },
     });
@@ -108,18 +108,18 @@ export class MemberExerciseService {
     exerciseId: string,
   ): Promise<FavoriteResultData> {
     // Ownership/existence gate: the exercise must be in THIS gym.
-    const e = await this.prisma.exercise.findFirst({
+    const e = await this.tenant.client.exercise.findFirst({
       where: { id: exerciseId, is_active: true },
       select: { id: true },
     });
     if (!e) throw MemberException.notFound('Exercise not found.');
 
-    const existing = await this.prisma.exerciseFavorite.findFirst({
+    const existing = await this.tenant.client.exerciseFavorite.findFirst({
       where: { member_id: member.memberId, exercise_id: exerciseId },
       select: { id: true },
     });
     if (!existing) {
-      await this.prisma.exerciseFavorite.create({
+      await this.tenant.client.exerciseFavorite.create({
         data: {
           gym_id: member.tenantId,
           member_id: member.memberId,
@@ -135,7 +135,7 @@ export class MemberExerciseService {
     member: CurrentMemberContext,
     exerciseId: string,
   ): Promise<FavoriteResultData> {
-    await this.prisma.exerciseFavorite.deleteMany({
+    await this.tenant.client.exerciseFavorite.deleteMany({
       where: { member_id: member.memberId, exercise_id: exerciseId },
     });
     return { favorited: false };
@@ -144,7 +144,7 @@ export class MemberExerciseService {
   // ── helpers ────────────────────────────────────────────────────
 
   private async favoriteIds(member: CurrentMemberContext): Promise<Set<string>> {
-    const rows = await this.prisma.exerciseFavorite.findMany({
+    const rows = await this.tenant.client.exerciseFavorite.findMany({
       where: { member_id: member.memberId },
       select: { exercise_id: true },
     });

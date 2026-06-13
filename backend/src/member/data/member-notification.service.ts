@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
 
 interface PushNotification {
@@ -25,7 +25,7 @@ interface PushNotification {
 export class MemberNotificationService {
   private readonly logger = new Logger(MemberNotificationService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   /** Upsert a device token (idempotent on the token). */
   async registerToken(
@@ -34,7 +34,7 @@ export class MemberNotificationService {
     platform: string,
     prefs?: { [key: string]: boolean },
   ): Promise<void> {
-    const existing = await this.prisma.memberDeviceToken.findFirst({
+    const existing = await this.tenant.client.memberDeviceToken.findFirst({
       where: { token },
       select: { id: true },
     });
@@ -44,9 +44,9 @@ export class MemberNotificationService {
       prefs: prefs ?? {},
     };
     if (existing) {
-      await this.prisma.memberDeviceToken.update({ where: { id: existing.id }, data });
+      await this.tenant.client.memberDeviceToken.update({ where: { id: existing.id }, data });
     } else {
-      await this.prisma.memberDeviceToken.create({
+      await this.tenant.client.memberDeviceToken.create({
         data: { gym_id: member.tenantId, token, ...data },
       });
     }
@@ -54,7 +54,7 @@ export class MemberNotificationService {
 
   /** Remove a token (on disable / sign-out). */
   async removeToken(member: CurrentMemberContext, token: string): Promise<void> {
-    await this.prisma.memberDeviceToken.deleteMany({
+    await this.tenant.client.memberDeviceToken.deleteMany({
       where: { token, member_id: member.memberId },
     });
   }
@@ -68,7 +68,7 @@ export class MemberNotificationService {
     notification: PushNotification,
     category?: string,
   ): Promise<number> {
-    const tokens = await this.prisma.memberDeviceToken.findMany({
+    const tokens = await this.tenant.client.memberDeviceToken.findMany({
       where: { member_id: memberId },
       select: { token: true, prefs: true },
     });

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { CheckInOrchestrator } from '../../check-ins/policy/check-in.orchestrator';
 import { MemberException } from '../common/member-exception';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
@@ -22,7 +22,7 @@ import type { CheckInResultData } from '../contract';
 @Injectable()
 export class MemberCheckInService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private readonly orchestrator: CheckInOrchestrator,
     private readonly streak: MemberStreakService,
   ) {}
@@ -32,7 +32,7 @@ export class MemberCheckInService {
     input: { method: 'qr' | 'manual'; token?: string; occurredAt?: string },
     idempotencyKey?: string,
   ): Promise<CheckInResultData> {
-    const m = await this.prisma.member.findFirst({
+    const m = await this.tenant.client.member.findFirst({
       where: { id: member.memberId },
       select: { branch_id: true },
     });

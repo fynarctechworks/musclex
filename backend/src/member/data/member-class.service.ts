@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { ClassesService } from '../../classes/classes.service';
 import { MemberException } from '../common/member-exception';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
@@ -34,7 +34,7 @@ export class MemberClassService {
   private readonly maxClasses = 50;
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private readonly classes: ClassesService,
   ) {}
 
@@ -42,7 +42,7 @@ export class MemberClassService {
   async listUpcoming(member: CurrentMemberContext): Promise<ClassListData> {
     const branchId = await this.memberBranchId(member);
 
-    const rows = await this.prisma.class.findMany({
+    const rows = await this.tenant.client.class.findMany({
       where: {
         branch_id: branchId,
         status: { not: 'cancelled' },
@@ -67,7 +67,7 @@ export class MemberClassService {
 
     // One round-trip for active bookings across the listed classes. We read
     // member_id only to find THIS member's booking — it is never returned.
-    const bookings = await this.prisma.classEnrollment.findMany({
+    const bookings = await this.tenant.client.classEnrollment.findMany({
       where: {
         class_id: { in: classIds },
         status: { in: ['enrolled', 'waitlisted'] },
@@ -131,7 +131,7 @@ export class MemberClassService {
   ): Promise<ClassBookingResultData> {
     const branchId = await this.memberBranchId(member);
 
-    const cls = await this.prisma.class.findFirst({
+    const cls = await this.tenant.client.class.findFirst({
       where: { id: classId },
       select: { branch_id: true, status: true, starts_at: true, capacity: true },
     });
@@ -159,7 +159,7 @@ export class MemberClassService {
       message?: string;
     };
 
-    const enrolled = await this.prisma.classEnrollment.count({
+    const enrolled = await this.tenant.client.classEnrollment.count({
       where: { class_id: classId, status: 'enrolled' },
     });
 
@@ -196,7 +196,7 @@ export class MemberClassService {
 
   /** The authenticated member's branch (never trusted from the client). */
   private async memberBranchId(member: CurrentMemberContext): Promise<string> {
-    const m = await this.prisma.member.findFirst({
+    const m = await this.tenant.client.member.findFirst({
       where: { id: member.memberId },
       select: { branch_id: true },
     });

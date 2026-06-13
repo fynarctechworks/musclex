@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { AuditService } from '../../audit/audit.service';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
 
@@ -37,7 +37,7 @@ export class MemberAvatarService {
 
   constructor(
     private readonly config: ConfigService,
-    private readonly prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private readonly audit: AuditService,
   ) {
     this.supabase = createClient(
@@ -102,7 +102,7 @@ export class MemberAvatarService {
     }
 
     // gym-scoped by the tenant `$use` injection (ALS gym_id == member.tenantId).
-    await this.prisma.member.update({
+    await this.tenant.client.member.update({
       where: { id: member.memberId },
       data: { profile_photo_url: signed.signedUrl },
     });

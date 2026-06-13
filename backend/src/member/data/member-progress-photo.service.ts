@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { AuditService } from '../../audit/audit.service';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
 
@@ -31,7 +31,7 @@ export class MemberProgressPhotoService {
 
   constructor(
     private readonly config: ConfigService,
-    private readonly prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private readonly audit: AuditService,
   ) {
     this.supabase = createClient(
@@ -85,7 +85,7 @@ export class MemberProgressPhotoService {
     }
 
     const path = this.objectPath(member, photoId);
-    const row = await this.prisma.memberProgressPhoto.create({
+    const row = await this.tenant.client.memberProgressPhoto.create({
       data: {
         gym_id: member.tenantId,
         member_id: member.memberId,

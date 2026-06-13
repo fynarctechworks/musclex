@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { MemberException } from '../common/member-exception';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
 import { TRAINER_CHAT_MESSAGE, TrainerChatMessagePayload } from './chat.events';
@@ -25,20 +25,20 @@ import type {
 @Injectable()
 export class MemberChatService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private readonly events: EventEmitter2,
   ) {}
 
   /** One thread per active trainer assignment, with last message + unread count. */
   async threads(member: CurrentMemberContext): Promise<ChatThreadListData> {
-    const links = await this.prisma.trainerClient.findMany({
+    const links = await this.tenant.client.trainerClient.findMany({
       where: { member_id: member.memberId, status: 'active' },
       select: { trainer_id: true },
     });
     if (links.length === 0) return { threads: [] };
 
     const trainerIds = links.map((l) => l.trainer_id);
-    const trainers = await this.prisma.staff.findMany({
+    const trainers = await this.tenant.client.staff.findMany({
       where: { id: { in: trainerIds } },
       select: { id: true, full_name: true },
     });
@@ -47,12 +47,12 @@ export class MemberChatService {
     const threads = await Promise.all(
       trainerIds.map(async (trainerId) => {
         const [last, unreadCount] = await Promise.all([
-          this.prisma.trainerChatMessage.findFirst({
+          this.tenant.client.trainerChatMessage.findFirst({
             where: { member_id: member.memberId, trainer_id: trainerId },
             orderBy: { created_at: 'desc' },
             select: { body: true, created_at: true },
           }),
-          this.prisma.trainerChatMessage.count({
+          this.tenant.client.trainerChatMessage.count({
             where: {
               member_id: member.memberId,
               trainer_id: trainerId,
@@ -87,7 +87,7 @@ export class MemberChatService {
   ): Promise<ChatMessageListData> {
     const trainer = await this.assertTrainer(member, trainerId);
 
-    const rows = await this.prisma.trainerChatMessage.findMany({
+    const rows = await this.tenant.client.trainerChatMessage.findMany({
       where: { member_id: member.memberId, trainer_id: trainerId },
       orderBy: { created_at: 'asc' },
       take: 200,
@@ -95,7 +95,7 @@ export class MemberChatService {
     });
 
     // Mark the trainer's messages read (idempotent housekeeping).
-    await this.prisma.trainerChatMessage.updateMany({
+    await this.tenant.client.trainerChatMessage.updateMany({
       where: {
         member_id: member.memberId,
         trainer_id: trainerId,
@@ -130,7 +130,7 @@ export class MemberChatService {
     if (!text) throw MemberException.badRequest('Message body is required.');
 
     if (idempotencyKey) {
-      const existing = await this.prisma.trainerChatMessage.findFirst({
+      const existing = await this.tenant.client.trainerChatMessage.findFirst({
         where: { client_key: idempotencyKey, member_id: member.memberId },
         select: { id: true, sender: true, body: true, created_at: true },
       });
@@ -144,7 +144,7 @@ export class MemberChatService {
       }
     }
 
-    const msg = await this.prisma.trainerChatMessage.create({
+    const msg = await this.tenant.client.trainerChatMessage.create({
       data: {
         gym_id: member.tenantId,
         member_id: member.memberId,
@@ -178,12 +178,12 @@ export class MemberChatService {
     member: CurrentMemberContext,
     trainerId: string,
   ): Promise<{ full_name: string | null }> {
-    const link = await this.prisma.trainerClient.findFirst({
+    const link = await this.tenant.client.trainerClient.findFirst({
       where: { member_id: member.memberId, trainer_id: trainerId, status: 'active' },
       select: { id: true },
     });
     if (!link) throw MemberException.notFound('Trainer not found.');
-    const trainer = await this.prisma.staff.findFirst({
+    const trainer = await this.tenant.client.staff.findFirst({
       where: { id: trainerId },
       select: { full_name: true },
     });
