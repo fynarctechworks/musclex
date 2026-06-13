@@ -75,7 +75,25 @@ deliberately ≠ `studio_<gym_id>`, reproducing prod so routing must come from t
 
 | classes | 6.7 | ✅ DONE | All 5 class services → `tenant.client` (all tenant-only): `attendance`, `booking` (4 all-tenant tx), `class-template`, `classes` (3 tx; `Prisma` namespace imported from tenant client for `Prisma.TransactionClient`), `scheduling`. **`scheduling.generateRecurringSessions` cron wrapped in `forEachTenant`.** Legacy injections removed. |
 
-> **Cron rule (6.6):** any `@Cron`/background job that touches tenant data MUST run inside `tasks.forEachTenant(...)` — never call `this.tenant.client` at cron top level (no context → throws). Remaining crons to convert: `scheduling.generateRecurringSessions`, `dashboard/briefing`, `dashboard/kpi-snapshot`.
+| inventory (a) | 6.8a | ✅ | `bundle` + `purchase-orders` (raw-SQL-free, tenant-only) → `tenant.client`. |
+
+> **Cron rule (6.6):** any `@Cron`/background job that touches tenant data MUST run inside `tasks.forEachTenant(...)` — never call `this.tenant.client` at cron top level (no context → throws). Remaining crons to convert: `dashboard/briefing`, `dashboard/kpi-snapshot`. (scheduling done in 6.7.)
+
+### NEXT: inventory (b) — the pos+batch+wallet transaction cluster
+`pos.service.ts` is NOT yet migrated (still on legacy `prisma`, compiles fine). Its
+`createSale` `$transaction` passes `tx` into **`walletService` (src/wallet) and
+`batchService`** (redeemPoints/debitForPurchase/earnPoints/deductFifo). Migrating
+pos's `tx` to the tenant client requires migrating those services' `tx`-param TYPES
+to the tenant client's `Prisma.TransactionClient` **in the same slice** (else cross-
+generated-client type mismatch). `pos` also reads `studio` (→ `pub`). And
+`batch.service.ts` has 2 raw `studio_template` sites → its raw bits are Phase 7.
+**Migrate pos + batch + wallet as one cluster.** Then `inventory.service.ts` (5 raw
+sites) + `transfer.service.ts` (1 raw site) with Phase-7 flagging.
+
+### Cross-service `$transaction` rule (general)
+When service A's `$transaction` passes `tx` into service B's method, A and B must use
+the SAME generated client's `TransactionClient` type. Migrate transactionally-coupled
+services together; type `tx: any` only as a last resort.
 
 > **Cross-cutting rule discovered (6.4):** `gym_id` is a required field in the tenant client's generated create type (no default) → **tsc fails any tenant create missing `gym_id`**, a free compile-time safety net. And `Prisma.JsonNull`/`DbNull` for tenant writes must be imported from the tenant client, not `@prisma/client`.
 
