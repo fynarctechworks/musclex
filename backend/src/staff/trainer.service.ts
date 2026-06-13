@@ -5,7 +5,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 import { AssignClientDto } from './dto/assign-client.dto';
 import { CreateTrainerSessionDto } from './dto/create-trainer-session.dto';
@@ -15,7 +15,7 @@ import { PayrollService } from './payroll.service';
 @Injectable()
 export class TrainerService {
   constructor(
-    private prisma: PrismaService,
+    private tenant: TenantPrisma,
     private payrollService: PayrollService,
   ) {}
 
@@ -23,7 +23,7 @@ export class TrainerService {
 
   async assignClient(studioId: string, dto: AssignClientDto) {
     // Verify trainer exists, IS a trainer, and belongs to studio
-    const trainer = await this.prisma.staff.findFirst({
+    const trainer = await this.tenant.client.staff.findFirst({
       where: { id: dto.trainer_id },
     });
     if (!trainer) throw new NotFoundException('Trainer not found');
@@ -32,13 +32,13 @@ export class TrainerService {
     }
 
     // Verify member exists and belongs to studio
-    const member = await this.prisma.member.findFirst({
+    const member = await this.tenant.client.member.findFirst({
       where: { id: dto.member_id },
     });
     if (!member) throw new NotFoundException('Member not found');
 
     // Check for existing assignment
-    const existing = await this.prisma.trainerClient.findUnique({
+    const existing = await this.tenant.client.trainerClient.findUnique({
       where: {
         trainer_id_member_id: {
           trainer_id: dto.trainer_id,
@@ -48,7 +48,7 @@ export class TrainerService {
     });
     if (existing) throw new ConflictException('Client already assigned to this trainer');
 
-    return this.prisma.trainerClient.create({
+    return this.tenant.client.trainerClient.create({
       data: {
         gym_id: getTenantGymId()!,
         trainer_id: dto.trainer_id,
@@ -65,7 +65,7 @@ export class TrainerService {
 
   async getTrainerClients(studioId: string, trainerId: string, status?: string) {
     // Verify trainer belongs to studio
-    const trainer = await this.prisma.staff.findFirst({
+    const trainer = await this.tenant.client.staff.findFirst({
       where: { id: trainerId },
     });
     if (!trainer) throw new NotFoundException('Trainer not found');
@@ -73,7 +73,7 @@ export class TrainerService {
     const where: any = { trainer_id: trainerId };
     if (status) where.status = status;
 
-    return this.prisma.trainerClient.findMany({
+    return this.tenant.client.trainerClient.findMany({
       where,
       orderBy: { assigned_date: 'desc' },
       include: {
@@ -93,16 +93,16 @@ export class TrainerService {
 
   async updateClientAssignment(studioId: string, id: string, status: string) {
     // Get assignment and verify it belongs to this studio's trainer
-    const assignment = await this.prisma.trainerClient.findUnique({ where: { id } });
+    const assignment = await this.tenant.client.trainerClient.findUnique({ where: { id } });
     if (!assignment) throw new NotFoundException('Client assignment not found');
 
     // Verify trainer belongs to studio
-    const trainer = await this.prisma.staff.findFirst({
+    const trainer = await this.tenant.client.staff.findFirst({
       where: { id: assignment.trainer_id },
     });
     if (!trainer) throw new ForbiddenException('Access denied to this assignment');
 
-    return this.prisma.trainerClient.update({
+    return this.tenant.client.trainerClient.update({
       where: { id },
       data: { status },
     });
@@ -112,13 +112,13 @@ export class TrainerService {
 
   async createSession(studioId: string, dto: CreateTrainerSessionDto) {
     // Verify trainer belongs to studio
-    const trainer = await this.prisma.staff.findFirst({
+    const trainer = await this.tenant.client.staff.findFirst({
       where: { id: dto.trainer_id },
     });
     if (!trainer) throw new NotFoundException('Trainer not found');
 
     // Verify member belongs to studio
-    const member = await this.prisma.member.findFirst({
+    const member = await this.tenant.client.member.findFirst({
       where: { id: dto.member_id },
     });
     if (!member) throw new NotFoundException('Member not found');
@@ -129,7 +129,7 @@ export class TrainerService {
       sessionDate.getTime() + dto.session_duration * 60 * 1000,
     );
 
-    const conflict = await this.prisma.trainerSession.findFirst({
+    const conflict = await this.tenant.client.trainerSession.findFirst({
       where: {
         trainer_id: dto.trainer_id,
         status: { in: ['scheduled', 'in_progress'] },
@@ -147,7 +147,7 @@ export class TrainerService {
       throw new ConflictException('Trainer has a scheduling conflict for this time slot');
     }
 
-    return this.prisma.trainerSession.create({
+    return this.tenant.client.trainerSession.create({
       data: {
         gym_id: getTenantGymId()!,
         trainer_id: dto.trainer_id,
@@ -182,7 +182,7 @@ export class TrainerService {
 
     if (trainer_id) {
       // Verify trainer belongs to studio
-      const trainer = await this.prisma.staff.findFirst({
+      const trainer = await this.tenant.client.staff.findFirst({
         where: { id: trainer_id },
       });
       if (!trainer) throw new NotFoundException('Trainer not found');
@@ -198,7 +198,7 @@ export class TrainerService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.trainerSession.findMany({
+      this.tenant.client.trainerSession.findMany({
         where,
         skip,
         take: limit,
@@ -210,14 +210,14 @@ export class TrainerService {
           revenue: true,
         },
       }),
-      this.prisma.trainerSession.count({ where }),
+      this.tenant.client.trainerSession.count({ where }),
     ]);
 
     return { data, total, page, limit };
   }
 
   async updateSession(studioId: string, id: string, dto: UpdateTrainerSessionDto) {
-    const session = await this.prisma.trainerSession.findUnique({
+    const session = await this.tenant.client.trainerSession.findUnique({
       where: { id },
       include: { revenue: true, trainer: { select: { organization_id: true } } },
     });
@@ -228,7 +228,7 @@ export class TrainerService {
       throw new ForbiddenException('Access denied to this session');
     }
 
-    const updated = await this.prisma.trainerSession.update({
+    const updated = await this.tenant.client.trainerSession.update({
       where: { id },
       data: dto,
       include: {
@@ -240,7 +240,7 @@ export class TrainerService {
 
     // Auto-record revenue when session is completed (if not already recorded)
     if (dto.status === 'completed' && !session.revenue) {
-      const config = await this.prisma.payrollConfig.findUnique({
+      const config = await this.tenant.client.payrollConfig.findUnique({
         where: { staff_id: session.trainer_id },
       });
       const commissionPct = Number(config?.commission_percentage ?? 0);
@@ -277,7 +277,7 @@ export class TrainerService {
       trainerWhere.organization_id = filters.organization_id;
     }
 
-    const trainers = await this.prisma.staff.findMany({
+    const trainers = await this.tenant.client.staff.findMany({
       where: trainerWhere,
       include: {
         profile: { select: { rating: true, total_ratings: true } },
@@ -353,7 +353,7 @@ export class TrainerService {
   }
 
   async getTrainerDashboard(studioId: string, trainerId: string) {
-    const trainer = await this.prisma.staff.findFirst({
+    const trainer = await this.tenant.client.staff.findFirst({
       where: { id: trainerId },
       include: { profile: true },
     });
@@ -368,10 +368,10 @@ export class TrainerService {
       completedSessionsCount,
       revenueData,
     ] = await Promise.all([
-      this.prisma.trainerClient.count({
+      this.tenant.client.trainerClient.count({
         where: { trainer_id: trainerId, status: 'active' },
       }),
-      this.prisma.trainerSession.findMany({
+      this.tenant.client.trainerSession.findMany({
         where: {
           trainer_id: trainerId,
           status: 'scheduled',
@@ -384,14 +384,14 @@ export class TrainerService {
           branch: { select: { id: true, name: true } },
         },
       }),
-      this.prisma.trainerSession.count({
+      this.tenant.client.trainerSession.count({
         where: {
           trainer_id: trainerId,
           status: 'completed',
           session_date: { gte: thirtyDaysAgo },
         },
       }),
-      this.prisma.trainerRevenue.aggregate({
+      this.tenant.client.trainerRevenue.aggregate({
         where: {
           trainer_id: trainerId,
           created_at: { gte: thirtyDaysAgo },
@@ -418,7 +418,7 @@ export class TrainerService {
   // ── Performance Snapshots ─────────────────────────────────────
 
   async recordPerformanceSnapshot(studioId: string, trainerId: string, periodStart: string, periodEnd: string) {
-    const trainer = await this.prisma.staff.findFirst({
+    const trainer = await this.tenant.client.staff.findFirst({
       where: { id: trainerId },
       include: { profile: true },
     });
@@ -428,16 +428,16 @@ export class TrainerService {
     const end = new Date(periodEnd);
 
     const [sessions, clients, revenueAgg] = await Promise.all([
-      this.prisma.trainerSession.findMany({
+      this.tenant.client.trainerSession.findMany({
         where: {
           trainer_id: trainerId,
           session_date: { gte: start, lte: end },
         },
       }),
-      this.prisma.trainerClient.count({
+      this.tenant.client.trainerClient.count({
         where: { trainer_id: trainerId, status: 'active' },
       }),
-      this.prisma.trainerRevenue.aggregate({
+      this.tenant.client.trainerRevenue.aggregate({
         where: {
           trainer_id: trainerId,
           created_at: { gte: start, lte: end },
@@ -453,7 +453,7 @@ export class TrainerService {
       ? Math.round((completedSessions / totalSessions) * 100)
       : 0;
 
-    return this.prisma.trainerPerformanceRecord.create({
+    return this.tenant.client.trainerPerformanceRecord.create({
       data: {
         gym_id: getTenantGymId()!,
         trainer_id: trainerId,
@@ -479,7 +479,7 @@ export class TrainerService {
     end_date?: string;
   }) {
     // Verify trainer belongs to studio
-    const trainer = await this.prisma.staff.findFirst({
+    const trainer = await this.tenant.client.staff.findFirst({
       where: { id: trainerId },
     });
     if (!trainer) throw new NotFoundException('Trainer not found');
@@ -491,7 +491,7 @@ export class TrainerService {
       if (filters.end_date) where.period_start.lte = new Date(filters.end_date);
     }
 
-    return this.prisma.trainerPerformanceRecord.findMany({
+    return this.tenant.client.trainerPerformanceRecord.findMany({
       where,
       orderBy: { period_start: 'desc' },
       include: {

@@ -4,7 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 
 /**
@@ -28,7 +28,7 @@ export class StaffBiometricsService {
   // Match threshold mirrors the member-side matcher. Tunable per-tenant later.
   private readonly matchThreshold = 0.5;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   // ── Enroll ────────────────────────────────────────────────────────────────
   async enrollFace(input: {
@@ -45,7 +45,7 @@ export class StaffBiometricsService {
       );
     }
 
-    const staff = await this.prisma.staff.findUnique({
+    const staff = await this.tenant.client.staff.findUnique({
       where: { id: input.staff_id },
       select: { id: true },
     });
@@ -55,18 +55,18 @@ export class StaffBiometricsService {
       .map((n) => (Number.isFinite(n) ? n : 0))
       .join(',')}]`;
 
-    await this.prisma.$transaction([
-      this.prisma.staff.update({
+    await this.tenant.client.$transaction([
+      this.tenant.client.staff.update({
         where: { id: input.staff_id },
         data: { face_descriptor: input.descriptor },
       }),
-      this.prisma.$executeRaw`
-        UPDATE studio_template.staff SET face_vec = ${vecLiteral}::vector
+      this.tenant.client.$executeRaw`
+        UPDATE staff SET face_vec = ${vecLiteral}::vector
         WHERE id = ${input.staff_id}::uuid AND gym_id = ${gymId}::uuid
       `,
     ]);
 
-    const row = await this.prisma.staffBiometricEnrollment.upsert({
+    const row = await this.tenant.client.staffBiometricEnrollment.upsert({
       where: {
         staff_id_modality_provider: {
           staff_id: input.staff_id,
@@ -111,7 +111,7 @@ export class StaffBiometricsService {
     const gymId = getTenantGymId();
     if (!gymId) throw new BadRequestException('Tenant context missing');
 
-    const enrollment = await this.prisma.staffBiometricEnrollment.findUnique({
+    const enrollment = await this.tenant.client.staffBiometricEnrollment.findUnique({
       where: { id: enrollment_id },
       select: {
         id: true,
@@ -126,16 +126,16 @@ export class StaffBiometricsService {
       return { ...enrollment, already_revoked: true };
     }
 
-    await this.prisma.$transaction([
-      this.prisma.staff.update({
+    await this.tenant.client.$transaction([
+      this.tenant.client.staff.update({
         where: { id: enrollment.staff_id },
         data: { face_descriptor: [] },
       }),
-      this.prisma.$executeRaw`
-        UPDATE studio_template.staff SET face_vec = NULL
+      this.tenant.client.$executeRaw`
+        UPDATE staff SET face_vec = NULL
         WHERE id = ${enrollment.staff_id}::uuid AND gym_id = ${gymId}::uuid
       `,
-      this.prisma.staffBiometricEnrollment.update({
+      this.tenant.client.staffBiometricEnrollment.update({
         where: { id: enrollment_id },
         data: { revoked_at: new Date() },
       }),
@@ -149,7 +149,7 @@ export class StaffBiometricsService {
 
   // ── List ──────────────────────────────────────────────────────────────────
   async listForStaff(staff_id: string) {
-    return this.prisma.staffBiometricEnrollment.findMany({
+    return this.tenant.client.staffBiometricEnrollment.findMany({
       where: { staff_id },
       select: {
         id: true,
@@ -166,7 +166,7 @@ export class StaffBiometricsService {
     const where: any = {};
     if (!opts.include_revoked) where.revoked_at = null;
 
-    return this.prisma.staffBiometricEnrollment.findMany({
+    return this.tenant.client.staffBiometricEnrollment.findMany({
       where,
       select: {
         id: true,
@@ -207,11 +207,11 @@ export class StaffBiometricsService {
     // at any branch they have access to — branch_ids[] check would be the
     // strict path, but Prisma raw + array contains gets gnarly. For now we
     // scope by gym only and rely on the orchestrator to reject out-of-scope.
-    const rows = await this.prisma.$queryRaw<
+    const rows = await this.tenant.client.$queryRaw<
       Array<{ id: string; full_name: string; distance: number }>
     >`
       SELECT id, full_name, (face_vec <=> ${vecLiteral}::vector)::float8 AS distance
-      FROM studio_template.staff
+      FROM staff
       WHERE face_vec IS NOT NULL
         AND gym_id = ${gymId}::uuid
         AND status = 'active'
@@ -258,7 +258,7 @@ export class StaffBiometricsService {
     branch_id: string;
     notes?: string;
   }) {
-    const staff = await this.prisma.staff.findUnique({
+    const staff = await this.tenant.client.staff.findUnique({
       where: { id: input.staff_id },
       select: { id: true, full_name: true },
     });
@@ -280,7 +280,7 @@ export class StaffBiometricsService {
     notes?: string;
     full_name: string;
   }) {
-    const open = await this.prisma.staffAttendance.findFirst({
+    const open = await this.tenant.client.staffAttendance.findFirst({
       where: {
         staff_id: input.staff_id,
         branch_id: input.branch_id,
@@ -290,7 +290,7 @@ export class StaffBiometricsService {
     });
 
     if (open) {
-      const closed = await this.prisma.staffAttendance.update({
+      const closed = await this.tenant.client.staffAttendance.update({
         where: { id: open.id },
         data: { check_out_time: new Date() },
       });
@@ -307,7 +307,7 @@ export class StaffBiometricsService {
     }
 
     const gymId = getTenantGymId();
-    const opened = await this.prisma.staffAttendance.create({
+    const opened = await this.tenant.client.staffAttendance.create({
       data: {
         gym_id: gymId!,
         staff_id: input.staff_id,

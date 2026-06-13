@@ -1,17 +1,17 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 import { UpsertPayrollConfigDto } from './dto/upsert-payroll-config.dto';
 import { ProcessPayrollDto, UpdatePayrollRecordDto } from './dto/process-payroll.dto';
 
 @Injectable()
 export class PayrollService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   // ── Payroll Config ────────────────────────────────────────────
 
   async getConfig(staffId: string) {
-    const config = await this.prisma.payrollConfig.findUnique({
+    const config = await this.tenant.client.payrollConfig.findUnique({
       where: { staff_id: staffId },
       include: {
         staff: { select: { id: true, full_name: true, role: true, employee_code: true } },
@@ -22,12 +22,12 @@ export class PayrollService {
   }
 
   async upsertConfig(dto: UpsertPayrollConfigDto) {
-    const staff = await this.prisma.staff.findUnique({
+    const staff = await this.tenant.client.staff.findUnique({
       where: { id: dto.staff_id },
     });
     if (!staff) throw new NotFoundException('Staff member not found');
 
-    return this.prisma.payrollConfig.upsert({
+    return this.tenant.client.payrollConfig.upsert({
       where: { staff_id: dto.staff_id },
       update: {
         ...(dto.salary_type !== undefined && { salary_type: dto.salary_type }),
@@ -62,7 +62,7 @@ export class PayrollService {
     revenue_amount: number;
     commission_amount: number;
   }) {
-    return this.prisma.trainerRevenue.create({ data: { ...data, gym_id: getTenantGymId()! } });
+    return this.tenant.client.trainerRevenue.create({ data: { ...data, gym_id: getTenantGymId()! } });
   }
 
   async getRevenueReport(filters: {
@@ -81,7 +81,7 @@ export class PayrollService {
     }
 
     const [records, aggregate] = await Promise.all([
-      this.prisma.trainerRevenue.findMany({
+      this.tenant.client.trainerRevenue.findMany({
         where,
         orderBy: { created_at: 'desc' },
         include: {
@@ -90,7 +90,7 @@ export class PayrollService {
           session: { select: { id: true, session_type: true, session_date: true } },
         },
       }),
-      this.prisma.trainerRevenue.aggregate({
+      this.tenant.client.trainerRevenue.aggregate({
         where,
         _sum: { revenue_amount: true, commission_amount: true },
         _count: true,
@@ -124,7 +124,7 @@ export class PayrollService {
       staffWhere.organization_id = filters.organization_id;
     }
 
-    const staffWithPayroll = await this.prisma.staff.findMany({
+    const staffWithPayroll = await this.tenant.client.staff.findMany({
       where: staffWhere,
       include: {
         payroll_config: true,
@@ -177,7 +177,7 @@ export class PayrollService {
   // ── Payroll Records (Pay Runs) ────────────────────────────────
 
   async processPayroll(dto: ProcessPayrollDto) {
-    const staff = await this.prisma.staff.findUnique({
+    const staff = await this.tenant.client.staff.findUnique({
       where: { id: dto.staff_id },
       include: { payroll_config: true },
     });
@@ -190,7 +190,7 @@ export class PayrollService {
     }
 
     // Wrap duplicate check + creation in transaction to prevent race condition
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       // Check for duplicate payroll run in same period
       const existing = await tx.payrollRecord.findFirst({
         where: {
@@ -257,7 +257,7 @@ export class PayrollService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.payrollRecord.findMany({
+      this.tenant.client.payrollRecord.findMany({
         where,
         skip,
         take: limit,
@@ -268,14 +268,14 @@ export class PayrollService {
           },
         },
       }),
-      this.prisma.payrollRecord.count({ where }),
+      this.tenant.client.payrollRecord.count({ where }),
     ]);
 
     return { data, total, page, limit };
   }
 
   async updatePayrollRecord(id: string, dto: UpdatePayrollRecordDto) {
-    const record = await this.prisma.payrollRecord.findUnique({ where: { id } });
+    const record = await this.tenant.client.payrollRecord.findUnique({ where: { id } });
     if (!record) throw new NotFoundException('Payroll record not found');
     if (record.status === 'paid') {
       throw new BadRequestException('Cannot modify a paid payroll record');
@@ -298,7 +298,7 @@ export class PayrollService {
         Number(record.base_salary) + Number(record.commission) + bonus - deductions;
     }
 
-    return this.prisma.payrollRecord.update({
+    return this.tenant.client.payrollRecord.update({
       where: { id },
       data: updateData,
       include: {
