@@ -4,8 +4,8 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '../../node_modules/.prisma/client-tenant';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import {
   CreateProductDto,
   UpdateProductDto,
@@ -20,12 +20,12 @@ import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class InventoryService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   // ── Product Categories ────────────────────────────────────────
 
   async createCategory(dto: CreateProductCategoryDto) {
-    return this.prisma.productCategory.create({
+    return this.tenant.client.productCategory.create({
       data: { ...dto, gym_id: getTenantGymId()! },
     });
   }
@@ -33,7 +33,7 @@ export class InventoryService {
   async findAllCategories(organizationId?: string) {
     const where: any = {};
     if (organizationId) where.organization_id = organizationId;
-    return this.prisma.productCategory.findMany({
+    return this.tenant.client.productCategory.findMany({
       where,
       orderBy: { name: 'asc' },
       include: { _count: { select: { products: true } } },
@@ -41,9 +41,9 @@ export class InventoryService {
   }
 
   async updateCategory(id: string, dto: UpdateProductCategoryDto) {
-    const cat = await this.prisma.productCategory.findUnique({ where: { id } });
+    const cat = await this.tenant.client.productCategory.findUnique({ where: { id } });
     if (!cat) throw new NotFoundException('Category not found');
-    return this.prisma.productCategory.update({ where: { id }, data: dto });
+    return this.tenant.client.productCategory.update({ where: { id }, data: dto });
   }
 
   // ── Products ──────────────────────────────────────────────────
@@ -51,15 +51,15 @@ export class InventoryService {
   async createProduct(dto: CreateProductDto) {
     // sku/barcode are unique per gym (not global) since Phase 3 — findFirst within tenant.
     if (dto.sku) {
-      const existing = await this.prisma.product.findFirst({ where: { sku: dto.sku } });
+      const existing = await this.tenant.client.product.findFirst({ where: { sku: dto.sku } });
       if (existing) throw new ConflictException('SKU already exists');
     }
     if (dto.barcode) {
-      const existing = await this.prisma.product.findFirst({ where: { barcode: dto.barcode } });
+      const existing = await this.tenant.client.product.findFirst({ where: { barcode: dto.barcode } });
       if (existing) throw new ConflictException('Barcode already exists');
     }
 
-    const product = await this.prisma.product.create({
+    const product = await this.tenant.client.product.create({
       data: {
         gym_id: getTenantGymId()!,
         product_name: dto.product_name,
@@ -83,7 +83,7 @@ export class InventoryService {
 
     // Auto-create inventory record if branch is specified
     if (dto.branch_id) {
-      await this.prisma.inventory.create({
+      await this.tenant.client.inventory.create({
         data: {
           gym_id: getTenantGymId()!,
           product_id: product.id,
@@ -123,7 +123,7 @@ export class InventoryService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.product.findMany({
+      this.tenant.client.product.findMany({
         where,
         skip,
         take: safeLimit,
@@ -135,14 +135,14 @@ export class InventoryService {
           images: { orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }] },
         },
       }),
-      this.prisma.product.count({ where }),
+      this.tenant.client.product.count({ where }),
     ]);
 
     return { data, total, page, limit };
   }
 
   async findOneProduct(id: string) {
-    const product = await this.prisma.product.findUnique({
+    const product = await this.tenant.client.product.findUnique({
       where: { id },
       include: {
         category: true,
@@ -159,14 +159,14 @@ export class InventoryService {
   // ── Product Images ────────────────────────────────────────────
 
   private async assertProduct(productId: string) {
-    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    const product = await this.tenant.client.product.findUnique({ where: { id: productId } });
     if (!product) throw new NotFoundException('Product not found');
     return product;
   }
 
   async listProductImages(productId: string) {
     await this.assertProduct(productId);
-    return this.prisma.productImage.findMany({
+    return this.tenant.client.productImage.findMany({
       where: { product_id: productId },
       orderBy: [{ is_primary: 'desc' }, { sort_order: 'asc' }],
     });
@@ -174,11 +174,11 @@ export class InventoryService {
 
   async addProductImage(productId: string, dto: AddProductImageDto) {
     await this.assertProduct(productId);
-    const count = await this.prisma.productImage.count({ where: { product_id: productId } });
+    const count = await this.tenant.client.productImage.count({ where: { product_id: productId } });
     // First image of a product is implicitly primary.
     const isPrimary = dto.is_primary ?? count === 0;
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       if (isPrimary) {
         await tx.productImage.updateMany({
           where: { product_id: productId, is_primary: true },
@@ -208,12 +208,12 @@ export class InventoryService {
 
   async setPrimaryProductImage(productId: string, imageId: string) {
     await this.assertProduct(productId);
-    const image = await this.prisma.productImage.findFirst({
+    const image = await this.tenant.client.productImage.findFirst({
       where: { id: imageId, product_id: productId },
     });
     if (!image) throw new NotFoundException('Image not found');
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       await tx.productImage.updateMany({
         where: { product_id: productId, is_primary: true },
         data: { is_primary: false },
@@ -232,12 +232,12 @@ export class InventoryService {
 
   async removeProductImage(productId: string, imageId: string) {
     await this.assertProduct(productId);
-    const image = await this.prisma.productImage.findFirst({
+    const image = await this.tenant.client.productImage.findFirst({
       where: { id: imageId, product_id: productId },
     });
     if (!image) throw new NotFoundException('Image not found');
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       await tx.productImage.delete({ where: { id: imageId } });
       if (image.is_primary) {
         // Promote the next image (if any) and refresh the Product thumbnail.
@@ -262,7 +262,7 @@ export class InventoryService {
 
   async reorderProductImages(productId: string, dto: ReorderProductImagesDto) {
     await this.assertProduct(productId);
-    const existing = await this.prisma.productImage.findMany({
+    const existing = await this.tenant.client.productImage.findMany({
       where: { product_id: productId },
       select: { id: true },
     });
@@ -274,9 +274,9 @@ export class InventoryService {
       throw new BadRequestException('image_ids must list every image of this product exactly once');
     }
 
-    await this.prisma.$transaction(
+    await this.tenant.client.$transaction(
       dto.image_ids.map((id, index) =>
-        this.prisma.productImage.update({
+        this.tenant.client.productImage.update({
           where: { id },
           data: { sort_order: index },
         }),
@@ -289,7 +289,7 @@ export class InventoryService {
   // The tenant extension injects gym_id. Inventory is per-branch; when a branch is
   // given we surface that branch's stock row, otherwise all branches' rows.
   async findByBarcode(barcode: string, branchId?: string) {
-    const product = await this.prisma.product.findFirst({
+    const product = await this.tenant.client.product.findFirst({
       where: { barcode },
       include: {
         category: { select: { id: true, name: true } },
@@ -303,7 +303,7 @@ export class InventoryService {
   }
 
   async findBySku(sku: string, branchId?: string) {
-    const product = await this.prisma.product.findFirst({
+    const product = await this.tenant.client.product.findFirst({
       where: { sku },
       include: {
         category: { select: { id: true, name: true } },
@@ -317,19 +317,19 @@ export class InventoryService {
   }
 
   async updateProduct(id: string, dto: UpdateProductDto) {
-    const product = await this.prisma.product.findUnique({ where: { id } });
+    const product = await this.tenant.client.product.findUnique({ where: { id } });
     if (!product) throw new NotFoundException('Product not found');
 
     if (dto.sku && dto.sku !== product.sku) {
-      const conflict = await this.prisma.product.findFirst({ where: { sku: dto.sku } });
+      const conflict = await this.tenant.client.product.findFirst({ where: { sku: dto.sku } });
       if (conflict) throw new ConflictException('SKU already exists');
     }
     if (dto.barcode && dto.barcode !== product.barcode) {
-      const conflict = await this.prisma.product.findFirst({ where: { barcode: dto.barcode } });
+      const conflict = await this.tenant.client.product.findFirst({ where: { barcode: dto.barcode } });
       if (conflict) throw new ConflictException('Barcode already exists');
     }
 
-    return this.prisma.product.update({
+    return this.tenant.client.product.update({
       where: { id },
       data: dto,
       include: {
@@ -364,7 +364,7 @@ export class InventoryService {
       if (ids.rows.length === 0) {
         return { data: [], total: ids.total, page, limit };
       }
-      const rows = await this.prisma.inventory.findMany({
+      const rows = await this.tenant.client.inventory.findMany({
         where: { id: { in: ids.rows } },
         include: {
           product: {
@@ -389,7 +389,7 @@ export class InventoryService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.inventory.findMany({
+      this.tenant.client.inventory.findMany({
         where,
         skip,
         take: safeLimit,
@@ -409,7 +409,7 @@ export class InventoryService {
           branch: { select: { id: true, name: true } },
         },
       }),
-      this.prisma.inventory.count({ where }),
+      this.tenant.client.inventory.count({ where }),
     ]);
 
     return {
@@ -421,7 +421,7 @@ export class InventoryService {
   }
 
   async adjustInventory(dto: AdjustInventoryDto) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       // Read stock inside transaction to prevent race condition. Inventory is now keyed
       // per (product, branch), so a manual adjustment must target a specific branch.
       const inventory = await tx.inventory.findUnique({
@@ -464,9 +464,9 @@ export class InventoryService {
 
   async updateReorderLevel(productId: string, dto: UpdateReorderLevelDto) {
     const key = { product_id_branch_id: { product_id: productId, branch_id: dto.branch_id } };
-    const inv = await this.prisma.inventory.findUnique({ where: key });
+    const inv = await this.tenant.client.inventory.findUnique({ where: key });
     if (!inv) throw new NotFoundException('Inventory record not found for this product at this branch');
-    return this.prisma.inventory.update({
+    return this.tenant.client.inventory.update({
       where: key,
       data: { reorder_level: dto.reorder_level },
     });
@@ -496,7 +496,7 @@ export class InventoryService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.inventoryTransaction.findMany({
+      this.tenant.client.inventoryTransaction.findMany({
         where,
         skip,
         take: safeLimit,
@@ -506,7 +506,7 @@ export class InventoryService {
           branch: { select: { id: true, name: true } },
         },
       }),
-      this.prisma.inventoryTransaction.count({ where }),
+      this.tenant.client.inventoryTransaction.count({ where }),
     ]);
 
     return { data, total, page, limit };
@@ -515,9 +515,9 @@ export class InventoryService {
   /**
    * Returns the IDs of low-stock inventory rows (stock_quantity <= reorder_level),
    * ranked by largest deficit first, plus the total count for pagination. Pushes the
-   * two-column comparison into Postgres. Tables are physically in studio_template and
-   * tenant-isolated by gym_id, so we qualify the schema and filter gym_id explicitly
-   * (raw SQL bypasses the gym_id-injection extension).
+   * two-column comparison into Postgres. Raw SQL on the tenant client: table names are
+   * UNQUALIFIED so they resolve via the client's `?schema=studio_<gym>` search_path to
+   * this gym's physical schema; the explicit gym_id filter is kept as defence-in-depth.
    */
   private async findLowStockIds(
     gymId: string,
@@ -530,18 +530,18 @@ export class InventoryService {
       : Prisma.empty;
 
     const [rows, countRows] = await Promise.all([
-      this.prisma.$queryRaw<Array<{ id: string }>>`
+      this.tenant.client.$queryRaw<Array<{ id: string }>>`
         SELECT id
-        FROM "studio_template"."inventory"
+        FROM "inventory"
         WHERE gym_id = ${gymId}::uuid
           AND stock_quantity <= reorder_level
           ${branchFilter}
         ORDER BY (reorder_level - stock_quantity) DESC
         LIMIT ${take} OFFSET ${skip}
       `,
-      this.prisma.$queryRaw<Array<{ count: bigint }>>`
+      this.tenant.client.$queryRaw<Array<{ count: bigint }>>`
         SELECT COUNT(*)::bigint AS count
-        FROM "studio_template"."inventory"
+        FROM "inventory"
         WHERE gym_id = ${gymId}::uuid
           AND stock_quantity <= reorder_level
           ${branchFilter}
@@ -558,10 +558,10 @@ export class InventoryService {
       ? Prisma.sql`AND i.branch_id = ${branchId}::uuid`
       : Prisma.empty;
 
-    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+    const rows = await this.tenant.client.$queryRaw<Array<{ id: string }>>`
       SELECT i.id
-      FROM "studio_template"."inventory" i
-      JOIN "studio_template"."products" p ON p.id = i.product_id
+      FROM "inventory" i
+      JOIN "products" p ON p.id = i.product_id
       WHERE i.gym_id = ${gymId}::uuid
         AND i.stock_quantity <= i.reorder_level
         AND p.status = 'active'
@@ -571,7 +571,7 @@ export class InventoryService {
     if (rows.length === 0) return [];
 
     const ids = rows.map((r) => r.id);
-    const inventory = await this.prisma.inventory.findMany({
+    const inventory = await this.tenant.client.inventory.findMany({
       where: { id: { in: ids } },
       include: {
         product: {

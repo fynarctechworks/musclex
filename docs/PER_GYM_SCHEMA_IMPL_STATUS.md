@@ -83,6 +83,8 @@ deliberately ≠ `studio_<gym_id>`, reproducing prod so routing must come from t
 
 > **KEY (6.8b): raw SQL on the tenant client is schema-dynamic for free.** Verified `?schema=studio_<gym>` sets `search_path`, so an UNQUALIFIED table name in `$queryRaw`/`$executeRaw` on the tenant client resolves to that gym's schema (isolated). Phase 7 = drop the `"studio_template".` qualifier on raw sites that already run on the tenant client; only sites on the legacy client (e.g. face_vec) need more.
 
+| inventory (c) | 6.8c | ✅ DONE (inventory complete) | `inventory.service.ts` (3 raw low-stock `$queryRaw` → unqualified `inventory`/`products`) + `transfer.service.ts` (FIFO raw → unqualified `product_batches`; default-client param → `Tx \| TenantPrismaClient`). **All 6 inventory services migrated; all their raw sites are now schema-dynamic via search_path (no Phase-7 debt left in inventory).** |
+
 ### (done 6.8b) inventory (b) — the pos+batch+wallet transaction cluster
 `pos.service.ts` is NOT yet migrated (still on legacy `prisma`, compiles fine). Its
 `createSale` `$transaction` passes `tx` into **`walletService` (src/wallet) and

@@ -3,9 +3,10 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../node_modules/.prisma/client-tenant';
+import type { PrismaClient as TenantPrismaClient } from '../../node_modules/.prisma/client-tenant';
 import { randomBytes } from 'crypto';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import {
   CreateTransferDto,
   ReceiveTransferDto,
@@ -17,7 +18,7 @@ type Tx = Prisma.TransactionClient;
 
 @Injectable()
 export class TransferService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   private generateTransferNumber(): string {
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -42,7 +43,7 @@ export class TransferService {
     }
 
     const productIds = dto.items.map((i) => i.product_id);
-    const products = await this.prisma.product.findMany({
+    const products = await this.tenant.client.product.findMany({
       where: { id: { in: productIds } },
       select: { id: true, product_name: true, track_batches: true },
     });
@@ -54,7 +55,7 @@ export class TransferService {
     const gymId = getTenantGymId()!;
     const transferNumber = this.generateTransferNumber();
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       const transfer = await tx.stockTransfer.create({
         data: {
           gym_id: gymId,
@@ -153,7 +154,7 @@ export class TransferService {
       Array<{ id: string; quantity: number; batch_number: string; expiry_date: Date | null }>
     >`
       SELECT id, quantity, batch_number, expiry_date
-      FROM "studio_template"."product_batches"
+      FROM "product_batches"
       WHERE gym_id = ${args.gymId}::uuid
         AND product_id = ${args.product_id}::uuid
         AND branch_id = ${args.from_branch_id}::uuid
@@ -216,7 +217,7 @@ export class TransferService {
    * and for batch lines recreates a batch at the destination preserving batch_number/expiry.
    */
   async receiveTransfer(id: string, dto: ReceiveTransferDto) {
-    const transfer = await this.prisma.stockTransfer.findUnique({
+    const transfer = await this.tenant.client.stockTransfer.findUnique({
       where: { id },
       include: { items: true },
     });
@@ -227,7 +228,7 @@ export class TransferService {
 
     const gymId = getTenantGymId()!;
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       for (const item of transfer.items) {
         if (item.source_batch_id) {
           // Recreate the batch at the destination with the same identity/expiry.
@@ -270,7 +271,7 @@ export class TransferService {
    * Batch lines are restored to a batch at source (same number/expiry).
    */
   async cancelTransfer(id: string) {
-    const transfer = await this.prisma.stockTransfer.findUnique({
+    const transfer = await this.tenant.client.stockTransfer.findUnique({
       where: { id },
       include: { items: true },
     });
@@ -284,7 +285,7 @@ export class TransferService {
 
     const gymId = getTenantGymId()!;
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       for (const item of transfer.items) {
         if (item.source_batch_id) {
           await tx.productBatch.create({
@@ -334,7 +335,7 @@ export class TransferService {
     if (status) where.status = status;
 
     const [data, total] = await Promise.all([
-      this.prisma.stockTransfer.findMany({
+      this.tenant.client.stockTransfer.findMany({
         where,
         skip,
         take: safeLimit,
@@ -345,13 +346,13 @@ export class TransferService {
           _count: { select: { items: true } },
         },
       }),
-      this.prisma.stockTransfer.count({ where }),
+      this.tenant.client.stockTransfer.count({ where }),
     ]);
 
     return { data, total, page, limit };
   }
 
-  async findOne(id: string, client: Tx | PrismaService = this.prisma) {
+  async findOne(id: string, client: Tx | TenantPrismaClient = this.tenant.client) {
     const transfer = await (client as any).stockTransfer.findUnique({
       where: { id },
       include: {
@@ -370,10 +371,10 @@ export class TransferService {
 
   async upsertBranchPrice(dto: UpsertBranchPriceDto) {
     const gymId = getTenantGymId()!;
-    const product = await this.prisma.product.findUnique({ where: { id: dto.product_id } });
+    const product = await this.tenant.client.product.findUnique({ where: { id: dto.product_id } });
     if (!product) throw new NotFoundException('Product not found');
 
-    return this.prisma.branchProductPrice.upsert({
+    return this.tenant.client.branchProductPrice.upsert({
       where: {
         product_id_branch_id: { product_id: dto.product_id, branch_id: dto.branch_id },
         // Explicit tenant scope (Prisma extendedWhereUnique) — registered tenant model.
@@ -391,18 +392,18 @@ export class TransferService {
   }
 
   async getBranchPrices(productId: string) {
-    return this.prisma.branchProductPrice.findMany({
+    return this.tenant.client.branchProductPrice.findMany({
       where: { product_id: productId },
       include: { branch: { select: { id: true, name: true } } },
     });
   }
 
   async deleteBranchPrice(productId: string, branchId: string) {
-    const existing = await this.prisma.branchProductPrice.findUnique({
+    const existing = await this.tenant.client.branchProductPrice.findUnique({
       where: { product_id_branch_id: { product_id: productId, branch_id: branchId } },
     });
     if (!existing) throw new NotFoundException('Branch price override not found');
-    await this.prisma.branchProductPrice.delete({
+    await this.tenant.client.branchProductPrice.delete({
       where: { product_id_branch_id: { product_id: productId, branch_id: branchId } },
     });
     return { deleted: true };
