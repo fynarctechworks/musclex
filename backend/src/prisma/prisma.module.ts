@@ -5,6 +5,7 @@ import { TenantContextService } from '../common/middleware/tenant-context.servic
 import { TenantClientFactory } from './tenant-client.factory';
 import { PublicPrismaService } from './public-prisma.service';
 import { TenantPrisma } from './tenant-prisma.accessor';
+import { TenantTaskRunner } from './tenant-task-runner';
 
 // ── Per-gym physical-schema clients (Road B) ──────────────────────────────────
 // PublicPrismaService = registry (public schema). TenantPrisma = current gym's
@@ -25,6 +26,7 @@ const tenantClientFactoryProvider = {
     tenantClientFactoryProvider,
     PublicPrismaService,
     TenantPrisma,
+    TenantTaskRunner,
   ],
   exports: [
     PrismaService,
@@ -33,6 +35,7 @@ const tenantClientFactoryProvider = {
     TenantClientFactory,
     PublicPrismaService,
     TenantPrisma,
+    TenantTaskRunner,
   ],
 })
 export class PrismaModule {}

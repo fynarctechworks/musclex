@@ -1,16 +1,24 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
-import { tenantContext } from '../common/tenant-context';
+import { TenantTaskRunner } from '../prisma/tenant-task-runner';
 import { randomBytes } from 'crypto';
 import { CronLockService } from '../common/services/cron-lock.service';
 
+/**
+ * Nightly membership-lifecycle crons. These have no HTTP request, so they run
+ * each gym's work inside `tasks.forEachTenant(...)`, which binds the tenant
+ * client to one studio's physical schema at a time (Road B). Inside the callback
+ * `this.tenant.client.*` is scoped to that gym; writes set `gym_id` from the
+ * iteration context, never derived from anything client-supplied.
+ */
 @Injectable()
 export class RenewalsService {
   private readonly logger = new Logger(RenewalsService.name);
 
   constructor(
     private tenant: TenantPrisma,
+    private tasks: TenantTaskRunner,
     private cronLock: CronLockService,
   ) {}
 
@@ -20,49 +28,48 @@ export class RenewalsService {
   async handleMembershipExpiry() {
     const result = await this.cronLock.withLock('cron:membership_expiry', async () => {
       this.logger.log('Running membership expiry check...');
-    const now = new Date();
+      const now = new Date();
+      let expired = 0;
 
-    // Expire memberships that are past their grace_end_date (or end_date if no grace)
-    const expiredMemberships = await this.tenant.client.memberMembership.findMany({
-      where: {
-        status: 'active',
-        end_date: { not: null },
-        OR: [
-          { grace_end_date: { not: null, lt: now } },
-          { grace_end_date: null, end_date: { lt: now } },
-        ],
-      },
-      include: { member: { select: { id: true } } },
-    });
+      await this.tasks.forEachTenant(async () => {
+        // Expire memberships past their grace_end_date (or end_date if no grace)
+        const expiredMemberships = await this.tenant.client.memberMembership.findMany({
+          where: {
+            status: 'active',
+            end_date: { not: null },
+            OR: [
+              { grace_end_date: { not: null, lt: now } },
+              { grace_end_date: null, end_date: { lt: now } },
+            ],
+          },
+          include: { member: { select: { id: true } } },
+        });
+        if (expiredMemberships.length === 0) return;
 
-    if (expiredMemberships.length === 0) {
-      this.logger.log('No memberships to expire');
-      return { expired: 0 };
-    }
-
-    // Batch expire
-    const ids = expiredMemberships.map((m) => m.id);
-    await this.tenant.client.memberMembership.updateMany({
-      where: { id: { in: ids } },
-      data: { status: 'expired' },
-    });
-
-    // Update member statuses for those with no other active memberships
-    const memberIds = [...new Set(expiredMemberships.map((m) => m.member_id))];
-    for (const memberId of memberIds) {
-      const activeCount = await this.tenant.client.memberMembership.count({
-        where: { member_id: memberId, status: 'active' },
-      });
-      if (activeCount === 0) {
-        await this.tenant.client.member.update({
-          where: { id: memberId },
+        const ids = expiredMemberships.map((m) => m.id);
+        await this.tenant.client.memberMembership.updateMany({
+          where: { id: { in: ids } },
           data: { status: 'expired' },
         });
-      }
-    }
 
-    this.logger.log(`Expired ${ids.length} memberships for ${memberIds.length} members`);
-    return { expired: ids.length };
+        // Update member statuses for those with no other active memberships
+        const memberIds = [...new Set(expiredMemberships.map((m) => m.member_id))];
+        for (const memberId of memberIds) {
+          const activeCount = await this.tenant.client.memberMembership.count({
+            where: { member_id: memberId, status: 'active' },
+          });
+          if (activeCount === 0) {
+            await this.tenant.client.member.update({
+              where: { id: memberId },
+              data: { status: 'expired' },
+            });
+          }
+        }
+        expired += ids.length;
+      });
+
+      this.logger.log(`Expired ${expired} memberships`);
+      return { expired };
     });
     if (!result) this.logger.debug('Membership expiry skipped — another instance holds the lock');
     return result ?? { expired: 0 };
@@ -74,33 +81,37 @@ export class RenewalsService {
   async handleExpiringSoonAlert() {
     const result = await this.cronLock.withLock('cron:expiring_soon', async () => {
       this.logger.log('Running expiring-soon flagging...');
-    const now = new Date();
-    const sevenDaysFromNow = new Date(now.getTime() + 7 * 86400000);
+      const now = new Date();
+      const sevenDaysFromNow = new Date(now.getTime() + 7 * 86400000);
+      let flagged = 0;
 
-    const expiringSoon = await this.tenant.client.memberMembership.findMany({
-      where: {
-        status: 'active',
-        end_date: { gte: now, lte: sevenDaysFromNow },
-      },
-      include: { member: { select: { id: true, status: true } } },
-    });
+      await this.tasks.forEachTenant(async () => {
+        const expiringSoon = await this.tenant.client.memberMembership.findMany({
+          where: {
+            status: 'active',
+            end_date: { gte: now, lte: sevenDaysFromNow },
+          },
+          include: { member: { select: { id: true, status: true } } },
+        });
 
-    // Update member status to expiring_soon (only if currently active)
-    const memberIds = [...new Set(
-      expiringSoon
-        .filter((m) => m.member.status === 'active')
-        .map((m) => m.member_id),
-    )];
+        // Update member status to expiring_soon (only if currently active)
+        const memberIds = [...new Set(
+          expiringSoon
+            .filter((m) => m.member.status === 'active')
+            .map((m) => m.member_id),
+        )];
 
-    if (memberIds.length > 0) {
-      await this.tenant.client.member.updateMany({
-        where: { id: { in: memberIds }, status: 'active' },
-        data: { status: 'expiring_soon' },
+        if (memberIds.length > 0) {
+          await this.tenant.client.member.updateMany({
+            where: { id: { in: memberIds }, status: 'active' },
+            data: { status: 'expiring_soon' },
+          });
+          flagged += memberIds.length;
+        }
       });
-    }
 
-    this.logger.log(`Flagged ${memberIds.length} members as expiring_soon`);
-    return { flagged: memberIds.length };
+      this.logger.log(`Flagged ${flagged} members as expiring_soon`);
+      return { flagged };
     });
     if (!result) this.logger.debug('Expiring-soon check skipped — another instance holds the lock');
     return result ?? { flagged: 0 };
@@ -111,63 +122,34 @@ export class RenewalsService {
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async handleAutoRenewals() {
     const result = await this.cronLock.withLock('cron:auto_renewals', async () => {
-    this.logger.log('Running auto-renewal processing...');
-    const now = new Date();
+      this.logger.log('Running auto-renewal processing...');
+      const now = new Date();
+      let renewed = 0;
+      let failed = 0;
 
-    // Find auto-renew memberships that have expired (past end_date, within grace)
-    const candidates = await this.tenant.client.memberMembership.findMany({
-      where: {
-        status: 'active',
-        auto_renew: true,
-        end_date: { lt: now },
-        OR: [
-          { grace_end_date: { gte: now } },
-          { grace_end_date: null },
-        ],
-      },
-      include: { plan: true, member: { select: { id: true } } },
-    });
-
-    let renewed = 0;
-    let failed = 0;
-
-    for (const membership of candidates) {
-      // Fail-safe: a candidate without a gym_id cannot be safely scoped.
-      // Skip + log rather than write under an empty/wrong tenant scope.
-      const gymId = (membership as any).gym_id as string | null | undefined;
-      if (!gymId) {
-        this.logger.error(
-          `Skipping auto-renew for membership ${membership.id}: missing gym_id on source row`,
-        );
-        failed++;
-        continue;
-      }
-
-      try {
-        const plan = membership.plan;
-
-        // Re-establish tenant context for this gym so every nested Prisma call
-        // inside the transaction is auto-scoped by the $use middleware (Layer 2
-        // gym_id injection + Layer 1 app.gym_id session var for RLS). This is
-        // the same scope a real HTTP request would have set up.
-        await tenantContext.run(
-          {
-            schemaName: `studio_${gymId.replace(/-/g, '_')}`,
-            gymId,
-            activeBranchId: null,
-            allowedBranchIds: 'ALL',
-            bypassBranchScope: false,
+      await this.tasks.forEachTenant(async ({ gymId }) => {
+        // Find auto-renew memberships that have expired (past end_date, within grace)
+        const candidates = await this.tenant.client.memberMembership.findMany({
+          where: {
+            status: 'active',
+            auto_renew: true,
+            end_date: { lt: now },
+            OR: [{ grace_end_date: { gte: now } }, { grace_end_date: null }],
           },
-          async () => {
-            // Wrap all three operations in a transaction to prevent orphaned state
+          include: { plan: true, member: { select: { id: true } } },
+        });
+
+        for (const membership of candidates) {
+          try {
+            const plan = membership.plan;
+
+            // All writes are already scoped to this gym's schema by forEachTenant.
             await this.tenant.client.$transaction(async (tx) => {
-              // Mark old as renewed
               await tx.memberMembership.update({
                 where: { id: membership.id },
                 data: { status: 'renewed' },
               });
 
-              // Create new membership
               const startDate = new Date();
               const endDate = plan.duration_days
                 ? new Date(startDate.getTime() + plan.duration_days * 86400000)
@@ -192,7 +174,6 @@ export class RenewalsService {
                 },
               });
 
-              // Create payment record linked to NEW membership
               const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
               await tx.payment.create({
                 data: {
@@ -207,18 +188,17 @@ export class RenewalsService {
                 },
               });
             });
-          },
-        );
 
-        renewed++;
-      } catch (error) {
-        this.logger.error(`Failed to auto-renew membership ${membership.id}: ${error.message}`);
-        failed++;
-      }
-    }
+            renewed++;
+          } catch (error) {
+            this.logger.error(`Failed to auto-renew membership ${membership.id}: ${(error as Error).message}`);
+            failed++;
+          }
+        }
+      });
 
-    this.logger.log(`Auto-renewal complete: ${renewed} renewed, ${failed} failed`);
-    return { renewed, failed };
+      this.logger.log(`Auto-renewal complete: ${renewed} renewed, ${failed} failed`);
+      return { renewed, failed };
     });
     if (!result) this.logger.debug('Auto-renewal skipped — another instance holds the lock');
     return result ?? { renewed: 0, failed: 0 };
@@ -229,67 +209,67 @@ export class RenewalsService {
   @Cron(CronExpression.EVERY_DAY_AT_4AM)
   async handleAutoUnfreeze() {
     const result = await this.cronLock.withLock('cron:auto_unfreeze', async () => {
-    this.logger.log('Running auto-unfreeze check...');
-    const now = new Date();
+      this.logger.log('Running auto-unfreeze check...');
+      const now = new Date();
+      let unfrozen = 0;
 
-    const toUnfreeze = await this.tenant.client.memberMembership.findMany({
-      where: {
-        status: 'frozen',
-        freeze_end_date: { not: null, lte: now },
-      },
-      include: { member: { select: { id: true } } },
-    });
+      await this.tasks.forEachTenant(async () => {
+        const toUnfreeze = await this.tenant.client.memberMembership.findMany({
+          where: {
+            status: 'frozen',
+            freeze_end_date: { not: null, lte: now },
+          },
+          include: { member: { select: { id: true } } },
+        });
 
-    let unfrozen = 0;
-    for (const membership of toUnfreeze) {
-      const freezeStart = membership.freeze_start_date;
-      const frozenDays = freezeStart
-        ? Math.ceil((now.getTime() - freezeStart.getTime()) / 86400000)
-        : 0;
+        for (const membership of toUnfreeze) {
+          const freezeStart = membership.freeze_start_date;
+          const frozenDays = freezeStart
+            ? Math.ceil((now.getTime() - freezeStart.getTime()) / 86400000)
+            : 0;
 
-      const newEndDate = membership.end_date && frozenDays > 0
-        ? new Date(membership.end_date.getTime() + frozenDays * 86400000)
-        : membership.end_date;
+          const newEndDate = membership.end_date && frozenDays > 0
+            ? new Date(membership.end_date.getTime() + frozenDays * 86400000)
+            : membership.end_date;
 
-      const newGraceEndDate = membership.grace_end_date && frozenDays > 0
-        ? new Date(membership.grace_end_date.getTime() + frozenDays * 86400000)
-        : membership.grace_end_date;
+          const newGraceEndDate = membership.grace_end_date && frozenDays > 0
+            ? new Date(membership.grace_end_date.getTime() + frozenDays * 86400000)
+            : membership.grace_end_date;
 
-      // Complete freeze record
-      await this.tenant.client.membershipFreeze.updateMany({
-        where: { membership_id: membership.id, status: 'active' },
-        data: { end_date: now, days_frozen: frozenDays, status: 'completed' },
+          await this.tenant.client.membershipFreeze.updateMany({
+            where: { membership_id: membership.id, status: 'active' },
+            data: { end_date: now, days_frozen: frozenDays, status: 'completed' },
+          });
+
+          await this.tenant.client.memberMembership.update({
+            where: { id: membership.id },
+            data: {
+              status: 'active',
+              end_date: newEndDate,
+              grace_end_date: newGraceEndDate,
+              freeze_start_date: null,
+              freeze_end_date: null,
+              freeze_reason: null,
+            },
+          });
+
+          await this.tenant.client.member.update({
+            where: { id: membership.member_id },
+            data: { status: 'active' },
+          });
+
+          unfrozen++;
+        }
       });
 
-      await this.tenant.client.memberMembership.update({
-        where: { id: membership.id },
-        data: {
-          status: 'active',
-          end_date: newEndDate,
-          grace_end_date: newGraceEndDate,
-          freeze_start_date: null,
-          freeze_end_date: null,
-          freeze_reason: null,
-        },
-      });
-
-      // Restore member status
-      await this.tenant.client.member.update({
-        where: { id: membership.member_id },
-        data: { status: 'active' },
-      });
-
-      unfrozen++;
-    }
-
-    this.logger.log(`Auto-unfroze ${unfrozen} memberships`);
-    return { unfrozen };
+      this.logger.log(`Auto-unfroze ${unfrozen} memberships`);
+      return { unfrozen };
     });
     if (!result) this.logger.debug('Auto-unfreeze skipped — another instance holds the lock');
     return result ?? { unfrozen: 0 };
   }
 
-  // ── Manual trigger for expiry (for testing/admin) ─────────
+  // ── Manual triggers (for testing/admin) ─────────
 
   async runExpiryManually() {
     return this.handleMembershipExpiry();

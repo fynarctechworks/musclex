@@ -71,6 +71,10 @@ deliberately ≠ `studio_<gym_id>`, reproducing prod so routing must come from t
 
 | members (c) | 6.5 | ✅ DONE (members domain complete) | `members.service.ts`: studio → `pub`; all tenant models + the two all-tenant `$transaction`s (create-member, soft-delete) → `tenant.client`; the line-589 `$queryRaw FROM public.studios` converted to a typed `pub.studio.findUnique` (one raw site eliminated). **`saveFaceDescriptor`'s face_vec `$transaction` kept on legacy `prisma` + `// PHASE 7` marker** (array tx mixing a tenant write with the `studio_template.members` face_vec raw write; migrated with the face-matching subsystem in Phase 7). Keeps all 3 injections. **All 10 member services now migrated.** |
 
+| crons + renewals fix | 6.6 | ✅ | **Cron architecture for Road B.** New `TenantTaskRunner.forEachTenant(fn)` (src/prisma/tenant-task-runner.ts, in PrismaModule): lists studios from the registry and runs `fn` once per gym inside that gym's tenant context (schema from registry, never derived from gym_id). Background jobs have NO request context, so a per-gym tenant client would otherwise throw. **Refactored `renewals.service.ts`'s 4 crons** to wrap their bodies in `forEachTenant` (fixes the 6.4 regression where top-level cron reads ran with no context; also removes the old buggy `studio_${gym_id}` schema derivation). New harness `_phase6_cron_check.js` proves the sweep is per-gym isolated. |
+
+> **Cron rule (6.6):** any `@Cron`/background job that touches tenant data MUST run inside `tasks.forEachTenant(...)` — never call `this.tenant.client` at cron top level (no context → throws). Remaining crons to convert: `scheduling.generateRecurringSessions`, `dashboard/briefing`, `dashboard/kpi-snapshot`.
+
 > **Cross-cutting rule discovered (6.4):** `gym_id` is a required field in the tenant client's generated create type (no default) → **tsc fails any tenant create missing `gym_id`**, a free compile-time safety net. And `Prisma.JsonNull`/`DbNull` for tenant writes must be imported from the tenant client, not `@prisma/client`.
 
 ## Remaining phases (not started)
