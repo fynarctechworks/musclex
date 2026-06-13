@@ -4,7 +4,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 import { AssignMembershipDto } from './dto/assign-membership.dto';
 import { FreezeMembershipDto } from './dto/freeze-membership.dto';
@@ -18,7 +18,7 @@ export class MembershipService {
   private readonly logger = new Logger(MembershipService.name);
 
   constructor(
-    private prisma: PrismaService,
+    private tenant: TenantPrisma,
     private readonly memberReferrals: MemberReferralsService,
   ) {}
 
@@ -26,20 +26,20 @@ export class MembershipService {
 
   async assign(memberId: string, dto: AssignMembershipDto) {
     const [member, plan] = await Promise.all([
-      this.prisma.member.findUnique({ where: { id: memberId } }),
-      this.prisma.membershipPlan.findUnique({ where: { id: dto.plan_id } }),
+      this.tenant.client.member.findUnique({ where: { id: memberId } }),
+      this.tenant.client.membershipPlan.findUnique({ where: { id: dto.plan_id } }),
     ]);
     if (!member) throw new NotFoundException('Member not found');
     if (!plan) throw new BadRequestException('Invalid plan');
     if (!plan.is_active) throw new BadRequestException('Plan is no longer active');
 
     // Expire any currently active or frozen membership for this member
-    await this.prisma.memberMembership.updateMany({
+    await this.tenant.client.memberMembership.updateMany({
       where: { member_id: memberId, status: { in: ['active', 'frozen'] } },
       data: { status: 'expired' },
     });
     // Also complete any active freezes on those memberships
-    await this.prisma.membershipFreeze.updateMany({
+    await this.tenant.client.membershipFreeze.updateMany({
       where: {
         membership: { member_id: memberId },
         status: 'active',
@@ -56,7 +56,7 @@ export class MembershipService {
       ? new Date(endDate.getTime() + plan.grace_period_days * 86400000)
       : null;
 
-    const membership = await this.prisma.memberMembership.create({
+    const membership = await this.tenant.client.memberMembership.create({
       data: {
         gym_id: getTenantGymId()!,
         member_id: memberId,
@@ -78,7 +78,7 @@ export class MembershipService {
       const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
       // Branch-tier pricing: plan may override its base price per branch.
       const chargeAmount = resolvePlanPrice(plan, dto.branch_id);
-      const payment = await this.prisma.payment.create({
+      const payment = await this.tenant.client.payment.create({
         data: {
           gym_id: getTenantGymId()!,
           member_id: memberId,
@@ -93,7 +93,7 @@ export class MembershipService {
       });
 
       // Create corresponding ledger entry
-      await this.prisma.financialTransaction.create({
+      await this.tenant.client.financialTransaction.create({
         data: {
           gym_id: getTenantGymId()!,
           branch_id: dto.branch_id,
@@ -106,7 +106,7 @@ export class MembershipService {
       });
     }
 
-    await this.prisma.member.update({
+    await this.tenant.client.member.update({
       where: { id: memberId },
       data: { status: 'active' },
     });
@@ -139,7 +139,7 @@ export class MembershipService {
   ): Promise<void> {
     // Create the referral link if it doesn't already exist.
     let memberReferralId: string | null = null;
-    const existing = await this.prisma.memberReferral.findUnique({
+    const existing = await this.tenant.client.memberReferral.findUnique({
       where: {
         referrer_member_id_referred_member_id: {
           referrer_member_id: referrerMemberId,
@@ -190,7 +190,7 @@ export class MembershipService {
     const where: any = { member_id: memberId };
     if (status) where.status = status;
 
-    return this.prisma.memberMembership.findMany({
+    return this.tenant.client.memberMembership.findMany({
       where,
       include: {
         plan: true,
@@ -203,7 +203,7 @@ export class MembershipService {
   }
 
   async findOne(id: string) {
-    const membership = await this.prisma.memberMembership.findUnique({
+    const membership = await this.tenant.client.memberMembership.findUnique({
       where: { id },
       include: {
         member: { select: { id: true, full_name: true, member_code: true, phone: true } },
@@ -220,7 +220,7 @@ export class MembershipService {
   // ── Freeze Membership ───────────────────────────────────────
 
   async freeze(membershipId: string, dto: FreezeMembershipDto) {
-    const membership = await this.prisma.memberMembership.findUnique({
+    const membership = await this.tenant.client.memberMembership.findUnique({
       where: { id: membershipId },
       include: { member: true },
     });
@@ -231,7 +231,7 @@ export class MembershipService {
     const endDate = dto.end_date ? new Date(dto.end_date) : null;
 
     // Create freeze history record
-    const freeze = await this.prisma.membershipFreeze.create({
+    const freeze = await this.tenant.client.membershipFreeze.create({
       data: {
         gym_id: getTenantGymId()!,
         membership_id: membershipId,
@@ -244,7 +244,7 @@ export class MembershipService {
     });
 
     // Update membership status
-    await this.prisma.memberMembership.update({
+    await this.tenant.client.memberMembership.update({
       where: { id: membershipId },
       data: {
         status: 'frozen',
@@ -255,7 +255,7 @@ export class MembershipService {
     });
 
     // Update member status
-    await this.prisma.member.update({
+    await this.tenant.client.member.update({
       where: { id: membership.member_id },
       data: { status: 'frozen' },
     });
@@ -266,7 +266,7 @@ export class MembershipService {
   // ── Unfreeze Membership ─────────────────────────────────────
 
   async unfreeze(membershipId: string) {
-    const membership = await this.prisma.memberMembership.findUnique({
+    const membership = await this.tenant.client.memberMembership.findUnique({
       where: { id: membershipId },
       include: { member: true },
     });
@@ -290,7 +290,7 @@ export class MembershipService {
       : membership.grace_end_date;
 
     // Complete the active freeze record
-    await this.prisma.membershipFreeze.updateMany({
+    await this.tenant.client.membershipFreeze.updateMany({
       where: { membership_id: membershipId, status: 'active' },
       data: {
         end_date: now,
@@ -299,7 +299,7 @@ export class MembershipService {
       },
     });
 
-    const updated = await this.prisma.memberMembership.update({
+    const updated = await this.tenant.client.memberMembership.update({
       where: { id: membershipId },
       data: {
         status: 'active',
@@ -312,7 +312,7 @@ export class MembershipService {
       include: { plan: true },
     });
 
-    await this.prisma.member.update({
+    await this.tenant.client.member.update({
       where: { id: membership.member_id },
       data: { status: 'active' },
     });
@@ -323,7 +323,7 @@ export class MembershipService {
   // ── Cancel Membership ───────────────────────────────────────
 
   async cancel(membershipId: string) {
-    const membership = await this.prisma.memberMembership.findUnique({
+    const membership = await this.tenant.client.memberMembership.findUnique({
       where: { id: membershipId },
       include: { member: true },
     });
@@ -331,24 +331,24 @@ export class MembershipService {
     assertMembershipTransition(membership.status, 'cancelled');
 
     // Cancel any active freezes
-    await this.prisma.membershipFreeze.updateMany({
+    await this.tenant.client.membershipFreeze.updateMany({
       where: { membership_id: membershipId, status: 'active' },
       data: { status: 'cancelled' },
     });
 
-    const updated = await this.prisma.memberMembership.update({
+    const updated = await this.tenant.client.memberMembership.update({
       where: { id: membershipId },
       data: { status: 'cancelled', auto_renew: false },
       include: { plan: true },
     });
 
     // Check if member has any other active memberships
-    const otherActive = await this.prisma.memberMembership.count({
+    const otherActive = await this.tenant.client.memberMembership.count({
       where: { member_id: membership.member_id, status: 'active' },
     });
 
     if (otherActive === 0) {
-      await this.prisma.member.update({
+      await this.tenant.client.member.update({
         where: { id: membership.member_id },
         data: { status: 'cancelled' },
       });
@@ -360,7 +360,7 @@ export class MembershipService {
   // ── Renew Membership ────────────────────────────────────────
 
   async renew(membershipId: string, paymentMethod?: string) {
-    const membership = await this.prisma.memberMembership.findUnique({
+    const membership = await this.tenant.client.memberMembership.findUnique({
       where: { id: membershipId },
       include: { plan: true, member: true },
     });
@@ -369,7 +369,7 @@ export class MembershipService {
     const plan = membership.plan;
 
     // Mark old membership as renewed
-    await this.prisma.memberMembership.update({
+    await this.tenant.client.memberMembership.update({
       where: { id: membershipId },
       data: { status: 'renewed' },
     });
@@ -383,7 +383,7 @@ export class MembershipService {
       ? new Date(endDate.getTime() + plan.grace_period_days * 86400000)
       : null;
 
-    const newMembership = await this.prisma.memberMembership.create({
+    const newMembership = await this.tenant.client.memberMembership.create({
       data: {
         gym_id: getTenantGymId()!,
         member_id: membership.member_id,
@@ -404,7 +404,7 @@ export class MembershipService {
     if (paymentMethod) {
       const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
       const chargeAmount = resolvePlanPrice(plan, membership.branch_id);
-      const renewPayment = await this.prisma.payment.create({
+      const renewPayment = await this.tenant.client.payment.create({
         data: {
           gym_id: getTenantGymId()!,
           member_id: membership.member_id,
@@ -418,7 +418,7 @@ export class MembershipService {
         },
       });
 
-      await this.prisma.financialTransaction.create({
+      await this.tenant.client.financialTransaction.create({
         data: {
           gym_id: getTenantGymId()!,
           branch_id: membership.branch_id,
@@ -431,7 +431,7 @@ export class MembershipService {
       });
     }
 
-    await this.prisma.member.update({
+    await this.tenant.client.member.update({
       where: { id: membership.member_id },
       data: { status: 'active' },
     });
@@ -442,7 +442,7 @@ export class MembershipService {
   // ── Track Visit (decrement remaining_visits) ────────────────
 
   async trackVisit(membershipId: string) {
-    const membership = await this.prisma.memberMembership.findUnique({
+    const membership = await this.tenant.client.memberMembership.findUnique({
       where: { id: membershipId },
     });
     if (!membership) throw new NotFoundException('Membership not found');
@@ -454,7 +454,7 @@ export class MembershipService {
       if (membership.remaining_visits <= 0) {
         throw new BadRequestException('No remaining visits on this membership');
       }
-      await this.prisma.memberMembership.update({
+      await this.tenant.client.memberMembership.update({
         where: { id: membershipId },
         data: { remaining_visits: membership.remaining_visits - 1 },
       });
@@ -467,7 +467,7 @@ export class MembershipService {
 
   async toggleAutoRenew(membershipId: string, enabled: boolean) {
     const membership = await this.findOne(membershipId);
-    return this.prisma.memberMembership.update({
+    return this.tenant.client.memberMembership.update({
       where: { id: membership.id },
       data: { auto_renew: enabled },
     });
@@ -482,17 +482,17 @@ export class MembershipService {
     const statuses = ['active', 'frozen', 'expired', 'cancelled', 'renewed', 'paused'];
     const counts = await Promise.all(
       statuses.map((s) =>
-        this.prisma.memberMembership.count({ where: { ...where, status: s } }),
+        this.tenant.client.memberMembership.count({ where: { ...where, status: s } }),
       ),
     );
 
-    const total = await this.prisma.memberMembership.count({ where });
+    const total = await this.tenant.client.memberMembership.count({ where });
     const summary: Record<string, number> = { total };
     statuses.forEach((s, i) => { summary[s] = counts[i]; });
 
     // Expiring soon (within 7 days)
     const sevenDaysFromNow = new Date(Date.now() + 7 * 86400000);
-    summary.expiring_soon = await this.prisma.memberMembership.count({
+    summary.expiring_soon = await this.tenant.client.memberMembership.count({
       where: {
         ...where,
         status: 'active',
@@ -501,7 +501,7 @@ export class MembershipService {
     });
 
     // Auto-renew enabled count
-    summary.auto_renew_enabled = await this.prisma.memberMembership.count({
+    summary.auto_renew_enabled = await this.tenant.client.memberMembership.count({
       where: { ...where, status: 'active', auto_renew: true },
     });
 

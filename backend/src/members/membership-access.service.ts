@@ -5,7 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 import { TransferMemberDto } from './dto/transfer-member.dto';
 import { GrantTemporaryAccessDto } from './dto/grant-temporary-access.dto';
@@ -31,7 +31,7 @@ export class MembershipAccessService {
   private readonly logger = new Logger(MembershipAccessService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     // Audit is optional so unit tests can omit it; controller always provides.
     private readonly audit?: AuditService,
   ) {}
@@ -74,7 +74,7 @@ export class MembershipAccessService {
     actorUserId?: string,
     actorIp?: string,
   ) {
-    const member = await this.prisma.member.findUnique({
+    const member = await this.tenant.client.member.findUnique({
       where: { id: memberId },
       select: { id: true, branch_id: true, organization_id: true, full_name: true },
     });
@@ -84,7 +84,7 @@ export class MembershipAccessService {
       throw new BadRequestException('Member is already at the target branch');
     }
 
-    const toBranch = await this.prisma.branch.findUnique({
+    const toBranch = await this.tenant.client.branch.findUnique({
       where: { id: dto.to_branch_id },
       select: { id: true, organization_id: true, is_active: true },
     });
@@ -109,7 +109,7 @@ export class MembershipAccessService {
     const fromBranchId = member.branch_id;
     const gymId = getTenantGymId()!;
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.tenant.client.$transaction(async (tx) => {
       const updated = await tx.member.update({
         where: { id: memberId },
         data: { branch_id: dto.to_branch_id },
@@ -186,7 +186,7 @@ export class MembershipAccessService {
   }
 
   async listTransferHistory(memberId: string) {
-    return this.prisma.memberTransferLog.findMany({
+    return this.tenant.client.memberTransferLog.findMany({
       where: { member_id: memberId },
       orderBy: { created_at: 'desc' },
       take: 50,
@@ -201,7 +201,7 @@ export class MembershipAccessService {
     actorUserId?: string,
     actorIp?: string,
   ) {
-    const membership = await this.prisma.memberMembership.findUnique({
+    const membership = await this.tenant.client.memberMembership.findUnique({
       where: { id: dto.membership_id },
       select: {
         id: true,
@@ -233,7 +233,7 @@ export class MembershipAccessService {
 
     // Validate every branch exists and is active before granting anything —
     // partial grants are confusing for the front desk.
-    const branches = await this.prisma.branch.findMany({
+    const branches = await this.tenant.client.branch.findMany({
       where: { id: { in: dto.branch_ids } },
       select: { id: true, is_active: true },
     });
@@ -249,7 +249,7 @@ export class MembershipAccessService {
 
     const gymId = getTenantGymId()!;
 
-    const grants = await this.prisma.$transaction(async (tx) => {
+    const grants = await this.tenant.client.$transaction(async (tx) => {
       const out = [];
       for (const branchId of dto.branch_ids) {
         const row = await tx.membershipBranchAccess.upsert({
@@ -308,7 +308,7 @@ export class MembershipAccessService {
     actorUserId?: string,
     actorIp?: string,
   ) {
-    const membership = await this.prisma.memberMembership.findUnique({
+    const membership = await this.tenant.client.memberMembership.findUnique({
       where: { id: membershipId },
       select: { id: true, branch_id: true },
     });
@@ -322,7 +322,7 @@ export class MembershipAccessService {
       );
     }
 
-    const deleted = await this.prisma.membershipBranchAccess.deleteMany({
+    const deleted = await this.tenant.client.membershipBranchAccess.deleteMany({
       where: { membership_id: membershipId, branch_id: branchId },
     });
 
@@ -343,7 +343,7 @@ export class MembershipAccessService {
   }
 
   async listAccessGrants(membershipId: string) {
-    return this.prisma.membershipBranchAccess.findMany({
+    return this.tenant.client.membershipBranchAccess.findMany({
       where: { membership_id: membershipId },
       include: { branch: { select: { id: true, name: true, city: true } } },
       orderBy: { granted_at: 'desc' },

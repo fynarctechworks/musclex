@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { tenantContext } from '../common/tenant-context';
 import { randomBytes } from 'crypto';
 import { CronLockService } from '../common/services/cron-lock.service';
@@ -10,7 +10,7 @@ export class RenewalsService {
   private readonly logger = new Logger(RenewalsService.name);
 
   constructor(
-    private prisma: PrismaService,
+    private tenant: TenantPrisma,
     private cronLock: CronLockService,
   ) {}
 
@@ -23,7 +23,7 @@ export class RenewalsService {
     const now = new Date();
 
     // Expire memberships that are past their grace_end_date (or end_date if no grace)
-    const expiredMemberships = await this.prisma.memberMembership.findMany({
+    const expiredMemberships = await this.tenant.client.memberMembership.findMany({
       where: {
         status: 'active',
         end_date: { not: null },
@@ -42,7 +42,7 @@ export class RenewalsService {
 
     // Batch expire
     const ids = expiredMemberships.map((m) => m.id);
-    await this.prisma.memberMembership.updateMany({
+    await this.tenant.client.memberMembership.updateMany({
       where: { id: { in: ids } },
       data: { status: 'expired' },
     });
@@ -50,11 +50,11 @@ export class RenewalsService {
     // Update member statuses for those with no other active memberships
     const memberIds = [...new Set(expiredMemberships.map((m) => m.member_id))];
     for (const memberId of memberIds) {
-      const activeCount = await this.prisma.memberMembership.count({
+      const activeCount = await this.tenant.client.memberMembership.count({
         where: { member_id: memberId, status: 'active' },
       });
       if (activeCount === 0) {
-        await this.prisma.member.update({
+        await this.tenant.client.member.update({
           where: { id: memberId },
           data: { status: 'expired' },
         });
@@ -77,7 +77,7 @@ export class RenewalsService {
     const now = new Date();
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 86400000);
 
-    const expiringSoon = await this.prisma.memberMembership.findMany({
+    const expiringSoon = await this.tenant.client.memberMembership.findMany({
       where: {
         status: 'active',
         end_date: { gte: now, lte: sevenDaysFromNow },
@@ -93,7 +93,7 @@ export class RenewalsService {
     )];
 
     if (memberIds.length > 0) {
-      await this.prisma.member.updateMany({
+      await this.tenant.client.member.updateMany({
         where: { id: { in: memberIds }, status: 'active' },
         data: { status: 'expiring_soon' },
       });
@@ -115,7 +115,7 @@ export class RenewalsService {
     const now = new Date();
 
     // Find auto-renew memberships that have expired (past end_date, within grace)
-    const candidates = await this.prisma.memberMembership.findMany({
+    const candidates = await this.tenant.client.memberMembership.findMany({
       where: {
         status: 'active',
         auto_renew: true,
@@ -160,7 +160,7 @@ export class RenewalsService {
           },
           async () => {
             // Wrap all three operations in a transaction to prevent orphaned state
-            await this.prisma.$transaction(async (tx) => {
+            await this.tenant.client.$transaction(async (tx) => {
               // Mark old as renewed
               await tx.memberMembership.update({
                 where: { id: membership.id },
@@ -232,7 +232,7 @@ export class RenewalsService {
     this.logger.log('Running auto-unfreeze check...');
     const now = new Date();
 
-    const toUnfreeze = await this.prisma.memberMembership.findMany({
+    const toUnfreeze = await this.tenant.client.memberMembership.findMany({
       where: {
         status: 'frozen',
         freeze_end_date: { not: null, lte: now },
@@ -256,12 +256,12 @@ export class RenewalsService {
         : membership.grace_end_date;
 
       // Complete freeze record
-      await this.prisma.membershipFreeze.updateMany({
+      await this.tenant.client.membershipFreeze.updateMany({
         where: { membership_id: membership.id, status: 'active' },
         data: { end_date: now, days_frozen: frozenDays, status: 'completed' },
       });
 
-      await this.prisma.memberMembership.update({
+      await this.tenant.client.memberMembership.update({
         where: { id: membership.id },
         data: {
           status: 'active',
@@ -274,7 +274,7 @@ export class RenewalsService {
       });
 
       // Restore member status
-      await this.prisma.member.update({
+      await this.tenant.client.member.update({
         where: { id: membership.member_id },
         data: { status: 'active' },
       });

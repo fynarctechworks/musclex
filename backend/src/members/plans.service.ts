@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+// Json sentinels (Prisma.JsonNull) are per-generated-client runtime values, so
+// for tenant writes they MUST come from the tenant client, not '@prisma/client'.
+import { Prisma } from '../../node_modules/.prisma/client-tenant';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 import { DEFAULT_CURRENCY } from '../common/defaults';
 
@@ -54,7 +56,7 @@ interface PlanUpdateInput extends PlanScopeFields {
 
 @Injectable()
 export class PlansService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   // Prisma Decimal columns serialize as objects over JSON; coerce to plain numbers
   // so frontends can format `price` directly.
@@ -83,7 +85,7 @@ export class PlansService {
     if (filters?.multi_branch_access !== undefined) where.multi_branch_access = filters.multi_branch_access;
     if (filters?.is_active !== undefined) where.is_active = filters.is_active;
 
-    const plans = await this.prisma.membershipPlan.findMany({
+    const plans = await this.tenant.client.membershipPlan.findMany({
       where,
       include: {
         branch: { select: { id: true, name: true } },
@@ -96,7 +98,7 @@ export class PlansService {
   }
 
   async findOne(id: string) {
-    const plan = await this.prisma.membershipPlan.findUnique({
+    const plan = await this.tenant.client.membershipPlan.findUnique({
       where: { id },
       include: {
         branch: { select: { id: true, name: true } },
@@ -119,7 +121,7 @@ export class PlansService {
 
     const accessType = data.access_type ?? 'single_branch';
 
-    const plan = await this.prisma.membershipPlan.create({
+    const plan = await this.tenant.client.membershipPlan.create({
       data: {
         gym_id: getTenantGymId()!,
         name: data.name,
@@ -227,7 +229,7 @@ export class PlansService {
         (this.sanitizeBranchOverrides(data.branch_price_overrides) as Prisma.InputJsonValue) ?? {};
     }
 
-    const plan = await this.prisma.membershipPlan.update({
+    const plan = await this.tenant.client.membershipPlan.update({
       where: { id },
       data: updateData,
       include: {
@@ -308,7 +310,7 @@ export class PlansService {
 
   async remove(id: string) {
     await this.findOne(id);
-    await this.prisma.membershipPlan.update({
+    await this.tenant.client.membershipPlan.update({
       where: { id },
       data: { is_active: false },
     });
@@ -316,7 +318,7 @@ export class PlansService {
   }
 
   async findByType(planType: string) {
-    const plans = await this.prisma.membershipPlan.findMany({
+    const plans = await this.tenant.client.membershipPlan.findMany({
       where: { plan_type: planType, is_active: true },
       include: {
         branch: { select: { id: true, name: true } },
