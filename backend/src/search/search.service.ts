@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MeiliSearch, Index } from 'meilisearch';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 
 export interface SearchResult {
@@ -40,7 +40,7 @@ export class SearchService implements OnModuleInit {
 
   constructor(
     private config: ConfigService,
-    private prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
   ) {}
 
   async onModuleInit() {
@@ -204,7 +204,7 @@ export class SearchService implements OnModuleInit {
     const branchFilter = branchId ? { branch_id: branchId } : {};
 
     if (entities.includes(SEARCH_INDEXES.MEMBERS)) {
-      const members = await this.prisma.member.findMany({
+      const members = await this.tenant.client.member.findMany({
         where: {
           ...branchFilter,
           OR: [
@@ -228,7 +228,7 @@ export class SearchService implements OnModuleInit {
     }
 
     if (entities.includes(SEARCH_INDEXES.STAFF)) {
-      const staff = await this.prisma.staff.findMany({
+      const staff = await this.tenant.client.staff.findMany({
         where: {
           ...branchFilter,
           OR: [
@@ -250,7 +250,7 @@ export class SearchService implements OnModuleInit {
     }
 
     if (entities.includes(SEARCH_INDEXES.LEADS)) {
-      const leads = await this.prisma.lead.findMany({
+      const leads = await this.tenant.client.lead.findMany({
         where: {
           OR: [
             { full_name: { contains: query, mode: 'insensitive' } },
@@ -352,7 +352,7 @@ export class SearchService implements OnModuleInit {
 
     switch (indexName) {
       case SEARCH_INDEXES.MEMBERS: {
-        const members = await this.prisma.member.findMany({
+        const members = await this.tenant.client.member.findMany({
           select: {
             id: true, gym_id: true, full_name: true,
             email: true, phone: true, status: true,
@@ -364,7 +364,7 @@ export class SearchService implements OnModuleInit {
         break;
       }
       case SEARCH_INDEXES.STAFF: {
-        const staff = await this.prisma.staff.findMany({
+        const staff = await this.tenant.client.staff.findMany({
           select: {
             id: true, gym_id: true, full_name: true,
             email: true, phone: true, role: true,
@@ -376,7 +376,7 @@ export class SearchService implements OnModuleInit {
         break;
       }
       case SEARCH_INDEXES.LEADS: {
-        const leads = await this.prisma.lead.findMany({
+        const leads = await this.tenant.client.lead.findMany({
           select: {
             id: true, gym_id: true, full_name: true, email: true, phone: true,
             status: true, lead_source: true, created_at: true,

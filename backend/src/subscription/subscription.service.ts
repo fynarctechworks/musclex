@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ForbiddenException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
 import { SubscriptionPolicyService } from '../common/services/subscription-policy.service';
 import { SubscriptionGateway } from './subscription.gateway';
 import { RazorpayService } from '../payments/razorpay.service';
@@ -34,7 +34,7 @@ export class SubscriptionService {
   private readonly logger = new Logger(SubscriptionService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly pub: PublicPrismaService,
     private readonly policy: SubscriptionPolicyService,
     private readonly gateway: SubscriptionGateway,
     private readonly queue: QueueService,
@@ -57,7 +57,7 @@ export class SubscriptionService {
     studioId: string,
     opts: { plan?: string; billing_cycle?: 'monthly' | 'annual' },
   ) {
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: studioId },
       select: { subscription_plan: true, billing_cycle: true },
     });
@@ -158,7 +158,7 @@ export class SubscriptionService {
 
   async getStatus(studioId: string) {
     const [studio, context, plan] = await Promise.all([
-      this.prisma.studio.findUnique({
+      this.pub.studio.findUnique({
         where: { id: studioId },
         select: {
           subscription_plan: true,
@@ -208,7 +208,7 @@ export class SubscriptionService {
   }
 
   async getEvents(studioId: string, limit = 50) {
-    return this.prisma.subscriptionEvent.findMany({
+    return this.pub.subscriptionEvent.findMany({
       where: { studio_id: studioId },
       orderBy: { created_at: 'desc' },
       take: Math.min(limit, 200),
@@ -292,7 +292,7 @@ export class SubscriptionService {
     }
 
     // ── Resolve target plan + amount server-side (never trust client). ──
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: params.studio_id },
       select: { subscription_plan: true, billing_cycle: true },
     });
@@ -334,7 +334,7 @@ export class SubscriptionService {
       if (bi.billing_address && bi.billing_address.trim()) data.billing_address = bi.billing_address.trim();
       if (bi.tax_id && bi.tax_id.trim()) data.tax_id = bi.tax_id.trim();
       if (Object.keys(data).length > 0) {
-        await this.prisma.studio.update({
+        await this.pub.studio.update({
           where: { id: params.studio_id },
           data,
         });
@@ -436,7 +436,7 @@ export class SubscriptionService {
     monthly_price: number;
     annual_price: number;
   } | null> {
-    const dbPlan = await this.prisma.subscriptionPlan
+    const dbPlan = await this.pub.subscriptionPlan
       .findUnique({
         where: { name: planName },
         select: {
@@ -484,7 +484,7 @@ export class SubscriptionService {
     actor_id: string;
     reason?: string;
   }) {
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: params.studio_id },
       select: {
         id: true,
@@ -500,7 +500,7 @@ export class SubscriptionService {
     });
     if (!studio) throw new NotFoundException('Studio not found');
 
-    await this.prisma.subscriptionEvent.create({
+    await this.pub.subscriptionEvent.create({
       data: {
         studio_id: studio.id,
         event_type: 'cancel_requested',
@@ -560,7 +560,7 @@ export class SubscriptionService {
     studio_slug: string;
     billing_name: string | null;
   }> {
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: studioId },
       select: {
         name: true,
@@ -576,7 +576,7 @@ export class SubscriptionService {
     // Priority: billing_email (explicit) → studio.email → owner.email
     let to = studio.billing_email || studio.email || null;
     if (!to && studio.owner_user_id) {
-      const owner = await this.prisma.userIdentity.findUnique({
+      const owner = await this.pub.userIdentity.findUnique({
         where: { id: studio.owner_user_id },
         select: { email: true },
       });
@@ -860,7 +860,7 @@ export class SubscriptionService {
     studioId: string,
     opts: { plan?: string; billing_cycle?: 'monthly' | 'annual' } = {},
   ) {
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: studioId },
       select: {
         next_billing_date: true,
@@ -930,7 +930,7 @@ export class SubscriptionService {
     adminId: string,
     reason: string,
   ) {
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: studioId },
       select: { lifecycle_status: true, subscription_plan: true, billing_cycle: true },
     });
@@ -939,15 +939,15 @@ export class SubscriptionService {
     const previous = studio.lifecycle_status;
 
     if (targetStatus === 'suspended') {
-      await this.prisma.$transaction([
-        this.prisma.studio.update({
+      await this.pub.$transaction([
+        this.pub.studio.update({
           where: { id: studioId },
           data: {
             lifecycle_status: 'suspended',
             suspended_at: new Date(),
           },
         }),
-        this.prisma.subscriptionEvent.create({
+        this.pub.subscriptionEvent.create({
           data: {
             studio_id: studioId,
             event_type: 'suspended',
@@ -963,12 +963,12 @@ export class SubscriptionService {
       ]);
     } else {
       // Reactivate — re-run policy compute to determine if active/grace/locked.
-      await this.prisma.studio.update({
+      await this.pub.studio.update({
         where: { id: studioId },
         data: { suspended_at: null },
       });
       await this.policy.recomputeForStudio(studioId);
-      await this.prisma.subscriptionEvent.create({
+      await this.pub.subscriptionEvent.create({
         data: {
           studio_id: studioId,
           event_type: 'reactivated',
@@ -1000,13 +1000,13 @@ export class SubscriptionService {
   // ────────────────────────────────────────────────────────────
 
   private async resolvePlanInfo(studioId: string) {
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: studioId },
       select: { subscription_plan: true },
     });
     if (!studio) throw new NotFoundException('Studio not found');
 
-    const dbPlan = await this.prisma.subscriptionPlan
+    const dbPlan = await this.pub.subscriptionPlan
       .findUnique({ where: { name: studio.subscription_plan } })
       .catch(() => null);
 
@@ -1041,7 +1041,7 @@ export class SubscriptionService {
     opts: { limit?: number; cursor?: string } = {},
   ) {
     const take = Math.min(Math.max(opts.limit ?? 50, 1), 100);
-    const rows = await this.prisma.invoice.findMany({
+    const rows = await this.pub.invoice.findMany({
       where: { studio_id: studioId },
       orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
       take: take + 1,
@@ -1081,12 +1081,12 @@ export class SubscriptionService {
   }
 
   async getInvoice(studioId: string, invoiceId: string) {
-    const invoice = await this.prisma.invoice.findFirst({
+    const invoice = await this.pub.invoice.findFirst({
       where: { id: invoiceId, studio_id: studioId },
     });
     if (!invoice) throw new NotFoundException('Invoice not found');
 
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: studioId },
       select: {
         name: true,
@@ -1098,7 +1098,7 @@ export class SubscriptionService {
     });
 
     // Best-effort: find the renewal event linked to this invoice for plan/cycle.
-    const event = await this.prisma.subscriptionEvent.findFirst({
+    const event = await this.pub.subscriptionEvent.findFirst({
       where: {
         studio_id: studioId,
         event_type: 'renewed',
@@ -1107,7 +1107,7 @@ export class SubscriptionService {
       orderBy: { created_at: 'desc' },
     });
 
-    const paymentEvent = await this.prisma.subscriptionEvent.findFirst({
+    const paymentEvent = await this.pub.subscriptionEvent.findFirst({
       where: {
         studio_id: studioId,
         event_type: 'payment_recorded',

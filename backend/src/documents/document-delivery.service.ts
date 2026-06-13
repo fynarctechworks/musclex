@@ -1,5 +1,5 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { DocumentsService } from './documents.service';
 import { getTenantGymId } from '../common/tenant-context';
 
@@ -16,7 +16,7 @@ export class DocumentDeliveryService {
   private readonly logger = new Logger(DocumentDeliveryService.name);
 
   constructor(
-    private prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private documents: DocumentsService,
   ) {}
 
@@ -27,7 +27,7 @@ export class DocumentDeliveryService {
     if (!opts.channels?.length) {
       throw new BadRequestException('At least one delivery channel is required');
     }
-    const sale = await this.prisma.posSale.findUnique({
+    const sale = await this.tenant.client.posSale.findUnique({
       where: { id: saleId },
       include: { member: { select: { email: true, phone: true } } },
     });
@@ -75,7 +75,7 @@ export class DocumentDeliveryService {
       throw new BadRequestException('At least one delivery channel is required');
     }
 
-    const invoice = await this.prisma.memberInvoice.findUnique({
+    const invoice = await this.tenant.client.memberInvoice.findUnique({
       where: { id: invoiceId },
       include: {
         member: { select: { full_name: true, email: true, phone: true } },
@@ -207,7 +207,7 @@ export class DocumentDeliveryService {
     providerMsgId?: string,
     error?: string,
   ) {
-    return this.prisma.documentDelivery.create({
+    return this.tenant.client.documentDelivery.create({
       data: {
         gym_id: getTenantGymId()!,
         document_id: documentId,

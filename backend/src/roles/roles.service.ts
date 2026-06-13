@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 import { CreateRoleDto, UpdateRoleDto } from './dto';
 import { DEFAULT_ROLE_PERMISSIONS } from '../common/guards/default-permissions';
@@ -26,10 +26,10 @@ const VALID_PERMISSION_CODES = new Set(ALL_PERMISSIONS.map((p) => p.code));
 
 @Injectable()
 export class RolesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   async findAll() {
-    const roles = await this.prisma.role.findMany({
+    const roles = await this.tenant.client.role.findMany({
       orderBy: { created_at: 'asc' },
       include: {
         _count: { select: { staff: true } },
@@ -74,7 +74,7 @@ export class RolesService {
   }
 
   async findOne(id: string) {
-    const role = await this.prisma.role.findUnique({
+    const role = await this.tenant.client.role.findUnique({
       where: { id },
       include: {
         _count: { select: { staff: true } },
@@ -93,7 +93,7 @@ export class RolesService {
   }
 
   async create(dto: CreateRoleDto) {
-    const existing = await this.prisma.role.findUnique({
+    const existing = await this.tenant.client.role.findUnique({
       where: { name: dto.name },
     });
 
@@ -106,7 +106,7 @@ export class RolesService {
       ? this.mapToCodes(dto.permissions)
       : [];
 
-    const role = await this.prisma.role.create({
+    const role = await this.tenant.client.role.create({
       data: {
         gym_id: getTenantGymId()!,
         name: dto.name,
@@ -118,7 +118,7 @@ export class RolesService {
 
     // Create normalized RolePermission entries
     if (permissionCodes.length > 0) {
-      await this.prisma.rolePermission.createMany({
+      await this.tenant.client.rolePermission.createMany({
         data: permissionCodes.map((code) => ({
           gym_id: getTenantGymId()!,
           role_id: role.id,
@@ -135,7 +135,7 @@ export class RolesService {
   }
 
   async update(id: string, dto: UpdateRoleDto) {
-    const role = await this.prisma.role.findUnique({ where: { id } });
+    const role = await this.tenant.client.role.findUnique({ where: { id } });
     if (!role) {
       throw new NotFoundException('Role not found');
     }
@@ -150,15 +150,15 @@ export class RolesService {
       data.permissions = this.sanitizePermissions(dto.permissions);
     }
 
-    const updated = await this.prisma.role.update({ where: { id }, data });
+    const updated = await this.tenant.client.role.update({ where: { id }, data });
 
     // Sync RolePermission entries
     if (dto.permissions !== undefined) {
       const newCodes = this.mapToCodes(dto.permissions);
       // Delete all existing and recreate
-      await this.prisma.rolePermission.deleteMany({ where: { role_id: id } });
+      await this.tenant.client.rolePermission.deleteMany({ where: { role_id: id } });
       if (newCodes.length > 0) {
-        await this.prisma.rolePermission.createMany({
+        await this.tenant.client.rolePermission.createMany({
           data: newCodes.map((code) => ({
             gym_id: getTenantGymId()!,
             role_id: id,
@@ -173,7 +173,7 @@ export class RolesService {
   }
 
   async remove(id: string) {
-    const role = await this.prisma.role.findUnique({
+    const role = await this.tenant.client.role.findUnique({
       where: { id },
       include: { _count: { select: { staff: true } } },
     });
@@ -191,8 +191,8 @@ export class RolesService {
     }
 
     // Delete role_permissions first (cascaded by FK, but explicit for clarity)
-    await this.prisma.rolePermission.deleteMany({ where: { role_id: id } });
-    return this.prisma.role.delete({ where: { id } });
+    await this.tenant.client.rolePermission.deleteMany({ where: { role_id: id } });
+    return this.tenant.client.role.delete({ where: { id } });
   }
 
   async getPermissionModules() {

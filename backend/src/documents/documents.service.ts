@@ -7,7 +7,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { createHash } from 'crypto';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
 import { DocumentRendererService } from './document-renderer.service';
 import { getTenantGymId } from '../common/tenant-context';
 import { InvoicePdfData } from './templates/invoice-pdf';
@@ -22,7 +23,8 @@ export class DocumentsService {
   private supabase: SupabaseClient;
 
   constructor(
-    private prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
+    private readonly pub: PublicPrismaService,
     private renderer: DocumentRendererService,
     private config: ConfigService,
   ) {
@@ -47,7 +49,7 @@ export class DocumentsService {
     const version = this.invoiceVersion(invoice);
 
     if (!opts?.force) {
-      const existing = await this.prisma.document.findFirst({
+      const existing = await this.tenant.client.document.findFirst({
         where: {
           source_type: 'invoice',
           source_id: invoiceId,
@@ -80,7 +82,7 @@ export class DocumentsService {
       throw new InternalServerErrorException('Failed to upload invoice PDF');
     }
 
-    const doc = await this.prisma.document.create({
+    const doc = await this.tenant.client.document.create({
       data: {
         gym_id: gymId,
         branch_id: invoice.branch_id,
@@ -124,7 +126,7 @@ export class DocumentsService {
 
     const version = this.saleVersion(sale);
     if (!opts?.force) {
-      const existing = await this.prisma.document.findFirst({
+      const existing = await this.tenant.client.document.findFirst({
         where: {
           source_type: 'pos_sale',
           source_id: saleId,
@@ -155,7 +157,7 @@ export class DocumentsService {
       throw new InternalServerErrorException('Failed to upload receipt PDF');
     }
 
-    const doc = await this.prisma.document.create({
+    const doc = await this.tenant.client.document.create({
       data: {
         gym_id: gymId,
         branch_id: sale.branch_id,
@@ -195,7 +197,7 @@ export class DocumentsService {
   }
 
   private async loadSaleForReceipt(saleId: string): Promise<any> {
-    const sale: any = await this.prisma.posSale.findUnique({
+    const sale: any = await this.tenant.client.posSale.findUnique({
       where: { id: saleId },
       include: {
         items: { include: { product: { select: { product_name: true, sku: true } } } },
@@ -217,7 +219,7 @@ export class DocumentsService {
       },
     });
     if (!sale) return null;
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: sale.gym_id },
       select: {
         name: true,
@@ -334,7 +336,7 @@ export class DocumentsService {
   }
 
   private async loadInvoiceForPdf(invoiceId: string): Promise<LoadedInvoice | null> {
-    const invoice: any = await this.prisma.memberInvoice.findUnique({
+    const invoice: any = await this.tenant.client.memberInvoice.findUnique({
       where: { id: invoiceId },
       include: {
         items: true,
@@ -364,7 +366,7 @@ export class DocumentsService {
     });
     if (!invoice) return null;
 
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: invoice.gym_id },
       select: {
         name: true,

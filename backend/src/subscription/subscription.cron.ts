@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
 import { SubscriptionPolicyService } from '../common/services/subscription-policy.service';
 import { SubscriptionGateway } from './subscription.gateway';
 import { CronLockService } from '../common/services/cron-lock.service';
@@ -36,7 +36,7 @@ export class SubscriptionCron {
   private readonly logger = new Logger(SubscriptionCron.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly pub: PublicPrismaService,
     private readonly policy: SubscriptionPolicyService,
     private readonly gateway: SubscriptionGateway,
     private readonly cronLock: CronLockService,
@@ -56,7 +56,7 @@ export class SubscriptionCron {
         `Subscription reconciliation starting at ${now.toISOString()}`,
       );
 
-      const studios = await this.prisma.studio.findMany({
+      const studios = await this.pub.studio.findMany({
         select: { id: true, email: true, billing_email: true, name: true },
       });
 
@@ -121,7 +121,7 @@ export class SubscriptionCron {
       async () => {
         // Only push to studios with non-ACTIVE state — there's nothing to
         // urge an ACTIVE customer about.
-        const studios = await this.prisma.studio.findMany({
+        const studios = await this.pub.studio.findMany({
           where: { lifecycle_status: { not: 'active' } },
           select: { id: true },
         });
@@ -152,7 +152,7 @@ export class SubscriptionCron {
    * the same pattern as reminder dedup. Idempotent across cron runs.
    */
   private async maybeEmitTrialCompleted(studioId: string, now: Date): Promise<void> {
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: studioId },
       select: {
         id: true,
@@ -172,7 +172,7 @@ export class SubscriptionCron {
 
     // Dedup — one emission per trial_ends_at value.
     const dedupKey = `trial_completed_${studio.trial_ends_at.toISOString().slice(0, 10)}`;
-    const existing = await this.prisma.subscriptionEvent.findFirst({
+    const existing = await this.pub.subscriptionEvent.findFirst({
       where: {
         studio_id: studioId,
         event_type: 'trial_completed_emitted',
@@ -184,7 +184,7 @@ export class SubscriptionCron {
 
     // Only fire if there's actually a pending referral to reward — skips
     // the noisy "no-op" event for non-referred studios.
-    const referral = await this.prisma.referral.findUnique({
+    const referral = await this.pub.referral.findUnique({
       where: { referred_studio_id: studioId },
       select: { id: true, status: true },
     });
@@ -193,7 +193,7 @@ export class SubscriptionCron {
 
     // Resolve the plan id for the rule engine. Best-effort — if the plan
     // can't be found we still emit with the plan name so listeners can decide.
-    const plan = await this.prisma.subscriptionPlan
+    const plan = await this.pub.subscriptionPlan
       .findFirst({ where: { name: studio.subscription_plan, is_active: true }, select: { id: true, monthly_price: true, annual_price: true } })
       .catch(() => null);
 
@@ -216,7 +216,7 @@ export class SubscriptionCron {
     this.eventEmitter.emit(REFERRAL_EVENTS.TRIAL_COMPLETED, payload);
 
     // Stamp the dedup so we don't re-fire on the next cron pass.
-    await this.prisma.subscriptionEvent.create({
+    await this.pub.subscriptionEvent.create({
       data: {
         studio_id: studioId,
         event_type: 'trial_completed_emitted',
@@ -238,7 +238,7 @@ export class SubscriptionCron {
     studio: { id: string; email: string | null; billing_email: string | null; name: string },
     now: Date,
   ): Promise<boolean> {
-    const s = await this.prisma.studio.findUnique({
+    const s = await this.pub.studio.findUnique({
       where: { id: studio.id },
       select: { next_billing_date: true, lifecycle_status: true },
     });
@@ -257,7 +257,7 @@ export class SubscriptionCron {
     const dedupKey = `expiry_reminder_${daysUntil}d_${s.next_billing_date
       .toISOString()
       .slice(0, 10)}`;
-    const existing = await this.prisma.subscriptionEvent.findFirst({
+    const existing = await this.pub.subscriptionEvent.findFirst({
       where: {
         studio_id: studio.id,
         event_type: 'reminder_sent',
@@ -288,7 +288,7 @@ export class SubscriptionCron {
         });
     }
 
-    await this.prisma.subscriptionEvent.create({
+    await this.pub.subscriptionEvent.create({
       data: {
         studio_id: studio.id,
         event_type: 'reminder_sent',
