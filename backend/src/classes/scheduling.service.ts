@@ -7,7 +7,8 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
+import { TenantTaskRunner } from '../prisma/tenant-task-runner';
 import { CronLockService } from '../common/services/cron-lock.service';
 import { getTenantGymId } from '../common/tenant-context';
 import {
@@ -23,7 +24,8 @@ export class SchedulingService {
   private readonly logger = new Logger(SchedulingService.name);
 
   constructor(
-    private prisma: PrismaService,
+    private tenant: TenantPrisma,
+    private tasks: TenantTaskRunner,
     private cronLock: CronLockService,
   ) {}
 
@@ -43,7 +45,7 @@ export class SchedulingService {
     };
     if (excludeSessionId) where.id = { not: excludeSessionId };
 
-    const conflict = await this.prisma.classSession.findFirst({ where });
+    const conflict = await this.tenant.client.classSession.findFirst({ where });
     if (conflict) {
       throw new ConflictException(
         `Trainer is already assigned to "${conflict.name}" from ${conflict.start_time.toISOString()} to ${conflict.end_time.toISOString()}`,
@@ -65,7 +67,7 @@ export class SchedulingService {
     };
     if (excludeSessionId) where.id = { not: excludeSessionId };
 
-    const conflict = await this.prisma.classSession.findFirst({ where });
+    const conflict = await this.tenant.client.classSession.findFirst({ where });
     if (conflict) {
       throw new ConflictException(
         `Studio is already booked for "${conflict.name}" from ${conflict.start_time.toISOString()} to ${conflict.end_time.toISOString()}`,
@@ -80,13 +82,13 @@ export class SchedulingService {
     const endTime = new Date(startTime.getTime() + dto.duration_minutes * 60000);
 
     // Validate trainer exists and belongs to studio
-    const trainer = await this.prisma.staff.findFirst({
+    const trainer = await this.tenant.client.staff.findFirst({
       where: { id: dto.trainer_id } // tenant isolation via search_path,
     });
     if (!trainer) throw new NotFoundException('Trainer not found in studio');
 
     // Verify branch belongs to studio
-    const branch = await this.prisma.branch.findFirst({
+    const branch = await this.tenant.client.branch.findFirst({
       where: { id: dto.branch_id } // tenant isolation via search_path,
     });
     if (!branch) throw new NotFoundException('Branch not found in studio');
@@ -96,7 +98,7 @@ export class SchedulingService {
 
     // Check studio conflict if studio specified
     if (dto.studio_id) {
-      const studio = await this.prisma.studioRoom.findFirst({
+      const studio = await this.tenant.client.studioRoom.findFirst({
         where: { id: dto.studio_id, branch_id: dto.branch_id },
       });
       if (!studio) throw new NotFoundException('Studio room not found in branch');
@@ -104,7 +106,7 @@ export class SchedulingService {
       await this.checkStudioConflict(dto.studio_id, startTime, endTime);
     }
 
-    const session = await this.prisma.classSession.create({
+    const session = await this.tenant.client.classSession.create({
       data: {
         gym_id: getTenantGymId()!,
         template_id: dto.template_id,
@@ -126,7 +128,7 @@ export class SchedulingService {
     });
 
     // Auto-create primary trainer assignment
-    await this.prisma.trainerAssignment.create({
+    await this.tenant.client.trainerAssignment.create({
       data: {
         gym_id: getTenantGymId()!,
         trainer_id: dto.trainer_id,
@@ -167,7 +169,7 @@ export class SchedulingService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.classSession.findMany({
+      this.tenant.client.classSession.findMany({
         where,
         include: {
           branch: { select: { id: true, name: true } },
@@ -180,14 +182,14 @@ export class SchedulingService {
         take: limit,
         orderBy: { start_time: 'asc' },
       }),
-      this.prisma.classSession.count({ where }),
+      this.tenant.client.classSession.count({ where }),
     ]);
 
     return { data, total, page, limit };
   }
 
   async findOneSession(id: string) {
-    const session = await this.prisma.classSession.findUnique({
+    const session = await this.tenant.client.classSession.findUnique({
       where: { id },
       include: {
         branch: { select: { id: true, name: true } },
@@ -224,7 +226,7 @@ export class SchedulingService {
   }
 
   async updateSession(id: string, dto: UpdateClassSessionDto) {
-    const existing = await this.prisma.classSession.findUnique({ where: { id } });
+    const existing = await this.tenant.client.classSession.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Class session not found');
 
     const trainerId = dto.trainer_id || existing.trainer_id;
@@ -257,7 +259,7 @@ export class SchedulingService {
     if (dto.status !== undefined) data.status = dto.status;
     if (dto.cancellation_reason !== undefined) data.cancellation_reason = dto.cancellation_reason;
 
-    return this.prisma.classSession.update({
+    return this.tenant.client.classSession.update({
       where: { id },
       data,
       include: {
@@ -270,20 +272,20 @@ export class SchedulingService {
   }
 
   async cancelSession(id: string, reason?: string) {
-    const session = await this.prisma.classSession.findUnique({ where: { id } });
+    const session = await this.tenant.client.classSession.findUnique({ where: { id } });
     if (!session) throw new NotFoundException('Class session not found');
     if (session.status === 'cancelled') throw new BadRequestException('Session is already cancelled');
 
     // Cancel all bookings for this session
-    await this.prisma.classBooking.updateMany({
+    await this.tenant.client.classBooking.updateMany({
       where: { session_id: id, booking_status: 'booked' },
       data: { booking_status: 'cancelled', cancelled_at: new Date(), cancellation_reason: 'Session cancelled' },
     });
 
     // Remove waitlist entries
-    await this.prisma.classWaitlist.deleteMany({ where: { session_id: id } });
+    await this.tenant.client.classWaitlist.deleteMany({ where: { session_id: id } });
 
-    return this.prisma.classSession.update({
+    return this.tenant.client.classSession.update({
       where: { id },
       data: { status: 'cancelled', cancellation_reason: reason, enrolled_count: 0, waitlist_count: 0 },
     });
@@ -292,7 +294,7 @@ export class SchedulingService {
   // ── Studio Rooms ──────────────────────────────────────────
 
   async createRoom(dto: CreateStudioRoomDto) {
-    return this.prisma.studioRoom.create({
+    return this.tenant.client.studioRoom.create({
       data: {
         gym_id: getTenantGymId()!,
         branch_id: dto.branch_id,
@@ -308,7 +310,7 @@ export class SchedulingService {
     const where: any = {};
     if (branchId) where.branch_id = branchId;
 
-    return this.prisma.studioRoom.findMany({
+    return this.tenant.client.studioRoom.findMany({
       where,
       include: {
         branch: { select: { id: true, name: true } },
@@ -319,7 +321,7 @@ export class SchedulingService {
   }
 
   async findOneRoom(id: string) {
-    const room = await this.prisma.studioRoom.findUnique({
+    const room = await this.tenant.client.studioRoom.findUnique({
       where: { id },
       include: {
         branch: { select: { id: true, name: true } },
@@ -338,7 +340,7 @@ export class SchedulingService {
     if (dto.equipment_available !== undefined) data.equipment_available = dto.equipment_available;
     if (dto.is_active !== undefined) data.is_active = dto.is_active;
 
-    return this.prisma.studioRoom.update({
+    return this.tenant.client.studioRoom.update({
       where: { id },
       data,
       include: { branch: { select: { id: true, name: true } } },
@@ -348,10 +350,10 @@ export class SchedulingService {
   // ── Recurring Rules ───────────────────────────────────────
 
   async createRecurringRule(dto: CreateRecurringRuleDto) {
-    const template = await this.prisma.classTemplate.findUnique({ where: { id: dto.template_id } });
+    const template = await this.tenant.client.classTemplate.findUnique({ where: { id: dto.template_id } });
     if (!template) throw new NotFoundException('Class template not found');
 
-    return this.prisma.classRecurringRule.create({
+    return this.tenant.client.classRecurringRule.create({
       data: {
         gym_id: getTenantGymId()!,
         template_id: dto.template_id,
@@ -373,7 +375,7 @@ export class SchedulingService {
     if (templateId) where.template_id = templateId;
     if (branchId) where.branch_id = branchId;
 
-    return this.prisma.classRecurringRule.findMany({
+    return this.tenant.client.classRecurringRule.findMany({
       where,
       include: { template: { select: { id: true, name: true, category: true } } },
       orderBy: { created_at: 'desc' },
@@ -381,10 +383,10 @@ export class SchedulingService {
   }
 
   async deactivateRecurringRule(id: string) {
-    const rule = await this.prisma.classRecurringRule.findUnique({ where: { id } });
+    const rule = await this.tenant.client.classRecurringRule.findUnique({ where: { id } });
     if (!rule) throw new NotFoundException('Recurring rule not found');
 
-    return this.prisma.classRecurringRule.update({
+    return this.tenant.client.classRecurringRule.update({
       where: { id },
       data: { is_active: false },
     });
@@ -396,8 +398,12 @@ export class SchedulingService {
   async generateRecurringSessions() {
     const result = await this.cronLock.withLock('cron:recurring_sessions', async () => {
     this.logger.log('Generating recurring class sessions...');
+    let created = 0;
+    const daysAhead = 7; // Generate sessions for the next 7 days
 
-    const rules = await this.prisma.classRecurringRule.findMany({
+    // Background job: run per-gym so each tenant client is bound to its schema.
+    await this.tasks.forEachTenant(async () => {
+    const rules = await this.tenant.client.classRecurringRule.findMany({
       where: {
         is_active: true,
         OR: [
@@ -407,9 +413,6 @@ export class SchedulingService {
       },
       include: { template: true },
     });
-
-    let created = 0;
-    const daysAhead = 7; // Generate sessions for the next 7 days
 
     for (const rule of rules) {
       for (let dayOffset = 0; dayOffset < daysAhead; dayOffset++) {
@@ -429,7 +432,7 @@ export class SchedulingService {
 
         // Check if session already exists for this slot
         const endTime = new Date(startTime.getTime() + rule.duration_minutes * 60000);
-        const existing = await this.prisma.classSession.findFirst({
+        const existing = await this.tenant.client.classSession.findFirst({
           where: {
             template_id: rule.template_id,
             branch_id: rule.branch_id,
@@ -440,7 +443,7 @@ export class SchedulingService {
 
         // Check trainer availability if specified
         if (rule.trainer_id) {
-          const trainerConflict = await this.prisma.classSession.findFirst({
+          const trainerConflict = await this.tenant.client.classSession.findFirst({
             where: {
               trainer_id: rule.trainer_id,
               status: { not: 'cancelled' },
@@ -453,7 +456,7 @@ export class SchedulingService {
 
         // Check studio availability if specified
         if (rule.studio_id) {
-          const studioConflict = await this.prisma.classSession.findFirst({
+          const studioConflict = await this.tenant.client.classSession.findFirst({
             where: {
               studio_id: rule.studio_id,
               status: { not: 'cancelled' },
@@ -465,7 +468,7 @@ export class SchedulingService {
         }
 
         try {
-          const session = await this.prisma.classSession.create({
+          const session = await this.tenant.client.classSession.create({
             data: {
               gym_id: getTenantGymId()!,
               template_id: rule.template_id,
@@ -482,7 +485,7 @@ export class SchedulingService {
 
           // Auto-assign trainer
           if (rule.trainer_id) {
-            await this.prisma.trainerAssignment.create({
+            await this.tenant.client.trainerAssignment.create({
               data: {
                 gym_id: getTenantGymId()!,
                 trainer_id: rule.trainer_id,
@@ -498,6 +501,7 @@ export class SchedulingService {
         }
       }
     }
+    });
 
     this.logger.log(`Generated ${created} recurring sessions`);
     return { created };
@@ -519,7 +523,7 @@ export class SchedulingService {
       if (dateTo) where.start_time.lte = new Date(dateTo);
     }
 
-    return this.prisma.classSession.findMany({
+    return this.tenant.client.classSession.findMany({
       where,
       include: {
         branch: { select: { id: true, name: true } },
@@ -544,7 +548,7 @@ export class SchedulingService {
       if (dateTo) where.start_time.lte = new Date(dateTo);
     }
 
-    return this.prisma.classSession.findMany({
+    return this.tenant.client.classSession.findMany({
       where,
       include: {
         branch: { select: { id: true, name: true } },

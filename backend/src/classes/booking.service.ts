@@ -4,22 +4,22 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { BookClassDto, CancelBookingDto } from './dto';
 import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class BookingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   async bookClass(dto: BookClassDto) {
-    const session = await this.prisma.classSession.findUnique({ where: { id: dto.session_id } });
+    const session = await this.tenant.client.classSession.findUnique({ where: { id: dto.session_id } });
     if (!session) throw new NotFoundException('Class session not found');
     if (session.status === 'cancelled') throw new BadRequestException('Cannot book a cancelled session');
     if (session.status === 'completed') throw new BadRequestException('Cannot book a completed session');
 
     // ── ATOMIC booking inside a transaction to prevent overbooking ──
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       // Re-fetch session inside transaction for consistent read
       const lockedSession = await tx.classSession.findUnique({ where: { id: dto.session_id } });
       if (!lockedSession) throw new NotFoundException('Class session not found');
@@ -110,7 +110,7 @@ export class BookingService {
   }
 
   async cancelBooking(bookingId: string, dto?: CancelBookingDto) {
-    const booking = await this.prisma.classBooking.findUnique({
+    const booking = await this.tenant.client.classBooking.findUnique({
       where: { id: bookingId },
       include: { session: true },
     });
@@ -118,7 +118,7 @@ export class BookingService {
     if (booking.booking_status === 'cancelled') throw new BadRequestException('Booking is already cancelled');
 
     // Wrap cancellation + promotion in a transaction
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       await tx.classBooking.update({
         where: { id: bookingId },
         data: {
@@ -214,24 +214,24 @@ export class BookingService {
 
   /** Public wrapper for standalone waitlist promotion */
   async promoteFromWaitlist(sessionId: string) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       return this._promoteFromWaitlistTx(tx, sessionId);
     });
   }
 
   async getSessionBookings(sessionId: string) {
-    const session = await this.prisma.classSession.findUnique({ where: { id: sessionId } });
+    const session = await this.tenant.client.classSession.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Class session not found');
 
     const [bookings, waitlist] = await Promise.all([
-      this.prisma.classBooking.findMany({
+      this.tenant.client.classBooking.findMany({
         where: { session_id: sessionId, booking_status: 'booked' },
         include: {
           member: { select: { id: true, full_name: true, member_code: true, profile_photo_url: true, phone: true } },
         },
         orderBy: { booked_at: 'asc' },
       }),
-      this.prisma.classWaitlist.findMany({
+      this.tenant.client.classWaitlist.findMany({
         where: { session_id: sessionId },
         include: {
           member: { select: { id: true, full_name: true, member_code: true, phone: true } },
@@ -257,7 +257,7 @@ export class BookingService {
       where.session = { start_time: { gte: new Date() } };
     }
 
-    return this.prisma.classBooking.findMany({
+    return this.tenant.client.classBooking.findMany({
       where,
       include: {
         session: {
@@ -274,7 +274,7 @@ export class BookingService {
   }
 
   async getWaitlistPosition(sessionId: string, memberId: string) {
-    const entry = await this.prisma.classWaitlist.findUnique({
+    const entry = await this.tenant.client.classWaitlist.findUnique({
       where: { session_id_member_id: { session_id: sessionId, member_id: memberId } },
     });
     if (!entry) return null;
@@ -282,7 +282,7 @@ export class BookingService {
   }
 
   async removeFromWaitlist(sessionId: string, memberId: string) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       const entry = await tx.classWaitlist.findUnique({
         where: { session_id_member_id: { session_id: sessionId, member_id: memberId } },
       });

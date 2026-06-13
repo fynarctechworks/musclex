@@ -1,14 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { CreateClassTemplateDto, UpdateClassTemplateDto } from './dto';
 import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class ClassTemplateService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   async create(dto: CreateClassTemplateDto) {
-    return this.prisma.classTemplate.create({
+    return this.tenant.client.classTemplate.create({
       data: {
         gym_id: getTenantGymId()!,
         organization_id: dto.organization_id,
@@ -39,7 +39,7 @@ export class ClassTemplateService {
     if (filters?.category) where.category = filters.category;
     if (filters?.is_active !== undefined) where.is_active = filters.is_active;
 
-    return this.prisma.classTemplate.findMany({
+    return this.tenant.client.classTemplate.findMany({
       where,
       include: {
         branch: { select: { id: true, name: true } },
@@ -51,7 +51,7 @@ export class ClassTemplateService {
   }
 
   async findOne(id: string) {
-    const template = await this.prisma.classTemplate.findUnique({
+    const template = await this.tenant.client.classTemplate.findUnique({
       where: { id },
       include: {
         branch: { select: { id: true, name: true } },
@@ -75,7 +75,7 @@ export class ClassTemplateService {
     if (dto.default_capacity !== undefined) data.default_capacity = dto.default_capacity;
     if (dto.is_active !== undefined) data.is_active = dto.is_active;
 
-    return this.prisma.classTemplate.update({
+    return this.tenant.client.classTemplate.update({
       where: { id },
       data,
       include: {
@@ -87,7 +87,7 @@ export class ClassTemplateService {
 
   async remove(id: string) {
     await this.findOne(id);
-    await this.prisma.classTemplate.update({
+    await this.tenant.client.classTemplate.update({
       where: { id },
       data: { is_active: false },
     });

@@ -4,8 +4,8 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '../../node_modules/.prisma/client-tenant';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { ResourceLimitService } from '../common/services/resource-limit.service';
 import { getTenantGymId } from '../common/tenant-context';
 
@@ -17,7 +17,7 @@ type Tx = Prisma.TransactionClient;
 @Injectable()
 export class ClassesService {
   constructor(
-    private prisma: PrismaService,
+    private tenant: TenantPrisma,
     private resourceLimits: ResourceLimitService,
   ) {}
 
@@ -42,7 +42,7 @@ export class ClassesService {
   }) {
     const { trainerId, startsAt, endsAt, excludeClassId } = params;
 
-    const candidates = await this.prisma.class.findMany({
+    const candidates = await this.tenant.client.class.findMany({
       where: {
         ...(excludeClassId ? { id: { not: excludeClassId } } : {}),
         trainer_id: trainerId,
@@ -102,7 +102,7 @@ export class ClassesService {
 
     // Validate trainer belongs to the class branch
     if (data.trainer_id && data.branch_id) {
-      const trainer = await this.prisma.staff.findFirst({
+      const trainer = await this.tenant.client.staff.findFirst({
         where: {
           id: data.trainer_id,
           role: 'trainer',
@@ -117,7 +117,7 @@ export class ClassesService {
       }
     }
 
-    return this.prisma.class.create({
+    return this.tenant.client.class.create({
       data: {
         gym_id: getTenantGymId()!,
         branch_id: data.branch_id,
@@ -190,7 +190,7 @@ export class ClassesService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.class.findMany({
+      this.tenant.client.class.findMany({
         where,
         include: {
           branch: { select: { id: true, name: true } },
@@ -208,14 +208,14 @@ export class ClassesService {
         take: limit,
         orderBy: { starts_at: 'asc' },
       }),
-      this.prisma.class.count({ where }),
+      this.tenant.client.class.count({ where }),
     ]);
 
     return { data, total, page, limit };
   }
 
   async findOne(studioId: string, id: string) {
-    const classItem = await this.prisma.class.findFirst({
+    const classItem = await this.tenant.client.class.findFirst({
       where: {
         id,
 
@@ -260,7 +260,7 @@ export class ClassesService {
       status?: string;
     },
   ) {
-    const existing = await this.prisma.class.findFirst({
+    const existing = await this.tenant.client.class.findFirst({
       where: { id }, // Tenant isolation via search_path
     });
     if (!existing) throw new NotFoundException('Class not found');
@@ -286,7 +286,7 @@ export class ClassesService {
       }
     }
 
-    return this.prisma.class.update({
+    return this.tenant.client.class.update({
       where: { id },
       data: {
         ...data,
@@ -305,7 +305,7 @@ export class ClassesService {
 
   async enroll(studioId: string, classId: string, memberIdentifier: string, data?: { branch_id?: string }) {
     // Wrap entire enrollment in a transaction for atomicity
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       const classItem = await tx.class.findFirst({
         where: { id: classId }, // Tenant isolation via search_path
       });
@@ -428,7 +428,7 @@ export class ClassesService {
     // Cancel + auto-promote must be atomic: without the transaction, two
     // concurrent cancellations could both promote the same waitlisted member
     // or leave the class over/under capacity.
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       const classItem = await tx.class.findFirst({
         where: { id: classId },
       });
@@ -490,7 +490,7 @@ export class ClassesService {
   }
 
   async promoteFromWaitlist(studioId: string, classId: string, enrollmentId: string, data?: { branch_id?: string }) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       const classItem = await tx.class.findFirst({
         where: { id: classId },
       });

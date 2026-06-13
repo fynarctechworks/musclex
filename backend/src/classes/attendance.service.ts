@@ -4,17 +4,17 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 import { MarkAttendanceDto } from './dto';
 
 @Injectable()
 export class AttendanceService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   async markAttendance(studioId: string, sessionId: string, dto: MarkAttendanceDto) {
     // Get session and verify it belongs to studio
-    const session = await this.prisma.classSession.findFirst({
+    const session = await this.tenant.client.classSession.findFirst({
       where: { id: sessionId },
       include: { branch: { select: { organization_id: true } } },
     });
@@ -24,13 +24,13 @@ export class AttendanceService {
     }
 
     // Verify member belongs to studio
-    const member = await this.prisma.member.findFirst({
+    const member = await this.tenant.client.member.findFirst({
       where: { id: dto.member_id } // tenant isolation via search_path,
     });
     if (!member) throw new NotFoundException('Member not found in studio');
 
     // Verify member has a booking
-    const booking = await this.prisma.classBooking.findUnique({
+    const booking = await this.tenant.client.classBooking.findUnique({
       where: {
         session_id_member_id: { session_id: sessionId, member_id: dto.member_id },
       },
@@ -39,7 +39,7 @@ export class AttendanceService {
       throw new BadRequestException('Member does not have an active booking for this session');
     }
 
-    const attendance = await this.prisma.classAttendance.upsert({
+    const attendance = await this.tenant.client.classAttendance.upsert({
       where: {
         session_id_member_id: { session_id: sessionId, member_id: dto.member_id },
       },
@@ -65,7 +65,7 @@ export class AttendanceService {
 
     // Update booking attended flag
     if (dto.attendance_status === 'present' || dto.attendance_status === 'late') {
-      await this.prisma.classBooking.update({
+      await this.tenant.client.classBooking.update({
         where: { session_id_member_id: { session_id: sessionId, member_id: dto.member_id } },
         data: { attended: true },
       });
@@ -89,7 +89,7 @@ export class AttendanceService {
 
   async getSessionAttendance(studioId: string, sessionId: string) {
     // Get session and verify it belongs to studio
-    const session = await this.prisma.classSession.findFirst({
+    const session = await this.tenant.client.classSession.findFirst({
       where: { id: sessionId },
       include: { branch: { select: { organization_id: true } } },
     });
@@ -98,7 +98,7 @@ export class AttendanceService {
       throw new ForbiddenException('Access denied to this session');
     }
 
-    const attendance = await this.prisma.classAttendance.findMany({
+    const attendance = await this.tenant.client.classAttendance.findMany({
       where: { session_id: sessionId },
       include: {
         member: {
@@ -126,7 +126,7 @@ export class AttendanceService {
     filters?: { date_from?: string; date_to?: string; category?: string },
   ) {
     // Verify member belongs to studio
-    const member = await this.prisma.member.findFirst({
+    const member = await this.tenant.client.member.findFirst({
       where: { id: memberId } // tenant isolation via search_path,
     });
     if (!member) throw new NotFoundException('Member not found in studio');
@@ -145,7 +145,7 @@ export class AttendanceService {
       if (filters?.category) where.session.category = filters.category;
     }
 
-    const records = await this.prisma.classAttendance.findMany({
+    const records = await this.tenant.client.classAttendance.findMany({
       where,
       include: {
         session: {
@@ -173,7 +173,7 @@ export class AttendanceService {
 
   async completeSession(studioId: string, sessionId: string) {
     // Get session and verify it belongs to studio
-    const session = await this.prisma.classSession.findFirst({
+    const session = await this.tenant.client.classSession.findFirst({
       where: { id: sessionId },
       include: { branch: { select: { organization_id: true } } },
     });
@@ -186,24 +186,24 @@ export class AttendanceService {
     if (session.status === 'cancelled') throw new BadRequestException('Cannot complete a cancelled session');
 
     // Mark remaining "registered" attendance as no_show
-    await this.prisma.classAttendance.updateMany({
+    await this.tenant.client.classAttendance.updateMany({
       where: { session_id: sessionId, attendance_status: 'registered' },
       data: { attendance_status: 'no_show' },
     });
 
     // Update session status
-    await this.prisma.classSession.update({
+    await this.tenant.client.classSession.update({
       where: { id: sessionId },
       data: { status: 'completed' },
     });
 
     // Clear any remaining waitlist
-    const removedFromWaitlist = await this.prisma.classWaitlist.deleteMany({
+    const removedFromWaitlist = await this.tenant.client.classWaitlist.deleteMany({
       where: { session_id: sessionId },
     });
 
     if (removedFromWaitlist.count > 0) {
-      await this.prisma.classSession.update({
+      await this.tenant.client.classSession.update({
         where: { id: sessionId },
         data: { waitlist_count: 0 },
       });
