@@ -6,6 +6,8 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { ResourceLimitService } from '../common/services/resource-limit.service';
 import { QueueService } from '../queue/queue.service';
 import {
@@ -38,7 +40,12 @@ export class MembersService {
   private readonly logger = new Logger(MembersService.name);
 
   constructor(
+    // `prisma` (legacy) retained ONLY for saveFaceDescriptor's raw studio_template
+    // face_vec write — a Phase 7 (raw-SQL schema-dynamic) site. Everything else:
+    // registry → pub, tenant → tenant.client.
     private prisma: PrismaService,
+    private pub: PublicPrismaService,
+    private tenant: TenantPrisma,
     private resourceLimits: ResourceLimitService,
     private queueService: QueueService,
     private eventStore: EventStoreService,
@@ -161,7 +168,7 @@ export class MembersService {
     }
 
     const [rawData, total] = await Promise.all([
-      this.prisma.member.findMany({
+      this.tenant.client.member.findMany({
         where,
         include: {
           branch: { select: { id: true, name: true } },
@@ -179,7 +186,7 @@ export class MembersService {
         take: safeLimit,
         orderBy: { created_at: 'desc' },
       }),
-      this.prisma.member.count({ where }),
+      this.tenant.client.member.count({ where }),
     ]);
 
     const data = rawData.map((m) => this.stripSensitive(m));
@@ -189,7 +196,7 @@ export class MembersService {
   // ── 360° Member View ──────────────────────────────────────────
 
   async findOne(studioId: string, id: string) {
-    const member = await this.prisma.member.findFirst({
+    const member = await this.tenant.client.member.findFirst({
       where: { id },
       include: {
         branch: true,
@@ -238,7 +245,7 @@ export class MembersService {
 
   async checkPhone(phone: string, organizationId?: string) {
     if (!phone) return { exists: false };
-    const member = await this.prisma.member.findFirst({
+    const member = await this.tenant.client.member.findFirst({
       where: {
         ...(organizationId ? { organization_id: organizationId } : {}),
         phone,
@@ -288,7 +295,7 @@ export class MembersService {
     await this.resourceLimits.checkMemberLimit(studioId, dto.organization_id);
 
     // Enforce: at least one active membership plan must exist before creating a member
-    const activePlanCount = await this.prisma.membershipPlan.count({
+    const activePlanCount = await this.tenant.client.membershipPlan.count({
       where: { is_active: true },
     });
     if (activePlanCount === 0) {
@@ -300,7 +307,7 @@ export class MembersService {
     // Resolve organization_id — if not provided, find or auto-create from studio data
     let organizationId = dto.organization_id;
     if (!organizationId) {
-      const org = await this.prisma.organization.findFirst({
+      const org = await this.tenant.client.organization.findFirst({
         select: { id: true },
       });
       organizationId = org?.id;
@@ -308,7 +315,7 @@ export class MembersService {
     if (!organizationId) {
       // Auto-create organization from studio data (happens when onboarding org creation silently failed)
       try {
-        const studio = await this.prisma.studio.findUnique({
+        const studio = await this.pub.studio.findUnique({
           where: { id: studioId },
           select: {
             name: true,
@@ -319,7 +326,7 @@ export class MembersService {
           },
         });
         if (studio) {
-          const newOrg = await this.prisma.organization.create({
+          const newOrg = await this.tenant.client.organization.create({
             data: {
               gym_id: getTenantGymId()!,
               name: studio.name,
@@ -345,7 +352,7 @@ export class MembersService {
 
     // Pre-flight: verify branch_id belongs to this studio so we return a clean 400
     // instead of a Prisma FK violation if the client sends a stale/wrong branch.
-    const branch = await this.prisma.branch.findFirst({
+    const branch = await this.tenant.client.branch.findFirst({
       where: { id: dto.branch_id },
       select: { id: true },
     });
@@ -356,7 +363,7 @@ export class MembersService {
     }
 
     // Check for duplicate phone in this studio
-    const existingMember = await this.prisma.member.findFirst({
+    const existingMember = await this.tenant.client.member.findFirst({
       where: {
         organization_id: organizationId,
         phone: dto.phone,
@@ -378,7 +385,7 @@ export class MembersService {
 
     // Check for duplicate email in this studio (DB has unique (gym_id, email))
     if (dto.email) {
-      const existingByEmail = await this.prisma.member.findFirst({
+      const existingByEmail = await this.tenant.client.member.findFirst({
         where: { email: dto.email },
         select: { id: true, full_name: true, member_code: true },
       });
@@ -401,7 +408,7 @@ export class MembersService {
     // ── TRANSACTION: Create member + emit MEMBER_CREATED event atomically ──
     // The event is the source of truth. If the event can't be written, the member creation rolls back.
     let { member, membership, payment, event, paymentEvent } =
-      await this.prisma.$transaction(async (tx) => {
+      await this.tenant.client.$transaction(async (tx) => {
         const newMember = await tx.member.create({
           data: {
             gym_id: getTenantGymId()!,
@@ -586,13 +593,11 @@ export class MembersService {
         // a bare LIMIT 1 returns an arbitrary gym's settings (cross-tenant bleed).
         const currentStudioId = getTenantGymId();
         const studioRow = currentStudioId
-          ? await (this.prisma as any).$queryRaw`
-              SELECT referral_free_days, referral_reward_days
-              FROM public.studios
-              WHERE id = ${currentStudioId}::uuid
-              LIMIT 1
-            `
-              .then((rows: any[]) => rows[0])
+          ? await this.pub.studio
+              .findUnique({
+                where: { id: currentStudioId },
+                select: { referral_free_days: true, referral_reward_days: true },
+              })
               .catch(() => null)
           : null;
 
@@ -603,7 +608,7 @@ export class MembersService {
         if (freeDays > 0 && membership.end_date) {
           const newEnd = new Date(membership.end_date);
           newEnd.setDate(newEnd.getDate() + freeDays);
-          membership = await this.prisma.memberMembership.update({
+          membership = await this.tenant.client.memberMembership.update({
             where: { id: membership.id },
             data: { end_date: newEnd },
             include: { plan: true },
@@ -613,14 +618,14 @@ export class MembersService {
         // Extend referrer's active membership as reward
         if (rewardDays > 0) {
           const referrerMembership =
-            await this.prisma.memberMembership.findFirst({
+            await this.tenant.client.memberMembership.findFirst({
               where: { member_id: dto.referred_by_member_id, status: 'active' },
               orderBy: { created_at: 'desc' },
             });
           if (referrerMembership?.end_date) {
             const newReferrerEnd = new Date(referrerMembership.end_date);
             newReferrerEnd.setDate(newReferrerEnd.getDate() + rewardDays);
-            await this.prisma.memberMembership.update({
+            await this.tenant.client.memberMembership.update({
               where: { id: referrerMembership.id },
               data: { end_date: newReferrerEnd },
             });
@@ -672,7 +677,7 @@ export class MembersService {
     let gymPhone: string | undefined;
     let gymEmail: string | undefined;
     try {
-      const org = await this.prisma.organization.findFirst({
+      const org = await this.tenant.client.organization.findFirst({
         select: { name: true },
       });
       if (org) gymName = org.name;
@@ -719,7 +724,7 @@ export class MembersService {
 
     // Guard: prevent manually setting status='active' without an active membership
     if (dto.status === 'active') {
-      const activeMembership = await this.prisma.memberMembership.findFirst({
+      const activeMembership = await this.tenant.client.memberMembership.findFirst({
         where: { member_id: id, status: 'active' },
       });
       if (!activeMembership) {
@@ -729,7 +734,7 @@ export class MembersService {
       }
     }
 
-    const updated = await this.prisma.member.update({
+    const updated = await this.tenant.client.member.update({
       where: { id },
       data: {
         ...dto,
@@ -746,13 +751,13 @@ export class MembersService {
   // ── Soft Delete ───────────────────────────────────────────────
 
   async softDelete(studioId: string, id: string) {
-    const member = await this.prisma.member.findFirst({
+    const member = await this.tenant.client.member.findFirst({
       where: { id },
     });
     if (!member) throw new NotFoundException('Member not found');
     assertMemberTransition(member.status, 'cancelled');
 
-    const { result, event } = await this.prisma.$transaction(async (tx) => {
+    const { result, event } = await this.tenant.client.$transaction(async (tx) => {
       const updated = await tx.member.update({
         where: { id },
         data: { status: 'cancelled' },
@@ -791,7 +796,7 @@ export class MembersService {
   // ── Freeze / Unfreeze ─────────────────────────────────────────
 
   async freeze(studioId: string, id: string, dto: FreezeMemberDto) {
-    const member = await this.prisma.member.findFirst({
+    const member = await this.tenant.client.member.findFirst({
       where: { id },
       include: { memberships: { where: { status: 'active' }, take: 1 } },
     });
@@ -803,7 +808,7 @@ export class MembersService {
       throw new BadRequestException('No active membership to freeze');
     assertMembershipTransition(activeMembership.status, 'frozen');
 
-    const updated = await this.prisma.memberMembership.update({
+    const updated = await this.tenant.client.memberMembership.update({
       where: { id: activeMembership.id },
       data: {
         status: 'frozen',
@@ -814,7 +819,7 @@ export class MembersService {
       include: { plan: true },
     });
 
-    await this.prisma.member.update({
+    await this.tenant.client.member.update({
       where: { id },
       data: { status: 'frozen' },
     });
@@ -823,7 +828,7 @@ export class MembersService {
   }
 
   async unfreeze(studioId: string, id: string) {
-    const member = await this.prisma.member.findFirst({
+    const member = await this.tenant.client.member.findFirst({
       where: { id },
       include: { memberships: { where: { status: 'frozen' }, take: 1 } },
     });
@@ -847,7 +852,7 @@ export class MembersService {
         ? new Date(frozenMembership.end_date.getTime() + frozenDays * 86400000)
         : frozenMembership.end_date;
 
-    const updated = await this.prisma.memberMembership.update({
+    const updated = await this.tenant.client.memberMembership.update({
       where: { id: frozenMembership.id },
       data: {
         status: 'active',
@@ -859,7 +864,7 @@ export class MembersService {
       include: { plan: true },
     });
 
-    await this.prisma.member.update({
+    await this.tenant.client.member.update({
       where: { id },
       data: { status: 'active' },
     });
@@ -870,12 +875,12 @@ export class MembersService {
   // ── Renew Membership ──────────────────────────────────────────
 
   async renew(studioId: string, id: string, dto: RenewMemberDto) {
-    const plan = await this.prisma.membershipPlan.findUnique({
+    const plan = await this.tenant.client.membershipPlan.findUnique({
       where: { id: dto.plan_id },
     });
     if (!plan) throw new BadRequestException('Invalid plan');
 
-    const member = await this.prisma.member.findFirst({
+    const member = await this.tenant.client.member.findFirst({
       where: { id },
     });
     if (!member) throw new NotFoundException('Member not found');
@@ -885,7 +890,7 @@ export class MembersService {
       ? new Date(startDate.getTime() + plan.duration_days * 86400000)
       : null;
 
-    const membership = await this.prisma.memberMembership.create({
+    const membership = await this.tenant.client.memberMembership.create({
       data: {
         gym_id: getTenantGymId()!,
         member_id: id,
@@ -900,7 +905,7 @@ export class MembersService {
     });
 
     const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
-    const payment = await this.prisma.payment.create({
+    const payment = await this.tenant.client.payment.create({
       data: {
         gym_id: getTenantGymId()!,
         member_id: id,
@@ -914,7 +919,7 @@ export class MembersService {
       },
     });
 
-    await this.prisma.member.update({
+    await this.tenant.client.member.update({
       where: { id },
       data: { status: 'active' },
     });
@@ -936,6 +941,10 @@ export class MembersService {
     // future cleanup migration.
     const vecLiteral = `[${descriptor.map((n) => (Number.isFinite(n) ? n : 0)).join(',')}]`;
 
+    // PHASE 7: this raw face_vec write hardcodes `studio_template.members` and is
+    // part of the face-matching subsystem (facial-matcher / face-api-pgvector),
+    // which is migrated to schema-dynamic raw SQL as a unit in Phase 7. Until then
+    // the whole tx stays on the legacy client (writes land in studio_template).
     await this.prisma.$transaction([
       this.prisma.member.update({
         where: { id },
@@ -956,7 +965,7 @@ export class MembersService {
     const where: any = {};
     if (risk) where.churn_risk = risk;
 
-    return this.prisma.member.findMany({
+    return this.tenant.client.member.findMany({
       where,
       select: {
         id: true,
@@ -982,7 +991,7 @@ export class MembersService {
   // ── Visit Statistics ──────────────────────────────────────────
 
   async getVisitStats(studioId: string, memberId: string) {
-    const member = await this.prisma.member.findFirst({
+    const member = await this.tenant.client.member.findFirst({
       where: { id: memberId },
     });
     if (!member) throw new NotFoundException('Member not found');
@@ -992,14 +1001,14 @@ export class MembersService {
     const ninetyDaysAgo = new Date(now.getTime() - 90 * 86400000);
 
     const [total, last30, last90, lastVisit] = await Promise.all([
-      this.prisma.checkIn.count({ where: { member_id: memberId } }),
-      this.prisma.checkIn.count({
+      this.tenant.client.checkIn.count({ where: { member_id: memberId } }),
+      this.tenant.client.checkIn.count({
         where: { member_id: memberId, checked_in_at: { gte: thirtyDaysAgo } },
       }),
-      this.prisma.checkIn.count({
+      this.tenant.client.checkIn.count({
         where: { member_id: memberId, checked_in_at: { gte: ninetyDaysAgo } },
       }),
-      this.prisma.checkIn.findFirst({
+      this.tenant.client.checkIn.findFirst({
         where: { member_id: memberId },
         orderBy: { checked_in_at: 'desc' },
         select: {
@@ -1042,11 +1051,11 @@ export class MembersService {
     ];
     const counts = await Promise.all(
       statuses.map((s) =>
-        this.prisma.member.count({ where: { ...where, status: s } }),
+        this.tenant.client.member.count({ where: { ...where, status: s } }),
       ),
     );
 
-    const total = await this.prisma.member.count({ where });
+    const total = await this.tenant.client.member.count({ where });
     const summary: Record<string, number> = {};
     statuses.forEach((s, i) => {
       summary[s] = counts[i];

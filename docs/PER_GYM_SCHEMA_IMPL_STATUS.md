@@ -69,19 +69,7 @@ deliberately ≠ `studio_<gym_id>`, reproducing prod so routing must come from t
 | members (a) | 6.3 | ✅ 5 services | Pure-tenant member services FULLY migrated to `tenant.client` (legacy injection removed): `member-visits`, `corporate-membership`, `family-membership`, `member-profile`, `member-crm`. All tenant-only, no raw SQL, creates already set `gym_id: getTenantGymId()!` (no `$use` reliance). |
 | members (b) | 6.4 | ✅ 4 services | `membership`, `membership-access`, `plans`, `renewals` → `tenant.client` (incl. 3 `$transaction`s, all-tenant). **`plans.service.ts`: imported `Prisma` from the tenant client** (Json sentinel `Prisma.JsonNull` is a per-generated-client runtime value — must match the writing client). **Remaining members:** `members.service.ts` (1057 lines, 1 raw `studio_template` site → its own slice + Phase 7). |
 
-### NEXT SLICE — `members.service.ts` (1057 lines, scoped, not started)
-The last + riskiest member service; mixes everything:
-- **registry → `pub`:** `studio` (1 site, line ~311 auto-create-org fallback).
-- **tenant → `tenant.client`:** member (19), memberMembership (7), checkIn (4),
-  organization (3), membershipPlan (2), payment (1), branch (1).
-- **3 `$transaction`s** (lines ~404, ~755, ~939) — classify each; line ~939 is the
-  **array form** `$transaction([... , $executeRaw\`UPDATE studio_template.members
-  SET face_vec ...\`])` mixing a tenant write with a **raw studio_template** site.
-- **2 raw-SQL sites → Phase 7 (flag, don't fix):** `$queryRaw` (~589) and the
-  `$executeRaw` face_vec update (~944, hardcodes `studio_template.members`). These
-  cannot be cleanly half-migrated — leave on legacy `this.prisma` + a `// PHASE 7`
-  marker; the service keeps BOTH `prisma` (raw) and `pub`/`tenant` injections until
-  Phase 7 rewrites the raw sites schema-dynamic.
+| members (c) | 6.5 | ✅ DONE (members domain complete) | `members.service.ts`: studio → `pub`; all tenant models + the two all-tenant `$transaction`s (create-member, soft-delete) → `tenant.client`; the line-589 `$queryRaw FROM public.studios` converted to a typed `pub.studio.findUnique` (one raw site eliminated). **`saveFaceDescriptor`'s face_vec `$transaction` kept on legacy `prisma` + `// PHASE 7` marker** (array tx mixing a tenant write with the `studio_template.members` face_vec raw write; migrated with the face-matching subsystem in Phase 7). Keeps all 3 injections. **All 10 member services now migrated.** |
 
 > **Cross-cutting rule discovered (6.4):** `gym_id` is a required field in the tenant client's generated create type (no default) → **tsc fails any tenant create missing `gym_id`**, a free compile-time safety net. And `Prisma.JsonNull`/`DbNull` for tenant writes must be imported from the tenant client, not `@prisma/client`.
 
