@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '../../../node_modules/.prisma/client-public';
+import { PublicPrismaService } from '../../prisma/public-prisma.service';
 import { MemberException } from '../common/member-exception';
 import {
   PersonalizationService,
@@ -28,7 +28,7 @@ import type {
 @Injectable()
 export class MemberPublicProfileService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly pub: PublicPrismaService,
     private readonly personalization: PersonalizationService,
   ) {}
 
@@ -74,19 +74,19 @@ export class MemberPublicProfileService {
     month.setUTCDate(month.getUTCDate() - 30);
 
     const [water, weight, health, events] = await Promise.all([
-      this.prisma.appUserWaterLog.findMany({
+      this.pub.appUserWaterLog.findMany({
         where: { app_user_id: appUserId, logged_on: { gte: start } },
         select: { logged_on: true },
       }),
-      this.prisma.appUserWeightLog.findMany({
+      this.pub.appUserWeightLog.findMany({
         where: { app_user_id: appUserId, logged_on: { gte: start } },
         select: { logged_on: true },
       }),
-      this.prisma.appUserHealthDaily.findMany({
+      this.pub.appUserHealthDaily.findMany({
         where: { app_user_id: appUserId, logged_on: { gte: start } },
         select: { logged_on: true, steps: true },
       }),
-      this.prisma.appUserEvent.findMany({
+      this.pub.appUserEvent.findMany({
         where: { app_user_id: appUserId, occurred_at: { gte: start } },
         select: { occurred_at: true },
       }),
@@ -107,7 +107,7 @@ export class MemberPublicProfileService {
     }
     const daysActive = points.filter((p) => p.active).length;
 
-    const wlogs = await this.prisma.appUserWeightLog.findMany({
+    const wlogs = await this.pub.appUserWeightLog.findMany({
       where: { app_user_id: appUserId, logged_on: { gte: month } },
       orderBy: { logged_on: 'asc' },
       select: { weight_kg: true },
@@ -128,10 +128,10 @@ export class MemberPublicProfileService {
   }
 
   async getProfile(appUserId: string): Promise<MemberProfileData> {
-    const a = await this.prisma.appUser.findUnique({ where: { id: appUserId } });
+    const a = await this.pub.appUser.findUnique({ where: { id: appUserId } });
     if (!a) throw MemberException.notFound('Account not found.');
 
-    const latestWeight = await this.prisma.appUserWeightLog.findFirst({
+    const latestWeight = await this.pub.appUserWeightLog.findFirst({
       where: { app_user_id: appUserId },
       orderBy: { logged_on: 'desc' },
       select: { weight_kg: true },
@@ -232,11 +232,11 @@ export class MemberPublicProfileService {
       data.onboarding_step = null;
     }
 
-    await this.prisma.appUser.update({ where: { id: appUserId }, data });
+    await this.pub.appUser.update({ where: { id: appUserId }, data });
 
     // Advance to in_progress on first data write (never downgrade a completed one).
     if (!dto.onboardingComplete) {
-      await this.prisma.appUser.updateMany({
+      await this.pub.appUser.updateMany({
         where: { id: appUserId, onboarding_state: 'not_started' },
         data: { onboarding_state: 'in_progress' },
       });
@@ -245,7 +245,7 @@ export class MemberPublicProfileService {
     // Weight is tracked, not a profile column — record today's weigh-in.
     if (dto.weightKg !== undefined && dto.weightKg !== null) {
       const logged_on = this.todayUtc();
-      await this.prisma.appUserWeightLog.upsert({
+      await this.pub.appUserWeightLog.upsert({
         where: { app_user_id_logged_on: { app_user_id: appUserId, logged_on } },
         create: { app_user_id: appUserId, logged_on, weight_kg: dto.weightKg },
         update: { weight_kg: dto.weightKg },

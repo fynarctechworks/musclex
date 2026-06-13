@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PublicPrismaService } from '../../prisma/public-prisma.service';
 import { MemberDirectoryService } from '../directory/member-directory.service';
 
 /**
@@ -13,16 +13,16 @@ import { MemberDirectoryService } from '../directory/member-directory.service';
  * person is a member of) from directory resolution, so SCC analytics can segment
  * users without re-running phone normalization.
  *
- * Uses the RAW PrismaService: app_users / app_user_gym_links live in the public
- * schema and are NOT tenant models, so gym_id is never auto-injected. Resolving a
- * person across gyms is the whole point.
+ * Uses PublicPrismaService: app_users / app_user_gym_links live in the public
+ * schema and are NOT tenant models. Resolving a person across gyms is the whole
+ * point, so this stays on the registry client (no per-gym schema).
  */
 @Injectable()
 export class AppUserService {
   private readonly logger = new Logger(AppUserService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly pub: PublicPrismaService,
     private readonly directory: MemberDirectoryService,
   ) {}
 
@@ -38,7 +38,7 @@ export class AppUserService {
     const normalized = this.directory.normalizePhone(phone);
     if (!normalized) return null;
 
-    const row = await this.prisma.appUser.upsert({
+    const row = await this.pub.appUser.upsert({
       where: { phone: normalized },
       create: { phone: normalized, referral_code: this.genCode() },
       update: {}, // existence check only; profile fields are set via PATCH /me
@@ -58,7 +58,7 @@ export class AppUserService {
 
   /** Ensure the app_user has a unique referral code; returns it. */
   async ensureReferralCode(appUserId: string): Promise<string> {
-    const existing = await this.prisma.appUser.findUnique({
+    const existing = await this.pub.appUser.findUnique({
       where: { id: appUserId },
       select: { referral_code: true },
     });
@@ -66,7 +66,7 @@ export class AppUserService {
     for (let i = 0; i < 5; i++) {
       const code = this.genCode();
       try {
-        await this.prisma.appUser.update({
+        await this.pub.appUser.update({
           where: { id: appUserId },
           data: { referral_code: code },
         });
@@ -84,7 +84,7 @@ export class AppUserService {
     token: string,
     platform?: string,
   ): Promise<void> {
-    await this.prisma.appUserDeviceToken.upsert({
+    await this.pub.appUserDeviceToken.upsert({
       where: { token },
       create: {
         app_user_id: appUserId,
@@ -101,7 +101,7 @@ export class AppUserService {
   }
 
   async deleteDeviceToken(appUserId: string, token: string): Promise<void> {
-    await this.prisma.appUserDeviceToken.deleteMany({
+    await this.pub.appUserDeviceToken.deleteMany({
       where: { token, app_user_id: appUserId },
     });
   }
@@ -120,7 +120,7 @@ export class AppUserService {
       action === 'clicked'
         ? { status: 'clicked', clicked_at: now, opened_at: now }
         : { status: 'opened', opened_at: now };
-    await this.prisma.appCampaignDelivery.updateMany({
+    await this.pub.appCampaignDelivery.updateMany({
       where: { id: deliveryId, app_user_id: appUserId },
       data,
     });
@@ -134,7 +134,7 @@ export class AppUserService {
     appUserId: string,
     code: string,
   ): Promise<{ applied: boolean; reason?: string }> {
-    const me = await this.prisma.appUser.findUnique({
+    const me = await this.pub.appUser.findUnique({
       where: { id: appUserId },
       select: { referred_by_app_user_id: true, referral_code: true },
     });
@@ -145,13 +145,13 @@ export class AppUserService {
     if (me.referral_code && normalized === me.referral_code) {
       return { applied: false, reason: 'self' };
     }
-    const referrer = await this.prisma.appUser.findUnique({
+    const referrer = await this.pub.appUser.findUnique({
       where: { referral_code: normalized },
       select: { id: true },
     });
     if (!referrer) return { applied: false, reason: 'invalid_code' };
 
-    await this.prisma.appUser.update({
+    await this.pub.appUser.update({
       where: { id: appUserId },
       data: {
         referred_by_app_user_id: referrer.id,
@@ -163,7 +163,7 @@ export class AppUserService {
 
   /** Bump last_active_at so segmentation (DAU/WAU/MAU, inactive) is accurate. */
   async touch(appUserId: string): Promise<void> {
-    await this.prisma.appUser.update({
+    await this.pub.appUser.update({
       where: { id: appUserId },
       data: { last_active_at: new Date() },
     });
@@ -180,7 +180,7 @@ export class AppUserService {
   ): Promise<void> {
     for (const e of entries) {
       try {
-        await this.prisma.appUserGymLink.upsert({
+        await this.pub.appUserGymLink.upsert({
           where: {
             app_user_id_tenant_id: {
               app_user_id: appUserId,
@@ -214,7 +214,7 @@ export class AppUserService {
     tenantId: string,
     memberId: string,
   ): Promise<string | null> {
-    const dir = await this.prisma.memberDirectory.findUnique({
+    const dir = await this.pub.memberDirectory.findUnique({
       where: { tenant_id_member_id: { tenant_id: tenantId, member_id: memberId } },
       select: { phone: true },
     });

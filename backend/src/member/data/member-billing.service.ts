@@ -3,7 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { PaymentsService } from '../../payments/payments.service';
 import { AuditService } from '../../audit/audit.service';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
@@ -31,7 +31,7 @@ export interface RazorpayOrderResult {
 @Injectable()
 export class MemberBillingService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private readonly payments: PaymentsService,
     private readonly audit: AuditService,
   ) {}
@@ -42,7 +42,7 @@ export class MemberBillingService {
   ): Promise<RazorpayOrderResult> {
     // 1) The plan must belong to THIS member's gym (explicit gym_id filter —
     //    defends against a cross-gym planId reaching PaymentsService.findUnique).
-    const plan = await this.prisma.membershipPlan.findFirst({
+    const plan = await this.tenant.client.membershipPlan.findFirst({
       where: { id: planId, gym_id: member.tenantId },
       select: { id: true },
     });
@@ -51,7 +51,7 @@ export class MemberBillingService {
     }
 
     // 2) PaymentsService.createOrder needs the member's branch.
-    const m = await this.prisma.member.findFirst({
+    const m = await this.tenant.client.member.findFirst({
       where: { id: member.memberId },
       select: { branch_id: true },
     });

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '../../../node_modules/.prisma/client-public';
+import { PublicPrismaService } from '../../prisma/public-prisma.service';
 import { MemberException } from '../common/member-exception';
 import type {
   WeightInputDto,
@@ -34,7 +34,7 @@ import type {
  */
 @Injectable()
 export class MemberPublicHealthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly pub: PublicPrismaService) {}
 
   /** UTC midnight for an ISO date string, or today when omitted. */
   private day(dateStr?: string | null): Date {
@@ -57,7 +57,7 @@ export class MemberPublicHealthService {
   async getWeight(appUserId: string, days = 90): Promise<WeightSeriesData> {
     const cutoff = this.day();
     cutoff.setUTCDate(cutoff.getUTCDate() - Math.max(1, Math.min(days, 365)));
-    const rows = await this.prisma.appUserWeightLog.findMany({
+    const rows = await this.pub.appUserWeightLog.findMany({
       where: { app_user_id: appUserId, logged_on: { gte: cutoff } },
       orderBy: { logged_on: 'desc' },
     });
@@ -75,7 +75,7 @@ export class MemberPublicHealthService {
     dto: WeightInputDto,
   ): Promise<WeightEntryData> {
     const logged_on = this.day(dto.date);
-    const row = await this.prisma.appUserWeightLog.upsert({
+    const row = await this.pub.appUserWeightLog.upsert({
       where: { app_user_id_logged_on: { app_user_id: appUserId, logged_on } },
       create: {
         app_user_id: appUserId,
@@ -101,7 +101,7 @@ export class MemberPublicHealthService {
   // ── Water ───────────────────────────────────────────────────────
   async getWater(appUserId: string, dateStr?: string): Promise<WaterDayData> {
     const logged_on = this.day(dateStr);
-    const row = await this.prisma.appUserWaterLog.findUnique({
+    const row = await this.pub.appUserWaterLog.findUnique({
       where: { app_user_id_logged_on: { app_user_id: appUserId, logged_on } },
     });
     return {
@@ -114,7 +114,7 @@ export class MemberPublicHealthService {
   async logWater(appUserId: string, dto: WaterInputDto): Promise<WaterDayData> {
     const logged_on = this.day(dto.date);
     const mode = dto.mode ?? 'add';
-    const row = await this.prisma.appUserWaterLog.upsert({
+    const row = await this.pub.appUserWaterLog.upsert({
       where: { app_user_id_logged_on: { app_user_id: appUserId, logged_on } },
       create: {
         app_user_id: appUserId,
@@ -159,7 +159,7 @@ export class MemberPublicHealthService {
   }
 
   async listGoals(appUserId: string): Promise<GoalListData> {
-    const rows = await this.prisma.appUserGoal.findMany({
+    const rows = await this.pub.appUserGoal.findMany({
       where: { app_user_id: appUserId },
       orderBy: [{ status: 'asc' }, { created_at: 'desc' }],
     });
@@ -167,7 +167,7 @@ export class MemberPublicHealthService {
   }
 
   async createGoal(appUserId: string, dto: GoalInputDto): Promise<GoalData> {
-    const row = await this.prisma.appUserGoal.create({
+    const row = await this.pub.appUserGoal.create({
       data: {
         app_user_id: appUserId,
         type: dto.type,
@@ -187,13 +187,13 @@ export class MemberPublicHealthService {
     dto: GoalUpdateDto,
   ): Promise<GoalData> {
     // Ownership gate: only the caller's own goal can be updated.
-    const existing = await this.prisma.appUserGoal.findFirst({
+    const existing = await this.pub.appUserGoal.findFirst({
       where: { id: goalId, app_user_id: appUserId },
       select: { id: true },
     });
     if (!existing) throw MemberException.notFound('Goal not found.');
 
-    const row = await this.prisma.appUserGoal.update({
+    const row = await this.pub.appUserGoal.update({
       where: { id: goalId },
       data: {
         ...(dto.currentValue !== undefined ? { current_value: dto.currentValue } : {}),
@@ -227,7 +227,7 @@ export class MemberPublicHealthService {
   async getHealthDaily(appUserId: string, days = 30): Promise<HealthSeriesData> {
     const cutoff = this.day();
     cutoff.setUTCDate(cutoff.getUTCDate() - Math.max(1, Math.min(days, 365)));
-    const rows = await this.prisma.appUserHealthDaily.findMany({
+    const rows = await this.pub.appUserHealthDaily.findMany({
       where: { app_user_id: appUserId, logged_on: { gte: cutoff } },
       orderBy: { logged_on: 'desc' },
     });
@@ -239,7 +239,7 @@ export class MemberPublicHealthService {
     dto: HealthDailyInputDto,
   ): Promise<HealthDayData> {
     const logged_on = this.day(dto.date);
-    const row = await this.prisma.appUserHealthDaily.upsert({
+    const row = await this.pub.appUserHealthDaily.upsert({
       where: { app_user_id_logged_on: { app_user_id: appUserId, logged_on } },
       create: {
         app_user_id: appUserId,

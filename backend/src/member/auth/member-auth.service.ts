@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PublicPrismaService } from '../../prisma/public-prisma.service';
 import { MemberDirectoryService } from '../directory/member-directory.service';
 import { AppUserService } from '../app-user/app-user.service';
 import { MemberSupabaseAuthService } from './member-supabase-auth.service';
@@ -34,7 +34,7 @@ export class MemberAuthService {
   private readonly refreshTtlMs = 30 * 24 * 60 * 60 * 1000;
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly pub: PublicPrismaService,
     private readonly directory: MemberDirectoryService,
     private readonly appUsers: AppUserService,
     private readonly supabase: MemberSupabaseAuthService,
@@ -175,7 +175,7 @@ export class MemberAuthService {
       };
     }
 
-    const studios = await this.prisma.studio.findMany({
+    const studios = await this.pub.studio.findMany({
       where: { id: { in: tenantIds } },
       select: { id: true, name: true },
     });
@@ -192,7 +192,7 @@ export class MemberAuthService {
   /** Rotate a refresh token: validate, revoke the old, issue a fresh pair. */
   async refresh(refreshToken: string): Promise<TokenPairData> {
     const hash = this.tokens.hashRefreshToken(refreshToken);
-    const row = await this.prisma.memberRefreshToken.findUnique({
+    const row = await this.pub.memberRefreshToken.findUnique({
       where: { token_hash: hash },
     });
     if (!row || row.revoked_at || row.expires_at.getTime() < Date.now()) {
@@ -215,11 +215,11 @@ export class MemberAuthService {
     }
 
     const pair = await this.issueTokens(appUserId, row.member_id, row.tenant_id);
-    const created = await this.prisma.memberRefreshToken.findUnique({
+    const created = await this.pub.memberRefreshToken.findUnique({
       where: { token_hash: this.tokens.hashRefreshToken(pair.refreshToken) },
       select: { id: true },
     });
-    await this.prisma.memberRefreshToken.update({
+    await this.pub.memberRefreshToken.update({
       where: { id: row.id },
       data: { revoked_at: new Date(), replaced_by: created?.id ?? null },
     });
@@ -243,7 +243,7 @@ export class MemberAuthService {
       role: 'member',
     });
     const refresh = this.tokens.generateRefreshToken();
-    await this.prisma.memberRefreshToken.create({
+    await this.pub.memberRefreshToken.create({
       data: {
         app_user_id: appUserId,
         member_id: memberId,

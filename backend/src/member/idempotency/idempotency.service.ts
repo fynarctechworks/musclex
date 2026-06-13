@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../../node_modules/.prisma/client-public';
 import { createHash } from 'crypto';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PublicPrismaService } from '../../prisma/public-prisma.service';
 
 export interface IdempotencyKeyRef {
   tenantId: string;
@@ -32,7 +32,7 @@ export class IdempotencyService {
   /** Stored responses live this long before a key may be reused. */
   private readonly ttlMs = 24 * 60 * 60 * 1000;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly pub: PublicPrismaService) {}
 
   /** Stable hash of the request body — detects a key reused with a different payload. */
   hashRequest(body: unknown): string {
@@ -49,7 +49,7 @@ export class IdempotencyService {
    */
   async claim(ref: IdempotencyKeyRef): Promise<ClaimResult> {
     try {
-      await this.prisma.memberIdempotencyKey.create({
+      await this.pub.memberIdempotencyKey.create({
         data: {
           tenant_id: ref.tenantId,
           member_id: ref.memberId,
@@ -66,7 +66,7 @@ export class IdempotencyService {
         err instanceof Prisma.PrismaClientKnownRequestError &&
         err.code === 'P2002'
       ) {
-        const existing = await this.prisma.memberIdempotencyKey.findUnique({
+        const existing = await this.pub.memberIdempotencyKey.findUnique({
           where: {
             tenant_id_member_id_idempotency_key: {
               tenant_id: ref.tenantId,
@@ -101,7 +101,7 @@ export class IdempotencyService {
     status: number,
     body: unknown,
   ): Promise<void> {
-    await this.prisma.memberIdempotencyKey.update({
+    await this.pub.memberIdempotencyKey.update({
       where: {
         tenant_id_member_id_idempotency_key: {
           tenant_id: ref.tenantId,
@@ -126,7 +126,7 @@ export class IdempotencyService {
    * legitimately retry the same key. Only deletes if still in_progress.
    */
   async release(ref: IdempotencyKeyRef): Promise<void> {
-    await this.prisma.memberIdempotencyKey.deleteMany({
+    await this.pub.memberIdempotencyKey.deleteMany({
       where: {
         tenant_id: ref.tenantId,
         member_id: ref.memberId,

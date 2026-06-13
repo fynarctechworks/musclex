@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '../../../node_modules/.prisma/client-public';
+import { PublicPrismaService } from '../../prisma/public-prisma.service';
 import type { EventDto } from './dto';
 import type { EventIngestResultData } from '../contract';
 
@@ -18,7 +18,7 @@ import type { EventIngestResultData } from '../contract';
  */
 @Injectable()
 export class MemberEventsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly pub: PublicPrismaService) {}
 
   async ingest(
     appUserId: string,
@@ -34,13 +34,13 @@ export class MemberEventsService {
       app_version: e.appVersion ?? null,
       metadata: (e.metadata ?? {}) as Prisma.InputJsonValue,
     }));
-    await this.prisma.appUserEvent.createMany({ data: rows });
+    await this.pub.appUserEvent.createMany({ data: rows });
 
     const hasCompleted = events.some((e) => e.type === 'onboarding_completed');
     const hasStarted = events.some((e) => e.type === 'onboarding_started');
 
     // Always freshen activity; complete onboarding if signalled.
-    await this.prisma.appUser.update({
+    await this.pub.appUser.update({
       where: { id: appUserId },
       data: {
         last_active_at: new Date(),
@@ -49,7 +49,7 @@ export class MemberEventsService {
     });
     // started → in_progress, but never downgrade an already-completed onboarding.
     if (hasStarted && !hasCompleted) {
-      await this.prisma.appUser.updateMany({
+      await this.pub.appUser.updateMany({
         where: { id: appUserId, NOT: { onboarding_state: 'completed' } },
         data: { onboarding_state: 'in_progress' },
       });
