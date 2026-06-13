@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import type { JwtPayload } from '../common/decorators/current-user.decorator';
 
 export interface PushSubscriptionPayload {
@@ -25,7 +25,7 @@ export interface PushSubscriptionPayload {
 export class PushSubscriptionService {
   private readonly logger = new Logger(PushSubscriptionService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   async subscribe(
     user: JwtPayload,
@@ -36,7 +36,7 @@ export class PushSubscriptionService {
       throw new Error('Missing studio/user context');
     }
     try {
-      await this.prisma.$executeRawUnsafe(
+      await this.tenant.client.$executeRawUnsafe(
         `INSERT INTO push_subscriptions (gym_id, user_id, endpoint, p256dh, auth, user_agent, last_used_at)
          VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, NOW())
          ON CONFLICT (gym_id, endpoint) DO UPDATE SET
@@ -64,7 +64,7 @@ export class PushSubscriptionService {
   async unsubscribe(user: JwtPayload, endpoint: string): Promise<{ ok: true }> {
     if (!user?.studio_id) throw new Error('Missing studio context');
     try {
-      await this.prisma.$executeRawUnsafe(
+      await this.tenant.client.$executeRawUnsafe(
         `DELETE FROM push_subscriptions WHERE gym_id = $1::uuid AND endpoint = $2`,
         user.studio_id,
         endpoint,

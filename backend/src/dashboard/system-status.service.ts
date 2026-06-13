@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { JwtPayload } from '../common';
 import { DashboardGateway } from './dashboard.gateway';
 import { DashboardCacheService } from './dashboard-cache.service';
@@ -34,7 +34,7 @@ export class SystemStatusService {
   private cache = new Map<string, CacheEntry>();
 
   constructor(
-    private prisma: PrismaService,
+    private tenant: TenantPrisma,
     private gateway: DashboardGateway,
     /**
      * Reuse the dashboard's shared Redis client instead of opening a second
@@ -78,7 +78,7 @@ export class SystemStatusService {
   private async probeDatabase(): Promise<HealthState> {
     const start = Date.now();
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
+      await this.tenant.client.$queryRaw`SELECT 1`;
       return { healthy: true, latency_ms: Date.now() - start };
     } catch (err: any) {
       return {
@@ -107,7 +107,7 @@ export class SystemStatusService {
     const branchFilter = this.getBranchFilter(user);
     const start = Date.now();
     try {
-      const last = await this.prisma.checkIn.findFirst({
+      const last = await this.tenant.client.checkIn.findFirst({
         where: { status: 'success', ...branchFilter },
         select: { checked_in_at: true },
         orderBy: { checked_in_at: 'desc' },
@@ -172,11 +172,11 @@ export class SystemStatusService {
     // when projections wave lands, swap to read `dashboard_projections.updated_at`.
     try {
       const [ci, py] = await Promise.all([
-        this.prisma.checkIn.findFirst({
+        this.tenant.client.checkIn.findFirst({
           select: { checked_in_at: true },
           orderBy: { checked_in_at: 'desc' },
         }),
-        this.prisma.payment.findFirst({
+        this.tenant.client.payment.findFirst({
           select: { paid_at: true },
           orderBy: { paid_at: 'desc' },
         }),
@@ -198,7 +198,7 @@ export class SystemStatusService {
       if (user?.studio_id) {
         where.webhook = { organization_id: user.studio_id };
       }
-      return await this.prisma.webhookDelivery.count({ where });
+      return await this.tenant.client.webhookDelivery.count({ where });
     } catch {
       return 0;
     }

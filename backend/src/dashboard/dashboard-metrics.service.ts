@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 
 /**
@@ -16,7 +16,7 @@ import { getTenantGymId } from '../common/tenant-context';
 export class DashboardMetricsService {
   private readonly logger = new Logger(DashboardMetricsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   // ── Ensure Row Exists (auto-create on first access) ──────────
 
@@ -196,7 +196,7 @@ export class DashboardMetricsService {
     // DashboardMetrics model may not exist in the current Prisma schema.
     // Treat any access failure as "no materialized metrics" so the caller
     // falls back to live queries instead of returning 500.
-    const delegate = (this.prisma as any).dashboardMetrics;
+    const delegate = (this.tenant.client as any).dashboardMetrics;
     if (!delegate?.findFirst) return null;
 
     try {
@@ -222,7 +222,7 @@ export class DashboardMetricsService {
     const gymId = getTenantGymId();
     if (!gymId) return [];
 
-    return this.prisma.dashboardMetrics.findMany({
+    return this.tenant.client.dashboardMetrics.findMany({
       where: { gym_id: gymId, branch_id: { not: null } },
       include: { branch: { select: { id: true, name: true } } },
     });
@@ -254,25 +254,25 @@ export class DashboardMetricsService {
       checkInsMonth,
       expiringMemberships,
     ] = await Promise.all([
-      this.prisma.member.count(),
-      this.prisma.member.count({ where: { status: 'active' } }),
-      this.prisma.staff.count(),
-      this.prisma.staff.count({ where: { is_active: true } }),
-      this.prisma.payment.aggregate({
+      this.tenant.client.member.count(),
+      this.tenant.client.member.count({ where: { status: 'active' } }),
+      this.tenant.client.staff.count(),
+      this.tenant.client.staff.count({ where: { is_active: true } }),
+      this.tenant.client.payment.aggregate({
         where: { status: 'paid', paid_at: { gte: startOfMonth } },
         _sum: { amount: true },
       }),
-      this.prisma.payment.aggregate({
+      this.tenant.client.payment.aggregate({
         where: { status: 'paid' },
         _sum: { amount: true },
       }),
-      this.prisma.checkIn.count({
+      this.tenant.client.checkIn.count({
         where: { checked_in_at: { gte: startOfDay }, status: 'success' },
       }),
-      this.prisma.checkIn.count({
+      this.tenant.client.checkIn.count({
         where: { checked_in_at: { gte: startOfMonth }, status: 'success' },
       }),
-      this.prisma.memberMembership.count({
+      this.tenant.client.memberMembership.count({
         where: { status: 'active', end_date: { gte: now, lte: thirtyDaysFromNow } },
       }),
     ]);
@@ -292,14 +292,14 @@ export class DashboardMetricsService {
     };
 
     // Upsert gym-wide row (branch_id=null)
-    await this.prisma.dashboardMetrics.upsert({
+    await this.tenant.client.dashboardMetrics.upsert({
       where: { gym_id_branch_id: { gym_id: gymId, branch_id: null as any } },
       create: { gym_id: gymId, branch_id: null, ...metricsData },
       update: metricsData,
     });
 
     // Also resync per-branch rows so branch-specific dashboard reads hit the fast path
-    const branches = await this.prisma.branch.findMany({
+    const branches = await this.tenant.client.branch.findMany({
       where: { is_active: true },
       select: { id: true },
     });
@@ -308,13 +308,13 @@ export class DashboardMetricsService {
       const bId = branch.id;
       const bFilter = { branch_id: bId };
       const [bTotal, bActive, bMonthlyRev, bTotalRev, bCheckInsToday, bCheckInsMonth, bExpiring] = await Promise.all([
-        this.prisma.member.count({ where: bFilter }),
-        this.prisma.member.count({ where: { status: 'active', ...bFilter } }),
-        this.prisma.payment.aggregate({ where: { status: 'paid', paid_at: { gte: startOfMonth }, ...bFilter }, _sum: { amount: true } }),
-        this.prisma.payment.aggregate({ where: { status: 'paid', ...bFilter }, _sum: { amount: true } }),
-        this.prisma.checkIn.count({ where: { checked_in_at: { gte: startOfDay }, status: 'success', ...bFilter } }),
-        this.prisma.checkIn.count({ where: { checked_in_at: { gte: startOfMonth }, status: 'success', ...bFilter } }),
-        this.prisma.memberMembership.count({ where: { status: 'active', end_date: { gte: now, lte: thirtyDaysFromNow }, ...bFilter } }),
+        this.tenant.client.member.count({ where: bFilter }),
+        this.tenant.client.member.count({ where: { status: 'active', ...bFilter } }),
+        this.tenant.client.payment.aggregate({ where: { status: 'paid', paid_at: { gte: startOfMonth }, ...bFilter }, _sum: { amount: true } }),
+        this.tenant.client.payment.aggregate({ where: { status: 'paid', ...bFilter }, _sum: { amount: true } }),
+        this.tenant.client.checkIn.count({ where: { checked_in_at: { gte: startOfDay }, status: 'success', ...bFilter } }),
+        this.tenant.client.checkIn.count({ where: { checked_in_at: { gte: startOfMonth }, status: 'success', ...bFilter } }),
+        this.tenant.client.memberMembership.count({ where: { status: 'active', end_date: { gte: now, lte: thirtyDaysFromNow }, ...bFilter } }),
       ]);
 
       // Staff don't have branch_id — count is gym-wide only
@@ -332,7 +332,7 @@ export class DashboardMetricsService {
         last_synced_at: now,
       };
 
-      await this.prisma.dashboardMetrics.upsert({
+      await this.tenant.client.dashboardMetrics.upsert({
         where: { gym_id_branch_id: { gym_id: gymId, branch_id: bId } },
         create: { gym_id: gymId, branch_id: bId, ...branchMetrics },
         update: branchMetrics,

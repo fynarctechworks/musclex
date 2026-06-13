@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import type { JwtPayload } from '../common/decorators/current-user.decorator';
 
 /**
@@ -10,7 +10,7 @@ import type { JwtPayload } from '../common/decorators/current-user.decorator';
 @Injectable()
 export class TrainerCockpitService {
   private readonly logger = new Logger(TrainerCockpitService.name);
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   async getCockpit(user: JwtPayload | undefined) {
     const staffId = await this.lookupStaffId(user);
@@ -45,7 +45,7 @@ export class TrainerCockpitService {
       noShows30d,
       clientIdsAttendances,
     ] = await Promise.all([
-      this.prisma.classSession.findMany({
+      this.tenant.client.classSession.findMany({
         where: {
           trainer_id: staffId,
           start_time: { gte: startOfToday, lt: endOfToday },
@@ -61,7 +61,7 @@ export class TrainerCockpitService {
         },
         orderBy: { start_time: 'asc' },
       }),
-      this.prisma.classSession.findMany({
+      this.tenant.client.classSession.findMany({
         where: {
           trainer_id: staffId,
           start_time: { gte: now, lte: sevenDaysFromNow },
@@ -76,7 +76,7 @@ export class TrainerCockpitService {
         orderBy: { start_time: 'asc' },
         take: 10,
       }),
-      this.prisma.classAttendance.findMany({
+      this.tenant.client.classAttendance.findMany({
         where: {
           session: {
             trainer_id: staffId,
@@ -85,7 +85,7 @@ export class TrainerCockpitService {
         },
         select: { attendance_status: true },
       }),
-      this.prisma.classAttendance.count({
+      this.tenant.client.classAttendance.count({
         where: {
           session: {
             trainer_id: staffId,
@@ -94,7 +94,7 @@ export class TrainerCockpitService {
           attendance_status: 'no_show',
         },
       }),
-      this.prisma.classAttendance.findMany({
+      this.tenant.client.classAttendance.findMany({
         where: {
           session: {
             trainer_id: staffId,
@@ -122,7 +122,7 @@ export class TrainerCockpitService {
     // expiring in the next 7 days.
     let atRiskCount = 0;
     if (clientIds.length > 0) {
-      atRiskCount = await this.prisma.memberMembership.count({
+      atRiskCount = await this.tenant.client.memberMembership.count({
         where: {
           status: 'active',
           member_id: { in: clientIds },
@@ -154,7 +154,7 @@ export class TrainerCockpitService {
   ): Promise<string | null> {
     if (!user?.user_id) return null;
     try {
-      const row = await this.prisma.staff.findFirst({
+      const row = await this.tenant.client.staff.findFirst({
         where: { user_id: user.user_id, is_active: true },
         select: { id: true },
       });

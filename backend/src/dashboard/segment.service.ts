@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { JwtPayload } from '../common';
 
 export interface SegmentMemberSample {
@@ -29,7 +29,7 @@ const SAMPLE_LIMIT = 5;
 
 @Injectable()
 export class SegmentService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   private getBranchFilter(user?: JwtPayload, branchId?: string) {
     if (branchId) return { branch_id: branchId };
@@ -81,7 +81,7 @@ export class SegmentService {
     branchFilter: Record<string, unknown>,
   ): Promise<Segment> {
     // Lifetime paid totals per member.
-    const totals = await this.prisma.payment.groupBy({
+    const totals = await this.tenant.client.payment.groupBy({
       by: ['member_id'],
       where: { status: 'paid', ...branchFilter },
       _sum: { amount: true },
@@ -99,7 +99,7 @@ export class SegmentService {
     const top = sorted.slice(0, cutoffIndex);
     const sampleIds = top.slice(0, SAMPLE_LIMIT).map((t) => t.member_id);
     const members = sampleIds.length
-      ? await this.prisma.member.findMany({
+      ? await this.tenant.client.member.findMany({
           where: { id: { in: sampleIds }, ...branchFilter },
           select: { id: true, full_name: true, profile_photo_url: true },
         })
@@ -129,7 +129,7 @@ export class SegmentService {
     thirtyDaysAgo: Date,
   ): Promise<Segment> {
     // Members with check-ins in last 30d, group by member, threshold (~4/week × ~4w = 16).
-    const grouped = await this.prisma.checkIn.groupBy({
+    const grouped = await this.tenant.client.checkIn.groupBy({
       by: ['member_id'],
       where: {
         status: 'success',
@@ -143,7 +143,7 @@ export class SegmentService {
 
     const sampleIds = frequent.slice(0, SAMPLE_LIMIT).map((g) => g.member_id);
     const members = sampleIds.length
-      ? await this.prisma.member.findMany({
+      ? await this.tenant.client.member.findMany({
           where: { id: { in: sampleIds } },
           select: { id: true, full_name: true, profile_photo_url: true },
         })
@@ -169,7 +169,7 @@ export class SegmentService {
     thirtyDaysAgo: Date,
   ): Promise<Segment> {
     // Active members with <2 check-ins in last 30d.
-    const activeMembers = await this.prisma.member.findMany({
+    const activeMembers = await this.tenant.client.member.findMany({
       where: { status: 'active', ...branchFilter },
       select: { id: true, full_name: true, profile_photo_url: true },
     });
@@ -179,7 +179,7 @@ export class SegmentService {
     }
 
     const memberIds = activeMembers.map((m) => m.id);
-    const counts = await this.prisma.checkIn.groupBy({
+    const counts = await this.tenant.client.checkIn.groupBy({
       by: ['member_id'],
       where: {
         member_id: { in: memberIds },
@@ -195,7 +195,7 @@ export class SegmentService {
     // Estimate revenue at risk: sum of paid_at within last 30d for these members
     // (approximation of monthly recurring at risk).
     const atRiskRevenue = low.length
-      ? await this.prisma.payment.aggregate({
+      ? await this.tenant.client.payment.aggregate({
           where: {
             member_id: { in: low.map((m) => m.id) },
             status: 'paid',
@@ -223,7 +223,7 @@ export class SegmentService {
     branchFilter: Record<string, unknown>,
     fourteenDaysAgo: Date,
   ): Promise<Segment> {
-    const recent = await this.prisma.member.findMany({
+    const recent = await this.tenant.client.member.findMany({
       where: {
         created_at: { gte: fourteenDaysAgo },
         ...branchFilter,
@@ -253,7 +253,7 @@ export class SegmentService {
     branchFilter: Record<string, unknown>,
     thirtyDaysAgo: Date,
   ): Promise<Segment> {
-    const cancelled = await this.prisma.memberMembership.findMany({
+    const cancelled = await this.tenant.client.memberMembership.findMany({
       where: {
         status: { in: ['cancelled', 'expired'] },
         updated_at: { gte: thirtyDaysAgo },
@@ -288,7 +288,7 @@ export class SegmentService {
     branchFilter: Record<string, unknown>,
     twentyOneDaysAgo: Date,
   ): Promise<Segment> {
-    const inactive = await this.prisma.member.findMany({
+    const inactive = await this.tenant.client.member.findMany({
       where: {
         status: 'active',
         check_ins: {

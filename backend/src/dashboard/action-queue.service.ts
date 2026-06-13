@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { resolveBranchScope } from '../common/branch-scope.util';
 import type { JwtPayload } from '../common/decorators/current-user.decorator';
 import {
@@ -92,7 +92,7 @@ export class ActionQueueService {
   private readonly logger = new Logger(ActionQueueService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private readonly anomaly: AnomalyService = new AnomalyService(),
     private readonly pulse?: DashboardPulseService,
   ) {}
@@ -187,7 +187,7 @@ export class ActionQueueService {
     if (!studioId) return out;
     try {
       const since = new Date(Date.now() - 30 * 86400000);
-      const rows = await this.prisma.$queryRawUnsafe<
+      const rows = await this.tenant.client.$queryRawUnsafe<
         { action_id: string; count: number }[]
       >(
         `SELECT action_id, COUNT(*)::int AS count
@@ -298,7 +298,7 @@ export class ActionQueueService {
     if (!user?.studio_id) return [];
     const since = new Date(Date.now() - sinceDays * 86400000);
     try {
-      const rows = await this.prisma.$queryRawUnsafe<any[]>(
+      const rows = await this.tenant.client.$queryRawUnsafe<any[]>(
         `SELECT id, action_id, action_kind, receipt_type, created_at, actor_user_id, payload
          FROM dashboard_action_receipts
          WHERE gym_id = $1::uuid AND created_at >= $2
@@ -495,7 +495,7 @@ export class ActionQueueService {
   ): Promise<string | null> {
     if (!user?.user_id) return null;
     try {
-      const row = await this.prisma.staff.findFirst({
+      const row = await this.tenant.client.staff.findFirst({
         where: { user_id: user.user_id, is_active: true },
         select: { id: true },
       });
@@ -517,7 +517,7 @@ export class ActionQueueService {
     now: Date,
   ): Promise<ActionItem[]> {
     const horizon = new Date(now.getTime() + 7 * 86400000);
-    const memberships = await this.prisma.memberMembership.findMany({
+    const memberships = await this.tenant.client.memberMembership.findMany({
       where: {
         status: 'active',
         end_date: { gte: now, lte: horizon },
@@ -571,7 +571,7 @@ export class ActionQueueService {
     branchFilter: BranchFilter,
     now: Date,
   ): Promise<ActionItem[]> {
-    const invoices = await this.prisma.memberInvoice.findMany({
+    const invoices = await this.tenant.client.memberInvoice.findMany({
       where: {
         status: { in: ['pending', 'partial'] },
         ...branchFilter,
@@ -630,7 +630,7 @@ export class ActionQueueService {
     now: Date,
   ): Promise<ActionItem[]> {
     const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);
-    const payments = await this.prisma.payment.findMany({
+    const payments = await this.tenant.client.payment.findMany({
       where: {
         status: 'failed',
         created_at: { gte: sevenDaysAgo },
@@ -670,7 +670,7 @@ export class ActionQueueService {
   ): Promise<ActionItem[]> {
     const horizon = new Date(now.getTime() + 24 * 3600000);
     const trainerScope = trainerStaffId ? { trainer_id: trainerStaffId } : {};
-    const sessions = await this.prisma.classSession.findMany({
+    const sessions = await this.tenant.client.classSession.findMany({
       where: {
         status: 'scheduled',
         start_time: { gte: now, lte: horizon },
@@ -717,7 +717,7 @@ export class ActionQueueService {
     const fifteenMinAgo = new Date(now.getTime() - 15 * 60000);
     const twoHoursAgo = new Date(now.getTime() - 2 * 3600000);
     const trainerScope = trainerStaffId ? { trainer_id: trainerStaffId } : {};
-    const sessions = await this.prisma.classSession.findMany({
+    const sessions = await this.tenant.client.classSession.findMany({
       where: {
         status: 'scheduled',
         start_time: { gte: twoHoursAgo, lte: fifteenMinAgo },
@@ -759,7 +759,7 @@ export class ActionQueueService {
     const leadBranchFilter = branchFilter.branch_id
       ? { branch_id: branchFilter.branch_id }
       : {};
-    const leads = await this.prisma.lead.findMany({
+    const leads = await this.tenant.client.lead.findMany({
       where: {
         status: { in: ['new', 'contacted'] },
         updated_at: { lte: fortyEightHrsAgo },
@@ -794,7 +794,7 @@ export class ActionQueueService {
     now: Date,
   ): Promise<ActionItem[]> {
     const fourteenDaysAgo = new Date(now.getTime() - 14 * 86400000);
-    const members = await this.prisma.member.findMany({
+    const members = await this.tenant.client.member.findMany({
       where: {
         status: 'active',
         ...branchFilter,
@@ -838,7 +838,7 @@ export class ActionQueueService {
     const horizon = new Date(now.getTime() + 7 * 86400000);
 
     // Find members who attended this trainer's sessions in the last 60d.
-    const attendances = await this.prisma.classAttendance.findMany({
+    const attendances = await this.tenant.client.classAttendance.findMany({
       where: {
         session: {
           trainer_id: trainerStaffId,
@@ -853,7 +853,7 @@ export class ActionQueueService {
     );
     if (memberIds.length === 0) return [];
 
-    const memberships = await this.prisma.memberMembership.findMany({
+    const memberships = await this.tenant.client.memberMembership.findMany({
       where: {
         status: 'active',
         member_id: { in: memberIds },
@@ -908,7 +908,7 @@ export class ActionQueueService {
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 86400000);
     const fourteenDaysAgo = new Date(now.getTime() - 14 * 86400000);
 
-    const attendances = await this.prisma.classAttendance.findMany({
+    const attendances = await this.tenant.client.classAttendance.findMany({
       where: {
         session: {
           trainer_id: trainerStaffId,
@@ -923,7 +923,7 @@ export class ActionQueueService {
     );
     if (memberIds.length === 0) return [];
 
-    const members = await this.prisma.member.findMany({
+    const members = await this.tenant.client.member.findMany({
       where: {
         id: { in: memberIds },
         status: 'active',
@@ -970,7 +970,7 @@ export class ActionQueueService {
   private async loadStates(studioId?: string): Promise<ActionState[]> {
     if (!studioId) return [];
     try {
-      const rows = await this.prisma.$queryRawUnsafe<ActionState[]>(
+      const rows = await this.tenant.client.$queryRawUnsafe<ActionState[]>(
         `SELECT action_id, state, snoozed_until
          FROM dashboard_action_states
          WHERE gym_id = $1::uuid
@@ -995,7 +995,7 @@ export class ActionQueueService {
     branchId?: string,
   ): Promise<void> {
     try {
-      await this.prisma.$executeRawUnsafe(
+      await this.tenant.client.$executeRawUnsafe(
         `INSERT INTO dashboard_action_states
            (gym_id, branch_id, action_id, state, snoozed_until, updated_by_user_id, updated_at)
          VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6::uuid, NOW())
@@ -1029,7 +1029,7 @@ export class ActionQueueService {
   ): Promise<void> {
     if (!user?.studio_id) return;
     try {
-      await this.prisma.$executeRawUnsafe(
+      await this.tenant.client.$executeRawUnsafe(
         `INSERT INTO dashboard_action_receipts
            (gym_id, branch_id, action_id, action_kind, receipt_type, actor_user_id, actor_role, payload)
          VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6::uuid, $7, $8::jsonb)`,

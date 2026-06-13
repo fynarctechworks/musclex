@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { JwtPayload } from '../common';
 
 /**
@@ -65,7 +65,7 @@ const CACHE_TTL_MS = 60_000;
 
 @Injectable()
 export class RevenueIntelligenceService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   private cache = new Map<string, CacheEntry<unknown>>();
 
@@ -161,7 +161,7 @@ export class RevenueIntelligenceService {
     const prevRange = this.getPreviousRange(range);
 
     const [currentPayments, prevPayments] = await Promise.all([
-      this.prisma.payment.findMany({
+      this.tenant.client.payment.findMany({
         where: {
           status: 'paid',
           paid_at: { gte: range.from, lte: range.to },
@@ -173,7 +173,7 @@ export class RevenueIntelligenceService {
           membership: { select: { plan: { select: { id: true, name: true, plan_type: true } } } },
         },
       }),
-      this.prisma.payment.findMany({
+      this.tenant.client.payment.findMany({
         where: {
           status: 'paid',
           paid_at: { gte: prevRange.from, lte: prevRange.to },
@@ -255,7 +255,7 @@ export class RevenueIntelligenceService {
     const prevRange = this.getPreviousRange(range);
 
     const [current, prev] = await Promise.all([
-      this.prisma.trainerRevenue.findMany({
+      this.tenant.client.trainerRevenue.findMany({
         where: {
           created_at: { gte: range.from, lte: range.to },
           ...branchFilter,
@@ -268,7 +268,7 @@ export class RevenueIntelligenceService {
           trainer: { select: { id: true, full_name: true } },
         },
       }),
-      this.prisma.trainerRevenue.findMany({
+      this.tenant.client.trainerRevenue.findMany({
         where: {
           created_at: { gte: prevRange.from, lte: prevRange.to },
           ...branchFilter,
@@ -349,7 +349,7 @@ export class RevenueIntelligenceService {
 
     const branchFilter = this.branchScopeFilter(user, branchId);
 
-    const groups = await this.prisma.payment.groupBy({
+    const groups = await this.tenant.client.payment.groupBy({
       by: ['payment_method'],
       where: {
         status: 'paid',
@@ -419,7 +419,7 @@ export class RevenueIntelligenceService {
       prevRefundAggregate,
       prevInvoiceAggregate,
     ] = await Promise.all([
-      this.prisma.payment.aggregate({
+      this.tenant.client.payment.aggregate({
         where: {
           status: 'paid',
           paid_at: { gte: range.from, lte: range.to },
@@ -427,14 +427,14 @@ export class RevenueIntelligenceService {
         },
         _sum: { amount: true },
       }),
-      this.prisma.refund.count({
+      this.tenant.client.refund.count({
         where: {
           status: 'processed',
           processed_at: { gte: range.from, lte: range.to },
           ...refundBranchFilter,
         },
       }),
-      this.prisma.refund.aggregate({
+      this.tenant.client.refund.aggregate({
         where: {
           status: 'processed',
           processed_at: { gte: range.from, lte: range.to },
@@ -442,7 +442,7 @@ export class RevenueIntelligenceService {
         },
         _sum: { refund_amount: true },
       }),
-      this.prisma.memberInvoice.aggregate({
+      this.tenant.client.memberInvoice.aggregate({
         where: {
           issued_at: { gte: range.from, lte: range.to },
           ...branchFilter,
@@ -450,7 +450,7 @@ export class RevenueIntelligenceService {
         _sum: { discount_amount: true, tax_amount: true },
         _count: { _all: true },
       }),
-      this.prisma.payment.aggregate({
+      this.tenant.client.payment.aggregate({
         where: {
           status: 'paid',
           paid_at: { gte: prevRange.from, lte: prevRange.to },
@@ -458,7 +458,7 @@ export class RevenueIntelligenceService {
         },
         _sum: { amount: true },
       }),
-      this.prisma.refund.aggregate({
+      this.tenant.client.refund.aggregate({
         where: {
           status: 'processed',
           processed_at: { gte: prevRange.from, lte: prevRange.to },
@@ -466,7 +466,7 @@ export class RevenueIntelligenceService {
         },
         _sum: { refund_amount: true },
       }),
-      this.prisma.memberInvoice.aggregate({
+      this.tenant.client.memberInvoice.aggregate({
         where: {
           issued_at: { gte: prevRange.from, lte: prevRange.to },
           ...branchFilter,
@@ -475,7 +475,7 @@ export class RevenueIntelligenceService {
       }),
     ]);
 
-    const discountCount = await this.prisma.memberInvoice.count({
+    const discountCount = await this.tenant.client.memberInvoice.count({
       where: {
         issued_at: { gte: range.from, lte: range.to },
         discount_amount: { gt: 0 },

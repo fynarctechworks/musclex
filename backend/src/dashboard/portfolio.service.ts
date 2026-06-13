@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { resolveBranchScope } from '../common/branch-scope.util';
 import { getTenantGymId } from '../common/tenant-context';
 import type { JwtPayload } from '../common/decorators/current-user.decorator';
@@ -62,7 +62,7 @@ export class PortfolioService {
   private static readonly TTL_SECONDS = 60;
   private static readonly MAP_VIEW_THRESHOLD = 8;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   async getPortfolio(user?: JwtPayload): Promise<PortfolioPayload> {
     const studioId = user?.studio_id ?? 'global';
@@ -117,7 +117,7 @@ export class PortfolioService {
       }
     }
 
-    const branches = await this.prisma.branch.findMany({
+    const branches = await this.tenant.client.branch.findMany({
       where: branchWhere,
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
@@ -149,12 +149,12 @@ export class PortfolioService {
       revenueSparkRaw,
       checkInsSparkRaw,
     ] = await Promise.all([
-      this.prisma.member.groupBy({
+      this.tenant.client.member.groupBy({
         by: ['branch_id'],
         where: { status: 'active', branch_id: { in: ids } },
         _count: { _all: true },
       }),
-      this.prisma.payment.groupBy({
+      this.tenant.client.payment.groupBy({
         by: ['branch_id'],
         where: {
           status: 'paid',
@@ -164,7 +164,7 @@ export class PortfolioService {
         _sum: { amount: true },
       }),
       this.mrrByBranch(ids, now),
-      this.prisma.checkIn.groupBy({
+      this.tenant.client.checkIn.groupBy({
         by: ['branch_id'],
         where: {
           status: 'success',
@@ -173,7 +173,7 @@ export class PortfolioService {
         },
         _count: { _all: true },
       }),
-      this.prisma.checkIn.groupBy({
+      this.tenant.client.checkIn.groupBy({
         by: ['branch_id'],
         where: {
           status: 'success',
@@ -182,7 +182,7 @@ export class PortfolioService {
         },
         _count: { _all: true },
       }),
-      this.prisma.checkIn.groupBy({
+      this.tenant.client.checkIn.groupBy({
         by: ['branch_id'],
         where: {
           status: 'success',
@@ -191,7 +191,7 @@ export class PortfolioService {
         },
         _count: { _all: true },
       }),
-      this.prisma.payment.groupBy({
+      this.tenant.client.payment.groupBy({
         by: ['branch_id'],
         where: {
           status: 'paid',
@@ -200,7 +200,7 @@ export class PortfolioService {
         },
         _sum: { amount: true },
       }),
-      this.prisma.payment.groupBy({
+      this.tenant.client.payment.groupBy({
         by: ['branch_id'],
         where: {
           status: 'paid',
@@ -209,7 +209,7 @@ export class PortfolioService {
         },
         _sum: { amount: true },
       }),
-      this.prisma.memberInvoice.groupBy({
+      this.tenant.client.memberInvoice.groupBy({
         by: ['branch_id'],
         where: {
           status: { in: ['pending', 'partial'] },
@@ -217,7 +217,7 @@ export class PortfolioService {
         },
         _sum: { total_amount: true },
       }),
-      this.prisma.memberMembership.groupBy({
+      this.tenant.client.memberMembership.groupBy({
         by: ['branch_id'],
         where: {
           status: 'active',
@@ -395,7 +395,7 @@ export class PortfolioService {
       // were resolved from the gym-scoped branch.findMany above, the raw
       // query must carry its own `gym_id` filter — never rely on the
       // upstream filter being correct or on RLS being in place.
-      const rows = await this.prisma.$queryRawUnsafe<
+      const rows = await this.tenant.client.$queryRawUnsafe<
         { branch_id: string; mrr: number }[]
       >(
         `SELECT mm.branch_id,
@@ -463,7 +463,7 @@ export class PortfolioService {
       ORDER BY branch_id, day
     `;
     try {
-      const rows = await this.prisma.$queryRawUnsafe<
+      const rows = await this.tenant.client.$queryRawUnsafe<
         { branch_id: string; day: Date; value: number }[]
       >(sql, fromDay, branchIds, gymId);
 

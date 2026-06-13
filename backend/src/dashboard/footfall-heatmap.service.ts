@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 import type { JwtPayload } from '../common';
 
@@ -59,7 +59,7 @@ export class FootfallHeatmapService {
   private static readonly MAX_CACHE_SIZE = 100;
   private static readonly INFLIGHT_TIMEOUT_MS = 30_000;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   async getHeatmap(
     user?: JwtPayload,
@@ -180,7 +180,7 @@ export class FootfallHeatmapService {
         ${branchSql.clause}
         GROUP BY pg_dow, hr
       `;
-      const rows = await this.prisma.$queryRawUnsafe<
+      const rows = await this.tenant.client.$queryRawUnsafe<
         { pg_dow: number; hr: number; cnt: number }[]
       >(sql, since, gymId, ...branchSql.params);
 
@@ -198,7 +198,7 @@ export class FootfallHeatmapService {
       // Fallback: load rows and bucket in JS. Caps to a reasonable take to
       // avoid a runaway scan if the SQL path was blocked.
       try {
-        const rows = await this.prisma.checkIn.findMany({
+        const rows = await this.tenant.client.checkIn.findMany({
           where: {
             status: 'success',
             checked_in_at: { gte: since },

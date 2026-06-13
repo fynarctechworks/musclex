@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { JwtPayload } from '../common';
 
 export interface BusinessMetrics {
@@ -23,7 +23,7 @@ export interface BusinessMetrics {
  */
 @Injectable()
 export class BusinessMetricsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   private getBranchFilter(user?: JwtPayload, branchId?: string) {
     if (branchId) return { branch_id: branchId };
@@ -57,25 +57,25 @@ export class BusinessMetricsService {
       revenueLast30Agg,
       activeMembersForLtv,
     ] = await Promise.all([
-      this.prisma.member.count({
+      this.tenant.client.member.count({
         where: { created_at: { gte: thirtyDaysAgo }, ...branchFilter },
       }),
-      this.prisma.member.count({
+      this.tenant.client.member.count({
         where: {
           created_at: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
           ...branchFilter,
         },
       }),
-      this.prisma.member.count({
+      this.tenant.client.member.count({
         where: { created_at: { gte: startOfMonth }, ...branchFilter },
       }),
-      this.prisma.member.count({
+      this.tenant.client.member.count({
         where: { status: 'active', ...branchFilter },
       }),
       // Approximation: members that existed (created_at <= 30d ago) and were
       // active at that point — without history table, use current actives whose
       // membership was already running 30d ago.
-      this.prisma.member.count({
+      this.tenant.client.member.count({
         where: {
           created_at: { lte: thirtyDaysAgo },
           memberships: {
@@ -84,7 +84,7 @@ export class BusinessMetricsService {
           ...branchFilter,
         },
       }),
-      this.prisma.member.count({
+      this.tenant.client.member.count({
         where: {
           created_at: { lte: ninetyDaysAgo },
           memberships: {
@@ -95,21 +95,21 @@ export class BusinessMetricsService {
       }),
       // Members that joined ≥90d ago AND still have at least one currently
       // active membership.
-      this.prisma.member.count({
+      this.tenant.client.member.count({
         where: {
           created_at: { lte: ninetyDaysAgo },
           memberships: { some: { status: 'active' } },
           ...branchFilter,
         },
       }),
-      this.prisma.memberMembership.count({
+      this.tenant.client.memberMembership.count({
         where: {
           status: { in: ['cancelled', 'expired'] },
           updated_at: { gte: thirtyDaysAgo },
           ...branchFilter,
         },
       }),
-      this.prisma.payment.aggregate({
+      this.tenant.client.payment.aggregate({
         where: {
           status: 'paid',
           paid_at: { gte: thirtyDaysAgo },
@@ -117,7 +117,7 @@ export class BusinessMetricsService {
         },
         _sum: { amount: true },
       }),
-      this.prisma.member.count({
+      this.tenant.client.member.count({
         where: { status: 'active', ...branchFilter },
       }),
     ]);
@@ -145,7 +145,7 @@ export class BusinessMetricsService {
       now.getMonth() - 1,
       Math.min(daysIntoMonth, daysInPrevMonth),
     );
-    const newPrevMtd = await this.prisma.member.count({
+    const newPrevMtd = await this.tenant.client.member.count({
       where: {
         created_at: { gte: startPrevMonth, lt: sameDayPrevMonth },
         ...branchFilter,

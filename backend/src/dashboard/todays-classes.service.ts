@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { JwtPayload } from '../common';
 
 export interface TodaysClassDto {
@@ -22,7 +22,7 @@ export interface TodaysClassDto {
 export class TodaysClassesService {
   private static readonly MAX_SESSIONS = 8;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   private getBranchScope(user?: JwtPayload, branchId?: string) {
     if (branchId) return { branch_id: branchId };
@@ -50,7 +50,7 @@ export class TodaysClassesService {
     );
     const branchScope = this.getBranchScope(user, branchId);
 
-    const sessions = await this.prisma.classSession.findMany({
+    const sessions = await this.tenant.client.classSession.findMany({
       where: {
         start_time: { gte: startOfDay, lte: endOfDay },
         ...branchScope,

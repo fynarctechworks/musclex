@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { resolveBranchScope } from '../common/branch-scope.util';
 import type { JwtPayload } from '../common/decorators/current-user.decorator';
 
@@ -65,7 +65,7 @@ export class ConflictDetectorService {
   private readonly logger = new Logger(ConflictDetectorService.name);
   private static readonly HORIZON_HOURS = 24;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   /**
    * Run the three conflict rules in parallel. Failures in one rule never
@@ -116,7 +116,7 @@ export class ConflictDetectorService {
     now: Date,
     horizon: Date,
   ): Promise<ScheduleConflict[]> {
-    const sessions = await this.prisma.classSession.findMany({
+    const sessions = await this.tenant.client.classSession.findMany({
       where: {
         status: 'scheduled',
         start_time: { gte: now, lte: horizon },
@@ -209,7 +209,7 @@ export class ConflictDetectorService {
     now: Date,
     horizon: Date,
   ): Promise<ScheduleConflict[]> {
-    const sessions = await this.prisma.classSession.findMany({
+    const sessions = await this.tenant.client.classSession.findMany({
       where: {
         status: 'scheduled',
         start_time: { gte: now, lte: horizon },
@@ -273,7 +273,7 @@ export class ConflictDetectorService {
     now: Date,
     horizon: Date,
   ): Promise<ScheduleConflict[]> {
-    const sessions = await this.prisma.classSession.findMany({
+    const sessions = await this.tenant.client.classSession.findMany({
       where: {
         status: 'scheduled',
         start_time: { gte: now, lte: horizon },

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { JwtPayload } from '../common';
 
 export interface CohortRetention {
@@ -40,7 +40,7 @@ export class CohortService {
    */
   private inflight = new Map<string, Promise<CohortResponse>>();
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   private getBranchFilter(user?: JwtPayload, branchId?: string) {
     if (branchId) return { branch_id: branchId };
@@ -108,7 +108,7 @@ export class CohortService {
     const earliestCohort = cohortStarts[0];
 
     // Members signed up since earliest cohort (use created_at as signup proxy).
-    const members = await this.prisma.member.findMany({
+    const members = await this.tenant.client.member.findMany({
       where: {
         created_at: { gte: earliestCohort },
         ...branchFilter,
@@ -152,7 +152,7 @@ export class CohortService {
     }
 
     // Pull check-ins for these members within the analysis window.
-    const checkIns = await this.prisma.checkIn.findMany({
+    const checkIns = await this.tenant.client.checkIn.findMany({
       where: {
         member_id: { in: memberIds },
         checked_in_at: { gte: earliestCohort },
@@ -165,7 +165,7 @@ export class CohortService {
     });
 
     // Pull memberships overlapping the analysis window.
-    const memberships = await this.prisma.memberMembership.findMany({
+    const memberships = await this.tenant.client.memberMembership.findMany({
       where: {
         member_id: { in: memberIds },
       },

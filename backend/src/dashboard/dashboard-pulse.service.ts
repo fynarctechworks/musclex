@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { resolveBranchScope } from '../common/branch-scope.util';
 import { getTenantGymId } from '../common/tenant-context';
 import type { JwtPayload } from '../common/decorators/current-user.decorator';
@@ -55,7 +55,7 @@ export class DashboardPulseService {
   private static readonly TTL_SECONDS = 30;
   private static readonly MAX_CACHE_SIZE = 200;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   async getPulse(user?: JwtPayload, branchId?: string): Promise<PulseKpis> {
     const view = resolveRoleView(user);
@@ -307,7 +307,7 @@ export class DashboardPulseService {
     branchFilter: BranchFilter,
     asOf: Date,
   ): Promise<number> {
-    return this.prisma.member.count({
+    return this.tenant.client.member.count({
       where: {
         status: 'active',
         created_at: { lte: asOf },
@@ -321,7 +321,7 @@ export class DashboardPulseService {
     from: Date,
     to: Date,
   ): Promise<number> {
-    const result = await this.prisma.payment.aggregate({
+    const result = await this.tenant.client.payment.aggregate({
       where: {
         status: 'paid',
         paid_at: { gte: from, lt: to },
@@ -337,7 +337,7 @@ export class DashboardPulseService {
     from: Date,
     to: Date,
   ): Promise<number> {
-    return this.prisma.checkIn.count({
+    return this.tenant.client.checkIn.count({
       where: {
         status: 'success',
         checked_in_at: { gte: from, lt: to },
@@ -375,7 +375,7 @@ export class DashboardPulseService {
         ${branchSql.clause.replace('branch_id', 'mm.branch_id')}
     `;
     try {
-      const rows = await this.prisma.$queryRawUnsafe<{ mrr: number }[]>(
+      const rows = await this.tenant.client.$queryRawUnsafe<{ mrr: number }[]>(
         sql,
         asOf,
         gymId,
@@ -394,7 +394,7 @@ export class DashboardPulseService {
     branchFilter: BranchFilter,
     asOf: Date,
   ): Promise<number> {
-    const memberships = await this.prisma.memberMembership.findMany({
+    const memberships = await this.tenant.client.memberMembership.findMany({
       where: {
         status: 'active',
         start_date: { lte: asOf },
@@ -433,7 +433,7 @@ export class DashboardPulseService {
         ${branchSql.clause.replace('branch_id', 'mm.branch_id')}
     `;
     try {
-      const rows = await this.prisma.$queryRawUnsafe<
+      const rows = await this.tenant.client.$queryRawUnsafe<
         { count: number; amount: number }[]
       >(sql, now, horizon, gymId, ...branchSql.params);
       const r = rows[0];
@@ -466,7 +466,7 @@ export class DashboardPulseService {
       ${branchSql.clause}
     `;
     try {
-      const rows = await this.prisma.$queryRawUnsafe<
+      const rows = await this.tenant.client.$queryRawUnsafe<
         { count: number; amount: number; oldest_anchor: Date | null }[]
       >(sql, gymId, ...branchSql.params);
       const r = rows[0];
@@ -567,7 +567,7 @@ export class DashboardPulseService {
     extraParams: unknown[],
   ): Promise<number[]> {
     try {
-      const rows = await this.prisma.$queryRawUnsafe<
+      const rows = await this.tenant.client.$queryRawUnsafe<
         { day: Date; value: number }[]
       >(sql, fromDay, ...extraParams);
       const map = new Map<string, number>();

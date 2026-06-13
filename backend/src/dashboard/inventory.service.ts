@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { JwtPayload } from '../common';
 
 /**
@@ -56,7 +56,7 @@ export class DashboardInventoryService {
   private readonly logger = new Logger(DashboardInventoryService.name);
   private cache = new Map<string, CacheEntry>();
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   async getInventory(
     user: JwtPayload,
@@ -109,7 +109,7 @@ export class DashboardInventoryService {
 
     // Pull products with category and per-branch inventory rows
     // (Inventory is per (product, branch); a product without a branch has no inventory row.)
-    const products = await this.prisma.product.findMany({
+    const products = await this.tenant.client.product.findMany({
       where: {
         ...(allowedBranchIds === null
           ? {}
@@ -139,7 +139,7 @@ export class DashboardInventoryService {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000);
 
     // Sales aggregates (last 30 days), grouped by product
-    const saleItems = await this.prisma.posSaleItem.findMany({
+    const saleItems = await this.tenant.client.posSaleItem.findMany({
       where: {
         sale: {
           status: { in: ['completed', 'partial_refund'] },
