@@ -6,8 +6,10 @@ import {
 } from '@nestjs/common';
 import { promisify } from 'util';
 import { createHash, randomBytes, scrypt, timingSafeEqual } from 'crypto';
-import { PrismaService } from '../../prisma/prisma.service';
-import { getTenantGymId } from '../../common/tenant-context';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
+import { PublicPrismaService } from '../../prisma/public-prisma.service';
+import { TenantClientFactory } from '../../prisma/tenant-client.factory';
+import { getTenantGymId, getTenantSchema } from '../../common/tenant-context';
 
 const scryptAsync = promisify(scrypt) as (
   password: string | Buffer,
@@ -37,7 +39,14 @@ export class DevicesService {
   private static readonly SCRYPT_KEYLEN = 32;
   private static readonly SCRYPT_SALT_BYTES = 16;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    // Context methods (register/list/...) use the request's gym client; verifySecret
+    // runs BEFORE any gym context, so it resolves the schema from the public
+    // device_index and builds a client for it via the factory.
+    private readonly tenant: TenantPrisma,
+    private readonly pub: PublicPrismaService,
+    private readonly factory: TenantClientFactory,
+  ) {}
 
   async register(input: {
     branch_id: string;
@@ -47,9 +56,10 @@ export class DevicesService {
     registered_by: string;
   }) {
     const gymId = getTenantGymId();
-    if (!gymId) throw new BadRequestException('Tenant context missing');
+    const schemaName = getTenantSchema();
+    if (!gymId || !schemaName) throw new BadRequestException('Tenant context missing');
 
-    const branch = await this.prisma.branch.findUnique({
+    const branch = await this.tenant.client.branch.findUnique({
       where: { id: input.branch_id },
       select: { id: true, name: true },
     });
@@ -62,7 +72,7 @@ export class DevicesService {
     // bug that would treat an empty-PIN field as "no PIN required".
     const pinSentinel = 'pending:' + randomBytes(16).toString('hex');
 
-    const device = await this.prisma.checkInDevice.create({
+    const device = await this.tenant.client.checkInDevice.create({
       data: {
         gym_id: gymId,
         branch_id: input.branch_id,
@@ -84,6 +94,14 @@ export class DevicesService {
       },
     });
 
+    // Maintain the public routing index so device-token auth can resolve this
+    // device's gym + schema BEFORE any tenant context exists (verifySecret).
+    await this.pub.deviceIndex.upsert({
+      where: { device_id: device.id },
+      create: { device_id: device.id, gym_id: gymId, schema_name: schemaName },
+      update: { gym_id: gymId, schema_name: schemaName },
+    });
+
     const token = `dev_${device.id}:${rawSecret}`;
 
     this.logger.log(
@@ -103,7 +121,7 @@ export class DevicesService {
     const gymId = getTenantGymId();
     if (!gymId) return [];
 
-    return this.prisma.checkInDevice.findMany({
+    return this.tenant.client.checkInDevice.findMany({
       where: {
         ...(filters.branch_id ? { branch_id: filters.branch_id } : {}),
         ...(filters.status ? { status: filters.status } : {}),
@@ -125,7 +143,7 @@ export class DevicesService {
   }
 
   async getById(id: string) {
-    const device = await this.prisma.checkInDevice.findUnique({
+    const device = await this.tenant.client.checkInDevice.findUnique({
       where: { id },
       select: {
         id: true,
@@ -145,7 +163,7 @@ export class DevicesService {
 
   async disable(id: string) {
     await this.getById(id);
-    return this.prisma.checkInDevice.update({
+    return this.tenant.client.checkInDevice.update({
       where: { id },
       data: { status: 'disabled' },
       select: { id: true, status: true },
@@ -154,7 +172,7 @@ export class DevicesService {
 
   async markLost(id: string) {
     await this.getById(id);
-    return this.prisma.checkInDevice.update({
+    return this.tenant.client.checkInDevice.update({
       where: { id },
       data: { status: 'lost' },
       select: { id: true, status: true },
@@ -171,12 +189,22 @@ export class DevicesService {
     gym_id: string;
     branch_id: string;
     kind: string;
+    schema_name: string;
   } | null> {
     const parsed = parseToken(token);
     if (!parsed) return null;
     const { id, secret } = parsed;
 
-    const row = await this.prisma.checkInDevice.findUnique({
+    // Routing: resolve the device's gym + schema from the public index — no gym
+    // context exists yet. Then read the device row from that gym's schema.
+    const idx = await this.pub.deviceIndex.findUnique({ where: { device_id: id } });
+    if (!idx) {
+      await this.hashSecret(secret).catch(() => undefined);
+      return null;
+    }
+    const client = this.factory.forSchema(idx.schema_name);
+
+    const row = await client.checkInDevice.findUnique({
       where: { id },
       select: {
         id: true,
@@ -197,11 +225,17 @@ export class DevicesService {
     if (!ok) return null;
 
     // Best-effort liveness ping; don't block the request on it.
-    this.prisma.checkInDevice
+    client.checkInDevice
       .update({ where: { id }, data: { last_seen_at: new Date() }, select: { id: true } })
       .catch(() => undefined);
 
-    return { id: row.id, gym_id: row.gym_id, branch_id: row.branch_id, kind: row.kind };
+    return {
+      id: row.id,
+      gym_id: row.gym_id,
+      branch_id: row.branch_id,
+      kind: row.kind,
+      schema_name: idx.schema_name,
+    };
   }
 
   isPlausibleToken(token: string): boolean {

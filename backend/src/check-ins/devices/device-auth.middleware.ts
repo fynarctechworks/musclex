@@ -7,7 +7,6 @@ import {
 import type { Request, Response, NextFunction } from 'express';
 import { DevicesService } from './devices.service';
 import { tenantContext } from '../../common/tenant-context';
-import { PrismaService } from '../../prisma/prisma.service';
 
 /**
  * Authenticates hardware-scanner requests and installs the tenant ALS
@@ -32,10 +31,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class DeviceAuthMiddleware implements NestMiddleware {
   private readonly logger = new Logger(DeviceAuthMiddleware.name);
 
-  constructor(
-    private readonly devices: DevicesService,
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly devices: DevicesService) {}
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
     const header = req.headers?.authorization;
@@ -54,12 +50,8 @@ export class DeviceAuthMiddleware implements NestMiddleware {
       throw new UnauthorizedException('Device not recognized');
     }
 
-    // Resolve tenant schema for the device's gym.
-    const rows = await this.prisma.$queryRawUnsafe<Array<{ schema_name: string }>>(
-      `SELECT schema_name FROM public.studios WHERE id = $1::uuid LIMIT 1`,
-      device.gym_id,
-    );
-    const schemaName = rows?.[0]?.schema_name;
+    // verifySecret already resolved the schema from the public device_index.
+    const schemaName = device.schema_name;
     if (!schemaName || !/^studio_[0-9a-f_]+$/i.test(schemaName)) {
       throw new UnauthorizedException('Tenant lookup failed for device');
     }

@@ -830,3 +830,17 @@ model ReferralCampaign {
   @@index([is_active, valid_from, valid_until])
   @@map("referral_campaigns")
 }
+
+/// Road B routing index: maps a device-token's device_id to its gym + schema so
+/// device-token auth can resolve the tenant BEFORE any gym context exists (the
+/// device row itself lives in the gym's per-gym schema). Maintained by
+/// DevicesService on register/disable. Holds NO secret — only routing.
+model DeviceIndex {
+  device_id   String   @id @db.Uuid
+  gym_id      String   @db.Uuid
+  schema_name String
+  created_at  DateTime @default(now()) @db.Timestamptz()
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  @@map("device_index")
+}
