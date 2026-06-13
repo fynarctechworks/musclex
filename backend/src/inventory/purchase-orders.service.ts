@@ -3,7 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import {
   CreateSupplierDto,
   UpdateSupplierDto,
@@ -16,7 +16,7 @@ import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class PurchaseOrdersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   private generateOrderNumber(): string {
     const now = new Date();
@@ -28,7 +28,7 @@ export class PurchaseOrdersService {
   // ── Suppliers ─────────────────────────────────────────────────
 
   async createSupplier(dto: CreateSupplierDto) {
-    return this.prisma.supplier.create({ data: { ...dto, gym_id: getTenantGymId()! } });
+    return this.tenant.client.supplier.create({ data: { ...dto, gym_id: getTenantGymId()! } });
   }
 
   async findAllSuppliers(filters: {
@@ -53,21 +53,21 @@ export class PurchaseOrdersService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.supplier.findMany({
+      this.tenant.client.supplier.findMany({
         where,
         skip,
         take: limit,
         orderBy: { supplier_name: 'asc' },
         include: { _count: { select: { purchase_orders: true } } },
       }),
-      this.prisma.supplier.count({ where }),
+      this.tenant.client.supplier.count({ where }),
     ]);
 
     return { data, total, page, limit };
   }
 
   async findOneSupplier(id: string) {
-    const supplier = await this.prisma.supplier.findUnique({
+    const supplier = await this.tenant.client.supplier.findUnique({
       where: { id },
       include: {
         purchase_orders: {
@@ -83,21 +83,21 @@ export class PurchaseOrdersService {
   }
 
   async updateSupplier(id: string, dto: UpdateSupplierDto) {
-    const supplier = await this.prisma.supplier.findUnique({ where: { id } });
+    const supplier = await this.tenant.client.supplier.findUnique({ where: { id } });
     if (!supplier) throw new NotFoundException('Supplier not found');
-    return this.prisma.supplier.update({ where: { id }, data: dto });
+    return this.tenant.client.supplier.update({ where: { id }, data: dto });
   }
 
   // ── Purchase Orders ───────────────────────────────────────────
 
   async createPurchaseOrder(dto: CreatePurchaseOrderDto) {
     // Validate supplier exists
-    const supplier = await this.prisma.supplier.findUnique({ where: { id: dto.supplier_id } });
+    const supplier = await this.tenant.client.supplier.findUnique({ where: { id: dto.supplier_id } });
     if (!supplier) throw new NotFoundException('Supplier not found');
 
     // Validate all products exist
     const productIds = dto.items.map((i) => i.product_id);
-    const products = await this.prisma.product.findMany({ where: { id: { in: productIds } } });
+    const products = await this.tenant.client.product.findMany({ where: { id: { in: productIds } } });
     if (products.length !== productIds.length) {
       throw new BadRequestException('One or more products not found');
     }
@@ -111,7 +111,7 @@ export class PurchaseOrdersService {
     }));
     const totalAmount = items.reduce((sum, i) => sum + i.total_price, 0);
 
-    return this.prisma.purchaseOrder.create({
+    return this.tenant.client.purchaseOrder.create({
       data: {
         gym_id: getTenantGymId()!,
         supplier_id: dto.supplier_id,
@@ -149,7 +149,7 @@ export class PurchaseOrdersService {
     if (status) where.status = status;
 
     const [data, total] = await Promise.all([
-      this.prisma.purchaseOrder.findMany({
+      this.tenant.client.purchaseOrder.findMany({
         where,
         skip,
         take: limit,
@@ -160,14 +160,14 @@ export class PurchaseOrdersService {
           _count: { select: { items: true } },
         },
       }),
-      this.prisma.purchaseOrder.count({ where }),
+      this.tenant.client.purchaseOrder.count({ where }),
     ]);
 
     return { data, total, page, limit };
   }
 
   async findOneOrder(id: string) {
-    const order = await this.prisma.purchaseOrder.findUnique({
+    const order = await this.tenant.client.purchaseOrder.findUnique({
       where: { id },
       include: {
         supplier: true,
@@ -182,7 +182,7 @@ export class PurchaseOrdersService {
   }
 
   async receivePurchaseOrder(id: string, dto: ReceivePurchaseOrderDto) {
-    const order = await this.prisma.purchaseOrder.findUnique({
+    const order = await this.tenant.client.purchaseOrder.findUnique({
       where: { id },
       include: { items: true },
     });
@@ -194,7 +194,7 @@ export class PurchaseOrdersService {
       throw new BadRequestException('Order already fully received');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       let allFullyReceived = true;
 
       for (const orderItem of order.items) {
@@ -288,12 +288,12 @@ export class PurchaseOrdersService {
   }
 
   async cancelOrder(id: string) {
-    const order = await this.prisma.purchaseOrder.findUnique({ where: { id } });
+    const order = await this.tenant.client.purchaseOrder.findUnique({ where: { id } });
     if (!order) throw new NotFoundException('Purchase order not found');
     if (order.status === 'received') {
       throw new BadRequestException('Cannot cancel a fully received order');
     }
-    return this.prisma.purchaseOrder.update({
+    return this.tenant.client.purchaseOrder.update({
       where: { id },
       data: { status: 'cancelled' },
     });

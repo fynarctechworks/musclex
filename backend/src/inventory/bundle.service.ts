@@ -4,8 +4,8 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '../../node_modules/.prisma/client-tenant';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import {
   CreateBundleDto,
   UpdateBundleDto,
@@ -32,7 +32,7 @@ export interface BundleSaleLine {
 
 @Injectable()
 export class BundleService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   // ── CRUD ──────────────────────────────────────────────────────
 
@@ -43,7 +43,7 @@ export class BundleService {
     if (new Set(productIds).size !== productIds.length) {
       throw new BadRequestException('A product can only appear once per bundle');
     }
-    const products = await this.prisma.product.findMany({
+    const products = await this.tenant.client.product.findMany({
       where: { id: { in: productIds } },
       select: { id: true },
     });
@@ -51,12 +51,12 @@ export class BundleService {
       throw new BadRequestException('One or more component products not found');
     }
     if (dto.sku) {
-      const dup = await this.prisma.bundle.findFirst({ where: { sku: dto.sku } });
+      const dup = await this.tenant.client.bundle.findFirst({ where: { sku: dto.sku } });
       if (dup) throw new ConflictException('Bundle SKU already exists in this gym');
     }
 
     const gymId = getTenantGymId()!;
-    return this.prisma.bundle.create({
+    return this.tenant.client.bundle.create({
       data: {
         gym_id: gymId,
         organization_id: dto.organization_id,
@@ -105,20 +105,20 @@ export class BundleService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.bundle.findMany({
+      this.tenant.client.bundle.findMany({
         where,
         skip,
         take: safeLimit,
         orderBy: { name: 'asc' },
         include: this.bundleInclude(),
       }),
-      this.prisma.bundle.count({ where }),
+      this.tenant.client.bundle.count({ where }),
     ]);
     return { data, total, page, limit };
   }
 
   async findOne(id: string) {
-    const bundle = await this.prisma.bundle.findUnique({
+    const bundle = await this.tenant.client.bundle.findUnique({
       where: { id },
       include: this.bundleInclude(),
     });
@@ -127,14 +127,14 @@ export class BundleService {
   }
 
   async update(id: string, dto: UpdateBundleDto) {
-    const existing = await this.prisma.bundle.findUnique({ where: { id } });
+    const existing = await this.tenant.client.bundle.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Bundle not found');
     if (dto.sku && dto.sku !== existing.sku) {
-      const dup = await this.prisma.bundle.findFirst({ where: { sku: dto.sku } });
+      const dup = await this.tenant.client.bundle.findFirst({ where: { sku: dto.sku } });
       if (dup) throw new ConflictException('Bundle SKU already exists in this gym');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       if (dto.items) {
         const productIds = dto.items.map((i) => i.product_id);
         if (new Set(productIds).size !== productIds.length) {
@@ -167,10 +167,10 @@ export class BundleService {
   }
 
   async remove(id: string) {
-    const existing = await this.prisma.bundle.findUnique({ where: { id } });
+    const existing = await this.tenant.client.bundle.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Bundle not found');
     // Soft delete via status — keeps historical sale references intact.
-    return this.prisma.bundle.update({
+    return this.tenant.client.bundle.update({
       where: { id },
       data: { status: 'discontinued' },
     });
@@ -198,7 +198,7 @@ export class BundleService {
         // Sum non-expired batches at this branch.
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const batches = await this.prisma.productBatch.findMany({
+        const batches = await this.tenant.client.productBatch.findMany({
           where: {
             product_id: item.product_id,
             branch_id: branchId,
@@ -213,7 +213,7 @@ export class BundleService {
           shortfalls.push(`${item.product.product_name}: need ${needed}, have ${usable} non-expired`);
         }
       } else {
-        const inv = await this.prisma.inventory.findUnique({
+        const inv = await this.tenant.client.inventory.findUnique({
           where: { product_id_branch_id: { product_id: item.product_id, branch_id: branchId } },
           select: { stock_quantity: true },
         });
