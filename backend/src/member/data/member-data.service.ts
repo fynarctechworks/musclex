@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PublicPrismaService } from '../../prisma/public-prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { MemberException } from '../common/member-exception';
 import { MemberWorkoutService } from './member-workout.service';
 import { MemberNutritionService } from './member-nutrition.service';
@@ -45,7 +46,8 @@ import {
 @Injectable()
 export class MemberDataService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly pub: PublicPrismaService,
+    private readonly tenant: TenantPrisma,
     private readonly workouts: MemberWorkoutService,
     private readonly nutrition: MemberNutritionService,
     private readonly streak: MemberStreakService,
@@ -53,13 +55,13 @@ export class MemberDataService {
   ) {}
 
   async getProfile(member: CurrentMemberContext): Promise<MemberProfileData> {
-    const m = await this.prisma.member.findFirst({
+    const m = await this.tenant.client.member.findFirst({
       where: { id: member.memberId },
       include: { profile: true },
     });
     if (!m) throw MemberException.notFound('Member not found.');
 
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: member.tenantId },
       select: { name: true },
     });
@@ -84,7 +86,7 @@ export class MemberDataService {
     if (dto.gender !== undefined) memberData.gender = dto.gender;
     if (dto.dateOfBirth !== undefined) memberData.date_of_birth = new Date(dto.dateOfBirth);
     if (Object.keys(memberData).length) {
-      await this.prisma.member.update({ where: { id: member.memberId }, data: memberData });
+      await this.tenant.client.member.update({ where: { id: member.memberId }, data: memberData });
     }
 
     // member_profiles — the rest of the fitness profile.
@@ -111,7 +113,7 @@ export class MemberDataService {
       profileSet.onboarding_step = null; // clear the resume marker on completion
     }
 
-    await this.prisma.memberProfile.upsert({
+    await this.tenant.client.memberProfile.upsert({
       where: { member_id: member.memberId },
       create: { gym_id: member.tenantId, member_id: member.memberId, ...profileSet },
       update: profileSet,
@@ -130,7 +132,7 @@ export class MemberDataService {
       dto.trainingExperience !== undefined ||
       !!dto.onboardingComplete;
 
-    const fresh = await this.prisma.member.findFirst({
+    const fresh = await this.tenant.client.member.findFirst({
       where: { id: member.memberId },
       include: { profile: true },
     });
@@ -149,7 +151,7 @@ export class MemberDataService {
       }
     }
 
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: member.tenantId },
       select: { name: true },
     });
@@ -217,19 +219,19 @@ export class MemberDataService {
 
   async getMembership(member: CurrentMemberContext): Promise<MembershipData> {
     const ms =
-      (await this.prisma.memberMembership.findFirst({
+      (await this.tenant.client.memberMembership.findFirst({
         where: { member_id: member.memberId, status: 'active' },
         include: { plan: true },
         orderBy: { created_at: 'desc' },
       })) ??
-      (await this.prisma.memberMembership.findFirst({
+      (await this.tenant.client.memberMembership.findFirst({
         where: { member_id: member.memberId },
         include: { plan: true },
         orderBy: { created_at: 'desc' },
       }));
     if (!ms) throw MemberException.notFound('No membership found.');
 
-    const invoices = await this.prisma.memberInvoice.findMany({
+    const invoices = await this.tenant.client.memberInvoice.findMany({
       where: { member_id: member.memberId },
       orderBy: { issued_at: 'desc' },
       take: 10,
@@ -258,12 +260,12 @@ export class MemberDataService {
 
   async getProgress(member: CurrentMemberContext): Promise<ProgressData> {
     const [stats, photos] = await Promise.all([
-      this.prisma.memberBodyStats.findMany({
+      this.tenant.client.memberBodyStats.findMany({
         where: { member_id: member.memberId },
         orderBy: { recorded_at: 'asc' },
         take: 365,
       }),
-      this.prisma.memberProgressPhoto.findMany({
+      this.tenant.client.memberProgressPhoto.findMany({
         where: { member_id: member.memberId },
         orderBy: { taken_at: 'desc' },
         take: 50,
@@ -296,7 +298,7 @@ export class MemberDataService {
 
     let bmi: number | undefined;
     if (input.weightKg) {
-      const profile = await this.prisma.memberProfile.findFirst({
+      const profile = await this.tenant.client.memberProfile.findFirst({
         where: { member_id: member.memberId },
         select: { height: true },
       });
@@ -307,7 +309,7 @@ export class MemberDataService {
       }
     }
 
-    const row = await this.prisma.memberBodyStats.create({
+    const row = await this.tenant.client.memberBodyStats.create({
       data: {
         gym_id: member.tenantId, // == ALS gym_id; satisfies the create type
         member_id: member.memberId,
@@ -321,7 +323,7 @@ export class MemberDataService {
   }
 
   async getOccupancy(member: CurrentMemberContext): Promise<OccupancyData> {
-    const m = await this.prisma.member.findFirst({
+    const m = await this.tenant.client.member.findFirst({
       where: { id: member.memberId },
       select: { branch_id: true },
     });
@@ -336,7 +338,7 @@ export class MemberDataService {
    * The app sorts by distance from the device; the BFF returns an unranked list.
    */
   async getLocations(_member: CurrentMemberContext): Promise<GymLocationsData> {
-    const branches = await this.prisma.branch.findMany({
+    const branches = await this.tenant.client.branch.findMany({
       orderBy: { name: 'asc' },
       select: {
         id: true,
@@ -365,7 +367,7 @@ export class MemberDataService {
   }
 
   async getHome(member: CurrentMemberContext): Promise<HomeDashboardData> {
-    const m = await this.prisma.member.findFirst({
+    const m = await this.tenant.client.member.findFirst({
       where: { id: member.memberId },
       select: { full_name: true, branch_id: true },
     });
@@ -412,7 +414,7 @@ export class MemberDataService {
   private async nextClassForBranch(
     branchId: string,
   ): Promise<ClassSummaryData | null> {
-    const cls = await this.prisma.class.findFirst({
+    const cls = await this.tenant.client.class.findFirst({
       where: {
         branch_id: branchId,
         status: { not: 'cancelled' },
@@ -423,7 +425,7 @@ export class MemberDataService {
     });
     if (!cls) return null;
 
-    const enrolled = await this.prisma.classEnrollment.count({
+    const enrolled = await this.tenant.client.classEnrollment.count({
       where: { class_id: cls.id, status: 'enrolled' },
     });
 
@@ -440,7 +442,7 @@ export class MemberDataService {
   private async membershipSummary(
     member: CurrentMemberContext,
   ): Promise<HomeDashboardData['membership']> {
-    const ms = await this.prisma.memberMembership.findFirst({
+    const ms = await this.tenant.client.memberMembership.findFirst({
       where: { member_id: member.memberId },
       orderBy: [{ status: 'asc' }, { created_at: 'desc' }],
       select: { status: true, end_date: true },
@@ -460,14 +462,14 @@ export class MemberDataService {
     const [current, settings] = await Promise.all([
       // Approximation: counts today's check-ins without a recorded check-out.
       // Where gyms don't record check-outs this trends toward "visited today".
-      this.prisma.checkIn.count({
+      this.tenant.client.checkIn.count({
         where: {
           branch_id: branchId,
           checked_in_at: { gte: startOfToday },
           check_out_at: null,
         },
       }),
-      this.prisma.branchSettings.findFirst({
+      this.tenant.client.branchSettings.findFirst({
         where: { branch_id: branchId },
         select: { checkin_policy: true },
       }),

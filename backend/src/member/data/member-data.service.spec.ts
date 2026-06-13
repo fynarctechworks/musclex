@@ -29,7 +29,8 @@ describe('MemberDataService — member scoping', () => {
         .fn()
         .mockResolvedValue({ kcal: 0, kcalGoal: 2000, waterMl: 0, waterGoal: 2500 }),
     };
-    prisma = {
+    // Road B: registry (studio) on pub; tenant models on tenant.client.
+    const tenantClient = {
       member: { findFirst: jest.fn() },
       memberMembership: { findFirst: jest.fn() },
       memberInvoice: { findMany: jest.fn().mockResolvedValue([]) },
@@ -38,12 +39,15 @@ describe('MemberDataService — member scoping', () => {
       memberProfile: { findFirst: jest.fn() },
       branchSettings: { findFirst: jest.fn().mockResolvedValue(null) },
       checkIn: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
-      studio: { findUnique: jest.fn().mockResolvedValue({ name: 'Gym A' }) },
       class: { findFirst: jest.fn().mockResolvedValue(null) },
       classEnrollment: { count: jest.fn().mockResolvedValue(0) },
     };
+    prisma = tenantClient; // existing assertions reference `prisma.<model>`
+    const pub = { studio: { findUnique: jest.fn().mockResolvedValue({ name: 'Gym A' }) } };
+    const tenant = { client: tenantClient };
     service = new MemberDataService(
-      prisma,
+      pub as any,
+      tenant as any,
       workouts,
       nutrition,
       streak,

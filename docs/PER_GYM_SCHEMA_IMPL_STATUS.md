@@ -102,6 +102,10 @@ sites) + `transfer.service.ts` (1 raw site) with Phase-7 flagging.
 
 > **Resolved (6.9b): the global-token→tenant pattern** = a thin `public` index keyed by the token id → (gym_id, schema_name), maintained on create/disable; the secret/verification stays in the per-gym table. Apply this for any future "resolve tenant from an opaque token before context exists" case.
 
+| member BFF | 6.10a-d | ✅ mostly (cross-tenant trio deferred) | 6.10a interceptor sets `schemaName` (gate); 6.10b 12 pure-tenant data services; 6.10c registry services (app-user/auth/public-profile/public-health/events/idempotency → `pub`) + member-billing (tenant); 6.10d `member-data` (studio→pub, rest→tenant.client; spec split pub/tenant, 7/7 pass). |
+
+> **DEFERRED — cross-tenant READS (needs strategy, Phase 8/9).** `member-discovery` (public "find a gym" directory — `FROM studio_template.branches JOIN public.studios` across ALL gyms), `member-context`, and `member-directory.backfill()` deliberately read EVERY gym's data from the shared `studio_template`. Post data-migration that table is empty, so these break. Options: (a) a `public` directory table synced on change (like the existing `member_directory` for member→gym lookup) — best for hot paths like nearbyGyms; (b) `forEachTenant` aggregation + cache — fine for `backfill()`/admin; (c) per-gym single lookups via `factory.forSchema()` for by-tenant-id reads (e.g. `gymProfile`). `member-directory.{syncMember,resolveByPhone}` are pure registry and CAN move to `pub` now; only `backfill()` is cross-tenant. Left on legacy `prisma` + flagged. **This is the general cross-tenant-aggregation problem Road B introduces — decide the directory strategy before Phase 9.**
+
 ### Cross-service `$transaction` rule (general)
 When service A's `$transaction` passes `tx` into service B's method, A and B must use
 the SAME generated client's `TransactionClient` type. Migrate transactionally-coupled
