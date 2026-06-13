@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { TenantPrisma } from '../../../prisma/tenant-prisma.accessor';
 import { FacialMatcherService } from '../../facial/facial-matcher.service';
 import type {
   BiometricEnrollResult,
@@ -30,7 +30,7 @@ export class FaceApiPgVectorProvider implements BiometricProvider {
 
   constructor(
     private readonly matcher: FacialMatcherService,
-    private readonly prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
   ) {}
 
   isAvailable(): boolean {
@@ -75,13 +75,13 @@ export class FaceApiPgVectorProvider implements BiometricProvider {
 
     const vecLiteral = `[${input.descriptor.map((n) => (Number.isFinite(n) ? n : 0)).join(',')}]`;
 
-    await this.prisma.$transaction([
-      this.prisma.member.update({
+    await this.tenant.client.$transaction([
+      this.tenant.client.member.update({
         where: { id: member_id },
         data: { face_descriptor: input.descriptor },
       }),
-      this.prisma.$executeRaw`
-        UPDATE studio_template.members SET face_vec = ${vecLiteral}::vector
+      this.tenant.client.$executeRaw`
+        UPDATE members SET face_vec = ${vecLiteral}::vector
         WHERE id = ${member_id}::uuid AND gym_id = ${scope.gym_id}::uuid
       `,
     ]);
@@ -97,13 +97,13 @@ export class FaceApiPgVectorProvider implements BiometricProvider {
 
   async revoke(enrollment_id: string, scope: BiometricScope): Promise<void> {
     // enrollment_id is the member_id for this provider (1:1 mapping).
-    await this.prisma.$transaction([
-      this.prisma.member.update({
+    await this.tenant.client.$transaction([
+      this.tenant.client.member.update({
         where: { id: enrollment_id },
         data: { face_descriptor: [] },
       }),
-      this.prisma.$executeRaw`
-        UPDATE studio_template.members SET face_vec = NULL
+      this.tenant.client.$executeRaw`
+        UPDATE members SET face_vec = NULL
         WHERE id = ${enrollment_id}::uuid AND gym_id = ${scope.gym_id}::uuid
       `,
     ]);

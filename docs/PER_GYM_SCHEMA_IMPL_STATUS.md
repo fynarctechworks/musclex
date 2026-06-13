@@ -96,6 +96,10 @@ generated-client type mismatch). `pos` also reads `studio` (→ `pub`). And
 **Migrate pos + batch + wallet as one cluster.** Then `inventory.service.ts` (5 raw
 sites) + `transfer.service.ts` (1 raw site) with Phase-7 flagging.
 
+| check-ins | 6.9 | ✅ mostly (devices deferred) | Migrated: `check-ins.service`, `biometric-enrollment`, `facial-matcher` (pgvector `<=>` raw → unqualified `members`), `face-api-pgvector.provider` (face_vec array-tx → unqualified `members`). **Also retired the 6.5 PHASE-7 marker:** `members.saveFaceDescriptor` face_vec tx migrated to `tenant.client` + unqualified `members`; **`members.service.ts` now fully off legacy `prisma`.** All run with `schemaName` set (kiosk via `device-auth.middleware`, admin via TenantMiddleware). **DEFERRED:** `devices.service` + `device-auth.middleware` — `verifySecret` is a global device-token→tenant lookup that needs a `public` device-index table (HARD STOP: new schema). See below. |
+
+> **DEFERRED — device-token→tenant resolution (needs decision).** `devices.verifySecret(token)` must find a `check_in_devices` row by id BEFORE the gym is known (the device tells us the gym). Per-gym schemas can't do this without either (a) a `public.device_index(device_id→gym_id, schema_name)` maintained on register [recommended; new public table = HARD STOP], (b) a `forEachTenant` scan [O(gyms)/auth], or (c) keeping `check_in_devices` in `public`. Until decided, `devices.service` + `device-auth.middleware` stay on legacy `prisma` (device rows in studio_template; consistent). Same pattern will recur for any global-token→tenant lookup.
+
 ### Cross-service `$transaction` rule (general)
 When service A's `$transaction` passes `tx` into service B's method, A and B must use
 the SAME generated client's `TransactionClient` type. Migrate transactionally-coupled

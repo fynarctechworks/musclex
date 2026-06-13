@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import {
   CheckInOrchestrator,
   type OrchestratorInput,
@@ -14,7 +14,7 @@ import { getTenantGymId } from '../common/tenant-context';
 @Injectable()
 export class CheckInsService {
   constructor(
-    private prisma: PrismaService,
+    private tenant: TenantPrisma,
     private orchestrator: CheckInOrchestrator,
     private biometric: BiometricRegistry,
   ) {}
@@ -208,7 +208,7 @@ export class CheckInsService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.checkIn.findMany({
+      this.tenant.client.checkIn.findMany({
         where,
         include: {
           member: {
@@ -224,7 +224,7 @@ export class CheckInsService {
         take: limit,
         orderBy: { checked_in_at: 'desc' },
       }),
-      this.prisma.checkIn.count({ where }),
+      this.tenant.client.checkIn.count({ where }),
     ]);
 
     return { data, total, page, limit };
@@ -249,7 +249,7 @@ export class CheckInsService {
 
     let memberId = data.member_id ?? null;
     if (!memberId && data.qr_code) {
-      const m = await this.prisma.member.findFirst({
+      const m = await this.tenant.client.member.findFirst({
         where: { qr_code: data.qr_code },
         select: { id: true },
       });
@@ -260,10 +260,10 @@ export class CheckInsService {
     // Resolve the open visit. If check_in_id supplied, trust it; else find the
     // most recent open success for the member in this branch.
     const open = data.check_in_id
-      ? await this.prisma.checkIn.findFirst({
+      ? await this.tenant.client.checkIn.findFirst({
           where: { id: data.check_in_id, branch_id: data.branch_id },
         })
-      : await this.prisma.checkIn.findFirst({
+      : await this.tenant.client.checkIn.findFirst({
           where: {
             member_id: memberId!,
             branch_id: data.branch_id,
@@ -291,7 +291,7 @@ export class CheckInsService {
       };
     }
 
-    const updated = await this.prisma.checkIn.update({
+    const updated = await this.tenant.client.checkIn.update({
       where: { id: open.id },
       data: { check_out_at: new Date() },
       include: {
@@ -321,7 +321,7 @@ export class CheckInsService {
 
   // Returns members currently inside the branch (open check-ins).
   async listOpenVisits(branchId: string, limit = 100) {
-    return this.prisma.checkIn.findMany({
+    return this.tenant.client.checkIn.findMany({
       where: {
         branch_id: branchId,
         status: 'success',
@@ -352,7 +352,7 @@ export class CheckInsService {
     };
     if (branch_id) where.branch_id = branch_id;
 
-    const checkIns = await this.prisma.checkIn.findMany({
+    const checkIns = await this.tenant.client.checkIn.findMany({
       where,
       select: { checked_in_at: true },
     });

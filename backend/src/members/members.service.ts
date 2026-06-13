@@ -5,7 +5,6 @@ import {
   ConflictException,
   Logger,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
 import { PublicPrismaService } from '../prisma/public-prisma.service';
 import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { ResourceLimitService } from '../common/services/resource-limit.service';
@@ -40,10 +39,7 @@ export class MembersService {
   private readonly logger = new Logger(MembersService.name);
 
   constructor(
-    // `prisma` (legacy) retained ONLY for saveFaceDescriptor's raw studio_template
-    // face_vec write — a Phase 7 (raw-SQL schema-dynamic) site. Everything else:
-    // registry → pub, tenant → tenant.client.
-    private prisma: PrismaService,
+    // Fully on Road B clients: registry → pub, tenant (+ raw on tenant) → tenant.client.
     private pub: PublicPrismaService,
     private tenant: TenantPrisma,
     private resourceLimits: ResourceLimitService,
@@ -941,17 +937,16 @@ export class MembersService {
     // future cleanup migration.
     const vecLiteral = `[${descriptor.map((n) => (Number.isFinite(n) ? n : 0)).join(',')}]`;
 
-    // PHASE 7: this raw face_vec write hardcodes `studio_template.members` and is
-    // part of the face-matching subsystem (facial-matcher / face-api-pgvector),
-    // which is migrated to schema-dynamic raw SQL as a unit in Phase 7. Until then
-    // the whole tx stays on the legacy client (writes land in studio_template).
-    await this.prisma.$transaction([
-      this.prisma.member.update({
+    // Tenant client: the array tx runs against this gym's physical schema; the raw
+    // UPDATE uses an UNQUALIFIED table name resolved via the client's ?schema=
+    // search_path (so it can no longer touch studio_template / another gym).
+    await this.tenant.client.$transaction([
+      this.tenant.client.member.update({
         where: { id },
         data: { face_descriptor: descriptor },
       }),
-      this.prisma.$executeRaw`
-        UPDATE studio_template.members SET face_vec = ${vecLiteral}::vector
+      this.tenant.client.$executeRaw`
+        UPDATE members SET face_vec = ${vecLiteral}::vector
         WHERE id = ${id}::uuid AND gym_id = ${studioId}::uuid
       `,
     ]);

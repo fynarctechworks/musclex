@@ -4,7 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../../common/tenant-context';
 import { BiometricRegistry } from './biometric-registry.service';
 import type {
@@ -29,7 +29,7 @@ export class BiometricEnrollmentService {
   private readonly logger = new Logger(BiometricEnrollmentService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private readonly registry: BiometricRegistry,
   ) {}
 
@@ -70,7 +70,7 @@ export class BiometricEnrollmentService {
 
     // Upsert: re-enrolling overwrites the prior row's template_ref but
     // keeps the same id so existing references stay valid.
-    const row = await this.prisma.biometricEnrollment.upsert({
+    const row = await this.tenant.client.biometricEnrollment.upsert({
       where: {
         member_id_modality_provider: {
           member_id: input.member_id,
@@ -117,7 +117,7 @@ export class BiometricEnrollmentService {
     const gymId = getTenantGymId();
     if (!gymId) throw new BadRequestException('Tenant context missing');
 
-    const enrollment = await this.prisma.biometricEnrollment.findUnique({
+    const enrollment = await this.tenant.client.biometricEnrollment.findUnique({
       where: { id: enrollment_id },
       select: {
         id: true,
@@ -135,7 +135,7 @@ export class BiometricEnrollmentService {
     const provider = this.registry.forId(enrollment.provider);
     await provider.revoke(enrollment.member_id, { gym_id: gymId, branch_id });
 
-    const updated = await this.prisma.biometricEnrollment.update({
+    const updated = await this.tenant.client.biometricEnrollment.update({
       where: { id: enrollment_id },
       data: { revoked_at: new Date() },
       select: {
@@ -155,7 +155,7 @@ export class BiometricEnrollmentService {
   }
 
   async listForMember(member_id: string) {
-    return this.prisma.biometricEnrollment.findMany({
+    return this.tenant.client.biometricEnrollment.findMany({
       where: { member_id },
       select: {
         id: true,
@@ -178,7 +178,7 @@ export class BiometricEnrollmentService {
     if (opts.modality) where.modality = opts.modality;
     if (!opts.include_revoked) where.revoked_at = null;
 
-    return this.prisma.biometricEnrollment.findMany({
+    return this.tenant.client.biometricEnrollment.findMany({
       where,
       select: {
         id: true,

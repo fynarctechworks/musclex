@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 
 /**
  * pgvector-backed 1:N facial matcher.
@@ -27,7 +27,7 @@ export class FacialMatcherService {
   private readonly legacyFallback: boolean;
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private readonly config: ConfigService,
   ) {
     const t = parseFloat(
@@ -41,9 +41,10 @@ export class FacialMatcherService {
   /**
    * Find the best face_vec match in this branch.
    *
-   * Tenant isolation: raw SQL bypasses the Prisma gym_id extension, so the
-   * query MUST filter `gym_id` explicitly — branch_id alone is not a trust
-   * boundary. Callers pass gym_id from the authenticated BiometricScope.
+   * Tenant isolation: the raw query runs on the tenant client, whose
+   * `?schema=studio_<gym>` search_path resolves the UNQUALIFIED `members` to this
+   * gym's physical schema; the explicit `gym_id` filter is kept as defence-in-depth.
+   * Callers pass gym_id from the authenticated BiometricScope.
    *
    * Returns null if no candidate is within threshold.
    */
@@ -68,11 +69,11 @@ export class FacialMatcherService {
     const startMs = Date.now();
     const vecLiteral = `[${input.descriptor.map((n) => safeFloat(n)).join(',')}]`;
 
-    const rows = await this.prisma.$queryRaw<
+    const rows = await this.tenant.client.$queryRaw<
       Array<{ id: string; full_name: string; distance: number }>
     >`
       SELECT id, full_name, (face_vec <=> ${vecLiteral}::vector)::float8 AS distance
-      FROM studio_template.members
+      FROM members
       WHERE face_vec IS NOT NULL
         AND gym_id = ${input.gym_id}::uuid
         AND branch_id = ${input.branch_id}::uuid
@@ -149,7 +150,7 @@ export class FacialMatcherService {
     let cursor: string | undefined;
 
     while (true) {
-      const members = await this.prisma.member.findMany({
+      const members = await this.tenant.client.member.findMany({
         where: {
           gym_id: input.gym_id,
           branch_id: input.branch_id,
