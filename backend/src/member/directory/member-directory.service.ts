@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PublicPrismaService } from '../../prisma/public-prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
+import { TenantTaskRunner } from '../../prisma/tenant-task-runner';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -23,7 +25,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class MemberDirectoryService {
   private readonly logger = new Logger(MemberDirectoryService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly pub: PublicPrismaService, // registry: public.member_directory
+    private readonly tenant: TenantPrisma, // per-gym member reads inside forEachTenant
+    private readonly tasks: TenantTaskRunner, // backfill fans out per gym
+  ) {}
 
   /**
    * Upsert a single directory entry. Keyed on (tenant_id, member_id) so repeated
@@ -44,7 +50,7 @@ export class MemberDirectoryService {
     }
     const status = this.toDirectoryStatus(entry.status);
 
-    await this.prisma.memberDirectory.upsert({
+    await this.pub.memberDirectory.upsert({
       where: {
         tenant_id_member_id: {
           tenant_id: entry.tenantId,
@@ -78,7 +84,7 @@ export class MemberDirectoryService {
     const normalized = this.normalizePhone(phone);
     if (!normalized) return [];
     const key = this.nationalKey(normalized);
-    const rows = await this.prisma.memberDirectory.findMany({
+    const rows = await this.pub.memberDirectory.findMany({
       where: { phone: { endsWith: key.slice(-10) }, status: 'active' },
       select: { tenant_id: true, member_id: true, phone: true },
     });
@@ -108,37 +114,39 @@ export class MemberDirectoryService {
    * Idempotent (upserts). Returns the number of rows reconciled. Safe to run
    * repeatedly; intended as a one-off backfill and a periodic safety net.
    *
-   * Reads members via raw SQL joined to studios (cross-tenant by design — this
-   * is the one maintenance path allowed to span gyms), so it bypasses the
-   * gym_id-scoped client intentionally.
+   * Road B: instead of one cross-tenant raw scan of studio_template, fan out
+   * per gym via forEachTenant — each gym's members are read from its own schema
+   * (this.tenant.client, schema-dynamic) and upserted into the public directory
+   * via syncMember (pub). No request context, so this MUST run inside
+   * forEachTenant (never touch this.tenant.client at the top level).
    */
   async backfill(): Promise<number> {
-    const members = await this.prisma.$queryRaw<
-      Array<{ member_id: string; tenant_id: string; phone: string; status: string }>
-    >`
-      SELECT m.id AS member_id, m.gym_id AS tenant_id, m.phone, m.status
-      FROM studio_template.members m
-      INNER JOIN public.studios s ON s.id = m.gym_id
-      WHERE m.phone IS NOT NULL AND m.phone <> ''
-    `;
-
     let reconciled = 0;
-    for (const m of members) {
-      try {
-        await this.syncMember({
-          memberId: m.member_id,
-          tenantId: m.tenant_id,
-          phone: m.phone,
-          status: m.status,
-        });
-        reconciled++;
-      } catch (err) {
-        this.logger.error(
-          `Backfill failed for member ${m.member_id}: ${(err as Error).message}`,
-        );
+    const summary = await this.tasks.forEachTenant(async ({ gymId }) => {
+      const members = await this.tenant.client.member.findMany({
+        where: { phone: { not: '' } },
+        select: { id: true, phone: true, status: true },
+      });
+      for (const m of members) {
+        if (!m.phone) continue;
+        try {
+          await this.syncMember({
+            memberId: m.id,
+            tenantId: gymId,
+            phone: m.phone,
+            status: m.status,
+          });
+          reconciled++;
+        } catch (err) {
+          this.logger.error(
+            `Backfill failed for member ${m.id} (gym ${gymId}): ${(err as Error).message}`,
+          );
+        }
       }
-    }
-    this.logger.log(`member_directory backfill reconciled ${reconciled} member(s)`);
+    });
+    this.logger.log(
+      `member_directory backfill reconciled ${reconciled} member(s) across ${summary.ok}/${summary.total} gyms`,
+    );
     return reconciled;
   }
 

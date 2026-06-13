@@ -15,6 +15,16 @@ import type { NearbyGymsData, GymProfileData } from '../contract';
  * public-safe gym/branch fields (name, address, city, lat/lng, phone, logo);
  * never any member or operational data. Uses raw SQL across studio_template.
  * branches ⋈ public.studios; gym_id is irrelevant here (it's a directory).
+ *
+ * ⚠️ DEFERRED — Road B "Hybrid" directory strategy (user-approved 2026-06-14).
+ * This service stays on the legacy PrismaService + studio_template reads, which
+ * is CORRECT until the Phase-9 data migration. The agreed end state is a
+ * public.gym_directory projection table (gym+branch+plan public-safe fields)
+ * synced on branch/plan/studio change and reconciled by a backfill — nearbyGyms
+ * and gymProfile then read that table via the public client (no cross-tenant
+ * scan). Build this in Phase 8/9 when the table can be created + verified (it is
+ * a new public table = a DB-schema HARD STOP, and only matters post-migration).
+ * Full plan + rationale: docs/PER_GYM_SCHEMA_IMPL_STATUS.md (Phase-6 log, 6.22).
  */
 @Injectable()
 export class MemberDiscoveryService {

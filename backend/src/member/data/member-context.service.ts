@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PublicPrismaService } from '../../prisma/public-prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
+import { TenantTaskRunner } from '../../prisma/tenant-task-runner';
 import { MemberException } from '../common/member-exception';
 import type { CurrentMemberContext } from '../decorators/current-member.decorator';
 import type {
@@ -37,10 +38,14 @@ export class MemberContextService {
     'frozen',
   ]);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly pub: PublicPrismaService, // registry: appUser, appUserGymLink, studio
+    private readonly tenant: TenantPrisma, // per-gym member reads inside runForGym
+    private readonly tasks: TenantTaskRunner, // resolve+run in each of the caller's own gyms
+  ) {}
 
   async getContext(member: CurrentMemberContext): Promise<MeContextData> {
-    const appUser = await this.prisma.appUser.findUnique({
+    const appUser = await this.pub.appUser.findUnique({
       where: { id: member.appUserId },
       select: {
         id: true,
@@ -53,7 +58,7 @@ export class MemberContextService {
     });
     if (!appUser) throw MemberException.notFound('Account not found.');
 
-    const links = await this.prisma.appUserGymLink.findMany({
+    const links = await this.pub.appUserGymLink.findMany({
       where: { app_user_id: member.appUserId },
       select: { tenant_id: true, member_id: true },
     });
@@ -90,61 +95,97 @@ export class MemberContextService {
   }
 
   /**
-   * Cross-gym read of the person's own member rows + the most relevant membership
-   * (prefer an active one, else the latest). Safe: filtered by the caller's own
-   * member ids (unique PKs) and tenant ids — it can only return their records.
+   * Read the person's own member rows + most relevant membership (prefer an
+   * active one, else the latest). Road B: the cross-tenant studio_template scan
+   * is replaced by per-gym reads — group the caller's links by gym, fetch each
+   * gym's studio (name/suspended) from the registry, then `runForGym` into that
+   * gym's schema to read ONLY the caller's own member rows. N = the gyms the
+   * person belongs to (typically 1–3), so the fan-out is negligible.
    */
   private async loadMemberships(
     links: Array<{ tenant_id: string; member_id: string }>,
   ): Promise<MeMembershipData[]> {
-    const memberIds = links.map((l) => l.member_id);
-    const tenantIds = links.map((l) => l.tenant_id);
+    // Group the caller's member ids by gym.
+    const byTenant = new Map<string, string[]>();
+    for (const l of links) {
+      const arr = byTenant.get(l.tenant_id) ?? [];
+      arr.push(l.member_id);
+      byTenant.set(l.tenant_id, arr);
+    }
 
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        member_id: string;
-        tenant_id: string;
-        status: string;
-        gym_name: string;
-        suspended_at: Date | null;
-        end_date: Date | null;
-        plan_name: string | null;
-      }>
-    >(Prisma.sql`
-      SELECT m.id::text         AS member_id,
-             m.gym_id::text     AS tenant_id,
-             m.status           AS status,
-             s.name             AS gym_name,
-             s.suspended_at     AS suspended_at,
-             mm.end_date        AS end_date,
-             mp.name            AS plan_name
-      FROM studio_template.members m
-      JOIN public.studios s ON s.id = m.gym_id
-      LEFT JOIN LATERAL (
-        SELECT x.end_date, x.plan_id
-        FROM studio_template.member_memberships x
-        WHERE x.member_id = m.id AND x.gym_id = m.gym_id
-        ORDER BY (x.status = 'active') DESC, x.end_date DESC NULLS LAST
-        LIMIT 1
-      ) mm ON true
-      LEFT JOIN studio_template.membership_plans mp
-        ON mp.id = mm.plan_id AND mp.gym_id = m.gym_id
-      WHERE m.id::text IN (${Prisma.join(memberIds)})
-        AND m.gym_id::text IN (${Prisma.join(tenantIds)})
-    `);
+    // Registry: gym name + suspension flag (one batched query).
+    const studios = await this.pub.studio.findMany({
+      where: { id: { in: [...byTenant.keys()] } },
+      select: { id: true, name: true, suspended_at: true },
+    });
+    const studioMap = new Map(studios.map((s) => [s.id, s]));
 
-    return rows.map((r) => ({
-      tenantId: r.tenant_id,
-      gymName: r.gym_name,
-      memberId: r.member_id,
-      status: r.status,
-      active: MemberContextService.ACTIVE_STATUSES.has(r.status),
-      suspended: !!r.suspended_at,
-      planName: r.plan_name,
-      expiresAt: r.end_date
-        ? r.end_date.toISOString().slice(0, 10)
-        : null,
-    }));
+    const out: MeMembershipData[] = [];
+    for (const [tenantId, memberIds] of byTenant) {
+      const studio = studioMap.get(tenantId);
+      if (!studio) continue; // gym not in registry (deleted) — skip
+
+      // Read this gym's own member rows inside its tenant context. runForGym
+      // resolves the schema from the registry; returns undefined if the gym has
+      // no valid schema (then we skip rather than surface a partial error).
+      const members = await this.tasks.runForGym(tenantId, () =>
+        this.tenant.client.member.findMany({
+          where: { id: { in: memberIds } },
+          select: {
+            id: true,
+            status: true,
+            memberships: {
+              select: {
+                status: true,
+                end_date: true,
+                plan: { select: { name: true } },
+              },
+            },
+          },
+        }),
+      );
+      if (!members) continue;
+
+      for (const m of members) {
+        const best = this.pickBestMembership(m.memberships);
+        out.push({
+          tenantId,
+          gymName: studio.name,
+          memberId: m.id,
+          status: m.status,
+          active: MemberContextService.ACTIVE_STATUSES.has(m.status),
+          suspended: !!studio.suspended_at,
+          planName: best?.plan?.name ?? null,
+          expiresAt: best?.end_date
+            ? best.end_date.toISOString().slice(0, 10)
+            : null,
+        });
+      }
+    }
+
+    return out;
+  }
+
+  /**
+   * Pick the most relevant membership for the card: prefer an `active` one, else
+   * fall back to all; within the pool take the latest end_date (nulls lowest).
+   * Mirrors the old `ORDER BY (status='active') DESC, end_date DESC NULLS LAST`.
+   */
+  private pickBestMembership(
+    memberships: Array<{
+      status: string;
+      end_date: Date | null;
+      plan: { name: string } | null;
+    }>,
+  ): { end_date: Date | null; plan: { name: string } | null } | null {
+    if (memberships.length === 0) return null;
+    const active = memberships.filter((x) => x.status === 'active');
+    const pool = active.length > 0 ? active : memberships;
+    return pool.reduce((a, b) => {
+      const ae = a.end_date ? a.end_date.getTime() : -Infinity;
+      const be = b.end_date ? b.end_date.getTime() : -Infinity;
+      return be > ae ? b : a;
+    });
   }
 
   /**
