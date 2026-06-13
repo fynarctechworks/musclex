@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PublicPrismaService } from '../../prisma/public-prisma.service';
 import { DEFAULT_CURRENCY } from '../defaults';
 
 /**
@@ -17,7 +17,7 @@ import { DEFAULT_CURRENCY } from '../defaults';
 export class SccSyncService {
   private readonly logger = new Logger(SccSyncService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly pub: PublicPrismaService) {}
 
   /**
    * Upsert a tenant record in scc.tenants from a Studio row.
@@ -55,7 +55,7 @@ export class SccSyncService {
       const ownerName = studio.owner_full_name || studio.email?.split('@')[0] || 'Owner';
       const accountType = studio.account_type || 'gym';
 
-      await this.prisma.$executeRawUnsafe(
+      await this.pub.$executeRawUnsafe(
         `INSERT INTO scc.tenants
           (id, name, slug, owner_email, owner_name, phone, logo_url, account_type,
            status, is_active, trial_ends_at, last_active_at, created_at, updated_at)
@@ -104,13 +104,13 @@ export class SccSyncService {
       const status = this.mapStatus(subscriptionStatus);
 
       // Find matching scc SubscriptionPlan by name
-      const plans = await this.prisma.$queryRawUnsafe<{ id: string }[]>(
+      const plans = await this.pub.$queryRawUnsafe<{ id: string }[]>(
         `SELECT id FROM scc.subscription_plans WHERE name = $1 AND is_active = true LIMIT 1`,
         planName,
       );
       const planId = plans[0]?.id ?? null;
 
-      await this.prisma.$executeRawUnsafe(
+      await this.pub.$executeRawUnsafe(
         `UPDATE scc.tenants
          SET status        = CAST($1 AS "scc"."TenantStatus"),
              trial_ends_at = $2,
@@ -126,7 +126,7 @@ export class SccSyncService {
       // Upsert subscription row — update status if already exists
       if (planId) {
         const subStatus = status === 'TRIAL' ? 'TRIALING' : 'ACTIVE';
-        await this.prisma.$executeRawUnsafe(
+        await this.pub.$executeRawUnsafe(
           `INSERT INTO scc.subscriptions
             (id, tenant_id, plan_id, status, start_date, end_date, auto_renew, created_at, updated_at)
            SELECT gen_random_uuid(), t.id, $1::uuid,
@@ -164,7 +164,7 @@ export class SccSyncService {
     try {
       const paymentStatus = this.mapPaymentStatus(invoice.status);
 
-      await this.prisma.$executeRawUnsafe(
+      await this.pub.$executeRawUnsafe(
         `INSERT INTO scc.payments
           (id, tenant_id, amount, currency, status, gateway, gateway_payment_id, created_at, updated_at)
          SELECT $1::uuid, t.id, $2, $3,
@@ -191,7 +191,7 @@ export class SccSyncService {
    */
   async touchLastActive(studioSlug: string): Promise<void> {
     try {
-      await this.prisma.$executeRawUnsafe(
+      await this.pub.$executeRawUnsafe(
         `UPDATE scc.tenants SET last_active_at = now(), updated_at = now() WHERE slug = $1`,
         studioSlug,
       );

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PublicPrismaService } from '../../prisma/public-prisma.service';
 import { SccSyncService } from './scc-sync.service';
 import { PLAN_CONFIGS } from '../plan-configs';
 import {
@@ -58,7 +58,7 @@ export class SubscriptionPolicyService {
   // Order of precedence: SUSPENDED > LOCKED > GRACE_PERIOD > ACTIVE.
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly pub: PublicPrismaService,
     private readonly sccSync: SccSyncService,
   ) {}
 
@@ -71,7 +71,7 @@ export class SubscriptionPolicyService {
    * Caller passes a pre-loaded map for batch jobs; otherwise we look it up.
    */
   async getGraceDays(planName: string): Promise<number> {
-    const dbPlan = await this.prisma.subscriptionPlan
+    const dbPlan = await this.pub.subscriptionPlan
       .findUnique({ where: { name: planName }, select: { grace_days: true } })
       .catch(() => null);
     if (dbPlan?.grace_days != null) return dbPlan.grace_days;
@@ -186,7 +186,7 @@ export class SubscriptionPolicyService {
     studioId: string,
     now: Date = new Date(),
   ): Promise<{ computed: ComputedStatus; transitioned: boolean; previous: SubscriptionLifecycleStatus }> {
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: studioId },
       select: {
         id: true,
@@ -211,7 +211,7 @@ export class SubscriptionPolicyService {
 
     const transitioned = previous !== computed.status;
 
-    await this.prisma.studio.update({
+    await this.pub.studio.update({
       where: { id: studioId },
       data: {
         lifecycle_status: computed.status,
@@ -223,7 +223,7 @@ export class SubscriptionPolicyService {
 
     if (transitioned) {
       const eventType = this.eventForTransition(previous, computed.status);
-      await this.prisma.subscriptionEvent.create({
+      await this.pub.subscriptionEvent.create({
         data: {
           studio_id: studioId,
           event_type: eventType,
@@ -273,7 +273,7 @@ export class SubscriptionPolicyService {
       return cached.context;
     }
 
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: studioId },
       select: {
         subscription_plan: true,
@@ -403,7 +403,7 @@ export class SubscriptionPolicyService {
   }> {
     const now = params.now ?? new Date();
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.pub.$transaction(async (tx) => {
       const studio = await tx.studio.findUnique({
         where: { id: params.studio_id },
         select: {

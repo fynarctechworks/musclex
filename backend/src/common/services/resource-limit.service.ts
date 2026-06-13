@@ -1,5 +1,6 @@
 import { Injectable, ForbiddenException, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PublicPrismaService } from '../../prisma/public-prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { PLAN_CONFIGS } from '../plan-configs';
 
 /**
@@ -19,7 +20,10 @@ import { PLAN_CONFIGS } from '../plan-configs';
 export class ResourceLimitService {
   private readonly logger = new Logger(ResourceLimitService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly pub: PublicPrismaService,
+    private readonly tenant: TenantPrisma,
+  ) {}
 
   /**
    * Get the plan limits for a studio. Tries DB first, falls back to in-memory config.
@@ -30,7 +34,7 @@ export class ResourceLimitService {
     max_staff: number;
     plan_name: string;
   }> {
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: studioId },
       select: { subscription_plan: true },
     });
@@ -42,7 +46,7 @@ export class ResourceLimitService {
     const planName = studio.subscription_plan;
 
     // Try DB-driven limits first
-    const dbPlan = await this.prisma.subscriptionPlan.findUnique({
+    const dbPlan = await this.pub.subscriptionPlan.findUnique({
       where: { name: planName },
       select: { max_members: true, max_branches: true, max_staff: true },
     });
@@ -80,7 +84,7 @@ export class ResourceLimitService {
     const limits = await this.getPlanLimits(studioId);
 
     // Tenant isolation via search_path; optionally filter by org
-    const currentCount = await this.prisma.member.count({
+    const currentCount = await this.tenant.client.member.count({
       where: {
         ...(organizationId ? { organization_id: organizationId } : {}),
         status: { not: 'deleted' },
@@ -101,7 +105,7 @@ export class ResourceLimitService {
   async checkBranchLimit(studioId: string, organizationId?: string): Promise<void> {
     const limits = await this.getPlanLimits(studioId);
 
-    const currentCount = await this.prisma.branch.count({
+    const currentCount = await this.tenant.client.branch.count({
       where: {
         ...(organizationId ? { organization_id: organizationId } : {}),
         status: 'active',
@@ -122,7 +126,7 @@ export class ResourceLimitService {
   async checkStaffLimit(studioId: string, organizationId?: string): Promise<void> {
     const limits = await this.getPlanLimits(studioId);
 
-    const currentCount = await this.prisma.staff.count({
+    const currentCount = await this.tenant.client.staff.count({
       where: {
         ...(organizationId ? { organization_id: organizationId } : {}),
         status: 'active',
@@ -145,7 +149,7 @@ export class ResourceLimitService {
    * api_access, multi_branch, custom_roles, audit_logs, payment_gateway
    */
   async checkFeatureAccess(studioId: string, featureKey: string): Promise<void> {
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: studioId },
       select: { subscription_plan: true },
     });
@@ -153,7 +157,7 @@ export class ResourceLimitService {
 
     const planName = studio.subscription_plan;
 
-    const dbPlan = await this.prisma.subscriptionPlan.findUnique({
+    const dbPlan = await this.pub.subscriptionPlan.findUnique({
       where: { name: planName },
       select: { features: true, display_name: true },
     });
@@ -181,13 +185,13 @@ export class ResourceLimitService {
     const orgWhere = organizationId ? { organization_id: organizationId } : {};
 
     const [memberCount, branchCount, staffCount] = await Promise.all([
-      this.prisma.member.count({
+      this.tenant.client.member.count({
         where: { ...orgWhere, status: { not: 'deleted' } }, // tenant isolation via search_path
       }),
-      this.prisma.branch.count({
+      this.tenant.client.branch.count({
         where: { ...orgWhere, status: 'active' }, // tenant isolation via search_path — only count active
       }),
-      this.prisma.staff.count({
+      this.tenant.client.staff.count({
         where: { ...orgWhere, status: 'active' },
       }),
     ]);

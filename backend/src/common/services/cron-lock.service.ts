@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PublicPrismaService } from '../../prisma/public-prisma.service';
 
 /**
  * Distributed lock service using PostgreSQL advisory locks.
@@ -11,7 +11,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class CronLockService {
   private readonly logger = new Logger(CronLockService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly pub: PublicPrismaService) {}
 
   /**
    * Attempt to acquire a session-level advisory lock.
@@ -21,7 +21,7 @@ export class CronLockService {
   async tryAcquire(lockName: string): Promise<boolean> {
     const lockKey = this.hashLockName(lockName);
     try {
-      const result = await this.prisma.$queryRawUnsafe<Array<{ pg_try_advisory_lock: boolean }>>(
+      const result = await this.pub.$queryRawUnsafe<Array<{ pg_try_advisory_lock: boolean }>>(
         `SELECT pg_try_advisory_lock($1)`,
         lockKey,
       );
@@ -42,7 +42,7 @@ export class CronLockService {
   async release(lockName: string): Promise<void> {
     const lockKey = this.hashLockName(lockName);
     try {
-      await this.prisma.$queryRawUnsafe(
+      await this.pub.$queryRawUnsafe(
         `SELECT pg_advisory_unlock($1)`,
         lockKey,
       );
