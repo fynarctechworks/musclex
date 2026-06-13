@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../../common/tenant-context';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../../node_modules/.prisma/client-tenant';
 import {
   CreateFeatureFlagDto,
   UpdateFeatureFlagDto,
@@ -13,19 +13,19 @@ import {
 
 @Injectable()
 export class PlatformSettingsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   // ─── Feature Flags ────────────────────────────────────────
 
   async getFeatureFlags(organizationId: string) {
-    return this.prisma.featureFlag.findMany({
+    return this.tenant.client.featureFlag.findMany({
       where: { organization_id: organizationId },
       orderBy: { key: 'asc' },
     });
   }
 
   async getFeatureFlag(organizationId: string, key: string) {
-    const flag = await this.prisma.featureFlag.findUnique({
+    const flag = await this.tenant.client.featureFlag.findUnique({
       where: { organization_id_key: { organization_id: organizationId, key } },
     });
     if (!flag) throw new NotFoundException(`Feature flag "${key}" not found`);
@@ -33,19 +33,19 @@ export class PlatformSettingsService {
   }
 
   async isFeatureEnabled(organizationId: string, key: string): Promise<boolean> {
-    const flag = await this.prisma.featureFlag.findUnique({
+    const flag = await this.tenant.client.featureFlag.findUnique({
       where: { organization_id_key: { organization_id: organizationId, key } },
     });
     return flag?.is_enabled ?? false;
   }
 
   async createFeatureFlag(organizationId: string, dto: CreateFeatureFlagDto) {
-    const existing = await this.prisma.featureFlag.findUnique({
+    const existing = await this.tenant.client.featureFlag.findUnique({
       where: { organization_id_key: { organization_id: organizationId, key: dto.key } },
     });
     if (existing) throw new ConflictException(`Feature flag "${dto.key}" already exists`);
 
-    return this.prisma.featureFlag.create({
+    return this.tenant.client.featureFlag.create({
       data: {
         gym_id: getTenantGymId()!,
         organization_id: organizationId,
@@ -59,7 +59,7 @@ export class PlatformSettingsService {
 
   async updateFeatureFlag(organizationId: string, key: string, dto: UpdateFeatureFlagDto) {
     await this.getFeatureFlag(organizationId, key);
-    return this.prisma.featureFlag.update({
+    return this.tenant.client.featureFlag.update({
       where: { organization_id_key: { organization_id: organizationId, key } },
       data: {
         is_enabled: dto.is_enabled,
@@ -71,18 +71,18 @@ export class PlatformSettingsService {
 
   async bulkToggleFlags(organizationId: string, flags: Record<string, boolean>) {
     const operations = Object.entries(flags).map(([key, is_enabled]) =>
-      this.prisma.featureFlag.upsert({
+      this.tenant.client.featureFlag.upsert({
         where: { organization_id_key: { organization_id: organizationId, key } },
         update: { is_enabled },
         create: { gym_id: getTenantGymId()!, organization_id: organizationId, key, is_enabled },
       }),
     );
-    return this.prisma.$transaction(operations);
+    return this.tenant.client.$transaction(operations);
   }
 
   async deleteFeatureFlag(organizationId: string, key: string) {
     await this.getFeatureFlag(organizationId, key);
-    return this.prisma.featureFlag.delete({
+    return this.tenant.client.featureFlag.delete({
       where: { organization_id_key: { organization_id: organizationId, key } },
     });
   }
@@ -90,11 +90,11 @@ export class PlatformSettingsService {
   // ─── White Label ──────────────────────────────────────────
 
   async getWhiteLabelConfig(organizationId: string) {
-    let config = await this.prisma.whiteLabelConfig.findUnique({
+    let config = await this.tenant.client.whiteLabelConfig.findUnique({
       where: { organization_id: organizationId },
     });
     if (!config) {
-      config = await this.prisma.whiteLabelConfig.create({
+      config = await this.tenant.client.whiteLabelConfig.create({
         data: { gym_id: getTenantGymId()!, organization_id: organizationId },
       });
     }
@@ -102,7 +102,7 @@ export class PlatformSettingsService {
   }
 
   async updateWhiteLabelConfig(organizationId: string, dto: UpdateWhiteLabelDto) {
-    return this.prisma.whiteLabelConfig.upsert({
+    return this.tenant.client.whiteLabelConfig.upsert({
       where: { organization_id: organizationId },
       update: {
         custom_domain: dto.custom_domain,
@@ -144,7 +144,7 @@ export class PlatformSettingsService {
   // ─── SSO Providers ────────────────────────────────────────
 
   async getSsoProviders() {
-    return this.prisma.ssoProvider.findMany({
+    return this.tenant.client.ssoProvider.findMany({
       orderBy: { created_at: 'desc' },
       select: {
         id: true,
@@ -162,14 +162,14 @@ export class PlatformSettingsService {
   }
 
   async getSsoProvider(id: string) {
-    const provider = await this.prisma.ssoProvider.findUnique({ where: { id } });
+    const provider = await this.tenant.client.ssoProvider.findUnique({ where: { id } });
     if (!provider) throw new NotFoundException('SSO provider not found');
     // Mask secret
     return { ...provider, encrypted_client_secret: provider.encrypted_client_secret ? '••••••••' : null };
   }
 
   async createSsoProvider(dto: CreateSsoProviderDto, createdBy: string) {
-    return this.prisma.ssoProvider.create({
+    return this.tenant.client.ssoProvider.create({
       data: {
         gym_id: getTenantGymId()!,
         provider_type: dto.provider_type,
@@ -192,7 +192,7 @@ export class PlatformSettingsService {
 
   async updateSsoProvider(id: string, dto: UpdateSsoProviderDto) {
     await this.getSsoProvider(id);
-    return this.prisma.ssoProvider.update({
+    return this.tenant.client.ssoProvider.update({
       where: { id },
       data: {
         display_name: dto.display_name,
@@ -213,7 +213,7 @@ export class PlatformSettingsService {
 
   async deleteSsoProvider(id: string) {
     await this.getSsoProvider(id);
-    return this.prisma.ssoProvider.delete({ where: { id } });
+    return this.tenant.client.ssoProvider.delete({ where: { id } });
   }
 
   // ─── System Notifications ─────────────────────────────────
@@ -225,7 +225,7 @@ export class PlatformSettingsService {
     if (unreadOnly) {
       where.is_read = false;
     }
-    return this.prisma.systemNotification.findMany({
+    return this.tenant.client.systemNotification.findMany({
       where,
       orderBy: { created_at: 'desc' },
       take: 50,
@@ -233,13 +233,13 @@ export class PlatformSettingsService {
   }
 
   async getUnreadCount(organizationId: string): Promise<number> {
-    return this.prisma.systemNotification.count({
+    return this.tenant.client.systemNotification.count({
       where: { organization_id: organizationId, is_read: false },
     });
   }
 
   async createNotification(organizationId: string, dto: CreateSystemNotificationDto) {
-    return this.prisma.systemNotification.create({
+    return this.tenant.client.systemNotification.create({
       data: {
         gym_id: getTenantGymId()!,
         organization_id: organizationId,
@@ -253,18 +253,18 @@ export class PlatformSettingsService {
   }
 
   async markAsRead(organizationId: string, notificationId: string) {
-    const notification = await this.prisma.systemNotification.findFirst({
+    const notification = await this.tenant.client.systemNotification.findFirst({
       where: { id: notificationId, organization_id: organizationId },
     });
     if (!notification) throw new NotFoundException('Notification not found');
-    return this.prisma.systemNotification.update({
+    return this.tenant.client.systemNotification.update({
       where: { id: notificationId },
       data: { is_read: true, read_at: new Date() },
     });
   }
 
   async markAllAsRead(organizationId: string) {
-    return this.prisma.systemNotification.updateMany({
+    return this.tenant.client.systemNotification.updateMany({
       where: { organization_id: organizationId, is_read: false },
       data: { is_read: true, read_at: new Date() },
     });
@@ -283,22 +283,22 @@ export class PlatformSettingsService {
       ssoProviders,
       unreadNotifications,
     ] = await Promise.all([
-      this.prisma.organization.findUnique({ where: { id: organizationId } }),
-      this.prisma.organizationSettings.findUnique({
+      this.tenant.client.organization.findUnique({ where: { id: organizationId } }),
+      this.tenant.client.organizationSettings.findUnique({
         where: { organization_id: organizationId },
       }),
-      this.prisma.featureFlag.count({ where: { organization_id: organizationId } }),
-      this.prisma.whiteLabelConfig.findUnique({
+      this.tenant.client.featureFlag.count({ where: { organization_id: organizationId } }),
+      this.tenant.client.whiteLabelConfig.findUnique({
         where: { organization_id: organizationId },
       }),
-      this.prisma.integration.count({
+      this.tenant.client.integration.count({
         where: { organization_id: organizationId, is_enabled: true },
       }),
-      this.prisma.webhook.count({
+      this.tenant.client.webhook.count({
         where: { organization_id: organizationId, is_active: true },
       }),
-      this.prisma.ssoProvider.count({ where: { is_active: true } }),
-      this.prisma.systemNotification.count({
+      this.tenant.client.ssoProvider.count({ where: { is_active: true } }),
+      this.tenant.client.systemNotification.count({
         where: { organization_id: organizationId, is_read: false },
       }),
     ]);

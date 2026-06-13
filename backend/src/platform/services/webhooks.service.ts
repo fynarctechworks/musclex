@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../../common/tenant-context';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../../node_modules/.prisma/client-tenant';
 import { createHmac, randomBytes } from 'crypto';
 import {
   CreateWebhookDto,
@@ -10,7 +10,7 @@ import {
 
 @Injectable()
 export class WebhooksService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   // ─── Supported Events ─────────────────────────────────────
 
@@ -43,7 +43,7 @@ export class WebhooksService {
   // ─── Webhook CRUD ─────────────────────────────────────────
 
   async getWebhooks(organizationId: string) {
-    return this.prisma.webhook.findMany({
+    return this.tenant.client.webhook.findMany({
       where: { organization_id: organizationId },
       orderBy: { created_at: 'desc' },
       select: {
@@ -63,7 +63,7 @@ export class WebhooksService {
   }
 
   async getWebhook(organizationId: string, id: string) {
-    const webhook = await this.prisma.webhook.findFirst({
+    const webhook = await this.tenant.client.webhook.findFirst({
       where: { id, organization_id: organizationId },
       include: {
         deliveries: {
@@ -80,7 +80,7 @@ export class WebhooksService {
   async createWebhook(organizationId: string, dto: CreateWebhookDto, createdBy: string) {
     const secret = randomBytes(32).toString('hex');
 
-    const webhook = await this.prisma.webhook.create({
+    const webhook = await this.tenant.client.webhook.create({
       data: {
         gym_id: getTenantGymId()!,
         organization_id: organizationId,
@@ -99,12 +99,12 @@ export class WebhooksService {
   }
 
   async updateWebhook(organizationId: string, id: string, dto: UpdateWebhookDto) {
-    const webhook = await this.prisma.webhook.findFirst({
+    const webhook = await this.tenant.client.webhook.findFirst({
       where: { id, organization_id: organizationId },
     });
     if (!webhook) throw new NotFoundException('Webhook not found');
 
-    return this.prisma.webhook.update({
+    return this.tenant.client.webhook.update({
       where: { id },
       data: {
         name: dto.name,
@@ -118,21 +118,21 @@ export class WebhooksService {
   }
 
   async deleteWebhook(organizationId: string, id: string) {
-    const webhook = await this.prisma.webhook.findFirst({
+    const webhook = await this.tenant.client.webhook.findFirst({
       where: { id, organization_id: organizationId },
     });
     if (!webhook) throw new NotFoundException('Webhook not found');
-    return this.prisma.webhook.delete({ where: { id } });
+    return this.tenant.client.webhook.delete({ where: { id } });
   }
 
   async rotateSecret(organizationId: string, id: string) {
-    const webhook = await this.prisma.webhook.findFirst({
+    const webhook = await this.tenant.client.webhook.findFirst({
       where: { id, organization_id: organizationId },
     });
     if (!webhook) throw new NotFoundException('Webhook not found');
 
     const newSecret = randomBytes(32).toString('hex');
-    await this.prisma.webhook.update({
+    await this.tenant.client.webhook.update({
       where: { id },
       data: { secret: newSecret },
     });
@@ -143,12 +143,12 @@ export class WebhooksService {
   // ─── Webhook Delivery ─────────────────────────────────────
 
   async getDeliveries(organizationId: string, webhookId: string, limit = 50) {
-    const webhook = await this.prisma.webhook.findFirst({
+    const webhook = await this.tenant.client.webhook.findFirst({
       where: { id: webhookId, organization_id: organizationId },
     });
     if (!webhook) throw new NotFoundException('Webhook not found');
 
-    return this.prisma.webhookDelivery.findMany({
+    return this.tenant.client.webhookDelivery.findMany({
       where: { webhook_id: webhookId },
       orderBy: { created_at: 'desc' },
       take: limit,
@@ -156,7 +156,7 @@ export class WebhooksService {
   }
 
   async retryDelivery(organizationId: string, deliveryId: string) {
-    const delivery = await this.prisma.webhookDelivery.findUnique({
+    const delivery = await this.tenant.client.webhookDelivery.findUnique({
       where: { id: deliveryId },
       include: { webhook: true },
     });
@@ -165,7 +165,7 @@ export class WebhooksService {
     }
 
     // Reset delivery for retry
-    await this.prisma.webhookDelivery.update({
+    await this.tenant.client.webhookDelivery.update({
       where: { id: deliveryId },
       data: {
         status: 'pending',
@@ -184,7 +184,7 @@ export class WebhooksService {
   // ─── Webhook Dispatch (called by other modules) ───────────
 
   async dispatch(organizationId: string, event: string, payload: Record<string, unknown>) {
-    const webhooks = await this.prisma.webhook.findMany({
+    const webhooks = await this.tenant.client.webhook.findMany({
       where: {
         organization_id: organizationId,
         is_active: true,
@@ -205,13 +205,13 @@ export class WebhooksService {
   }
 
   private async dispatchDelivery(webhookId: string, event: string, payload: unknown) {
-    const webhook = await this.prisma.webhook.findUnique({ where: { id: webhookId } });
+    const webhook = await this.tenant.client.webhook.findUnique({ where: { id: webhookId } });
     if (!webhook) return;
 
     const body = JSON.stringify({ event, data: payload, timestamp: new Date().toISOString() });
     const signature = createHmac('sha256', webhook.secret).update(body).digest('hex');
 
-    const delivery = await this.prisma.webhookDelivery.create({
+    const delivery = await this.tenant.client.webhookDelivery.create({
       data: {
         gym_id: getTenantGymId()!,
         webhook_id: webhookId,
@@ -241,7 +241,7 @@ export class WebhooksService {
 
       const responseBody = await response.text().catch(() => '');
 
-      await this.prisma.webhookDelivery.update({
+      await this.tenant.client.webhookDelivery.update({
         where: { id: delivery.id },
         data: {
           status: response.ok ? 'delivered' : 'failed',
@@ -251,7 +251,7 @@ export class WebhooksService {
         },
       });
 
-      await this.prisma.webhook.update({
+      await this.tenant.client.webhook.update({
         where: { id: webhookId },
         data: {
           last_triggered_at: new Date(),
@@ -260,7 +260,7 @@ export class WebhooksService {
       });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      await this.prisma.webhookDelivery.update({
+      await this.tenant.client.webhookDelivery.update({
         where: { id: delivery.id },
         data: {
           status: 'failed',
@@ -268,7 +268,7 @@ export class WebhooksService {
         },
       });
 
-      await this.prisma.webhook.update({
+      await this.tenant.client.webhook.update({
         where: { id: webhookId },
         data: {
           failure_count: { increment: 1 },

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../../common/tenant-context';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../../node_modules/.prisma/client-tenant';
 import {
   CreateIntegrationDto,
   UpdateIntegrationDto,
@@ -9,12 +9,12 @@ import {
 
 @Injectable()
 export class IntegrationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   // ─── Integrations ─────────────────────────────────────────
 
   async getIntegrations(organizationId: string) {
-    const integrations = await this.prisma.integration.findMany({
+    const integrations = await this.tenant.client.integration.findMany({
       where: { organization_id: organizationId },
       orderBy: { provider: 'asc' },
     });
@@ -26,7 +26,7 @@ export class IntegrationsService {
   }
 
   async getIntegration(organizationId: string, id: string) {
-    const integration = await this.prisma.integration.findFirst({
+    const integration = await this.tenant.client.integration.findFirst({
       where: { id, organization_id: organizationId },
     });
     if (!integration) throw new NotFoundException('Integration not found');
@@ -34,7 +34,7 @@ export class IntegrationsService {
   }
 
   async getIntegrationByProvider(organizationId: string, provider: string) {
-    const integration = await this.prisma.integration.findUnique({
+    const integration = await this.tenant.client.integration.findUnique({
       where: { organization_id_provider: { organization_id: organizationId, provider } },
     });
     if (!integration) throw new NotFoundException(`Integration "${provider}" not found`);
@@ -42,7 +42,7 @@ export class IntegrationsService {
   }
 
   async createIntegration(organizationId: string, dto: CreateIntegrationDto, createdBy: string) {
-    const existing = await this.prisma.integration.findUnique({
+    const existing = await this.tenant.client.integration.findUnique({
       where: {
         organization_id_provider: {
           organization_id: organizationId,
@@ -52,7 +52,7 @@ export class IntegrationsService {
     });
     if (existing) throw new ConflictException(`Integration "${dto.provider}" already exists`);
 
-    return this.prisma.integration.create({
+    return this.tenant.client.integration.create({
       data: {
         gym_id: getTenantGymId()!,
         organization_id: organizationId,
@@ -66,12 +66,12 @@ export class IntegrationsService {
   }
 
   async updateIntegration(organizationId: string, id: string, dto: UpdateIntegrationDto) {
-    const integration = await this.prisma.integration.findFirst({
+    const integration = await this.tenant.client.integration.findFirst({
       where: { id, organization_id: organizationId },
     });
     if (!integration) throw new NotFoundException('Integration not found');
 
-    return this.prisma.integration.update({
+    return this.tenant.client.integration.update({
       where: { id },
       data: {
         display_name: dto.display_name,
@@ -86,12 +86,12 @@ export class IntegrationsService {
   }
 
   async toggleIntegration(organizationId: string, id: string, enabled: boolean) {
-    const integration = await this.prisma.integration.findFirst({
+    const integration = await this.tenant.client.integration.findFirst({
       where: { id, organization_id: organizationId },
     });
     if (!integration) throw new NotFoundException('Integration not found');
 
-    return this.prisma.integration.update({
+    return this.tenant.client.integration.update({
       where: { id },
       data: {
         is_enabled: enabled,
@@ -101,15 +101,15 @@ export class IntegrationsService {
   }
 
   async deleteIntegration(organizationId: string, id: string) {
-    const integration = await this.prisma.integration.findFirst({
+    const integration = await this.tenant.client.integration.findFirst({
       where: { id, organization_id: organizationId },
     });
     if (!integration) throw new NotFoundException('Integration not found');
-    return this.prisma.integration.delete({ where: { id } });
+    return this.tenant.client.integration.delete({ where: { id } });
   }
 
   async testIntegration(organizationId: string, id: string) {
-    const integration = await this.prisma.integration.findFirst({
+    const integration = await this.tenant.client.integration.findFirst({
       where: { id, organization_id: organizationId },
     });
     if (!integration) throw new NotFoundException('Integration not found');
@@ -137,7 +137,7 @@ export class IntegrationsService {
     } catch {
       result.status = 'error';
       result.message = 'Connection test failed';
-      await this.prisma.integration.update({
+      await this.tenant.client.integration.update({
         where: { id },
         data: { status: 'error', error_message: result.message },
       });
