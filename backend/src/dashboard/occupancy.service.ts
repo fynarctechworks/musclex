@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { JwtPayload } from '../common';
 
 /**
@@ -15,7 +16,10 @@ export class OccupancyService {
   /** Heuristic: check-ins older than this are auto-considered checked out */
   private static readonly AUTO_CHECKOUT_HOURS = 4;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private pub: PublicPrismaService,
+    private tenant: TenantPrisma,
+  ) {}
 
   private getBranchScope(user?: JwtPayload, branchId?: string) {
     if (branchId) return { branch_id: branchId };
@@ -58,7 +62,7 @@ export class OccupancyService {
 
     const [current, peakToday, lastCheckIn, capacity] = await Promise.all([
       // Currently in gym: successful check-ins since heuristic cutoff
-      this.prisma.checkIn.count({
+      this.tenant.client.checkIn.count({
         where: {
           status: 'success',
           checked_in_at: { gte: openCutoff },
@@ -67,7 +71,7 @@ export class OccupancyService {
       }),
 
       // Peak today: total successful check-ins since today's open
-      this.prisma.checkIn.count({
+      this.tenant.client.checkIn.count({
         where: {
           status: 'success',
           checked_in_at: { gte: todayOpen },
@@ -76,7 +80,7 @@ export class OccupancyService {
       }),
 
       // Most recent check-in for freshness display
-      this.prisma.checkIn.findFirst({
+      this.tenant.client.checkIn.findFirst({
         where: {
           status: 'success',
           ...branchScope,
@@ -107,7 +111,7 @@ export class OccupancyService {
     const openCutoff = this.getOpenCheckInCutoff();
     const branchScope = this.getBranchScope(user, branchId);
 
-    return this.prisma.checkIn.findMany({
+    return this.tenant.client.checkIn.findMany({
       where: {
         status: 'success',
         checked_in_at: { gte: openCutoff },
@@ -133,7 +137,7 @@ export class OccupancyService {
     if (!branchFilter) return null;
 
     try {
-      const rooms = await this.prisma.studioRoom.findMany({
+      const rooms = await this.tenant.client.studioRoom.findMany({
         where: {
           is_active: true,
           ...(typeof branchFilter === 'string'

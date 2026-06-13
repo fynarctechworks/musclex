@@ -2,7 +2,9 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import Anthropic from '@anthropic-ai/sdk';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
+import { tenantContext } from '../common/tenant-context';
 import type { JwtPayload } from '../common/decorators/current-user.decorator';
 import { DashboardPulseService } from './dashboard-pulse.service';
 import { ActionQueueService } from './action-queue.service';
@@ -53,7 +55,8 @@ export class BriefingService {
   private anthropic: Anthropic | null = null;
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly pub: PublicPrismaService, // registry: studios
+    private readonly tenant: TenantPrisma, // tenant: per-gym briefing storage
     private readonly configService: ConfigService,
     @Optional() private readonly pulse?: DashboardPulseService,
     @Optional() private readonly actionQueue?: ActionQueueService,
@@ -158,26 +161,39 @@ export class BriefingService {
       return;
     }
     try {
-      const studios = await this.prisma.studio.findMany({
+      const studios = await this.pub.studio.findMany({
         where: {
           last_login_at: {
             gte: new Date(Date.now() - 7 * 86400000),
           },
         },
-        select: { id: true, owner_user_id: true },
+        select: { id: true, owner_user_id: true, schema_name: true },
         take: 200,
       });
       this.logger.log(
         `Daily briefing cron — generating for ${studios.length} studios`,
       );
       for (const s of studios) {
+        // Each gym's briefing must run in its own tenant context so the pulse/
+        // action-queue tenant clients route to the right per-gym schema.
+        if (!s.id || !/^studio_[0-9a-f_]+$/i.test(s.schema_name)) continue;
         try {
-          await this.generate({
-            studio_id: s.id,
-            user_id: s.owner_user_id,
-            role: 'owner',
-            branch_ids: [],
-          } as any);
+          await tenantContext.run(
+            {
+              schemaName: s.schema_name, // from the registry, never derived from gym_id
+              gymId: s.id,
+              activeBranchId: null,
+              allowedBranchIds: 'ALL',
+              bypassBranchScope: false,
+            },
+            () =>
+              this.generate({
+                studio_id: s.id,
+                user_id: s.owner_user_id,
+                role: 'owner',
+                branch_ids: [],
+              } as any),
+          );
         } catch (err) {
           this.logger.warn(
             `Briefing for ${s.id} failed: ${(err as Error)?.message ?? err}`,
@@ -199,7 +215,7 @@ export class BriefingService {
     date: string,
   ): Promise<DashboardBriefing | null> {
     try {
-      const rows = await this.prisma.$queryRawUnsafe<any[]>(
+      const rows = await this.tenant.client.$queryRawUnsafe<any[]>(
         `SELECT * FROM dashboard_briefings
          WHERE gym_id = $1::uuid
            AND briefing_date = $2::date
@@ -238,7 +254,7 @@ export class BriefingService {
     b: DashboardBriefing,
   ) {
     try {
-      await this.prisma.$executeRawUnsafe(
+      await this.tenant.client.$executeRawUnsafe(
         `INSERT INTO dashboard_briefings
            (gym_id, branch_id, briefing_date, summary, headline, metrics, recommendations, model, generated_at)
          VALUES ($1::uuid, $2::uuid, $3::date, $4, $5, $6::jsonb, $7::jsonb, $8, NOW())

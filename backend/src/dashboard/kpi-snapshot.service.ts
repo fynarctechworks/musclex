@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { DashboardPulseService } from './dashboard-pulse.service';
 import { resolveBranchScope } from '../common/branch-scope.util';
 import { tenantContext } from '../common/tenant-context';
@@ -43,7 +44,8 @@ export class KpiSnapshotService {
   private readonly logger = new Logger(KpiSnapshotService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly pub: PublicPrismaService, // registry: studios
+    private readonly tenant: TenantPrisma, // tenant: per-gym snapshot rows
     private readonly pulse: DashboardPulseService,
   ) {}
 
@@ -51,24 +53,24 @@ export class KpiSnapshotService {
   @Cron('30 23 * * *', { timeZone: 'UTC' })
   async runNightlySnapshot() {
     try {
-      const studios = await this.prisma.studio.findMany({
+      const studios = await this.pub.studio.findMany({
         where: {
           last_login_at: { gte: new Date(Date.now() - 7 * 86400000) },
         },
-        select: { id: true, owner_user_id: true },
+        select: { id: true, owner_user_id: true, schema_name: true },
         take: 200,
       });
       for (const s of studios) {
-        // M2 fail-safe: skip studios with no id rather than running pulse
-        // under an empty tenant scope (would compute all-zero KPIs).
-        if (!s.id) {
-          this.logger.error('Skipping KPI snapshot: studio has no id');
+        // M2 fail-safe: skip studios without a valid per-gym schema rather than
+        // running pulse under an empty/wrong tenant scope.
+        if (!s.id || !/^studio_[0-9a-f_]+$/i.test(s.schema_name)) {
+          this.logger.error(`Skipping KPI snapshot: invalid schema for studio ${s.id}`);
           continue;
         }
         try {
           await tenantContext.run(
             {
-              schemaName: `studio_${s.id.replace(/-/g, '_')}`,
+              schemaName: s.schema_name, // from the registry, never derived from gym_id
               gymId: s.id,
               activeBranchId: null,
               allowedBranchIds: 'ALL',
@@ -118,7 +120,7 @@ export class KpiSnapshotService {
 
     for (const metric of SNAPSHOT_METRICS) {
       try {
-        await this.prisma.$executeRawUnsafe(
+        await this.tenant.client.$executeRawUnsafe(
           `INSERT INTO dashboard_kpi_snapshots (gym_id, branch_id, snapshot_date, metric, value)
            VALUES ($1::uuid, $2::uuid, $3::date, $4, $5)
            ON CONFLICT (gym_id, branch_id, snapshot_date, metric) DO UPDATE SET
@@ -157,7 +159,7 @@ export class KpiSnapshotService {
 
     let snapshots: Array<{ metric: string; value: number }> = [];
     try {
-      snapshots = await this.prisma.$queryRawUnsafe<
+      snapshots = await this.tenant.client.$queryRawUnsafe<
         { metric: string; value: number }[]
       >(
         `SELECT metric, value FROM dashboard_kpi_snapshots

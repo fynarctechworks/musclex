@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { JwtPayload } from '../common';
 
 // Wave 10 revenue types live in revenue-intelligence.service.ts now.
@@ -14,7 +15,10 @@ export type {
 
 @Injectable()
 export class DashboardService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private pub: PublicPrismaService,
+    private tenant: TenantPrisma,
+  ) {}
 
   private getBranchFilter(
     user?: JwtPayload,
@@ -42,12 +46,12 @@ export class DashboardService {
       expiringSoon,
     ] = await Promise.all([
       // Active members count
-      this.prisma.member.count({
+      this.tenant.client.member.count({
         where: { status: 'active', ...branchFilter },
       }),
 
       // Monthly revenue (sum of paid payments this month)
-      this.prisma.payment.aggregate({
+      this.tenant.client.payment.aggregate({
         where: {
           status: 'paid',
           paid_at: { gte: startOfMonth },
@@ -57,7 +61,7 @@ export class DashboardService {
       }),
 
       // Check-ins this month for attendance rate
-      this.prisma.checkIn.count({
+      this.tenant.client.checkIn.count({
         where: {
           checked_in_at: { gte: startOfMonth },
           status: 'success',
@@ -66,12 +70,12 @@ export class DashboardService {
       }),
 
       // Total active members (denominator for attendance)
-      this.prisma.member.count({
+      this.tenant.client.member.count({
         where: { status: 'active', ...branchFilter },
       }),
 
       // Memberships expiring in next 30 days
-      this.prisma.memberMembership.count({
+      this.tenant.client.memberMembership.count({
         where: {
           status: 'active',
           end_date: {
@@ -111,7 +115,7 @@ export class DashboardService {
       ? { branch_id: branchFilter.branch_id }
       : {};
 
-    const results = await this.prisma.payment.groupBy({
+    const results = await this.tenant.client.payment.groupBy({
       by: ['paid_at'],
       where: {
         status: 'paid',
@@ -151,7 +155,7 @@ export class DashboardService {
   async getActivityFeed(user?: JwtPayload, branchId?: string, limit = 10) {
     const branchFilter = this.getBranchFilter(user, branchId);
     const safeLimit = Math.min(Math.max(limit || 10, 1), 50);
-    const checkIns = await this.prisma.checkIn.findMany({
+    const checkIns = await this.tenant.client.checkIn.findMany({
       where: { status: 'success', ...branchFilter },
       include: {
         member: {
@@ -184,7 +188,7 @@ export class DashboardService {
 
     const [inactiveMembers, overduePayments, expiringMemberships] =
       await Promise.all([
-        this.prisma.member.findMany({
+        this.tenant.client.member.findMany({
           where: {
             status: 'active',
             ...branchFilter,
@@ -204,7 +208,7 @@ export class DashboardService {
           take: 20,
         }),
 
-        this.prisma.payment.findMany({
+        this.tenant.client.payment.findMany({
           where: {
             status: 'pending',
             created_at: { lte: new Date(now.getTime() - 7 * 86400000) },
@@ -219,7 +223,7 @@ export class DashboardService {
           orderBy: { created_at: 'asc' },
         }),
 
-        this.prisma.memberMembership.findMany({
+        this.tenant.client.memberMembership.findMany({
           where: {
             status: 'active',
             end_date: {
@@ -280,7 +284,7 @@ export class DashboardService {
         ? {}
         : { id: { in: user.branch_ids } };
 
-    const branches = await this.prisma.branch.findMany({
+    const branches = await this.tenant.client.branch.findMany({
       where: { is_active: true, ...branchScope },
       select: { id: true, name: true },
     });
@@ -288,10 +292,10 @@ export class DashboardService {
     const stats = await Promise.all(
       branches.map(async (branch) => {
         const [memberCount, revenue, checkIns] = await Promise.all([
-          this.prisma.member.count({
+          this.tenant.client.member.count({
             where: { branch_id: branch.id, status: 'active' },
           }),
-          this.prisma.payment.aggregate({
+          this.tenant.client.payment.aggregate({
             where: {
               branch_id: branch.id,
               status: 'paid',
@@ -299,7 +303,7 @@ export class DashboardService {
             },
             _sum: { amount: true },
           }),
-          this.prisma.checkIn.count({
+          this.tenant.client.checkIn.count({
             where: {
               branch_id: branch.id,
               checked_in_at: { gte: startOfMonth },
@@ -337,15 +341,15 @@ export class DashboardService {
       classTemplateCount,
       gymRow,
     ] = await Promise.all([
-      this.prisma.branch.count({ where: { is_active: true } }),
-      this.prisma.membershipPlan.count({ where: { is_active: true } }),
-      this.prisma.member.count({ where: { ...branchFilter } }),
-      this.prisma.staff.count({ where: { is_active: true } }),
+      this.tenant.client.branch.count({ where: { is_active: true } }),
+      this.tenant.client.membershipPlan.count({ where: { is_active: true } }),
+      this.tenant.client.member.count({ where: { ...branchFilter } }),
+      this.tenant.client.staff.count({ where: { is_active: true } }),
       // Tolerate older schemas where the table name might differ.
-      (this.prisma as { classTemplate?: { count: (a?: unknown) => Promise<number> } })
+      (this.tenant.client as { classTemplate?: { count: (a?: unknown) => Promise<number> } })
         .classTemplate?.count?.()
         .catch(() => 0) ?? Promise.resolve(0),
-      this.prisma.studio
+      this.pub.studio
         .findFirst({ where: { id: user?.studio_id }, select: { id: true, name: true } })
         .catch(() => null),
     ]);

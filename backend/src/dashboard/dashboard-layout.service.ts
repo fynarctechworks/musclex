@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '../../node_modules/.prisma/client-public';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
 import { JwtPayload } from '../common';
 
 /**
@@ -79,12 +79,12 @@ const TABLE_MISSING = 'P2021';
 export class DashboardLayoutService {
   private readonly logger = new Logger(DashboardLayoutService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private pub: PublicPrismaService) {}
 
   async getLayout(user: JwtPayload): Promise<DashboardLayout> {
     const role = resolveRole(user);
     try {
-      const row = await this.prisma.userDashboardLayout.findUnique({
+      const row = await this.pub.userDashboardLayout.findUnique({
         where: {
           user_id_studio_id_role: {
             user_id: user.user_id,
@@ -112,7 +112,7 @@ export class DashboardLayoutService {
     const sanitized = this.sanitize({ tiles });
     const role = resolveRole(user);
     try {
-      await this.prisma.userDashboardLayout.upsert({
+      await this.pub.userDashboardLayout.upsert({
         where: {
           user_id_studio_id_role: {
             user_id: user.user_id,
@@ -144,7 +144,7 @@ export class DashboardLayoutService {
   async resetLayout(user: JwtPayload): Promise<{ ok: true }> {
     const role = resolveRole(user);
     try {
-      await this.prisma.userDashboardLayout.deleteMany({
+      await this.pub.userDashboardLayout.deleteMany({
         where: {
           user_id: user.user_id,
           studio_id: user.studio_id,
