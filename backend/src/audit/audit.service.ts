@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
+import { Prisma } from '../../node_modules/.prisma/client-tenant';
 import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class AuditService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   async log(params: {
     user_id: string;
@@ -16,7 +16,7 @@ export class AuditService {
     details?: Record<string, unknown>;
     ip_address?: string;
   }) {
-    return this.prisma.auditLog.create({
+    return this.tenant.client.auditLog.create({
       data: {
         gym_id: getTenantGymId()!,
         user_id: params.user_id,
@@ -31,7 +31,7 @@ export class AuditService {
   }
 
   async findByModule(module: string, limit = 50) {
-    return this.prisma.auditLog.findMany({
+    return this.tenant.client.auditLog.findMany({
       where: { module },
       orderBy: { created_at: 'desc' },
       take: limit,
@@ -39,7 +39,7 @@ export class AuditService {
   }
 
   async findByUser(userId: string, limit = 50) {
-    return this.prisma.auditLog.findMany({
+    return this.tenant.client.auditLog.findMany({
       where: { user_id: userId },
       orderBy: { created_at: 'desc' },
       take: limit,
@@ -47,7 +47,7 @@ export class AuditService {
   }
 
   async findRecent(limit = 100) {
-    return this.prisma.auditLog.findMany({
+    return this.tenant.client.auditLog.findMany({
       orderBy: { created_at: 'desc' },
       take: limit,
     });

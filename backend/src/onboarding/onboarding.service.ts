@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
 import { PLAN_CONFIGS } from '../common/plan-configs';
 
 const CACHE_KEY = 'public:onboarding:plans';
@@ -29,7 +29,7 @@ export class OnboardingPlansService implements OnModuleInit {
   private readonly logger = new Logger(OnboardingPlansService.name);
   private cache: { data: any[]; expiresAt: number } | null = null;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly pub: PublicPrismaService) {}
 
   async onModuleInit() {
     await this.ensurePlansSeeded();
@@ -39,12 +39,12 @@ export class OnboardingPlansService implements OnModuleInit {
     // Upsert each default plan so newly added plans get inserted
     // even when other plans already exist.
     for (const plan of DEFAULT_PLANS) {
-      const existing = await this.prisma.subscriptionPlan.findUnique({
+      const existing = await this.pub.subscriptionPlan.findUnique({
         where: { name: plan.name },
       });
       if (existing) continue;
       this.logger.log(`Seeding missing plan: ${plan.name}`);
-      await this.prisma.subscriptionPlan.create({ data: plan as any });
+      await this.pub.subscriptionPlan.create({ data: plan as any });
     }
   }
 
@@ -96,7 +96,7 @@ export class OnboardingPlansService implements OnModuleInit {
     const where: Record<string, unknown> = { is_active: true };
     where.plan_type = 'regular';
 
-    const plans = await this.prisma.subscriptionPlan.findMany({
+    const plans = await this.pub.subscriptionPlan.findMany({
       where,
       orderBy: [{ sort_order: 'asc' }, { created_at: 'asc' }],
     });

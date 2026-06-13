@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { randomUUID } from 'crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { getTenantGymId } from '../common/tenant-context';
@@ -26,7 +26,7 @@ export class AiService {
   private anthropic: Anthropic | null = null;
 
   constructor(
-    private prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private configService: ConfigService,
   ) {
     const apiKey = this.configService.get<string>('ANTHROPIC_API_KEY');
@@ -53,7 +53,7 @@ export class AiService {
 
     // Create new conversation if none provided
     if (!conversationId) {
-      const conversation = await this.prisma.aiConversation.create({
+      const conversation = await this.tenant.client.aiConversation.create({
         data: {
           id: randomUUID(),
           gym_id: getTenantGymId()!,
@@ -65,7 +65,7 @@ export class AiService {
     }
 
     // Fetch existing conversation
-    const conversation = await this.prisma.aiConversation.findUnique({
+    const conversation = await this.tenant.client.aiConversation.findUnique({
       where: { id: conversationId },
     });
 
@@ -104,7 +104,7 @@ export class AiService {
     const updatedMessages = [...existingMessages, userMessage, assistantMessage];
 
     // Update conversation with new messages
-    await this.prisma.aiConversation.update({
+    await this.tenant.client.aiConversation.update({
       where: { id: conversationId },
       data: {
         messages: updatedMessages,
@@ -190,23 +190,23 @@ export class AiService {
     try {
       [totalMembers, todayCheckIns, activeMembers, expiringThisWeek, pendingPayments] =
         await Promise.all([
-          this.prisma.member.count(),
-          this.prisma.checkIn.count({
+          this.tenant.client.member.count(),
+          this.tenant.client.checkIn.count({
             where: { checked_in_at: { gte: today } },
           }),
-          this.prisma.member.count({ where: { status: 'active' } }),
-          this.prisma.memberMembership.count({
+          this.tenant.client.member.count({ where: { status: 'active' } }),
+          this.tenant.client.memberMembership.count({
             where: {
               status: 'active',
               end_date: { gte: today, lt: weekFromNow },
             },
           }),
-          this.prisma.payment.count({
+          this.tenant.client.payment.count({
             where: { status: 'pending' },
           }),
         ]);
 
-      const revResult = await this.prisma.payment.aggregate({
+      const revResult = await this.tenant.client.payment.aggregate({
         where: {
           paid_at: { gte: today },
           status: 'paid',
@@ -305,7 +305,7 @@ export class AiService {
    * List conversations for a staff member.
    */
   async getConversations(staffId: string) {
-    const conversations = await this.prisma.aiConversation.findMany({
+    const conversations = await this.tenant.client.aiConversation.findMany({
       where: { staff_id: staffId },
       orderBy: { updated_at: 'desc' },
       select: {

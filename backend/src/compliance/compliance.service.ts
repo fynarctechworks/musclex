@@ -1,12 +1,12 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class ComplianceService {
   private readonly logger = new Logger(ComplianceService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   // ─── Consent Management ────────────────────────────────────
 
@@ -18,12 +18,12 @@ export class ComplianceService {
     recordedBy?: string,
   ) {
     // Upsert consent record
-    const existing = await this.prisma.consentLog.findFirst({
+    const existing = await this.tenant.client.consentLog.findFirst({
       where: { member_id: memberId, consent_type: consentType },
       orderBy: { created_at: 'desc' },
     });
 
-    const consent = await this.prisma.consentLog.create({
+    const consent = await this.tenant.client.consentLog.create({
       data: {
         gym_id: getTenantGymId()!,
         member_id: memberId,
@@ -43,7 +43,7 @@ export class ComplianceService {
 
   async getMemberConsents(memberId: string) {
     // Get latest consent for each type
-    const allConsents = await this.prisma.consentLog.findMany({
+    const allConsents = await this.tenant.client.consentLog.findMany({
       where: { member_id: memberId },
       orderBy: { created_at: 'desc' },
     });
@@ -68,7 +68,7 @@ export class ComplianceService {
   }
 
   async getConsentHistory(memberId: string) {
-    return this.prisma.consentLog.findMany({
+    return this.tenant.client.consentLog.findMany({
       where: { member_id: memberId },
       orderBy: { created_at: 'desc' },
     });
@@ -77,13 +77,13 @@ export class ComplianceService {
   // ─── Data Export (Right to Portability - GDPR Art. 20) ─────
 
   async requestDataExport(memberId: string, format: 'json' | 'csv' = 'json') {
-    const member = await this.prisma.member.findUnique({
+    const member = await this.tenant.client.member.findUnique({
       where: { id: memberId },
     });
     if (!member) throw new NotFoundException('Member not found');
 
     // Create export request record
-    const request = await this.prisma.dataRequest.create({
+    const request = await this.tenant.client.dataRequest.create({
       data: {
         gym_id: getTenantGymId()!,
         member_id: memberId,
@@ -97,7 +97,7 @@ export class ComplianceService {
     const exportData = await this.collectMemberData(memberId);
 
     // Mark request complete
-    await this.prisma.dataRequest.update({
+    await this.tenant.client.dataRequest.update({
       where: { id: request.id },
       data: {
         status: 'completed',
@@ -126,7 +126,7 @@ export class ComplianceService {
       bookings,
       consents,
     ] = await Promise.all([
-      this.prisma.member.findUnique({
+      this.tenant.client.member.findUnique({
         where: { id: memberId },
         select: {
           id: true, full_name: true, email: true,
@@ -135,17 +135,17 @@ export class ComplianceService {
           member_code: true, status: true, created_at: true,
         },
       }),
-      this.prisma.memberProfile.findUnique({
+      this.tenant.client.memberProfile.findUnique({
         where: { member_id: memberId },
       }).catch(() => null),
-      this.prisma.memberMembership.findMany({
+      this.tenant.client.memberMembership.findMany({
         where: { member_id: memberId },
         select: {
           id: true, plan_id: true, start_date: true, end_date: true,
           status: true, created_at: true,
         },
       }),
-      this.prisma.checkIn.findMany({
+      this.tenant.client.checkIn.findMany({
         where: { member_id: memberId },
         select: {
           id: true, checked_in_at: true,
@@ -154,7 +154,7 @@ export class ComplianceService {
         orderBy: { checked_in_at: 'desc' },
         take: 1000,
       }),
-      this.prisma.payment.findMany({
+      this.tenant.client.payment.findMany({
         where: { member_id: memberId },
         select: {
           id: true, amount: true, payment_method: true,
@@ -163,14 +163,14 @@ export class ComplianceService {
         orderBy: { paid_at: 'desc' },
         take: 1000,
       }),
-      this.prisma.classBooking.findMany({
+      this.tenant.client.classBooking.findMany({
         where: { member_id: memberId },
         select: {
           id: true, booking_status: true, booked_at: true,
         },
         take: 1000,
       }),
-      this.prisma.consentLog.findMany({
+      this.tenant.client.consentLog.findMany({
         where: { member_id: memberId },
         orderBy: { created_at: 'desc' },
       }),
@@ -193,13 +193,13 @@ export class ComplianceService {
   // ─── Data Deletion (Right to Erasure - GDPR Art. 17) ──────
 
   async requestDataDeletion(memberId: string, reason?: string, requestedBy?: string) {
-    const member = await this.prisma.member.findUnique({
+    const member = await this.tenant.client.member.findUnique({
       where: { id: memberId },
     });
     if (!member) throw new NotFoundException('Member not found');
 
     // Create deletion request record
-    const request = await this.prisma.dataRequest.create({
+    const request = await this.tenant.client.dataRequest.create({
       data: {
         gym_id: getTenantGymId()!,
         member_id: memberId,
@@ -220,7 +220,7 @@ export class ComplianceService {
   }
 
   async processDeletion(requestId: string, processedBy: string) {
-    const request = await this.prisma.dataRequest.findUnique({
+    const request = await this.tenant.client.dataRequest.findUnique({
       where: { id: requestId },
     });
     if (!request) throw new NotFoundException('Deletion request not found');
@@ -230,7 +230,7 @@ export class ComplianceService {
     const memberId = request.member_id;
 
     // Anonymize personal data instead of hard-deleting (preserves analytics)
-    await this.prisma.member.update({
+    await this.tenant.client.member.update({
       where: { id: memberId },
       data: {
         full_name: 'DELETED USER',
@@ -248,32 +248,32 @@ export class ComplianceService {
     });
 
     // Delete profile
-    await this.prisma.memberProfile.deleteMany({
+    await this.tenant.client.memberProfile.deleteMany({
       where: { member_id: memberId },
     });
 
     // Delete body stats
-    await this.prisma.memberBodyStats.deleteMany({
+    await this.tenant.client.memberBodyStats.deleteMany({
       where: { member_id: memberId },
     });
 
     // Delete notes
-    await this.prisma.memberNote.deleteMany({
+    await this.tenant.client.memberNote.deleteMany({
       where: { member_id: memberId },
     });
 
     // Delete documents
-    await this.prisma.memberDocument.deleteMany({
+    await this.tenant.client.memberDocument.deleteMany({
       where: { member_id: memberId },
     });
 
     // Delete consent logs
-    await this.prisma.consentLog.deleteMany({
+    await this.tenant.client.consentLog.deleteMany({
       where: { member_id: memberId },
     });
 
     // Mark request as completed
-    await this.prisma.dataRequest.update({
+    await this.tenant.client.dataRequest.update({
       where: { id: requestId },
       data: {
         status: 'completed',
@@ -293,7 +293,7 @@ export class ComplianceService {
   }
 
   async getDeletionRequests(status?: string) {
-    return this.prisma.dataRequest.findMany({
+    return this.tenant.client.dataRequest.findMany({
       where: {
         type: 'deletion',
         ...(status ? { status } : {}),
