@@ -106,6 +106,8 @@ sites) + `transfer.service.ts` (1 raw site) with Phase-7 flagging.
 
 > **DEFERRED — cross-tenant READS (needs strategy, Phase 8/9).** `member-discovery` (public "find a gym" directory — `FROM studio_template.branches JOIN public.studios` across ALL gyms), `member-context`, and `member-directory.backfill()` deliberately read EVERY gym's data from the shared `studio_template`. Post data-migration that table is empty, so these break. Options: (a) a `public` directory table synced on change (like the existing `member_directory` for member→gym lookup) — best for hot paths like nearbyGyms; (b) `forEachTenant` aggregation + cache — fine for `backfill()`/admin; (c) per-gym single lookups via `factory.forSchema()` for by-tenant-id reads (e.g. `gymProfile`). `member-directory.{syncMember,resolveByPhone}` are pure registry and CAN move to `pub` now; only `backfill()` is cross-tenant. Left on legacy `prisma` + flagged. **This is the general cross-tenant-aggregation problem Road B introduces — decide the directory strategy before Phase 9.**
 
+| dashboards | 6.11a/b | ✅ DONE | All 20 services. 6.11a: 15 pure-tenant analytics → tenant.client. 6.11b: briefing + kpi-snapshot crons (studios via pub + per-gym tenantContext.run from registry schema_name; unqualified raw → tenant.client); dashboard-layout → pub; dashboard + occupancy (studio→pub, rest tenant). |
+
 ### Cross-service `$transaction` rule (general)
 When service A's `$transaction` passes `tx` into service B's method, A and B must use
 the SAME generated client's `TransactionClient` type. Migrate transactionally-coupled
