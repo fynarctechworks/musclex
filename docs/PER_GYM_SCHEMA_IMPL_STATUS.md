@@ -147,10 +147,10 @@ Per module (count): **auth 2** (the Phase-8 provisioning keystone: `auth.service
 > **Plus ~13 non-`*.service.ts` legacy users** (NOT in the count above) — migrate alongside their domains: guards (`api-key`, `jwt-auth`, `gym-member`), middleware (`tenant.middleware`), check-ins policy/qr (`access-scope.resolver`, `check-in.orchestrator`, `qr.controller`), queue processors (`campaign`, `report`, `webhook`), `subscription.cron`, referrals controllers (`referrals-admin`, `referrals-internal`).
 > Domains migrated so far (~124 services, 45 commits): auth-registry, settings, members, classes, inventory, check-ins, member-BFF (minus cross-tenant trio), dashboards, referrals, payments, staff, organization, branches, marketing, analytics, events, documents, subscription, search, roles, onboarding, compliance, audit, ai, common/services, platform/services, **auth (8 of 10 — registry + request-context)**. **Still TODO:** auth Phase-8 keystone (auth.service + rbac-seed), gym_directory projection table (member-discovery, Phase 8/9), referrals (1 — re-check), SCC; the non-service legacy users (guards/middleware/queue-processors/controllers); then Phases 7–10. **Cross-tenant directory strategy = DECIDED: "Hybrid"** (public gym_directory projection + per-gym for own-rows); member-directory + member-context already built to it (6.22).
 
-## Remaining phases (not started)
-- **6 (in progress):** rewire all services (playbook above) — multi-week.
-- **7:** 32 raw-SQL `studio_template` sites → schema-dynamic + lint guard banning the literal.
-- **8:** drift-proof provisioning — clone `studio_template`→`studio_<gym>` (structure clone, not `prisma migrate`); must fan out every future migration to all gym schemas.
+## Remaining phases
+- **6 (effectively done):** service rewiring — 5 services left, all intentional Phase-8/9 defers (see inventory above).
+- **7:** residual raw-SQL `studio_template` sites → schema-dynamic + lint guard banning the literal. Most already collapsed (search_path-unqualify on tenant.client); the remaining concentration is the auth onboarding raw sites (folded into 8.B).
+- **8 (planned):** drift-proof provisioning + the onboarding keystone + gym_directory. **Full grounded runbook: [PER_GYM_SCHEMA_PHASE8_PROVISIONING_PLAN.md](PER_GYM_SCHEMA_PHASE8_PROVISIONING_PLAN.md)** (8.A onboarding-keystone migration, 8.B the 5 `SET LOCAL search_path TO studio_template` fixes, 8.C migration fan-out/drift-proofing [NEW], 8.D the public.gym_directory build). DB-gated, not tsc-gated — onboarding correctness can't be tsc-verified.
 - **9:** live-data migration `studio_template`→per-gym, checksums + rehearsed rollback (branch only).
 - **10:** full cutover rehearsal on branch + per-gym isolation e2e; prod cutover runbook. Deploy waits on this.
 
