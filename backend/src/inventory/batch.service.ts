@@ -3,8 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '../../node_modules/.prisma/client-tenant';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { CreateBatchDto, AdjustBatchDto } from './dto';
 import { getTenantGymId } from '../common/tenant-context';
 
@@ -17,7 +17,7 @@ type Tx = Prisma.TransactionClient;
 
 @Injectable()
 export class BatchService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   // ── Batch CRUD ────────────────────────────────────────────────
 
@@ -27,13 +27,13 @@ export class BatchService {
    * with the sum of batch quantities. Both writes happen in one transaction.
    */
   async createBatch(dto: CreateBatchDto) {
-    const product = await this.prisma.product.findUnique({
+    const product = await this.tenant.client.product.findUnique({
       where: { id: dto.product_id },
       select: { id: true, product_name: true, track_batches: true },
     });
     if (!product) throw new NotFoundException('Product not found');
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       const batch = await tx.productBatch.create({
         data: {
           gym_id: getTenantGymId()!,
@@ -82,7 +82,7 @@ export class BatchService {
     if (status) where.status = status;
 
     const [data, total] = await Promise.all([
-      this.prisma.productBatch.findMany({
+      this.tenant.client.productBatch.findMany({
         where,
         skip,
         take: safeLimit,
@@ -93,7 +93,7 @@ export class BatchService {
           branch: { select: { id: true, name: true } },
         },
       }),
-      this.prisma.productBatch.count({ where }),
+      this.tenant.client.productBatch.count({ where }),
     ]);
 
     return { data, total, page, limit };
@@ -104,7 +104,7 @@ export class BatchService {
    * Inventory in step. Negative quantity reduces; cannot drive a batch below zero.
    */
   async adjustBatch(batchId: string, dto: AdjustBatchDto) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       const batch = await tx.productBatch.findUnique({ where: { id: batchId } });
       if (!batch) throw new NotFoundException('Batch not found');
 
@@ -157,7 +157,7 @@ export class BatchService {
     };
     if (branch_id) where.branch_id = branch_id;
 
-    const batches = await this.prisma.productBatch.findMany({
+    const batches = await this.tenant.client.productBatch.findMany({
       where,
       orderBy: [{ expiry_date: 'asc' }],
       include: {
@@ -193,12 +193,13 @@ export class BatchService {
     today.setHours(0, 0, 0, 0);
 
     // Lock candidate batches FOR UPDATE so concurrent sales can't double-spend a batch.
-    // Raw SQL: tables live in studio_template and are tenant-scoped by gym_id (raw SQL
-    // bypasses the gym_id-injection extension), so we filter gym_id explicitly.
+    // Raw SQL on the tenant client: the table name is UNQUALIFIED so it resolves via the
+    // client's `?schema=studio_<gym>` search_path to this gym's physical schema. The
+    // explicit gym_id filter is kept as defence-in-depth (every row already shares it).
     const gymId = getTenantGymId()!;
     const rows = await tx.$queryRaw<Array<{ id: string; quantity: number; expiry_date: Date | null }>>`
       SELECT id, quantity, expiry_date
-      FROM "studio_template"."product_batches"
+      FROM "product_batches"
       WHERE gym_id = ${gymId}::uuid
         AND product_id = ${args.product_id}::uuid
         AND branch_id = ${args.branch_id}::uuid

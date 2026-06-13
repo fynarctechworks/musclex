@@ -79,7 +79,11 @@ deliberately ≠ `studio_<gym_id>`, reproducing prod so routing must come from t
 
 > **Cron rule (6.6):** any `@Cron`/background job that touches tenant data MUST run inside `tasks.forEachTenant(...)` — never call `this.tenant.client` at cron top level (no context → throws). Remaining crons to convert: `dashboard/briefing`, `dashboard/kpi-snapshot`. (scheduling done in 6.7.)
 
-### NEXT: inventory (b) — the pos+batch+wallet transaction cluster
+| inventory (b) | 6.8b | ✅ | **pos + batch + wallet cluster** migrated together. `pos`: studio→`pub`, rest + 2 tx → `tenant.client`. `wallet`: `tx`-param methods + default-client params → `tenant.client`; union type `Tx \| TenantPrismaClient`. `batch`: 2 own tx + the FIFO `deductFifo`. **Raw `studio_template.product_batches` → unqualified `product_batches`** so it resolves via the tenant client's `?schema=` search_path (proven isolated). Cross-service tx types now align (tsc-verified). |
+
+> **KEY (6.8b): raw SQL on the tenant client is schema-dynamic for free.** Verified `?schema=studio_<gym>` sets `search_path`, so an UNQUALIFIED table name in `$queryRaw`/`$executeRaw` on the tenant client resolves to that gym's schema (isolated). Phase 7 = drop the `"studio_template".` qualifier on raw sites that already run on the tenant client; only sites on the legacy client (e.g. face_vec) need more.
+
+### (done 6.8b) inventory (b) — the pos+batch+wallet transaction cluster
 `pos.service.ts` is NOT yet migrated (still on legacy `prisma`, compiles fine). Its
 `createSale` `$transaction` passes `tx` into **`walletService` (src/wallet) and
 `batchService`** (redeemPoints/debitForPurchase/earnPoints/deductFifo). Migrating

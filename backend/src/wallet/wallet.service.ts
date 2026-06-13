@@ -3,8 +3,9 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '../../node_modules/.prisma/client-tenant';
+import type { PrismaClient as TenantPrismaClient } from '../../node_modules/.prisma/client-tenant';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import {
   TopUpWalletDto,
   AdjustWalletDto,
@@ -16,12 +17,12 @@ type Tx = Prisma.TransactionClient;
 
 @Injectable()
 export class WalletService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   // ── Wallet basics ─────────────────────────────────────────────
 
   /** Returns the member's wallet, creating an empty one on first access. */
-  async getOrCreateWallet(memberId: string, client: Tx | PrismaService = this.prisma) {
+  async getOrCreateWallet(memberId: string, client: Tx | TenantPrismaClient = this.tenant.client) {
     const existing = await (client as any).wallet.findUnique({ where: { member_id: memberId } });
     if (existing) return existing;
     return (client as any).wallet.create({
@@ -30,7 +31,7 @@ export class WalletService {
   }
 
   async getWallet(memberId: string) {
-    const member = await this.prisma.member.findUnique({
+    const member = await this.tenant.client.member.findUnique({
       where: { id: memberId },
       select: { id: true },
     });
@@ -39,24 +40,24 @@ export class WalletService {
   }
 
   async getTransactions(memberId: string, page = 1, limit = 50) {
-    const wallet = await this.prisma.wallet.findUnique({ where: { member_id: memberId } });
+    const wallet = await this.tenant.client.wallet.findUnique({ where: { member_id: memberId } });
     if (!wallet) return { data: [], total: 0, page, limit };
     const safeLimit = Math.min(limit, 200);
     const skip = (page - 1) * safeLimit;
     const [data, total] = await Promise.all([
-      this.prisma.walletTransaction.findMany({
+      this.tenant.client.walletTransaction.findMany({
         where: { wallet_id: wallet.id },
         orderBy: { created_at: 'desc' },
         skip,
         take: safeLimit,
       }),
-      this.prisma.walletTransaction.count({ where: { wallet_id: wallet.id } }),
+      this.tenant.client.walletTransaction.count({ where: { wallet_id: wallet.id } }),
     ]);
     return { data, total, page, limit };
   }
 
   async topUp(dto: TopUpWalletDto) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       const wallet = await this.getOrCreateWallet(dto.member_id, tx);
       return this.applyMovement(tx, wallet.id, {
         type: 'topup',
@@ -72,7 +73,7 @@ export class WalletService {
     if (!dto.amount && !dto.points) {
       throw new BadRequestException('Provide an amount and/or points to adjust');
     }
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       const wallet = await this.getOrCreateWallet(dto.member_id, tx);
       return this.applyMovement(tx, wallet.id, {
         type: 'adjustment',
@@ -162,14 +163,14 @@ export class WalletService {
 
   /** Money value of N points under the active config (for previewing a redemption). */
   async pointsToCurrency(points: number): Promise<number> {
-    const config = await this.getActiveConfig(this.prisma);
+    const config = await this.getActiveConfig(this.tenant.client);
     if (!config) return 0;
     return points * Number(config.redeem_value_per_point);
   }
 
   // ── Loyalty config ────────────────────────────────────────────
 
-  async getActiveConfig(client: Tx | PrismaService = this.prisma) {
+  async getActiveConfig(client: Tx | TenantPrismaClient = this.tenant.client) {
     const gymId = getTenantGymId()!;
     const config = await (client as any).loyaltyConfig.findUnique({ where: { gym_id: gymId } });
     return config && config.is_active ? config : null;
@@ -177,12 +178,12 @@ export class WalletService {
 
   async getConfig() {
     const gymId = getTenantGymId()!;
-    return this.prisma.loyaltyConfig.findUnique({ where: { gym_id: gymId } });
+    return this.tenant.client.loyaltyConfig.findUnique({ where: { gym_id: gymId } });
   }
 
   async upsertConfig(dto: UpsertLoyaltyConfigDto) {
     const gymId = getTenantGymId()!;
-    return this.prisma.loyaltyConfig.upsert({
+    return this.tenant.client.loyaltyConfig.upsert({
       where: { gym_id: gymId },
       create: {
         gym_id: gymId,

@@ -3,7 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { BatchService } from './batch.service';
 import { BundleService } from './bundle.service';
 import { WalletService } from '../wallet/wallet.service';
@@ -32,7 +33,8 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 @Injectable()
 export class PosService {
   constructor(
-    private prisma: PrismaService,
+    private pub: PublicPrismaService, // registry: studio (GST state lookup)
+    private tenant: TenantPrisma,
     private batchService: BatchService,
     private walletService: WalletService,
     private bundleService: BundleService,
@@ -64,7 +66,7 @@ export class PosService {
     // ── Product lines: load products + branch-scoped inventory and price overrides.
     const productIds = productLines.map((i) => i.product_id!);
     const products = productIds.length
-      ? await this.prisma.product.findMany({
+      ? await this.tenant.client.product.findMany({
           where: { id: { in: productIds }, status: 'active' },
           include: {
             inventory: { where: { branch_id: dto.branch_id } },
@@ -132,12 +134,12 @@ export class PosService {
 
     // GST split: compare buyer place-of-supply (DTO > member.state if available > branch state)
     // against seller state (branch.gst_state_code > studio.gst_state_code > branch.state > studio.state).
-    const branch = await this.prisma.branch.findUnique({
+    const branch = await this.tenant.client.branch.findUnique({
       where: { id: dto.branch_id },
       select: { state: true, gst_state_code: true, gym_id: true },
     });
     const studio = branch
-      ? await this.prisma.studio.findUnique({
+      ? await this.pub.studio.findUnique({
           where: { id: branch.gym_id },
           select: { gst_state_code: true, state: true },
         })
@@ -170,7 +172,7 @@ export class PosService {
 
     const invoiceNumber = this.generateInvoiceNumber();
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       // Points redemption (inside tx so points read+debit are atomic). The redeemed
       // value becomes additional discount, capped so the total never goes negative.
       let pointsRedeemed = 0;
@@ -346,7 +348,7 @@ export class PosService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.posSale.findMany({
+      this.tenant.client.posSale.findMany({
         where,
         skip,
         take: limit,
@@ -357,14 +359,14 @@ export class PosService {
           _count: { select: { items: true } },
         },
       }),
-      this.prisma.posSale.count({ where }),
+      this.tenant.client.posSale.count({ where }),
     ]);
 
     return { data, total, page, limit };
   }
 
   async findOneSale(id: string) {
-    const sale = await this.prisma.posSale.findUnique({
+    const sale = await this.tenant.client.posSale.findUnique({
       where: { id },
       include: {
         items: {
@@ -389,7 +391,7 @@ export class PosService {
     const endOfDay = new Date(targetDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const sales = await this.prisma.posSale.findMany({
+    const sales = await this.tenant.client.posSale.findMany({
       where: {
         branch_id: branchId,
         status: 'completed',
@@ -427,7 +429,7 @@ export class PosService {
   }
 
   async processReturn(dto: CreateProductReturnDto) {
-    const sale = await this.prisma.posSale.findUnique({
+    const sale = await this.tenant.client.posSale.findUnique({
       where: { id: dto.sale_id },
       include: { items: true },
     });
@@ -439,7 +441,7 @@ export class PosService {
     }
 
     // Check return quantity vs sold quantity (account for previous returns)
-    const previousReturns = await this.prisma.productReturn.aggregate({
+    const previousReturns = await this.tenant.client.productReturn.aggregate({
       where: { sale_id: dto.sale_id, product_id: dto.product_id, status: 'approved' },
       _sum: { quantity: true },
     });
@@ -453,7 +455,7 @@ export class PosService {
     const unitPrice = Number(saleItem.total_price) / saleItem.quantity;
     const refundAmount = unitPrice * dto.quantity;
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       const returnRecord = await tx.productReturn.create({
         data: {
           gym_id: getTenantGymId()!,
@@ -513,7 +515,7 @@ export class PosService {
       if (end_date) where.created_at.lte = new Date(end_date);
     }
 
-    const items = await this.prisma.posSaleItem.groupBy({
+    const items = await this.tenant.client.posSaleItem.groupBy({
       by: ['product_id'],
       where,
       _sum: { quantity: true, total_price: true },
@@ -523,7 +525,7 @@ export class PosService {
 
     // Enrich with product info
     const productIds = items.map((i) => i.product_id);
-    const products = await this.prisma.product.findMany({
+    const products = await this.tenant.client.product.findMany({
       where: { id: { in: productIds } },
       select: { id: true, product_name: true, sku: true, price: true },
     });
