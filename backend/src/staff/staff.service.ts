@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { JwtPayload, ResourceLimitService, resolveBranchScope } from '../common';
 import { EventStoreService } from '../events/event-store.service';
 import { EventProjectorService } from '../events/event-projector.service';
@@ -19,7 +20,8 @@ export class StaffService {
   private readonly logger = new Logger(StaffService.name);
 
   constructor(
-    private prisma: PrismaService,
+    private pub: PublicPrismaService,
+    private tenant: TenantPrisma,
     private configService: ConfigService,
     private resourceLimits: ResourceLimitService,
     private eventStore: EventStoreService,
@@ -93,7 +95,7 @@ export class StaffService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.staff.findMany({
+      this.tenant.client.staff.findMany({
         where,
         skip,
         take: safeLimit,
@@ -105,7 +107,7 @@ export class StaffService {
           _count: { select: { trainer_clients: true, trainer_sessions: true } },
         },
       }),
-      this.prisma.staff.count({ where }),
+      this.tenant.client.staff.count({ where }),
     ]);
 
     return {
@@ -117,7 +119,7 @@ export class StaffService {
   }
 
   async findOne(studioId: string, id: string, userRole: string) {
-    const staff = await this.prisma.staff.findFirst({
+    const staff = await this.tenant.client.staff.findFirst({
       where: { id, },
       include: {
         organization: { select: { id: true, name: true } },
@@ -141,7 +143,7 @@ export class StaffService {
     // Resolve organization_id — if not provided, find the first org in the tenant schema
     let organizationId = data.organization_id;
     if (!organizationId) {
-      const org = await this.prisma.organization.findFirst({ select: { id: true } });
+      const org = await this.tenant.client.organization.findFirst({ select: { id: true } });
       organizationId = org?.id;
     }
 
@@ -154,16 +156,16 @@ export class StaffService {
     // stay unique across gyms even if the schema is ever merged.
     const gymId = getTenantGymId()!;
     const gymShort = gymId.replace(/-/g, '').slice(0, 6).toUpperCase();
-    const staffCount = await this.prisma.staff.count();
+    const staffCount = await this.tenant.client.staff.count();
     let attempt = staffCount + 1;
     let employeeCode = `EMP-${gymShort}-${String(attempt).padStart(4, '0')}`;
-    let existing = await this.prisma.staff.findFirst({
+    let existing = await this.tenant.client.staff.findFirst({
       where: { employee_code: employeeCode },
     });
     while (existing) {
       attempt++;
       employeeCode = `EMP-${gymShort}-${String(attempt).padStart(4, '0')}`;
-      existing = await this.prisma.staff.findFirst({
+      existing = await this.tenant.client.staff.findFirst({
         where: { employee_code: employeeCode },
       });
     }
@@ -171,7 +173,7 @@ export class StaffService {
     // If branch_id not provided but branch_ids has entries, use the first as primary
     const primaryBranchId = data.branch_id ?? data.branch_ids?.[0];
 
-    const staff = await this.prisma.staff.create({
+    const staff = await this.tenant.client.staff.create({
       data: {
         gym_id: getTenantGymId()!,
         full_name: data.full_name,
@@ -193,7 +195,7 @@ export class StaffService {
 
     // Auto-create empty profile for trainers
     if (data.role === 'trainer') {
-      await this.prisma.staffProfile.create({
+      await this.tenant.client.staffProfile.create({
         data: {
           gym_id: getTenantGymId()!,
           staff_id: staff.id,
@@ -203,7 +205,7 @@ export class StaffService {
     }
 
     // Emit STAFF_CREATED event — must succeed
-    const event = await this.prisma.$transaction(async (tx) => {
+    const event = await this.tenant.client.$transaction(async (tx) => {
       return this.eventStore.emit(tx, {
         aggregate_type: 'staff',
         aggregate_id: staff.id,
@@ -248,14 +250,14 @@ export class StaffService {
   }
 
   async update(studioId: string, id: string, data: UpdateStaffDto) {
-    const existing = await this.prisma.staff.findFirst({
+    const existing = await this.tenant.client.staff.findFirst({
       where: { id, },
     });
     if (!existing) throw new NotFoundException('Staff member not found');
 
     // Check employee_code uniqueness if changing
     if (data.employee_code && data.employee_code !== existing.employee_code) {
-      const conflict = await this.prisma.staff.findFirst({
+      const conflict = await this.tenant.client.staff.findFirst({
         where: { employee_code: data.employee_code, },
       });
       if (conflict) throw new ConflictException('Employee code already exists');
@@ -266,7 +268,7 @@ export class StaffService {
       updateData.joined_at = new Date(data.joined_at);
     }
 
-    await this.prisma.staff.update({ where: { id }, data: updateData });
+    await this.tenant.client.staff.update({ where: { id }, data: updateData });
     return this.findOne(studioId, id, 'owner');
   }
 
@@ -276,12 +278,12 @@ export class StaffService {
    * and public.user_roles so the next login rebuilds JWT.branch_ids correctly.
    */
   async updateBranchAccess(studioId: string, staffId: string, branchIds: string[]) {
-    const staff = await this.prisma.staff.findFirst({ where: { id: staffId } });
+    const staff = await this.tenant.client.staff.findFirst({ where: { id: staffId } });
     if (!staff) throw new NotFoundException('Staff member not found');
 
     // Validate every branch exists in this studio
     if (branchIds.length > 0) {
-      const found = await this.prisma.branch.findMany({
+      const found = await this.tenant.client.branch.findMany({
         where: { id: { in: branchIds } },
         select: { id: true },
       });
@@ -294,7 +296,7 @@ export class StaffService {
     const primaryBranchId = unique[0] ?? null;
 
     // 1. Update tenant.staff
-    await this.prisma.staff.update({
+    await this.tenant.client.staff.update({
       where: { id: staffId },
       data: {
         branch_id: primaryBranchId,
@@ -305,7 +307,7 @@ export class StaffService {
     // 2. Sync public.user_roles if the staff has logged in (has user_id)
     if (staff.user_id) {
       // Preserve any gym-wide (branch_id=null) role, drop branch-scoped roles, then re-create for each new branch.
-      await this.prisma.userRole.deleteMany({
+      await this.pub.userRole.deleteMany({
         where: {
           user_id: staff.user_id,
           studio_id: studioId,
@@ -314,7 +316,7 @@ export class StaffService {
       });
 
       for (const [idx, bid] of unique.entries()) {
-        await this.prisma.userRole.create({
+        await this.pub.userRole.create({
           data: {
             user_id: staff.user_id,
             studio_id: studioId,
@@ -328,11 +330,11 @@ export class StaffService {
 
     // 3. If there's a still-pending invite, update its branch_id so the accept flow lands on the new primary
     if (!staff.user_id) {
-      const pending = await this.prisma.staffInvitation.findFirst({
+      const pending = await this.pub.staffInvitation.findFirst({
         where: { staff_id: staffId, studio_id: studioId, status: 'pending' },
       });
       if (pending) {
-        await this.prisma.staffInvitation.update({
+        await this.pub.staffInvitation.update({
           where: { id: pending.id },
           data: { branch_id: primaryBranchId },
         });
@@ -343,18 +345,18 @@ export class StaffService {
   }
 
   async deactivate(studioId: string, id: string) {
-    const existing = await this.prisma.staff.findFirst({
+    const existing = await this.tenant.client.staff.findFirst({
       where: { id, },
     });
     if (!existing) throw new NotFoundException('Staff member not found');
 
-    const result = await this.prisma.staff.update({
+    const result = await this.tenant.client.staff.update({
       where: { id },
       data: { is_active: false, status: 'inactive' },
     });
 
     if (existing.is_active) {
-      const event = await this.prisma.$transaction(async (tx) => {
+      const event = await this.tenant.client.$transaction(async (tx) => {
         return this.eventStore.emit(tx, {
           aggregate_type: 'staff',
           aggregate_id: id,
@@ -383,12 +385,12 @@ export class StaffService {
 
   async getProfile(studioId: string, staffId: string) {
     // Verify staff belongs to studio
-    const staff = await this.prisma.staff.findFirst({
+    const staff = await this.tenant.client.staff.findFirst({
       where: { id: staffId, },
     });
     if (!staff) throw new NotFoundException('Staff member not found in studio');
 
-    const profile = await this.prisma.staffProfile.findUnique({
+    const profile = await this.tenant.client.staffProfile.findUnique({
       where: { staff_id: staffId },
     });
     if (!profile) throw new NotFoundException('Staff profile not found');
@@ -396,12 +398,12 @@ export class StaffService {
   }
 
   async updateProfile(studioId: string, staffId: string, dto: UpdateStaffProfileDto) {
-    const staff = await this.prisma.staff.findFirst({
+    const staff = await this.tenant.client.staff.findFirst({
       where: { id: staffId, },
     });
     if (!staff) throw new NotFoundException('Staff member not found');
 
-    return this.prisma.staffProfile.upsert({
+    return this.tenant.client.staffProfile.upsert({
       where: { staff_id: staffId },
       update: dto,
       create: {
@@ -419,18 +421,18 @@ export class StaffService {
   // ── Availability ──────────────────────────────────────────────
 
   async getAvailability(staffId: string) {
-    return this.prisma.staffAvailability.findMany({
+    return this.tenant.client.staffAvailability.findMany({
       where: { staff_id: staffId },
       orderBy: [{ day_of_week: 'asc' }, { start_time: 'asc' }],
     });
   }
 
   async setAvailability(staffId: string, slots: SetAvailabilityDto[]) {
-    const staff = await this.prisma.staff.findUnique({ where: { id: staffId } });
+    const staff = await this.tenant.client.staff.findUnique({ where: { id: staffId } });
     if (!staff) throw new NotFoundException('Staff member not found');
 
     // Replace all availability for this staff member
-    await this.prisma.$transaction(async (tx) => {
+    await this.tenant.client.$transaction(async (tx) => {
       await tx.staffAvailability.deleteMany({ where: { staff_id: staffId } });
       await tx.staffAvailability.createMany({
         data: slots.map((s) => ({
@@ -461,7 +463,7 @@ export class StaffService {
       if (filters.end_date) where.check_in_time.lte = new Date(filters.end_date);
     }
 
-    return this.prisma.staffAttendance.findMany({
+    return this.tenant.client.staffAttendance.findMany({
       where,
       orderBy: { check_in_time: 'desc' },
       include: {
@@ -471,10 +473,10 @@ export class StaffService {
   }
 
   async recordCheckIn(dto: RecordAttendanceDto) {
-    const staff = await this.prisma.staff.findUnique({ where: { id: dto.staff_id } });
+    const staff = await this.tenant.client.staff.findUnique({ where: { id: dto.staff_id } });
     if (!staff) throw new NotFoundException('Staff member not found');
 
-    return this.prisma.staffAttendance.create({
+    return this.tenant.client.staffAttendance.create({
       data: {
         gym_id: getTenantGymId()!,
         staff_id: dto.staff_id,
@@ -487,13 +489,13 @@ export class StaffService {
   }
 
   async recordCheckOut(attendanceId: string) {
-    const record = await this.prisma.staffAttendance.findUnique({
+    const record = await this.tenant.client.staffAttendance.findUnique({
       where: { id: attendanceId },
     });
     if (!record) throw new NotFoundException('Attendance record not found');
     if (record.check_out_time) throw new ConflictException('Already checked out');
 
-    return this.prisma.staffAttendance.update({
+    return this.tenant.client.staffAttendance.update({
       where: { id: attendanceId },
       data: { check_out_time: new Date() },
     });
@@ -502,11 +504,11 @@ export class StaffService {
   // ── Staff Shifts ──────────────────────────────────────────────
 
   async createShift(dto: CreateStaffShiftDto) {
-    const staff = await this.prisma.staff.findUnique({ where: { id: dto.staff_id } });
+    const staff = await this.tenant.client.staff.findUnique({ where: { id: dto.staff_id } });
     if (!staff) throw new NotFoundException('Staff member not found');
 
     // Check for overlapping shifts on the same date
-    const existing = await this.prisma.staffShift.findFirst({
+    const existing = await this.tenant.client.staffShift.findFirst({
       where: {
         staff_id: dto.staff_id,
         shift_date: new Date(dto.shift_date),
@@ -517,7 +519,7 @@ export class StaffService {
     });
     if (existing) throw new ConflictException('Shift overlaps with an existing shift');
 
-    return this.prisma.staffShift.create({
+    return this.tenant.client.staffShift.create({
       data: {
         gym_id: getTenantGymId()!,
         staff_id: dto.staff_id,
@@ -550,7 +552,7 @@ export class StaffService {
       if (filters.end_date) where.shift_date.lte = new Date(filters.end_date);
     }
 
-    return this.prisma.staffShift.findMany({
+    return this.tenant.client.staffShift.findMany({
       where,
       orderBy: [{ shift_date: 'asc' }, { start_time: 'asc' }],
       include: {
@@ -561,10 +563,10 @@ export class StaffService {
   }
 
   async updateShift(id: string, dto: UpdateStaffShiftDto) {
-    const shift = await this.prisma.staffShift.findUnique({ where: { id } });
+    const shift = await this.tenant.client.staffShift.findUnique({ where: { id } });
     if (!shift) throw new NotFoundException('Shift not found');
 
-    return this.prisma.staffShift.update({
+    return this.tenant.client.staffShift.update({
       where: { id },
       data: dto,
       include: {
@@ -575,15 +577,15 @@ export class StaffService {
   }
 
   async deleteShift(id: string) {
-    const shift = await this.prisma.staffShift.findUnique({ where: { id } });
+    const shift = await this.tenant.client.staffShift.findUnique({ where: { id } });
     if (!shift) throw new NotFoundException('Shift not found');
-    return this.prisma.staffShift.delete({ where: { id } });
+    return this.tenant.client.staffShift.delete({ where: { id } });
   }
 
   // ── Leave Management ──────────────────────────────────────────
 
   async createLeaveRequest(dto: CreateLeaveRequestDto) {
-    const staff = await this.prisma.staff.findUnique({ where: { id: dto.staff_id } });
+    const staff = await this.tenant.client.staff.findUnique({ where: { id: dto.staff_id } });
     if (!staff) throw new NotFoundException('Staff member not found');
 
     const startDate = new Date(dto.start_date);
@@ -593,7 +595,7 @@ export class StaffService {
     }
 
     // Check for overlapping leave requests (pending or approved)
-    const overlap = await this.prisma.leaveRequest.findFirst({
+    const overlap = await this.tenant.client.leaveRequest.findFirst({
       where: {
         staff_id: dto.staff_id,
         status: { in: ['pending', 'approved'] },
@@ -605,7 +607,7 @@ export class StaffService {
 
     const gymId = getTenantGymId()!;
 
-    const leaveRequest = await this.prisma.leaveRequest.create({
+    const leaveRequest = await this.tenant.client.leaveRequest.create({
       data: {
         gym_id: gymId,
         staff_id: dto.staff_id,
@@ -659,7 +661,7 @@ export class StaffService {
     gymId: string;
   }) {
     const allIds = [...params.notifyTo, ...params.notifyCc];
-    const recipients = await this.prisma.staff.findMany({
+    const recipients = await this.tenant.client.staff.findMany({
       where: { id: { in: allIds } },
       select: { id: true, full_name: true, email: true, user_id: true },
     });
@@ -671,7 +673,7 @@ export class StaffService {
     for (const recipient of recipients) {
       if (!recipient.user_id) continue;
       try {
-        await this.prisma.notification.create({
+        await this.tenant.client.notification.create({
           data: {
             gym_id: params.gymId,
             user_id: recipient.user_id,
@@ -772,7 +774,7 @@ export class StaffService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.leaveRequest.findMany({
+      this.tenant.client.leaveRequest.findMany({
         where,
         skip,
         take: safeLimit,
@@ -782,20 +784,20 @@ export class StaffService {
           reviewer: { select: { id: true, full_name: true } },
         },
       }),
-      this.prisma.leaveRequest.count({ where }),
+      this.tenant.client.leaveRequest.count({ where }),
     ]);
 
     return { data, total, page, limit };
   }
 
   async reviewLeaveRequest(id: string, reviewerId: string, dto: ReviewLeaveRequestDto) {
-    const request = await this.prisma.leaveRequest.findUnique({ where: { id } });
+    const request = await this.tenant.client.leaveRequest.findUnique({ where: { id } });
     if (!request) throw new NotFoundException('Leave request not found');
     if (request.status !== 'pending') {
       throw new BadRequestException('Only pending requests can be reviewed');
     }
 
-    const updated = await this.prisma.leaveRequest.update({
+    const updated = await this.tenant.client.leaveRequest.update({
       where: { id },
       data: {
         status: dto.status,
@@ -813,7 +815,7 @@ export class StaffService {
     if (updated.staff?.user_id) {
       const statusLabel = dto.status === 'approved' ? 'Approved' : 'Rejected';
       try {
-        await this.prisma.notification.create({
+        await this.tenant.client.notification.create({
           data: {
             gym_id: request.gym_id,
             user_id: updated.staff.user_id,
@@ -838,7 +840,7 @@ export class StaffService {
   }
 
   async cancelLeaveRequest(id: string, staffId: string) {
-    const request = await this.prisma.leaveRequest.findUnique({ where: { id } });
+    const request = await this.tenant.client.leaveRequest.findUnique({ where: { id } });
     if (!request) throw new NotFoundException('Leave request not found');
     if (request.staff_id !== staffId) {
       throw new BadRequestException('Can only cancel your own leave requests');
@@ -847,7 +849,7 @@ export class StaffService {
       throw new BadRequestException('Only pending requests can be cancelled');
     }
 
-    return this.prisma.leaveRequest.update({
+    return this.tenant.client.leaveRequest.update({
       where: { id },
       data: { status: 'cancelled' },
     });

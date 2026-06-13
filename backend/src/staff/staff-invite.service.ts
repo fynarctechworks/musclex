@@ -8,7 +8,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { randomBytes } from 'crypto';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { RbacService } from '../auth/rbac.service';
 import { AuthIdentityService } from '../auth/auth-identity.service';
 import { getTenantGymId, tenantContext } from '../common/tenant-context';
@@ -20,7 +21,8 @@ export class StaffInviteService {
   private supabase: SupabaseClient;
 
   constructor(
-    private prisma: PrismaService,
+    private pub: PublicPrismaService,
+    private tenant: TenantPrisma,
     private rbacService: RbacService,
     private identityService: AuthIdentityService,
     private configService: ConfigService,
@@ -50,7 +52,7 @@ export class StaffInviteService {
     }
 
     // Check if there's already a pending invite for this staff
-    const existing = await this.prisma.staffInvitation.findFirst({
+    const existing = await this.pub.staffInvitation.findFirst({
       where: {
         staff_id: params.staff_id,
         studio_id: params.studio_id,
@@ -59,18 +61,18 @@ export class StaffInviteService {
     });
     if (existing) {
       // Revoke old invite and create a new one
-      await this.prisma.staffInvitation.update({
+      await this.pub.staffInvitation.update({
         where: { id: existing.id },
         data: { status: 'revoked' },
       });
     }
 
     // Check if this email is already an active user in this studio
-    const existingIdentity = await this.prisma.userIdentity.findUnique({
+    const existingIdentity = await this.pub.userIdentity.findUnique({
       where: { email: params.email },
     });
     if (existingIdentity) {
-      const existingRole = await this.prisma.userRole.findFirst({
+      const existingRole = await this.pub.userRole.findFirst({
         where: {
           user_id: existingIdentity.id,
           studio_id: params.studio_id,
@@ -86,7 +88,7 @@ export class StaffInviteService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7-day expiry
 
-    const invite = await this.prisma.staffInvitation.create({
+    const invite = await this.pub.staffInvitation.create({
       data: {
         studio_id: params.studio_id,
         staff_id: params.staff_id,
@@ -102,7 +104,7 @@ export class StaffInviteService {
     });
 
     // Get studio name for the email
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: params.studio_id },
       select: { name: true },
     });
@@ -147,7 +149,7 @@ export class StaffInviteService {
     full_name?: string;
   }) {
     // 1. Validate invite
-    const invite = await this.prisma.staffInvitation.findUnique({
+    const invite = await this.pub.staffInvitation.findUnique({
       where: { token: params.token },
     });
 
@@ -158,7 +160,7 @@ export class StaffInviteService {
       throw new BadRequestException(`This invite has already been ${invite.status}`);
     }
     if (invite.expires_at < new Date()) {
-      await this.prisma.staffInvitation.update({
+      await this.pub.staffInvitation.update({
         where: { id: invite.id },
         data: { status: 'expired' },
       });
@@ -166,7 +168,7 @@ export class StaffInviteService {
     }
 
     // 2. Look up the studio for schema context
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: invite.studio_id },
       select: { id: true, name: true, schema_name: true },
     });
@@ -177,7 +179,7 @@ export class StaffInviteService {
     // 3. Create or find Supabase Auth user
     let userId: string;
 
-    const existingIdentity = await this.prisma.userIdentity.findUnique({
+    const existingIdentity = await this.pub.userIdentity.findUnique({
       where: { email: invite.email },
     });
 
@@ -241,7 +243,7 @@ export class StaffInviteService {
     // SET search_path + SET app.gym_id on the same connection Prisma uses for the model op,
     // which the prior raw-SQL approach couldn't guarantee across pooled connections.
     await this.runInTenantScope(studio.schema_name, invite.studio_id, async () => {
-      const linked = await this.prisma.staff.updateMany({
+      const linked = await this.tenant.client.staff.updateMany({
         where: { id: invite.staff_id },
         data: { user_id: userId, updated_at: new Date() },
       });
@@ -258,7 +260,7 @@ export class StaffInviteService {
       const overrides = invite.permission_overrides as { grants?: string[]; denials?: string[] } | null;
       if (overrides && (overrides.grants?.length || overrides.denials?.length)) {
         for (const code of overrides.grants || []) {
-          await this.prisma.staffPermissionOverride.upsert({
+          await this.tenant.client.staffPermissionOverride.upsert({
             where: { staff_id_permission_code: { staff_id: invite.staff_id, permission_code: code } },
             create: {
               gym_id: invite.studio_id,
@@ -271,7 +273,7 @@ export class StaffInviteService {
           });
         }
         for (const code of overrides.denials || []) {
-          await this.prisma.staffPermissionOverride.upsert({
+          await this.tenant.client.staffPermissionOverride.upsert({
             where: { staff_id_permission_code: { staff_id: invite.staff_id, permission_code: code } },
             create: {
               gym_id: invite.studio_id,
@@ -287,7 +289,7 @@ export class StaffInviteService {
     });
 
     // 7. Mark invite as accepted
-    await this.prisma.staffInvitation.update({
+    await this.pub.staffInvitation.update({
       where: { id: invite.id },
       data: { status: 'accepted', accepted_at: new Date() },
     });
@@ -310,7 +312,7 @@ export class StaffInviteService {
    * Resend an invite (creates new token, extends expiry).
    */
   async resendInvite(inviteId: string, invitedBy: string) {
-    const invite = await this.prisma.staffInvitation.findUnique({
+    const invite = await this.pub.staffInvitation.findUnique({
       where: { id: inviteId },
     });
     if (!invite) throw new NotFoundException('Invite not found');
@@ -319,7 +321,7 @@ export class StaffInviteService {
     }
 
     // Revoke old + create fresh
-    await this.prisma.staffInvitation.update({
+    await this.pub.staffInvitation.update({
       where: { id: invite.id },
       data: { status: 'revoked' },
     });
@@ -339,7 +341,7 @@ export class StaffInviteService {
    * Revoke a pending invite.
    */
   async revokeInvite(inviteId: string) {
-    const invite = await this.prisma.staffInvitation.findUnique({
+    const invite = await this.pub.staffInvitation.findUnique({
       where: { id: inviteId },
     });
     if (!invite) throw new NotFoundException('Invite not found');
@@ -347,7 +349,7 @@ export class StaffInviteService {
       throw new BadRequestException(`Cannot revoke a ${invite.status} invite`);
     }
 
-    await this.prisma.staffInvitation.update({
+    await this.pub.staffInvitation.update({
       where: { id: invite.id },
       data: { status: 'revoked' },
     });
@@ -359,12 +361,12 @@ export class StaffInviteService {
    * Get invite details by token (public — for the invite acceptance page).
    */
   async getInviteByToken(token: string) {
-    const invite = await this.prisma.staffInvitation.findUnique({
+    const invite = await this.pub.staffInvitation.findUnique({
       where: { token },
     });
     if (!invite) throw new NotFoundException('Invalid invite link');
 
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: invite.studio_id },
       select: { name: true, logo_url: true },
     });
@@ -387,7 +389,7 @@ export class StaffInviteService {
     const where: any = { studio_id: studioId };
     if (filters?.status) where.status = filters.status;
 
-    return this.prisma.staffInvitation.findMany({
+    return this.pub.staffInvitation.findMany({
       where,
       orderBy: { created_at: 'desc' },
     });
@@ -407,13 +409,13 @@ export class StaffInviteService {
     if (!gymId) throw new BadRequestException('No tenant context');
 
     // Clear existing overrides
-    await this.prisma.staffPermissionOverride.deleteMany({
+    await this.tenant.client.staffPermissionOverride.deleteMany({
       where: { staff_id: params.staff_id },
     });
 
     // Insert new grants
     for (const code of params.grants) {
-      await this.prisma.staffPermissionOverride.create({
+      await this.tenant.client.staffPermissionOverride.create({
         data: {
           gym_id: gymId,
           staff_id: params.staff_id,
@@ -426,7 +428,7 @@ export class StaffInviteService {
 
     // Insert new denials
     for (const code of params.denials) {
-      await this.prisma.staffPermissionOverride.create({
+      await this.tenant.client.staffPermissionOverride.create({
         data: {
           gym_id: gymId,
           staff_id: params.staff_id,
@@ -444,7 +446,7 @@ export class StaffInviteService {
    * Get current permission overrides for a staff member.
    */
   async getPermissionOverrides(staffId: string) {
-    const overrides = await this.prisma.staffPermissionOverride.findMany({
+    const overrides = await this.tenant.client.staffPermissionOverride.findMany({
       where: { staff_id: staffId },
     });
 
@@ -459,7 +461,7 @@ export class StaffInviteService {
    */
   async resetStaffPassword(staffId: string, newPassword: string) {
     // Find the staff record to get user_id
-    const staff = await this.prisma.staff.findFirst({
+    const staff = await this.tenant.client.staff.findFirst({
       where: { id: staffId },
     });
     if (!staff) throw new NotFoundException('Staff member not found');
@@ -484,36 +486,36 @@ export class StaffInviteService {
    * Fully remove a staff member's access — revoke RBAC roles, delete Supabase user (optional), deactivate.
    */
   async revokeAllAccess(staffId: string, studioId: string, deleteAuthUser: boolean = false) {
-    const staff = await this.prisma.staff.findFirst({
+    const staff = await this.tenant.client.staff.findFirst({
       where: { id: staffId },
     });
     if (!staff) throw new NotFoundException('Staff member not found');
 
     // 1. Remove RBAC roles for this user in this studio
     if (staff.user_id) {
-      await this.prisma.userRole.deleteMany({
+      await this.pub.userRole.deleteMany({
         where: { user_id: staff.user_id, studio_id: studioId },
       });
 
       // 2. Remove permission overrides
-      await this.prisma.staffPermissionOverride.deleteMany({
+      await this.tenant.client.staffPermissionOverride.deleteMany({
         where: { staff_id: staffId },
       });
 
       // 3. Revoke all pending invites
-      await this.prisma.staffInvitation.updateMany({
+      await this.pub.staffInvitation.updateMany({
         where: { staff_id: staffId, studio_id: studioId, status: 'pending' },
         data: { status: 'revoked' },
       });
 
       // 4. Unlink user_id from staff record
-      const studio = await this.prisma.studio.findUnique({
+      const studio = await this.pub.studio.findUnique({
         where: { id: studioId },
         select: { schema_name: true },
       });
       if (studio) {
         await this.runInTenantScope(studio.schema_name, studioId, async () => {
-          await this.prisma.staff.updateMany({
+          await this.tenant.client.staff.updateMany({
             where: { id: staffId },
             data: { user_id: null, updated_at: new Date() },
           });
@@ -530,7 +532,7 @@ export class StaffInviteService {
     }
 
     // 6. Deactivate staff record
-    await this.prisma.staff.update({
+    await this.tenant.client.staff.update({
       where: { id: staffId },
       data: { is_active: false, status: 'inactive' },
     });
