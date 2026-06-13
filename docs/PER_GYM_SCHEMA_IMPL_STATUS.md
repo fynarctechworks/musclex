@@ -108,6 +108,8 @@ sites) + `transfer.service.ts` (1 raw site) with Phase-7 flagging.
 
 | dashboards | 6.11a/b | ✅ DONE | All 20 services. 6.11a: 15 pure-tenant analytics → tenant.client. 6.11b: briefing + kpi-snapshot crons (studios via pub + per-gym tenantContext.run from registry schema_name; unqualified raw → tenant.client); dashboard-layout → pub; dashboard + occupancy (studio→pub, rest tenant). |
 
+| referrals | 6.12 | ✅ DONE | 11 services. B2B program = registry→pub (Referral/Wallet/RewardRule/RewardLog incl. their tx + raw on public tables); member-referral = tenant→tenant.client; mixed (referral-analytics per-model split; referral-notification B2C wrapped in `runForGym`). **New `TenantTaskRunner.runForGym(gymId, fn)`** for event handlers/webhooks with no req context (resolve schema from registry + run in context). |
+
 ### Cross-service `$transaction` rule (general)
 When service A's `$transaction` passes `tx` into service B's method, A and B must use
 the SAME generated client's `TransactionClient` type. Migrate transactionally-coupled
