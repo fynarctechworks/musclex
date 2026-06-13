@@ -1,14 +1,14 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac } from 'crypto';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
 
 @Injectable()
 export class AuthSessionService {
   private readonly logger = new Logger(AuthSessionService.name);
 
   constructor(
-    private prisma: PrismaService,
+    private readonly pub: PublicPrismaService,
     private configService: ConfigService,
   ) {}
 
@@ -29,7 +29,7 @@ export class AuthSessionService {
     );
 
     try {
-      const session = await this.prisma.userSession.create({
+      const session = await this.pub.userSession.create({
         data: {
           user_id: params.user_id,
           token_hash: tokenHash,
@@ -53,7 +53,7 @@ export class AuthSessionService {
   async validateSession(accessToken: string) {
     const tokenHash = this.hashToken(accessToken);
 
-    const session = await this.prisma.userSession.findUnique({
+    const session = await this.pub.userSession.findUnique({
       where: { token_hash: tokenHash },
     });
 
@@ -62,7 +62,7 @@ export class AuthSessionService {
     if (session.expires_at < new Date()) return null;
 
     // Update last activity (fire-and-forget)
-    this.prisma.userSession
+    this.pub.userSession
       .update({
         where: { id: session.id },
         data: { last_activity_at: new Date() },
@@ -76,7 +76,7 @@ export class AuthSessionService {
    * Get all active sessions for a user.
    */
   async getUserSessions(userId: string) {
-    return this.prisma.userSession.findMany({
+    return this.pub.userSession.findMany({
       where: { user_id: userId, is_active: true },
       orderBy: { last_activity_at: 'desc' },
       select: {
@@ -104,7 +104,7 @@ export class AuthSessionService {
    * Revoke a specific session.
    */
   async revokeSession(userId: string, sessionId: string, reason?: string) {
-    const session = await this.prisma.userSession.findFirst({
+    const session = await this.pub.userSession.findFirst({
       where: { id: sessionId, user_id: userId, is_active: true },
     });
 
@@ -112,7 +112,7 @@ export class AuthSessionService {
       throw new NotFoundException('Session not found or already revoked');
     }
 
-    return this.prisma.userSession.update({
+    return this.pub.userSession.update({
       where: { id: sessionId },
       data: {
         is_active: false,
@@ -141,7 +141,7 @@ export class AuthSessionService {
       where.token_hash = { not: currentHash };
     }
 
-    return this.prisma.userSession.updateMany({
+    return this.pub.userSession.updateMany({
       where,
       data: {
         is_active: false,
@@ -157,7 +157,7 @@ export class AuthSessionService {
   async revokeByToken(accessToken: string) {
     const tokenHash = this.hashToken(accessToken);
 
-    return this.prisma.userSession
+    return this.pub.userSession
       .updateMany({
         where: { token_hash: tokenHash, is_active: true },
         data: {
@@ -173,7 +173,7 @@ export class AuthSessionService {
    * Clean up expired sessions (call periodically via cron).
    */
   async cleanupExpiredSessions() {
-    const result = await this.prisma.userSession.updateMany({
+    const result = await this.pub.userSession.updateMany({
       where: {
         is_active: true,
         expires_at: { lt: new Date() },

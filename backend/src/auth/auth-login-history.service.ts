@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { Prisma } from '../../node_modules/.prisma/client-public';
 
 export interface LoginAttempt {
   user_id?: string;
@@ -19,14 +19,14 @@ export interface LoginAttempt {
 export class AuthLoginHistoryService {
   private readonly logger = new Logger(AuthLoginHistoryService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly pub: PublicPrismaService) {}
 
   /**
    * Record a login attempt (success or failure).
    */
   async record(attempt: LoginAttempt): Promise<void> {
     try {
-      await this.prisma.loginHistory.create({
+      await this.pub.loginHistory.create({
         data: {
           user_id: attempt.user_id,
           email: attempt.email,
@@ -50,7 +50,7 @@ export class AuthLoginHistoryService {
    * Get recent login history for a user.
    */
   async getUserHistory(userId: string, limit = 50) {
-    return this.prisma.loginHistory.findMany({
+    return this.pub.loginHistory.findMany({
       where: { user_id: userId },
       orderBy: { created_at: 'desc' },
       take: limit,
@@ -80,7 +80,7 @@ export class AuthLoginHistoryService {
    */
   async getRecentFailedCount(email: string, windowMinutes = 15): Promise<number> {
     const since = new Date(Date.now() - windowMinutes * 60 * 1000);
-    return this.prisma.loginHistory.count({
+    return this.pub.loginHistory.count({
       where: {
         email,
         status: 'failed',
@@ -94,7 +94,7 @@ export class AuthLoginHistoryService {
    */
   async getIpFailedCount(ip: string, windowMinutes = 60): Promise<number> {
     const since = new Date(Date.now() - windowMinutes * 60 * 1000);
-    return this.prisma.loginHistory.count({
+    return this.pub.loginHistory.count({
       where: {
         ip_address: ip,
         status: { in: ['failed', 'blocked'] },
@@ -127,7 +127,7 @@ export class AuthLoginHistoryService {
       if (filters.to_date) where.created_at.lte = filters.to_date;
     }
 
-    return this.prisma.loginHistory.findMany({
+    return this.pub.loginHistory.findMany({
       where,
       orderBy: { created_at: 'desc' },
       take: filters.limit || 100,

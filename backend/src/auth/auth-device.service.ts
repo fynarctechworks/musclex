@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'crypto';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
 
 export interface DeviceInfo {
   device_fingerprint?: string;
@@ -22,7 +22,7 @@ export interface ParsedDevice {
 export class AuthDeviceService {
   private readonly logger = new Logger(AuthDeviceService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly pub: PublicPrismaService) {}
 
   /**
    * Track a device login. Creates or updates the device record.
@@ -39,7 +39,7 @@ export class AuthDeviceService {
 
     try {
       // Upsert: find existing device or create new
-      const existing = await this.prisma.userDevice.findUnique({
+      const existing = await this.pub.userDevice.findUnique({
         where: {
           user_id_device_fingerprint: {
             user_id: userId,
@@ -49,7 +49,7 @@ export class AuthDeviceService {
       });
 
       if (existing) {
-        await this.prisma.userDevice.update({
+        await this.pub.userDevice.update({
           where: { id: existing.id },
           data: {
             last_active_at: new Date(),
@@ -62,7 +62,7 @@ export class AuthDeviceService {
         return { id: existing.id, is_new: false };
       }
 
-      const device = await this.prisma.userDevice.create({
+      const device = await this.pub.userDevice.create({
         data: {
           user_id: userId,
           device_fingerprint: fingerprint,
@@ -86,7 +86,7 @@ export class AuthDeviceService {
    * List all devices for a user.
    */
   async getUserDevices(userId: string) {
-    return this.prisma.userDevice.findMany({
+    return this.pub.userDevice.findMany({
       where: { user_id: userId },
       orderBy: { last_active_at: 'desc' },
       select: {
@@ -109,7 +109,7 @@ export class AuthDeviceService {
    * Trust or untrust a device.
    */
   async setDeviceTrust(userId: string, deviceId: string, trusted: boolean) {
-    return this.prisma.userDevice.updateMany({
+    return this.pub.userDevice.updateMany({
       where: { id: deviceId, user_id: userId },
       data: { is_trusted: trusted },
     });
@@ -120,12 +120,12 @@ export class AuthDeviceService {
    */
   async removeDevice(userId: string, deviceId: string) {
     // Revoke all sessions on this device first
-    await this.prisma.userSession.updateMany({
+    await this.pub.userSession.updateMany({
       where: { device_id: deviceId, user_id: userId, is_active: true },
       data: { is_active: false, revoked_at: new Date(), revoked_reason: 'device_removed' },
     });
 
-    return this.prisma.userDevice.deleteMany({
+    return this.pub.userDevice.deleteMany({
       where: { id: deviceId, user_id: userId },
     });
   }

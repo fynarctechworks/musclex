@@ -6,13 +6,13 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as speakeasy from 'speakeasy';
 import * as QRCode from 'qrcode';
 import { randomBytes, createHash, createCipheriv, createDecipheriv } from 'crypto';
 import { Resend } from 'resend';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../node_modules/.prisma/client-public';
 import { AuthSessionService } from './auth-session.service';
 import { AuthDeviceService } from './auth-device.service';
 import { AuthLoginHistoryService } from './auth-login-history.service';
@@ -46,7 +46,7 @@ export class TwoFactorService {
 
   constructor(
     private configService: ConfigService,
-    private prisma: PrismaService,
+    private readonly pub: PublicPrismaService,
     private jwtService: JwtService,
     private sessionService: AuthSessionService,
     private deviceService: AuthDeviceService,
@@ -121,7 +121,7 @@ export class TwoFactorService {
   // ── Setup: generate TOTP secret + QR ────────────────────
 
   async setup(userId: string) {
-    const identity = await this.prisma.userIdentity.findUnique({
+    const identity = await this.pub.userIdentity.findUnique({
       where: { id: userId },
     });
     if (!identity) throw new BadRequestException('User not found');
@@ -138,7 +138,7 @@ export class TwoFactorService {
 
     // Encrypt the secret before storing (pending setup — not yet verified)
     const encrypted = this.encryptSecret(secret.base32);
-    await this.prisma.userIdentity.update({
+    await this.pub.userIdentity.update({
       where: { id: userId },
       data: {
         two_factor_secret: encrypted,
@@ -159,7 +159,7 @@ export class TwoFactorService {
   // ── Verify setup: confirm code + enable 2FA ─────────────
 
   async verifySetup(userId: string, code: string) {
-    const identity = await this.prisma.userIdentity.findUnique({
+    const identity = await this.pub.userIdentity.findUnique({
       where: { id: userId },
     });
     if (!identity) throw new BadRequestException('User not found');
@@ -189,7 +189,7 @@ export class TwoFactorService {
     const hashedCodes = backupCodes.map((c) => this.hashBackupCode(c));
 
     // Create backup code records (no longer storing in array)
-    await this.prisma.userIdentity.update({
+    await this.pub.userIdentity.update({
       where: { id: userId },
       data: {
         two_factor_enabled: true,
@@ -199,7 +199,7 @@ export class TwoFactorService {
     });
 
     // Insert new backup codes into the backup_code table
-    await this.prisma.backupCode.createMany({
+    await this.pub.backupCode.createMany({
       data: hashedCodes.map((hash) => ({
         user_identity_id: userId,
         code_hash: hash,
@@ -233,7 +233,7 @@ export class TwoFactorService {
       throw new UnauthorizedException('Invalid token type');
     }
 
-    const identity = await this.prisma.userIdentity.findUnique({
+    const identity = await this.pub.userIdentity.findUnique({
       where: { id: payload.user_id },
     });
     if (!identity || !identity.two_factor_enabled || !identity.two_factor_secret) {
@@ -368,7 +368,7 @@ export class TwoFactorService {
     let studio = null;
     if (studioId) {
       try {
-        studio = await this.prisma.studio.findUnique({ where: { id: studioId } });
+        studio = await this.pub.studio.findUnique({ where: { id: studioId } });
       } catch (err) {
         this.logger.error(`Studio fetch error: ${err.message}`);
       }
@@ -395,7 +395,7 @@ export class TwoFactorService {
   // ── Disable 2FA ─────────────────────────────────────────
 
   async disable(userId: string, password: string) {
-    const identity = await this.prisma.userIdentity.findUnique({
+    const identity = await this.pub.userIdentity.findUnique({
       where: { id: userId },
     });
     if (!identity) throw new BadRequestException('User not found');
@@ -414,7 +414,7 @@ export class TwoFactorService {
       throw new UnauthorizedException('Invalid password');
     }
 
-    await this.prisma.userIdentity.update({
+    await this.pub.userIdentity.update({
       where: { id: userId },
       data: {
         two_factor_enabled: false,
@@ -431,7 +431,7 @@ export class TwoFactorService {
   // ── Get 2FA status ──────────────────────────────────────
 
   async getStatus(userId: string) {
-    const identity = await this.prisma.userIdentity.findUnique({
+    const identity = await this.pub.userIdentity.findUnique({
       where: { id: userId },
       select: {
         two_factor_enabled: true,
@@ -486,7 +486,7 @@ export class TwoFactorService {
    * Always returns { sent: true } to prevent email enumeration.
    */
   async requestRecovery(email: string): Promise<{ sent: boolean }> {
-    const identity = await this.prisma.userIdentity.findUnique({
+    const identity = await this.pub.userIdentity.findUnique({
       where: { email },
     });
 
@@ -501,7 +501,7 @@ export class TwoFactorService {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
     const currentMetadata = (identity.metadata as Record<string, unknown>) || {};
-    await this.prisma.userIdentity.update({
+    await this.pub.userIdentity.update({
       where: { id: identity.id },
       data: {
         metadata: {
@@ -531,7 +531,7 @@ export class TwoFactorService {
 
     // Find user by hashed recovery token in metadata
     // We query all users with 2FA enabled and check metadata
-    const identities = await this.prisma.userIdentity.findMany({
+    const identities = await this.pub.userIdentity.findMany({
       where: { two_factor_enabled: true },
       select: {
         id: true,
@@ -574,7 +574,7 @@ export class TwoFactorService {
     }
 
     // Reset all 2FA fields
-    await this.prisma.userIdentity.update({
+    await this.pub.userIdentity.update({
       where: { id: identity.id },
       data: {
         two_factor_enabled: false,
@@ -608,7 +608,7 @@ export class TwoFactorService {
    * Admin-initiated 2FA reset for a specific user.
    */
   async adminReset2fa(userId: string, adminUserId: string): Promise<{ reset: boolean }> {
-    const identity = await this.prisma.userIdentity.findUnique({
+    const identity = await this.pub.userIdentity.findUnique({
       where: { id: userId },
     });
     if (!identity) throw new BadRequestException('User not found');
@@ -618,7 +618,7 @@ export class TwoFactorService {
     }
 
     // Reset all 2FA fields
-    await this.prisma.userIdentity.update({
+    await this.pub.userIdentity.update({
       where: { id: userId },
       data: {
         two_factor_enabled: false,
@@ -656,7 +656,7 @@ export class TwoFactorService {
     userId: string,
     currentMeta: Record<string, unknown>,
   ) {
-    await this.prisma.userIdentity.update({
+    await this.pub.userIdentity.update({
       where: { id: userId },
       data: {
         metadata: {
@@ -781,7 +781,7 @@ export class TwoFactorService {
     const hash = this.hashBackupCode(code);
 
     // First try the new backup_code table
-    const backupCode = await this.prisma.backupCode.findFirst({
+    const backupCode = await this.pub.backupCode.findFirst({
       where: {
         user_identity_id: userId,
         code_hash: hash,
@@ -796,13 +796,13 @@ export class TwoFactorService {
       }
 
       // Mark as used
-      await this.prisma.backupCode.update({
+      await this.pub.backupCode.update({
         where: { id: backupCode.id },
         data: { used_at: new Date() },
       });
 
       // Count remaining unused codes
-      const remaining = await this.prisma.backupCode.count({
+      const remaining = await this.pub.backupCode.count({
         where: {
           user_identity_id: userId,
           used_at: null,
@@ -819,7 +819,7 @@ export class TwoFactorService {
 
     const remaining = [...storedHashes];
     remaining.splice(idx, 1);
-    await this.prisma.userIdentity.update({
+    await this.pub.userIdentity.update({
       where: { id: userId },
       data: { two_factor_backup_codes: remaining },
     });

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
 
 /**
  * Manages the local UserIdentity table that mirrors Supabase Auth users.
@@ -13,7 +13,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export class AuthIdentityService {
   private readonly logger = new Logger(AuthIdentityService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly pub: PublicPrismaService) {}
 
   /**
    * Sync a Supabase user to the local identity table.
@@ -28,12 +28,12 @@ export class AuthIdentityService {
     email_verified?: boolean;
   }) {
     try {
-      const existing = await this.prisma.userIdentity.findUnique({
+      const existing = await this.pub.userIdentity.findUnique({
         where: { id: params.id },
       });
 
       if (existing) {
-        return this.prisma.userIdentity.update({
+        return this.pub.userIdentity.update({
           where: { id: params.id },
           data: {
             email: params.email,
@@ -49,7 +49,7 @@ export class AuthIdentityService {
         });
       }
 
-      return this.prisma.userIdentity.create({
+      return this.pub.userIdentity.create({
         data: {
           id: params.id,
           email: params.email,
@@ -80,7 +80,7 @@ export class AuthIdentityService {
     locked_until?: Date;
     remaining_attempts: number;
   }> {
-    const identity = await this.prisma.userIdentity.findUnique({
+    const identity = await this.pub.userIdentity.findUnique({
       where: { email },
     });
 
@@ -93,7 +93,7 @@ export class AuthIdentityService {
 
     if (newFailedCount >= maxAttempts) {
       const lockedUntil = new Date(Date.now() + lockoutMinutes * 60 * 1000);
-      await this.prisma.userIdentity.update({
+      await this.pub.userIdentity.update({
         where: { id: identity.id },
         data: {
           failed_login_count: 0,
@@ -103,7 +103,7 @@ export class AuthIdentityService {
       return { is_locked: true, locked_until: lockedUntil, remaining_attempts: 0 };
     }
 
-    await this.prisma.userIdentity.update({
+    await this.pub.userIdentity.update({
       where: { id: identity.id },
       data: { failed_login_count: newFailedCount },
     });
@@ -122,7 +122,7 @@ export class AuthIdentityService {
     locked_until?: Date;
     minutes_remaining?: number;
   }> {
-    const identity = await this.prisma.userIdentity.findUnique({
+    const identity = await this.pub.userIdentity.findUnique({
       where: { email },
     });
 
@@ -142,7 +142,7 @@ export class AuthIdentityService {
     }
 
     // Lock expired — clear it
-    await this.prisma.userIdentity.update({
+    await this.pub.userIdentity.update({
       where: { id: identity.id },
       data: { locked_until: null, failed_login_count: 0 },
     });
@@ -154,7 +154,7 @@ export class AuthIdentityService {
    * Get user identity by ID.
    */
   async getIdentity(userId: string) {
-    return this.prisma.userIdentity.findUnique({
+    return this.pub.userIdentity.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -179,7 +179,7 @@ export class AuthIdentityService {
    * Suspend a user account.
    */
   async suspendUser(userId: string) {
-    return this.prisma.userIdentity.update({
+    return this.pub.userIdentity.update({
       where: { id: userId },
       data: { status: 'suspended' },
     });
@@ -189,7 +189,7 @@ export class AuthIdentityService {
    * Reactivate a suspended user.
    */
   async reactivateUser(userId: string) {
-    return this.prisma.userIdentity.update({
+    return this.pub.userIdentity.update({
       where: { id: userId },
       data: { status: 'active', locked_until: null, failed_login_count: 0 },
     });
