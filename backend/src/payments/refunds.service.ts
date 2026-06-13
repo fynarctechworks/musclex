@@ -3,23 +3,23 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { ProcessRefundDto } from './dto';
 import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class RefundsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   async processRefund(dto: ProcessRefundDto) {
-    const payment = await this.prisma.payment.findUnique({
+    const payment = await this.tenant.client.payment.findUnique({
       where: { id: dto.payment_id },
     });
     if (!payment) throw new NotFoundException('Payment not found');
     if (payment.status !== 'paid') throw new BadRequestException('Can only refund paid payments');
 
     // Validate refund amount
-    const existingRefunds = await this.prisma.refund.findMany({
+    const existingRefunds = await this.tenant.client.refund.findMany({
       where: { payment_id: dto.payment_id, status: { not: 'failed' } },
     });
     const totalRefunded = existingRefunds.reduce(
@@ -32,7 +32,7 @@ export class RefundsService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       const refund = await tx.refund.create({
         data: {
           gym_id: getTenantGymId()!,
@@ -113,7 +113,7 @@ export class RefundsService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.refund.findMany({
+      this.tenant.client.refund.findMany({
         where,
         include: {
           payment: { select: { id: true, receipt_number: true, amount: true, payment_method: true } },
@@ -124,14 +124,14 @@ export class RefundsService {
         take: limit,
         orderBy: { created_at: 'desc' },
       }),
-      this.prisma.refund.count({ where }),
+      this.tenant.client.refund.count({ where }),
     ]);
 
     return { data, total, page, limit };
   }
 
   async findOne(id: string) {
-    const refund = await this.prisma.refund.findUnique({
+    const refund = await this.tenant.client.refund.findUnique({
       where: { id },
       include: {
         payment: {

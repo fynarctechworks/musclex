@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import type { ExpenseEventPayload } from './expense-events.service';
 
 /**
@@ -19,7 +19,7 @@ import type { ExpenseEventPayload } from './expense-events.service';
 export class ExpenseMetricsService {
   private readonly logger = new Logger(ExpenseMetricsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   // ───────────────────────────────────────────────────────────────
   // Incremental rollup from event payload
@@ -30,7 +30,7 @@ export class ExpenseMetricsService {
 
     // 4 upserts — wrap in transaction for atomicity
     try {
-      await this.prisma.$transaction(async (tx) => {
+      await this.tenant.client.$transaction(async (tx) => {
         await this.upsert(tx, evt, 'day', dayKey, null);
         await this.upsert(tx, evt, 'day', dayKey, evt.category_id);
         await this.upsert(tx, evt, 'month', monthKey, null);
@@ -86,7 +86,7 @@ export class ExpenseMetricsService {
   // ───────────────────────────────────────────────────────────────
   async getTodaySummary(branchId: string) {
     const today = new Date().toISOString().slice(0, 10);
-    const row = await this.prisma.expenseMetric.findFirst({
+    const row = await this.tenant.client.expenseMetric.findFirst({
       where: { branch_id: branchId, period_type: 'day', period_key: today, category_id: null },
     });
     return {
@@ -98,7 +98,7 @@ export class ExpenseMetricsService {
 
   async getMonthSummary(branchId: string, yyyyMm?: string) {
     const key = yyyyMm ?? new Date().toISOString().slice(0, 7);
-    const row = await this.prisma.expenseMetric.findFirst({
+    const row = await this.tenant.client.expenseMetric.findFirst({
       where: { branch_id: branchId, period_type: 'month', period_key: key, category_id: null },
     });
     return {
@@ -110,7 +110,7 @@ export class ExpenseMetricsService {
 
   async getCategoryDistribution(branchId: string, yyyyMm?: string) {
     const key = yyyyMm ?? new Date().toISOString().slice(0, 7);
-    const rows = await this.prisma.expenseMetric.findMany({
+    const rows = await this.tenant.client.expenseMetric.findMany({
       where: {
         branch_id: branchId,
         period_type: 'month',
@@ -120,7 +120,7 @@ export class ExpenseMetricsService {
     });
     // Attach category labels
     const ids = rows.map((r) => r.category_id!).filter(Boolean);
-    const cats = await this.prisma.expenseCategory.findMany({
+    const cats = await this.tenant.client.expenseCategory.findMany({
       where: { id: { in: ids } },
       select: { id: true, name: true, slug: true, color: true },
     });
@@ -145,7 +145,7 @@ export class ExpenseMetricsService {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       keys.push(d.toISOString().slice(0, 7));
     }
-    const rows = await this.prisma.expenseMetric.findMany({
+    const rows = await this.tenant.client.expenseMetric.findMany({
       where: {
         branch_id: branchId,
         period_type: 'month',
@@ -173,7 +173,7 @@ export class ExpenseMetricsService {
       periodType === 'day'
         ? { gte: new Date(periodKey), lt: addDays(new Date(periodKey), 1) }
         : monthRange(periodKey);
-    const expenses = await this.prisma.expense.findMany({
+    const expenses = await this.tenant.client.expense.findMany({
       where: { branch_id: branchId, expense_date: dateFilter },
     });
 
@@ -195,7 +195,7 @@ export class ExpenseMetricsService {
       byCategory.set(catKey, agg);
     }
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.tenant.client.$transaction(async (tx) => {
       const gymId = expenses[0]?.gym_id;
       if (!gymId) return;
       // Total row

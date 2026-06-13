@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { ExpenseMetricsService } from './expense-metrics.service';
 
 @Injectable()
 export class ExpenseIntelligenceService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private readonly metrics: ExpenseMetricsService,
   ) {}
 
@@ -20,7 +20,7 @@ export class ExpenseIntelligenceService {
     const to = dateTo ? new Date(dateTo) : now;
 
     const [payments, refunds, expenseMetrics] = await Promise.all([
-      this.prisma.payment.findMany({
+      this.tenant.client.payment.findMany({
         where: {
           branch_id: branchId,
           status: 'paid',
@@ -28,7 +28,7 @@ export class ExpenseIntelligenceService {
         },
         select: { amount: true },
       }),
-      this.prisma.refund.findMany({
+      this.tenant.client.refund.findMany({
         where: {
           payment: { branch_id: branchId },
           status: 'processed',
@@ -36,7 +36,7 @@ export class ExpenseIntelligenceService {
         },
         select: { refund_amount: true },
       }),
-      this.prisma.expense.findMany({
+      this.tenant.client.expense.findMany({
         where: {
           branch_id: branchId,
           expense_date: { gte: from, lte: to },
@@ -151,7 +151,7 @@ export class ExpenseIntelligenceService {
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-    const expenses = await this.prisma.expense.findMany({
+    const expenses = await this.tenant.client.expense.findMany({
       where: {
         branch_id: branchId,
         expense_date: { gte: sixMonthsAgo },

@@ -4,7 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../../common/tenant-context';
 import type { CreateCategoryDto, UpdateCategoryDto } from './dto';
 
@@ -32,7 +32,7 @@ export const DEFAULT_EXPENSE_CATEGORIES: Array<{
 export class ExpenseCategoriesService {
   private readonly logger = new Logger(ExpenseCategoriesService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   private slugify(name: string): string {
     return name
@@ -54,7 +54,7 @@ export class ExpenseCategoriesService {
     if (opts.branch_id) {
       where.OR = [{ branch_id: opts.branch_id }, { branch_id: null }];
     }
-    return this.prisma.expenseCategory.findMany({
+    return this.tenant.client.expenseCategory.findMany({
       where,
       orderBy: [{ sort_order: 'asc' }, { name: 'asc' }],
     });
@@ -64,12 +64,12 @@ export class ExpenseCategoriesService {
     const gymId = getTenantGymId()!;
     // Prefer branch-specific override, fall back to gym-wide (branch_id: null)
     if (branchId) {
-      const scoped = await this.prisma.expenseCategory.findFirst({
+      const scoped = await this.tenant.client.expenseCategory.findFirst({
         where: { gym_id: gymId, branch_id: branchId, slug },
       });
       if (scoped) return scoped;
     }
-    return this.prisma.expenseCategory.findFirst({
+    return this.tenant.client.expenseCategory.findFirst({
       where: { gym_id: gymId, branch_id: null, slug },
     });
   }
@@ -80,14 +80,14 @@ export class ExpenseCategoriesService {
     if (!slug) throw new ConflictException('Category name must contain alphanumeric characters');
 
     // Uniqueness on (gym_id, branch_id, slug)
-    const existing = await this.prisma.expenseCategory.findFirst({
+    const existing = await this.tenant.client.expenseCategory.findFirst({
       where: { gym_id: gymId, branch_id: dto.branch_id ?? null, slug },
     });
     if (existing) {
       throw new ConflictException(`Category "${dto.name}" already exists for this scope`);
     }
 
-    return this.prisma.expenseCategory.create({
+    return this.tenant.client.expenseCategory.create({
       data: {
         gym_id: gymId,
         branch_id: dto.branch_id ?? null,
@@ -102,7 +102,7 @@ export class ExpenseCategoriesService {
   }
 
   async updateCategory(id: string, dto: UpdateCategoryDto) {
-    const category = await this.prisma.expenseCategory.findUnique({ where: { id } });
+    const category = await this.tenant.client.expenseCategory.findUnique({ where: { id } });
     if (!category) throw new NotFoundException('Category not found');
 
     // Defaults cannot be deactivated; only renamed/re-iconed
@@ -110,7 +110,7 @@ export class ExpenseCategoriesService {
       throw new ConflictException('Default categories cannot be deactivated');
     }
 
-    return this.prisma.expenseCategory.update({
+    return this.tenant.client.expenseCategory.update({
       where: { id },
       data: {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
@@ -136,7 +136,7 @@ export class ExpenseCategoriesService {
 
     for (const def of DEFAULT_EXPENSE_CATEGORIES) {
       try {
-        await this.prisma.expenseCategory.upsert({
+        await this.tenant.client.expenseCategory.upsert({
           where: {
             gym_id_branch_id_slug: {
               gym_id: gymId,

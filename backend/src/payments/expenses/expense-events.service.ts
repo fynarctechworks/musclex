@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../../common/tenant-context';
 import { ExpenseCategoriesService } from './expense-categories.service';
 import type { CreateExpenseDto, ExpenseFiltersDto } from './dto';
@@ -29,7 +29,7 @@ export class ExpenseEventsService {
   private readonly logger = new Logger(ExpenseEventsService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private readonly categories: ExpenseCategoriesService,
     private readonly events: EventEmitter2,
   ) {}
@@ -49,7 +49,7 @@ export class ExpenseEventsService {
 
     // Idempotency short-circuit — if we've already processed this key, return the existing row.
     if (dto.idempotency_key) {
-      const existing = await this.prisma.expense.findFirst({
+      const existing = await this.tenant.client.expense.findFirst({
         where: { idempotency_key: dto.idempotency_key },
         include: this.expenseInclude(),
       });
@@ -75,7 +75,7 @@ export class ExpenseEventsService {
         }
       }
     } else if (categoryId) {
-      const cat = await this.prisma.expenseCategory.findUnique({
+      const cat = await this.tenant.client.expenseCategory.findUnique({
         where: { id: categoryId },
       });
       if (cat) categorySlug = cat.slug;
@@ -84,7 +84,7 @@ export class ExpenseEventsService {
     const staffId = dto.recorded_by_staff_id ?? userContext.staff_id ?? null;
 
     try {
-      const expense = await this.prisma.$transaction(async (tx) => {
+      const expense = await this.tenant.client.$transaction(async (tx) => {
         const created = await tx.expense.create({
           data: {
             gym_id: gymId,
@@ -133,14 +133,14 @@ export class ExpenseEventsService {
       };
       this.events.emit(EXPENSE_CREATED_EVENT, payload);
 
-      return this.prisma.expense.findUnique({
+      return this.tenant.client.expense.findUnique({
         where: { id: expense.id },
         include: this.expenseInclude(),
       });
     } catch (err: any) {
       // P2002 on the (gym_id, idempotency_key) partial unique — race condition, return existing.
       if (err?.code === 'P2002' && dto.idempotency_key) {
-        const existing = await this.prisma.expense.findFirst({
+        const existing = await this.tenant.client.expense.findFirst({
           where: { idempotency_key: dto.idempotency_key },
           include: this.expenseInclude(),
         });
@@ -161,7 +161,7 @@ export class ExpenseEventsService {
     const gymId = getTenantGymId();
     if (!gymId) throw new BadRequestException('Missing tenant context');
 
-    const original = await this.prisma.expense.findUnique({
+    const original = await this.tenant.client.expense.findUnique({
       where: { id },
       include: { reversed_by: true },
     });
@@ -176,7 +176,7 @@ export class ExpenseEventsService {
     const staffId = userContext.staff_id ?? original.recorded_by_staff_id;
     const absAmount = Math.abs(Number(original.amount));
 
-    const reversal = await this.prisma.$transaction(async (tx) => {
+    const reversal = await this.tenant.client.$transaction(async (tx) => {
       // 1. Create the reversal row (negated amount, points at original)
       const rev = await tx.expense.create({
         data: {
@@ -233,7 +233,7 @@ export class ExpenseEventsService {
       status: 'reversed',
     });
 
-    return this.prisma.expense.findUnique({
+    return this.tenant.client.expense.findUnique({
       where: { id: reversal.id },
       include: this.expenseInclude(),
     });
@@ -243,7 +243,7 @@ export class ExpenseEventsService {
   // Read APIs
   // ───────────────────────────────────────────────────────────────
   async getExpenseById(id: string) {
-    const expense = await this.prisma.expense.findUnique({
+    const expense = await this.tenant.client.expense.findUnique({
       where: { id },
       include: {
         ...this.expenseInclude(),
@@ -260,14 +260,14 @@ export class ExpenseEventsService {
     const page = filters.page ?? 1;
     const limit = filters.limit ?? 50;
     const [data, total] = await Promise.all([
-      this.prisma.expense.findMany({
+      this.tenant.client.expense.findMany({
         where,
         include: this.expenseInclude(),
         orderBy: [{ expense_date: 'desc' }, { created_at: 'desc' }],
         skip: (page - 1) * limit,
         take: limit,
       }),
-      this.prisma.expense.count({ where }),
+      this.tenant.client.expense.count({ where }),
     ]);
     return { data, total, page, limit };
   }
@@ -279,14 +279,14 @@ export class ExpenseEventsService {
     const where = this.buildWhere(filters);
 
     const [rows, total] = await Promise.all([
-      this.prisma.expense.findMany({
+      this.tenant.client.expense.findMany({
         where,
         include: this.expenseInclude(),
         orderBy: [{ expense_date: 'desc' }, { created_at: 'desc' }],
         skip: (page - 1) * limit,
         take: limit,
       }),
-      this.prisma.expense.count({ where }),
+      this.tenant.client.expense.count({ where }),
     ]);
 
     // Group by calendar day

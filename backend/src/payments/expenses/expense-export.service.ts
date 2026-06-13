@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import type { ExportExpensesDto } from './dto';
 
 /**
@@ -19,7 +19,7 @@ import type { ExportExpensesDto } from './dto';
  */
 @Injectable()
 export class ExpenseExportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly tenant: TenantPrisma) {}
 
   async buildExport(filters: ExportExpensesDto) {
     const where: any = {};
@@ -30,7 +30,7 @@ export class ExpenseExportService {
       if (filters.date_to) where.expense_date.lte = new Date(filters.date_to);
     }
 
-    const rows = await this.prisma.expense.findMany({
+    const rows = await this.tenant.client.expense.findMany({
       where,
       include: {
         branch: { select: { id: true, name: true } },

@@ -3,7 +3,7 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import {
   CreateDiscountDto,
   UpdateDiscountDto,
@@ -16,17 +16,17 @@ import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
 export class DiscountsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   // ── Discounts / Coupons ───────────────────────────────────
 
   async createDiscount(dto: CreateDiscountDto) {
     if (dto.code) {
-      const existing = await this.prisma.discount.findUnique({ where: { code: dto.code } });
+      const existing = await this.tenant.client.discount.findUnique({ where: { code: dto.code } });
       if (existing) throw new ConflictException(`Discount code "${dto.code}" already exists`);
     }
 
-    return this.prisma.discount.create({
+    return this.tenant.client.discount.create({
       data: {
         gym_id: getTenantGymId()!,
         name: dto.name,
@@ -48,20 +48,20 @@ export class DiscountsService {
     if (filters?.is_active !== undefined) where.is_active = filters.is_active;
     if (filters?.applicable_to) where.applicable_to = filters.applicable_to;
 
-    return this.prisma.discount.findMany({
+    return this.tenant.client.discount.findMany({
       where,
       orderBy: { created_at: 'desc' },
     });
   }
 
   async findOneDiscount(id: string) {
-    const discount = await this.prisma.discount.findUnique({ where: { id } });
+    const discount = await this.tenant.client.discount.findUnique({ where: { id } });
     if (!discount) throw new NotFoundException('Discount not found');
     return discount;
   }
 
   async validateDiscountCode(code: string) {
-    const discount = await this.prisma.discount.findUnique({ where: { code } });
+    const discount = await this.tenant.client.discount.findUnique({ where: { code } });
     if (!discount) throw new NotFoundException('Invalid discount code');
     if (!discount.is_active) throw new NotFoundException('Discount is no longer active');
 
@@ -85,13 +85,13 @@ export class DiscountsService {
     if (dto.max_uses !== undefined) data.max_uses = dto.max_uses;
     if (dto.is_active !== undefined) data.is_active = dto.is_active;
 
-    return this.prisma.discount.update({ where: { id }, data });
+    return this.tenant.client.discount.update({ where: { id }, data });
   }
 
   // ── Tax Rates ─────────────────────────────────────────────
 
   async createTaxRate(dto: CreateTaxRateDto) {
-    return this.prisma.taxRate.create({
+    return this.tenant.client.taxRate.create({
       data: {
         gym_id: getTenantGymId()!,
         country: dto.country,
@@ -105,11 +105,11 @@ export class DiscountsService {
   async findAllTaxRates(country?: string) {
     const where: any = {};
     if (country) where.country = country;
-    return this.prisma.taxRate.findMany({ where, orderBy: { country: 'asc' } });
+    return this.tenant.client.taxRate.findMany({ where, orderBy: { country: 'asc' } });
   }
 
   async findOneTaxRate(id: string) {
-    const rate = await this.prisma.taxRate.findUnique({ where: { id } });
+    const rate = await this.tenant.client.taxRate.findUnique({ where: { id } });
     if (!rate) throw new NotFoundException('Tax rate not found');
     return rate;
   }
@@ -120,18 +120,18 @@ export class DiscountsService {
     if (dto.rate !== undefined) data.rate = dto.rate;
     if (dto.is_active !== undefined) data.is_active = dto.is_active;
 
-    return this.prisma.taxRate.update({ where: { id }, data });
+    return this.tenant.client.taxRate.update({ where: { id }, data });
   }
 
   // ── Payment Gateway Configs ───────────────────────────────
 
   async createGatewayConfig(dto: CreateGatewayConfigDto) {
-    const existing = await this.prisma.paymentGatewayConfig.findUnique({
+    const existing = await this.tenant.client.paymentGatewayConfig.findUnique({
       where: { gateway_name: dto.gateway_name },
     });
     if (existing) throw new ConflictException(`Gateway "${dto.gateway_name}" already configured`);
 
-    return this.prisma.paymentGatewayConfig.create({
+    return this.tenant.client.paymentGatewayConfig.create({
       data: {
         gym_id: getTenantGymId()!,
         gateway_name: dto.gateway_name,
@@ -144,7 +144,7 @@ export class DiscountsService {
   }
 
   async findAllGatewayConfigs() {
-    const configs = await this.prisma.paymentGatewayConfig.findMany({
+    const configs = await this.tenant.client.paymentGatewayConfig.findMany({
       orderBy: { gateway_name: 'asc' },
     });
     // Strip secret keys from response for security
@@ -162,7 +162,7 @@ export class DiscountsService {
   }
 
   async updateGatewayConfig(id: string, dto: UpdateGatewayConfigDto) {
-    const config = await this.prisma.paymentGatewayConfig.findUnique({ where: { id } });
+    const config = await this.tenant.client.paymentGatewayConfig.findUnique({ where: { id } });
     if (!config) throw new NotFoundException('Gateway config not found');
 
     const data: any = {};
@@ -172,7 +172,7 @@ export class DiscountsService {
     if (dto.is_active !== undefined) data.is_active = dto.is_active;
     if (dto.is_test_mode !== undefined) data.is_test_mode = dto.is_test_mode;
 
-    await this.prisma.paymentGatewayConfig.update({ where: { id }, data });
+    await this.tenant.client.paymentGatewayConfig.update({ where: { id }, data });
 
     // Return without secrets
     return { id, gateway_name: config.gateway_name, ...data, api_key: undefined, secret_key: undefined };

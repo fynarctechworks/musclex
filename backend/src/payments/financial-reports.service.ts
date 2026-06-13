@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 
 @Injectable()
 export class FinancialReportsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   async getDailyRevenue(branchId: string, date: string) {
     const dayStart = new Date(date);
@@ -11,7 +11,7 @@ export class FinancialReportsService {
     const dayEnd = new Date(date);
     dayEnd.setHours(23, 59, 59, 999);
 
-    const payments = await this.prisma.payment.findMany({
+    const payments = await this.tenant.client.payment.findMany({
       where: {
         branch_id: branchId,
         status: 'paid',
@@ -40,7 +40,7 @@ export class FinancialReportsService {
     const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 
     const [payments, refunds, expenses] = await Promise.all([
-      this.prisma.payment.findMany({
+      this.tenant.client.payment.findMany({
         where: {
           branch_id: branchId,
           status: 'paid',
@@ -48,7 +48,7 @@ export class FinancialReportsService {
         },
         select: { amount: true, payment_method: true, paid_at: true },
       }),
-      this.prisma.refund.findMany({
+      this.tenant.client.refund.findMany({
         where: {
           payment: { branch_id: branchId },
           status: 'processed',
@@ -56,7 +56,7 @@ export class FinancialReportsService {
         },
         select: { refund_amount: true },
       }),
-      this.prisma.expense.findMany({
+      this.tenant.client.expense.findMany({
         where: {
           branch_id: branchId,
           expense_date: { gte: startDate, lte: endDate },
@@ -117,25 +117,25 @@ export class FinancialReportsService {
       totalMembers,
       activeSubscriptions,
     ] = await Promise.all([
-      this.prisma.payment.findMany({
+      this.tenant.client.payment.findMany({
         where: { branch_id: branchId, status: 'paid', paid_at: { gte: startOfMonth } },
         select: { amount: true },
       }),
-      this.prisma.payment.findMany({
+      this.tenant.client.payment.findMany({
         where: { branch_id: branchId, status: 'paid', paid_at: { gte: startOfPrevMonth, lte: endOfPrevMonth } },
         select: { amount: true },
       }),
-      this.prisma.payment.count({
+      this.tenant.client.payment.count({
         where: { branch_id: branchId, status: 'pending' },
       }),
-      this.prisma.refund.findMany({
+      this.tenant.client.refund.findMany({
         where: { payment: { branch_id: branchId }, status: 'processed', processed_at: { gte: startOfMonth } },
         select: { refund_amount: true },
       }),
-      this.prisma.member.count({
+      this.tenant.client.member.count({
         where: { branch_id: branchId, status: { in: ['active', 'trial'] } },
       }),
-      this.prisma.memberMembership.count({
+      this.tenant.client.memberMembership.count({
         where: { branch_id: branchId, status: 'active' },
       }),
     ]);
@@ -178,7 +178,7 @@ export class FinancialReportsService {
       if (dateTo) where.paid_at.lte = new Date(dateTo);
     }
 
-    const payments = await this.prisma.payment.findMany({
+    const payments = await this.tenant.client.payment.findMany({
       where,
       include: {
         membership: {
@@ -229,14 +229,14 @@ export class FinancialReportsService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.financialTransaction.findMany({
+      this.tenant.client.financialTransaction.findMany({
         where,
         include: { branch: { select: { id: true, name: true } } },
         skip,
         take: limit,
         orderBy: { created_at: 'desc' },
       }),
-      this.prisma.financialTransaction.count({ where }),
+      this.tenant.client.financialTransaction.count({ where }),
     ]);
 
     return { data, total, page, limit };

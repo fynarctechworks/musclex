@@ -3,7 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
 import { CreateInvoiceDto } from './dto';
 import { randomBytes } from 'crypto';
 import { getTenantGymId } from '../common/tenant-context';
@@ -12,7 +13,10 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 
 @Injectable()
 export class BillingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private tenant: TenantPrisma,
+    private pub: PublicPrismaService,
+  ) {}
 
   private generateInvoiceNumber(): string {
     const now = new Date();
@@ -22,7 +26,7 @@ export class BillingService {
   }
 
   async createInvoice(dto: CreateInvoiceDto) {
-    const member = await this.prisma.member.findUnique({ where: { id: dto.member_id } });
+    const member = await this.tenant.client.member.findUnique({ where: { id: dto.member_id } });
     if (!member) throw new NotFoundException('Member not found');
 
     // Calculate subtotal from items
@@ -39,7 +43,7 @@ export class BillingService {
     const subtotal = items.reduce((sum, item) => sum + item.total_price, 0);
 
     // Resolve place_of_supply: explicit DTO > member.state (if available) > branch.state
-    const branch = await this.prisma.branch.findUnique({
+    const branch = await this.tenant.client.branch.findUnique({
       where: { id: dto.branch_id },
       select: { state: true, gst_state_code: true },
     });
@@ -52,14 +56,14 @@ export class BillingService {
     // Resolve discount code to ID if needed
     let discountId = dto.discount_id;
     if (dto.discount_code && !discountId) {
-      const discount = await this.prisma.discount.findUnique({
+      const discount = await this.tenant.client.discount.findUnique({
         where: { code: dto.discount_code },
       });
       if (discount) discountId = discount.id;
     }
 
     // Wrap everything in a transaction (discount validation + invoice creation)
-    const invoice = await this.prisma.$transaction(async (tx) => {
+    const invoice = await this.tenant.client.$transaction(async (tx) => {
       let discountAmount = 0;
 
       if (discountId) {
@@ -107,7 +111,7 @@ export class BillingService {
 
           // Intra-state (CGST+SGST) vs inter-state (IGST) decision.
           // Resolved by comparing buyer place_of_supply against seller (branch>studio).
-          const studio = await tx.studio.findFirst({
+          const studio = await this.pub.studio.findFirst({
             where: { id: getTenantGymId()! },
             select: { gst_state_code: true, state: true },
           });
@@ -214,7 +218,7 @@ export class BillingService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.memberInvoice.findMany({
+      this.tenant.client.memberInvoice.findMany({
         where,
         include: {
           items: true,
@@ -226,14 +230,14 @@ export class BillingService {
         take: limit,
         orderBy: { issued_at: 'desc' },
       }),
-      this.prisma.memberInvoice.count({ where }),
+      this.tenant.client.memberInvoice.count({ where }),
     ]);
 
     return { data, total, page, limit };
   }
 
   async findOneInvoice(id: string) {
-    const invoice = await this.prisma.memberInvoice.findUnique({
+    const invoice = await this.tenant.client.memberInvoice.findUnique({
       where: { id },
       include: {
         items: true,
@@ -256,13 +260,13 @@ export class BillingService {
   }
 
   async updateInvoiceStatus(id: string, status: string) {
-    const invoice = await this.prisma.memberInvoice.findUnique({ where: { id } });
+    const invoice = await this.tenant.client.memberInvoice.findUnique({ where: { id } });
     if (!invoice) throw new NotFoundException('Invoice not found');
 
     const data: any = { status };
     if (status === 'paid') data.paid_at = new Date();
 
-    return this.prisma.memberInvoice.update({
+    return this.tenant.client.memberInvoice.update({
       where: { id },
       data,
       include: {
@@ -273,11 +277,11 @@ export class BillingService {
   }
 
   async cancelInvoice(id: string) {
-    const invoice = await this.prisma.memberInvoice.findUnique({ where: { id } });
+    const invoice = await this.tenant.client.memberInvoice.findUnique({ where: { id } });
     if (!invoice) throw new NotFoundException('Invoice not found');
     if (invoice.status === 'paid') throw new BadRequestException('Cannot cancel a paid invoice');
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       const updated = await tx.memberInvoice.update({
         where: { id },
         data: { status: 'cancelled' },
@@ -302,7 +306,7 @@ export class BillingService {
 
   // Check if invoice is fully paid by summing payments
   async recalculateInvoiceStatus(invoiceId: string) {
-    const invoice = await this.prisma.memberInvoice.findUnique({
+    const invoice = await this.tenant.client.memberInvoice.findUnique({
       where: { id: invoiceId },
       include: { payments: { where: { status: 'paid' } } },
     });
@@ -322,7 +326,7 @@ export class BillingService {
     }
 
     if (status !== invoice.status) {
-      await this.prisma.memberInvoice.update({
+      await this.tenant.client.memberInvoice.update({
         where: { id: invoiceId },
         data: {
           status,

@@ -4,7 +4,9 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
+import { TenantTaskRunner } from '../prisma/tenant-task-runner';
 import { BillingService } from './billing.service';
 import { RazorpayService } from './razorpay.service';
 import { randomBytes } from 'crypto';
@@ -13,7 +15,9 @@ import { getTenantGymId } from '../common/tenant-context';
 @Injectable()
 export class PaymentsService {
   constructor(
-    private prisma: PrismaService,
+    private pub: PublicPrismaService, // registry: studio (GST state)
+    private tenant: TenantPrisma, // tenant: payments/invoices/etc.
+    private tasks: TenantTaskRunner, // webhook has no req context
     private billingService: BillingService,
     private razorpay: RazorpayService,
   ) {}
@@ -35,12 +39,12 @@ export class PaymentsService {
     billing_cycle?: 'monthly' | 'yearly';
     notes?: string;
   }) {
-    const member = await this.prisma.member.findFirst({
+    const member = await this.tenant.client.member.findFirst({
       where: { id: data.member_id } // tenant isolation via search_path,
     });
     if (!member) throw new NotFoundException('Member not found');
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       const payment = await tx.payment.create({
         data: {
           gym_id: getTenantGymId()!,
@@ -106,12 +110,12 @@ export class PaymentsService {
     invoice_id?: string;
     gateway?: 'razorpay';
   }) {
-    const member = await this.prisma.member.findFirst({
+    const member = await this.tenant.client.member.findFirst({
       where: { id: data.member_id } // tenant isolation via search_path,
     });
     if (!member) throw new NotFoundException('Member not found');
 
-    const plan = await this.prisma.membershipPlan.findUnique({
+    const plan = await this.tenant.client.membershipPlan.findUnique({
       where: { id: data.plan_id },
     });
     if (!plan) throw new BadRequestException('Invalid plan');
@@ -119,7 +123,7 @@ export class PaymentsService {
     const receiptNumber = this.generateReceiptNumber();
 
     // Create pending payment record
-    const payment = await this.prisma.payment.create({
+    const payment = await this.tenant.client.payment.create({
       data: {
         gym_id: getTenantGymId()!,
         member_id: data.member_id,
@@ -141,12 +145,13 @@ export class PaymentsService {
       currency: payment.currency,
       receipt: receiptNumber,
       notes: {
+        gym_id: studioId,
         payment_id: payment.id,
         member_id: data.member_id,
         plan_id: data.plan_id,
       },
     });
-    await this.prisma.payment.update({
+    await this.tenant.client.payment.update({
       where: { id: payment.id },
       data: { gateway_order_id: order.id },
     });
@@ -172,7 +177,7 @@ export class PaymentsService {
   }) {
     // Look up the pending payment by the gateway order id (order_xxx for
     // Razorpay) — NOT our local payment id.
-    const payment = await this.prisma.payment.findFirst({
+    const payment = await this.tenant.client.payment.findFirst({
       where: { gateway_order_id: data.gateway_order_id, status: 'pending' },
     });
     if (!payment) throw new NotFoundException('Pending payment not found');
@@ -188,13 +193,13 @@ export class PaymentsService {
       throw new ForbiddenException('Invalid payment signature');
     }
 
-    const plan = await this.prisma.membershipPlan.findUnique({
+    const plan = await this.tenant.client.membershipPlan.findUnique({
       where: { id: data.plan_id },
     });
     if (!plan) throw new BadRequestException('Invalid plan');
 
     // Wrap entire operation in a transaction to prevent race conditions
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       // Re-fetch payment inside transaction to prevent double-processing
       const lockedPayment = await tx.payment.findFirst({
         where: { id: payment.id, status: 'pending' },
@@ -297,7 +302,7 @@ export class PaymentsService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.payment.findMany({
+      this.tenant.client.payment.findMany({
         where,
         include: {
           member: {
@@ -312,7 +317,7 @@ export class PaymentsService {
         take: safeLimit,
         orderBy: { created_at: 'desc' },
       }),
-      this.prisma.payment.count({ where }),
+      this.tenant.client.payment.count({ where }),
     ]);
 
     // Prisma Decimal serializes as an object over JSON; coerce to plain
@@ -326,7 +331,7 @@ export class PaymentsService {
   }
 
   async getInvoice(id: string) {
-    const payment = await this.prisma.payment.findUnique({
+    const payment = await this.tenant.client.payment.findUnique({
       where: { id },
       include: {
         member: {
@@ -351,7 +356,7 @@ export class PaymentsService {
   }
 
   async findOne(id: string) {
-    const payment = await this.prisma.payment.findUnique({
+    const payment = await this.tenant.client.payment.findUnique({
       where: { id },
       include: {
         member: {
@@ -373,12 +378,19 @@ export class PaymentsService {
    * Marks the pending payment as paid without needing frontend verification.
    */
   async handleRazorpayWebhook(orderId: string, gatewayPaymentId: string) {
-    const payment = await this.prisma.payment.findFirst({
+    // Webhook = no tenant context. Resolve the gym from the order's server-set
+    // notes (set in createOrder), then run all work in that gym's schema.
+    const order = await this.razorpay.getOrder(orderId).catch(() => null);
+    const gymId = (order?.notes as Record<string, string> | undefined)?.gym_id;
+    if (!gymId) return; // can't resolve tenant — skip (idempotent)
+
+    await this.tasks.runForGym(gymId, async () => {
+    const payment = await this.tenant.client.payment.findFirst({
       where: { gateway_order_id: orderId, status: 'pending' },
     });
     if (!payment) return; // Already processed or not found — idempotent
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.tenant.client.$transaction(async (tx) => {
       await tx.payment.update({
         where: { id: payment.id },
         data: {
@@ -404,6 +416,7 @@ export class PaymentsService {
         await this.billingService.recalculateInvoiceStatus(payment.invoice_id);
       }
     });
+    });
   }
 
 
@@ -423,7 +436,7 @@ export class PaymentsService {
     studioId: string,
     paymentId: string,
   ): Promise<{ buffer: Buffer; filename: string }> {
-    const payment = await this.prisma.payment.findUnique({
+    const payment = await this.tenant.client.payment.findUnique({
       where: { id: paymentId },
       include: {
         member: {
@@ -441,7 +454,7 @@ export class PaymentsService {
     });
     if (!payment) throw new NotFoundException('Payment not found');
 
-    const studio = await this.prisma.studio.findUnique({
+    const studio = await this.pub.studio.findUnique({
       where: { id: studioId },
       select: {
         name: true,
