@@ -6,9 +6,9 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { CreateSsoProviderDto, UpdateSsoProviderDto } from './dto';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../node_modules/.prisma/client-tenant';
 import { getTenantGymId } from '../common/tenant-context';
 
 const VALID_PROVIDER_TYPES = ['google', 'microsoft', 'saml', 'oidc'];
@@ -18,7 +18,7 @@ export class AuthSsoService {
   private readonly logger = new Logger(AuthSsoService.name);
 
   constructor(
-    private prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private configService: ConfigService,
   ) {}
 
@@ -26,7 +26,7 @@ export class AuthSsoService {
    * List all SSO providers for the current tenant.
    */
   async listProviders() {
-    const providers = await this.prisma.ssoProvider.findMany({
+    const providers = await this.tenant.client.ssoProvider.findMany({
       orderBy: { created_at: 'asc' },
       select: {
         id: true,
@@ -50,7 +50,7 @@ export class AuthSsoService {
    * Get a single SSO provider by ID (without exposing secrets).
    */
   async getProvider(id: string) {
-    const provider = await this.prisma.ssoProvider.findUnique({
+    const provider = await this.tenant.client.ssoProvider.findUnique({
       where: { id },
     });
 
@@ -81,7 +81,7 @@ export class AuthSsoService {
       encryptedSecret = this.encryptSecret(dto.client_secret);
     }
 
-    const provider = await this.prisma.ssoProvider.create({
+    const provider = await this.tenant.client.ssoProvider.create({
       data: {
         gym_id: getTenantGymId()!,
         provider_type: dto.provider_type,
@@ -109,7 +109,7 @@ export class AuthSsoService {
    * Update an SSO provider configuration.
    */
   async updateProvider(id: string, dto: UpdateSsoProviderDto) {
-    const existing = await this.prisma.ssoProvider.findUnique({ where: { id } });
+    const existing = await this.tenant.client.ssoProvider.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('SSO provider not found');
     }
@@ -134,7 +134,7 @@ export class AuthSsoService {
       data.auto_provision_users = dto.auto_provision_users;
     if (dto.allowed_domains !== undefined) data.allowed_domains = dto.allowed_domains;
 
-    const updated = await this.prisma.ssoProvider.update({
+    const updated = await this.tenant.client.ssoProvider.update({
       where: { id },
       data,
     });
@@ -147,12 +147,12 @@ export class AuthSsoService {
    * Delete an SSO provider.
    */
   async deleteProvider(id: string) {
-    const existing = await this.prisma.ssoProvider.findUnique({ where: { id } });
+    const existing = await this.tenant.client.ssoProvider.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('SSO provider not found');
     }
 
-    await this.prisma.ssoProvider.delete({ where: { id } });
+    await this.tenant.client.ssoProvider.delete({ where: { id } });
     return { deleted: true };
   }
 
@@ -160,7 +160,7 @@ export class AuthSsoService {
    * Get active SSO providers (for login page display).
    */
   async getActiveProviders() {
-    return this.prisma.ssoProvider.findMany({
+    return this.tenant.client.ssoProvider.findMany({
       where: { is_active: true },
       select: {
         id: true,

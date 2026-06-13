@@ -4,7 +4,8 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PublicPrismaService } from '../prisma/public-prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { PermissionsMap, PermissionModule, ModuleAction } from '../common/decorators/current-user.decorator';
 import { ENTERPRISE_ROLES } from './rbac-seed.service';
 
@@ -27,13 +28,16 @@ export interface UserWorkspace {
 export class RbacService {
   private readonly logger = new Logger(RbacService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly pub: PublicPrismaService, // registry: userRole, studio
+    private readonly tenant: TenantPrisma, // tenant: role, rolePermission, staff, staffPermissionOverride
+  ) {}
 
   // ── Query Methods ───────────────────────────────────────────
 
   /** Get all roles for a user in a specific studio. */
   async getUserRoles(userId: string, studioId: string): Promise<UserRoleInfo[]> {
-    const roles = await this.prisma.userRole.findMany({
+    const roles = await this.pub.userRole.findMany({
       where: { user_id: userId, studio_id: studioId },
       orderBy: { is_primary: 'desc' },
     });
@@ -49,7 +53,7 @@ export class RbacService {
 
   /** Get all studios/organizations a user belongs to. */
   async getUserWorkspaces(userId: string): Promise<UserWorkspace[]> {
-    const userRoles = await this.prisma.userRole.findMany({
+    const userRoles = await this.pub.userRole.findMany({
       where: { user_id: userId },
       orderBy: { is_primary: 'desc' },
     });
@@ -70,7 +74,7 @@ export class RbacService {
 
     // Batch fetch all studios at once (single query instead of N sequential lookups)
     const studioIds = [...studioMap.keys()];
-    const studios = await this.prisma.studio.findMany({
+    const studios = await this.pub.studio.findMany({
       where: { id: { in: studioIds } },
       select: { id: true, name: true },
     });
@@ -119,7 +123,7 @@ export class RbacService {
     branchId?: string,
   ): Promise<string[]> {
     // 1. Get user's roles for this studio
-    const userRoles = await this.prisma.userRole.findMany({
+    const userRoles = await this.pub.userRole.findMany({
       where: { user_id: userId, studio_id: studioId },
     });
 
@@ -139,7 +143,7 @@ export class RbacService {
     const roleNames = [...new Set(relevantRoles.map((r) => r.role_name))];
 
     // 2. Find Role records by name in the tenant schema
-    const roles = await this.prisma.role.findMany({
+    const roles = await this.tenant.client.role.findMany({
       where: { name: { in: roleNames } },
       select: { id: true, name: true },
     });
@@ -149,7 +153,7 @@ export class RbacService {
 
     if (roles.length > 0) {
       const roleIds = roles.map((r) => r.id);
-      const rolePerms = await this.prisma.rolePermission.findMany({
+      const rolePerms = await this.tenant.client.rolePermission.findMany({
         where: { role_id: { in: roleIds } },
         select: { permission_code: true },
       });
@@ -168,13 +172,13 @@ export class RbacService {
 
     // 5. Apply StaffPermissionOverride (grants + denials)
     try {
-      const staff = await this.prisma.staff.findFirst({
+      const staff = await this.tenant.client.staff.findFirst({
         where: { user_id: userId },
         select: { id: true },
       });
 
       if (staff) {
-        const overrides = await this.prisma.staffPermissionOverride.findMany({
+        const overrides = await this.tenant.client.staffPermissionOverride.findMany({
           where: { staff_id: staff.id },
           select: { permission_code: true, type: true },
         });
@@ -236,13 +240,13 @@ export class RbacService {
 
   /** Get the primary role name for a user in a studio. */
   async getPrimaryRole(userId: string, studioId: string): Promise<string | null> {
-    const primary = await this.prisma.userRole.findFirst({
+    const primary = await this.pub.userRole.findFirst({
       where: { user_id: userId, studio_id: studioId, is_primary: true },
     });
     if (primary) return primary.role_name;
 
     // Fallback: return first role
-    const first = await this.prisma.userRole.findFirst({
+    const first = await this.pub.userRole.findFirst({
       where: { user_id: userId, studio_id: studioId },
       orderBy: { created_at: 'asc' },
     });
@@ -251,7 +255,7 @@ export class RbacService {
 
   /** Get all branch IDs a user has access to in a studio. */
   async getUserBranchIds(userId: string, studioId: string): Promise<string[]> {
-    const userRoles = await this.prisma.userRole.findMany({
+    const userRoles = await this.pub.userRole.findMany({
       where: { user_id: userId, studio_id: studioId },
       select: { branch_id: true },
     });
@@ -281,7 +285,7 @@ export class RbacService {
     }
 
     // Check for existing assignment
-    const existing = await this.prisma.userRole.findFirst({
+    const existing = await this.pub.userRole.findFirst({
       where: {
         user_id: params.user_id,
         studio_id: params.studio_id,
@@ -291,7 +295,7 @@ export class RbacService {
 
     if (existing) {
       // Update existing role assignment
-      return this.prisma.userRole.update({
+      return this.pub.userRole.update({
         where: { id: existing.id },
         data: {
           role_name: params.role_name,
@@ -303,7 +307,7 @@ export class RbacService {
 
     // If this is primary, unset other primary roles in same studio
     if (params.is_primary) {
-      await this.prisma.userRole.updateMany({
+      await this.pub.userRole.updateMany({
         where: {
           user_id: params.user_id,
           studio_id: params.studio_id,
@@ -313,7 +317,7 @@ export class RbacService {
       });
     }
 
-    return this.prisma.userRole.create({
+    return this.pub.userRole.create({
       data: {
         user_id: params.user_id,
         studio_id: params.studio_id,
@@ -327,18 +331,18 @@ export class RbacService {
 
   /** Remove a user's role assignment. */
   async removeRole(userRoleId: string) {
-    const existing = await this.prisma.userRole.findUnique({
+    const existing = await this.pub.userRole.findUnique({
       where: { id: userRoleId },
     });
     if (!existing) {
       throw new NotFoundException('User role assignment not found');
     }
-    return this.prisma.userRole.delete({ where: { id: userRoleId } });
+    return this.pub.userRole.delete({ where: { id: userRoleId } });
   }
 
   /** Remove all roles for a user in a studio. */
   async removeAllRoles(userId: string, studioId: string) {
-    return this.prisma.userRole.deleteMany({
+    return this.pub.userRole.deleteMany({
       where: { user_id: userId, studio_id: studioId },
     });
   }

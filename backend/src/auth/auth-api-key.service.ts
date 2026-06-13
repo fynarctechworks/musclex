@@ -5,10 +5,10 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { randomBytes, createHmac } from 'crypto';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { ConfigService } from '@nestjs/config';
 import { CreateApiKeyDto, UpdateApiKeyDto } from './dto';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../node_modules/.prisma/client-tenant';
 import { getTenantGymId } from '../common/tenant-context';
 
 @Injectable()
@@ -16,7 +16,7 @@ export class AuthApiKeyService {
   private readonly logger = new Logger(AuthApiKeyService.name);
 
   constructor(
-    private prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private configService: ConfigService,
   ) {}
 
@@ -36,7 +36,7 @@ export class AuthApiKeyService {
     const keyHash = this.hashKey(rawKey);
     const keyPrefix = rawKey.substring(0, 12);
 
-    const apiKey = await this.prisma.apiKey.create({
+    const apiKey = await this.tenant.client.apiKey.create({
       data: {
         gym_id: getTenantGymId()!,
         name: dto.name,
@@ -66,7 +66,7 @@ export class AuthApiKeyService {
    * List all API keys (without raw keys or hashes).
    */
   async listApiKeys() {
-    return this.prisma.apiKey.findMany({
+    return this.tenant.client.apiKey.findMany({
       orderBy: { created_at: 'desc' },
       select: {
         id: true,
@@ -87,7 +87,7 @@ export class AuthApiKeyService {
    * Get a single API key by ID.
    */
   async getApiKey(id: string) {
-    const key = await this.prisma.apiKey.findUnique({
+    const key = await this.tenant.client.apiKey.findUnique({
       where: { id },
       select: {
         id: true,
@@ -116,7 +116,7 @@ export class AuthApiKeyService {
    * Update an API key's metadata.
    */
   async updateApiKey(id: string, dto: UpdateApiKeyDto) {
-    const existing = await this.prisma.apiKey.findUnique({ where: { id } });
+    const existing = await this.tenant.client.apiKey.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('API key not found');
     }
@@ -127,7 +127,7 @@ export class AuthApiKeyService {
     if (dto.rate_limit_per_minute !== undefined)
       data.rate_limit_per_minute = dto.rate_limit_per_minute;
 
-    return this.prisma.apiKey.update({
+    return this.tenant.client.apiKey.update({
       where: { id },
       data,
       select: {
@@ -147,12 +147,12 @@ export class AuthApiKeyService {
    * Deactivate an API key.
    */
   async deactivateApiKey(id: string) {
-    const existing = await this.prisma.apiKey.findUnique({ where: { id } });
+    const existing = await this.tenant.client.apiKey.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('API key not found');
     }
 
-    return this.prisma.apiKey.update({
+    return this.tenant.client.apiKey.update({
       where: { id },
       data: { is_active: false },
       select: { id: true, name: true, is_active: true },
@@ -163,12 +163,12 @@ export class AuthApiKeyService {
    * Reactivate an API key.
    */
   async reactivateApiKey(id: string) {
-    const existing = await this.prisma.apiKey.findUnique({ where: { id } });
+    const existing = await this.tenant.client.apiKey.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('API key not found');
     }
 
-    return this.prisma.apiKey.update({
+    return this.tenant.client.apiKey.update({
       where: { id },
       data: { is_active: true },
       select: { id: true, name: true, is_active: true },
@@ -179,12 +179,12 @@ export class AuthApiKeyService {
    * Delete an API key permanently.
    */
   async deleteApiKey(id: string) {
-    const existing = await this.prisma.apiKey.findUnique({ where: { id } });
+    const existing = await this.tenant.client.apiKey.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('API key not found');
     }
 
-    await this.prisma.apiKey.delete({ where: { id } });
+    await this.tenant.client.apiKey.delete({ where: { id } });
     return { deleted: true };
   }
 }
