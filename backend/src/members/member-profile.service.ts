@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 import { UpsertMemberProfileDto } from './dto/upsert-member-profile.dto';
 import { CreateBodyStatsDto } from './dto/create-body-stats.dto';
@@ -8,12 +8,12 @@ import { CreateProgressPhotoDto } from './dto/create-progress-photo.dto';
 
 @Injectable()
 export class MemberProfileService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   // ── Health Profile ────────────────────────────────────────────
 
   async getProfile(memberId: string) {
-    const profile = await this.prisma.memberProfile.findUnique({
+    const profile = await this.tenant.client.memberProfile.findUnique({
       where: { member_id: memberId },
       include: {
         member: {
@@ -26,10 +26,10 @@ export class MemberProfileService {
   }
 
   async upsertProfile(memberId: string, dto: UpsertMemberProfileDto) {
-    const member = await this.prisma.member.findUnique({ where: { id: memberId } });
+    const member = await this.tenant.client.member.findUnique({ where: { id: memberId } });
     if (!member) throw new NotFoundException('Member not found');
 
-    return this.prisma.memberProfile.upsert({
+    return this.tenant.client.memberProfile.upsert({
       where: { member_id: memberId },
       update: {
         ...(dto.height !== undefined && { height: dto.height }),
@@ -61,7 +61,7 @@ export class MemberProfileService {
   // ── Body Stats (Progress Tracking) ────────────────────────────
 
   async getBodyStats(memberId: string, limit = 50) {
-    return this.prisma.memberBodyStats.findMany({
+    return this.tenant.client.memberBodyStats.findMany({
       where: { member_id: memberId },
       orderBy: { recorded_at: 'desc' },
       take: limit,
@@ -69,10 +69,10 @@ export class MemberProfileService {
   }
 
   async createBodyStats(memberId: string, dto: CreateBodyStatsDto) {
-    const member = await this.prisma.member.findUnique({ where: { id: memberId } });
+    const member = await this.tenant.client.member.findUnique({ where: { id: memberId } });
     if (!member) throw new NotFoundException('Member not found');
 
-    return this.prisma.memberBodyStats.create({
+    return this.tenant.client.memberBodyStats.create({
       data: {
         gym_id: getTenantGymId()!,
         member_id: memberId,
@@ -92,10 +92,10 @@ export class MemberProfileService {
   }
 
   async updateBodyStats(statsId: string, dto: UpdateBodyStatsDto) {
-    const stats = await this.prisma.memberBodyStats.findUnique({ where: { id: statsId } });
+    const stats = await this.tenant.client.memberBodyStats.findUnique({ where: { id: statsId } });
     if (!stats) throw new NotFoundException('Body stats record not found');
 
-    return this.prisma.memberBodyStats.update({
+    return this.tenant.client.memberBodyStats.update({
       where: { id: statsId },
       data: {
         ...(dto.weight !== undefined && { weight: dto.weight }),
@@ -114,23 +114,23 @@ export class MemberProfileService {
   }
 
   async deleteBodyStats(statsId: string) {
-    const stats = await this.prisma.memberBodyStats.findUnique({ where: { id: statsId } });
+    const stats = await this.tenant.client.memberBodyStats.findUnique({ where: { id: statsId } });
     if (!stats) throw new NotFoundException('Body stats record not found');
-    await this.prisma.memberBodyStats.delete({ where: { id: statsId } });
+    await this.tenant.client.memberBodyStats.delete({ where: { id: statsId } });
     return { deleted: true };
   }
 
   async getProgressSummary(memberId: string) {
     const [latest, oldest, count] = await Promise.all([
-      this.prisma.memberBodyStats.findFirst({
+      this.tenant.client.memberBodyStats.findFirst({
         where: { member_id: memberId },
         orderBy: { recorded_at: 'desc' },
       }),
-      this.prisma.memberBodyStats.findFirst({
+      this.tenant.client.memberBodyStats.findFirst({
         where: { member_id: memberId },
         orderBy: { recorded_at: 'asc' },
       }),
-      this.prisma.memberBodyStats.count({ where: { member_id: memberId } }),
+      this.tenant.client.memberBodyStats.count({ where: { member_id: memberId } }),
     ]);
 
     if (!latest || !oldest || count < 2) {
@@ -181,17 +181,17 @@ export class MemberProfileService {
   // ── Progress Photos ───────────────────────────────────────────
 
   async getProgressPhotos(memberId: string) {
-    return this.prisma.memberProgressPhoto.findMany({
+    return this.tenant.client.memberProgressPhoto.findMany({
       where: { member_id: memberId },
       orderBy: { taken_at: 'desc' },
     });
   }
 
   async createProgressPhoto(memberId: string, dto: CreateProgressPhotoDto) {
-    const member = await this.prisma.member.findUnique({ where: { id: memberId } });
+    const member = await this.tenant.client.member.findUnique({ where: { id: memberId } });
     if (!member) throw new NotFoundException('Member not found');
 
-    return this.prisma.memberProgressPhoto.create({
+    return this.tenant.client.memberProgressPhoto.create({
       data: {
         gym_id: getTenantGymId()!,
         member_id: memberId,
@@ -204,9 +204,9 @@ export class MemberProfileService {
   }
 
   async deleteProgressPhoto(photoId: string) {
-    const photo = await this.prisma.memberProgressPhoto.findUnique({ where: { id: photoId } });
+    const photo = await this.tenant.client.memberProgressPhoto.findUnique({ where: { id: photoId } });
     if (!photo) throw new NotFoundException('Progress photo not found');
-    await this.prisma.memberProgressPhoto.delete({ where: { id: photoId } });
+    await this.tenant.client.memberProgressPhoto.delete({ where: { id: photoId } });
     return { deleted: true };
   }
 }

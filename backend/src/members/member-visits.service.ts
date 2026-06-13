@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 
 @Injectable()
 export class MemberVisitsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   async getVisits(
     memberId: string,
@@ -15,7 +15,7 @@ export class MemberVisitsService {
       limit?: number;
     },
   ) {
-    const member = await this.prisma.member.findUnique({ where: { id: memberId } });
+    const member = await this.tenant.client.member.findUnique({ where: { id: memberId } });
     if (!member) throw new NotFoundException('Member not found');
 
     const { branch_id, date_from, date_to, page = 1, limit = 50 } = filters || {};
@@ -30,7 +30,7 @@ export class MemberVisitsService {
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.checkIn.findMany({
+      this.tenant.client.checkIn.findMany({
         where,
         include: {
           branch: { select: { id: true, name: true } },
@@ -40,21 +40,21 @@ export class MemberVisitsService {
         take: limit,
         orderBy: { checked_in_at: 'desc' },
       }),
-      this.prisma.checkIn.count({ where }),
+      this.tenant.client.checkIn.count({ where }),
     ]);
 
     return { data, total, page, limit };
   }
 
   async getVisitStreak(memberId: string) {
-    const member = await this.prisma.member.findUnique({ where: { id: memberId } });
+    const member = await this.tenant.client.member.findUnique({ where: { id: memberId } });
     if (!member) throw new NotFoundException('Member not found');
 
     // Get all check-in dates for the last 90 days
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-    const checkIns = await this.prisma.checkIn.findMany({
+    const checkIns = await this.tenant.client.checkIn.findMany({
       where: {
         member_id: memberId,
         status: 'success',
@@ -106,13 +106,13 @@ export class MemberVisitsService {
   }
 
   async getAttendanceByMonth(memberId: string, months = 6) {
-    const member = await this.prisma.member.findUnique({ where: { id: memberId } });
+    const member = await this.tenant.client.member.findUnique({ where: { id: memberId } });
     if (!member) throw new NotFoundException('Member not found');
 
     const since = new Date();
     since.setMonth(since.getMonth() - months);
 
-    const checkIns = await this.prisma.checkIn.findMany({
+    const checkIns = await this.tenant.client.checkIn.findMany({
       where: {
         member_id: memberId,
         status: 'success',

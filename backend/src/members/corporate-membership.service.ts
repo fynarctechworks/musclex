@@ -3,18 +3,18 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 import { CreateCorporateAccountDto, AddCorporateMemberDto } from './dto/corporate.dto';
 
 @Injectable()
 export class CorporateMembershipService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   // ── Corporate Account CRUD ──────────────────────────────────
 
   async createAccount(dto: CreateCorporateAccountDto) {
-    return this.prisma.corporateAccount.create({
+    return this.tenant.client.corporateAccount.create({
       data: {
         gym_id: getTenantGymId()!,
         organization_id: dto.organization_id || null,
@@ -38,7 +38,7 @@ export class CorporateMembershipService {
     if (filters?.organization_id) where.organization_id = filters.organization_id;
     if (filters?.status) where.status = filters.status;
 
-    return this.prisma.corporateAccount.findMany({
+    return this.tenant.client.corporateAccount.findMany({
       where,
       include: {
         organization: { select: { id: true, name: true } },
@@ -49,7 +49,7 @@ export class CorporateMembershipService {
   }
 
   async findOneAccount(id: string) {
-    const account = await this.prisma.corporateAccount.findUnique({
+    const account = await this.tenant.client.corporateAccount.findUnique({
       where: { id },
       include: {
         organization: { select: { id: true, name: true } },
@@ -77,7 +77,7 @@ export class CorporateMembershipService {
     if (data.max_members !== undefined) updateData.max_members = data.max_members;
     if (data.status !== undefined) updateData.status = data.status;
 
-    return this.prisma.corporateAccount.update({
+    return this.tenant.client.corporateAccount.update({
       where: { id },
       data: updateData,
       include: {
@@ -90,7 +90,7 @@ export class CorporateMembershipService {
   // ── Corporate Members ───────────────────────────────────────
 
   async addMember(accountId: string, dto: AddCorporateMemberDto) {
-    const account = await this.prisma.corporateAccount.findUnique({
+    const account = await this.tenant.client.corporateAccount.findUnique({
       where: { id: accountId },
       include: { _count: { select: { members: true } } },
     });
@@ -104,10 +104,10 @@ export class CorporateMembershipService {
       );
     }
 
-    const member = await this.prisma.member.findUnique({ where: { id: dto.member_id } });
+    const member = await this.tenant.client.member.findUnique({ where: { id: dto.member_id } });
     if (!member) throw new NotFoundException('Member not found');
 
-    return this.prisma.corporateMember.create({
+    return this.tenant.client.corporateMember.create({
       data: {
         gym_id: getTenantGymId()!,
         corporate_account_id: accountId,
@@ -123,18 +123,18 @@ export class CorporateMembershipService {
   }
 
   async removeMember(accountId: string, memberId: string) {
-    const link = await this.prisma.corporateMember.findFirst({
+    const link = await this.tenant.client.corporateMember.findFirst({
       where: { corporate_account_id: accountId, member_id: memberId },
     });
     if (!link) throw new NotFoundException('Corporate member link not found');
 
-    await this.prisma.corporateMember.delete({ where: { id: link.id } });
+    await this.tenant.client.corporateMember.delete({ where: { id: link.id } });
     return { success: true };
   }
 
   async getAccountMembers(accountId: string) {
     await this.findOneAccount(accountId);
-    return this.prisma.corporateMember.findMany({
+    return this.tenant.client.corporateMember.findMany({
       where: { corporate_account_id: accountId },
       include: {
         member: {

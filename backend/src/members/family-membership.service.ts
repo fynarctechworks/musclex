@@ -3,19 +3,19 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 import { CreateFamilyMembershipDto } from './dto/create-family-membership.dto';
 import { AddFamilyMemberDto } from './dto/add-family-member.dto';
 
 @Injectable()
 export class FamilyMembershipService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   async create(dto: CreateFamilyMembershipDto) {
     const [member, plan] = await Promise.all([
-      this.prisma.member.findUnique({ where: { id: dto.primary_member_id } }),
-      this.prisma.membershipPlan.findUnique({ where: { id: dto.plan_id } }),
+      this.tenant.client.member.findUnique({ where: { id: dto.primary_member_id } }),
+      this.tenant.client.membershipPlan.findUnique({ where: { id: dto.plan_id } }),
     ]);
     if (!member) throw new NotFoundException('Primary member not found');
     if (!plan) throw new BadRequestException('Invalid plan');
@@ -29,7 +29,7 @@ export class FamilyMembershipService {
       ? new Date(startDate.getTime() + plan.duration_days * 86400000)
       : null;
 
-    const membership = await this.prisma.memberMembership.create({
+    const membership = await this.tenant.client.memberMembership.create({
       data: {
         gym_id: getTenantGymId()!,
         member_id: dto.primary_member_id,
@@ -41,7 +41,7 @@ export class FamilyMembershipService {
       },
     });
 
-    const familyMembership = await this.prisma.familyMembership.create({
+    const familyMembership = await this.tenant.client.familyMembership.create({
       data: {
         gym_id: getTenantGymId()!,
         primary_member_id: dto.primary_member_id,
@@ -60,7 +60,7 @@ export class FamilyMembershipService {
   }
 
   async findOne(id: string) {
-    const family = await this.prisma.familyMembership.findUnique({
+    const family = await this.tenant.client.familyMembership.findUnique({
       where: { id },
       include: {
         primary_member: { select: { id: true, full_name: true, member_code: true, phone: true } },
@@ -76,7 +76,7 @@ export class FamilyMembershipService {
   }
 
   async findByMember(memberId: string) {
-    return this.prisma.familyMembership.findMany({
+    return this.tenant.client.familyMembership.findMany({
       where: {
         OR: [
           { primary_member_id: memberId },
@@ -93,7 +93,7 @@ export class FamilyMembershipService {
   }
 
   async addMember(familyMembershipId: string, dto: AddFamilyMemberDto) {
-    const family = await this.prisma.familyMembership.findUnique({
+    const family = await this.tenant.client.familyMembership.findUnique({
       where: { id: familyMembershipId },
       include: { members: true },
     });
@@ -107,10 +107,10 @@ export class FamilyMembershipService {
       );
     }
 
-    const member = await this.prisma.member.findUnique({ where: { id: dto.member_id } });
+    const member = await this.tenant.client.member.findUnique({ where: { id: dto.member_id } });
     if (!member) throw new NotFoundException('Member not found');
 
-    return this.prisma.familyMember.create({
+    return this.tenant.client.familyMember.create({
       data: {
         gym_id: getTenantGymId()!,
         family_membership_id: familyMembershipId,
@@ -122,12 +122,12 @@ export class FamilyMembershipService {
   }
 
   async removeMember(familyMembershipId: string, memberId: string) {
-    const link = await this.prisma.familyMember.findFirst({
+    const link = await this.tenant.client.familyMember.findFirst({
       where: { family_membership_id: familyMembershipId, member_id: memberId },
     });
     if (!link) throw new NotFoundException('Family member link not found');
 
-    await this.prisma.familyMember.delete({ where: { id: link.id } });
+    await this.tenant.client.familyMember.delete({ where: { id: link.id } });
     return { success: true };
   }
 }

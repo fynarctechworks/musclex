@@ -66,6 +66,7 @@ deliberately ≠ `studio_<gym_id>`, reproducing prod so routing must come from t
 | (harness) | 6.0 | ✅ | Two seeded gym schemas + `_phase6_isolation_check.js`. |
 | auth/registry | 6.1 | ✅ registry done | `auth.service.ts`: 5 registry models (studio, pendingRegistration, userIdentity, subscriptionPlan, userRole → 29 sites) now on `pub`. **Deferred:** tenant writes (organization/branch/staff via `runInTenantContext`) → tenant-write slice; the ~14 raw-SQL `studio_template` sites + `cloneTenantSchema` → Phase 7/8. |
 | settings | 6.2 | ✅ FULLY migrated | `settings.service.ts`: registry (studio, invoice, subscriptionPlan via `fetchAvailablePlans`) → `pub`; tenant (branch, member, staff + the `clearTenantData` `$transaction`) → `tenant.client`. **Legacy `PrismaService` injection removed** — first service fully off the legacy client. Harness extended to seed+probe `staff`. |
+| members (a) | 6.3 | ✅ 5 of 10 services | Pure-tenant member services FULLY migrated to `tenant.client` (legacy injection removed): `member-visits`, `corporate-membership`, `family-membership`, `member-profile`, `member-crm`. All tenant-only, no raw SQL, creates already set `gym_id: getTenantGymId()!` (no `$use` reliance). **Remaining members:** `members.service.ts` (1057 lines, 1 raw `studio_template` site → Phase 7), `membership.service.ts`, `membership-access.service.ts`, `plans.service.ts`, `renewals.service.ts`. |
 
 ## Remaining phases (not started)
 - **6 (in progress):** rewire all services (playbook above) — multi-week.
