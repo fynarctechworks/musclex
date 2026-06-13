@@ -110,6 +110,10 @@ sites) + `transfer.service.ts` (1 raw site) with Phase-7 flagging.
 
 | referrals | 6.12 | ✅ DONE | 11 services. B2B program = registry→pub (Referral/Wallet/RewardRule/RewardLog incl. their tx + raw on public tables); member-referral = tenant→tenant.client; mixed (referral-analytics per-model split; referral-notification B2C wrapped in `runForGym`). **New `TenantTaskRunner.runForGym(gymId, fn)`** for event handlers/webhooks with no req context (resolve schema from registry + run in context). |
 
+| payments | 6.13 | ✅ DONE | 10 services → tenant.client (only studio→pub). billing `tx.studio` GST read → `this.pub.studio` (registry read inside a tenant tx is fine). **Razorpay webhook** (no JWT): createOrder now sets `gym_id` in order notes; `handleRazorpayWebhook` resolves gym via `razorpay.getOrder().notes.gym_id` + `runForGym` (also fixed a pre-existing context-less `getTenantGymId()!` bug). |
+
+> **Webhook/event→tenant rule:** stamp `gym_id` into the gateway's order/event metadata at creation (you have context then), read it back in the handler, and `runForGym`. Avoids a new index table when the provider echoes metadata.
+
 ### Cross-service `$transaction` rule (general)
 When service A's `$transaction` passes `tx` into service B's method, A and B must use
 the SAME generated client's `TransactionClient` type. Migrate transactionally-coupled
