@@ -1,18 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 import { CreateRegionDto, UpdateRegionDto } from './dto';
 
 @Injectable()
 export class RegionService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   async findAll(filters?: { organization_id?: string; is_active?: boolean }) {
     const where: Record<string, unknown> = {};
     if (filters?.organization_id) where.organization_id = filters.organization_id;
     if (filters?.is_active !== undefined) where.is_active = filters.is_active;
 
-    return this.prisma.region.findMany({
+    return this.tenant.client.region.findMany({
       where,
       orderBy: { name: 'asc' },
       include: {
@@ -23,7 +23,7 @@ export class RegionService {
   }
 
   async findOne(id: string) {
-    const region = await this.prisma.region.findUnique({
+    const region = await this.tenant.client.region.findUnique({
       where: { id },
       include: {
         organization: { select: { id: true, name: true, slug: true } },
@@ -41,12 +41,12 @@ export class RegionService {
 
   async create(dto: CreateRegionDto) {
     // Verify organization exists
-    const org = await this.prisma.organization.findUnique({
+    const org = await this.tenant.client.organization.findUnique({
       where: { id: dto.organization_id },
     });
     if (!org) throw new NotFoundException('Organization not found');
 
-    const region = await this.prisma.region.create({
+    const region = await this.tenant.client.region.create({
       data: {
         gym_id: getTenantGymId()!,
         organization_id: dto.organization_id,
@@ -60,18 +60,18 @@ export class RegionService {
   }
 
   async update(id: string, dto: UpdateRegionDto) {
-    const existing = await this.prisma.region.findUnique({ where: { id } });
+    const existing = await this.tenant.client.region.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Region not found');
 
-    await this.prisma.region.update({ where: { id }, data: dto });
+    await this.tenant.client.region.update({ where: { id }, data: dto });
     return this.findOne(id);
   }
 
   async deactivate(id: string) {
-    const existing = await this.prisma.region.findUnique({ where: { id } });
+    const existing = await this.tenant.client.region.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Region not found');
 
-    return this.prisma.region.update({
+    return this.tenant.client.region.update({
       where: { id },
       data: { is_active: false },
     });

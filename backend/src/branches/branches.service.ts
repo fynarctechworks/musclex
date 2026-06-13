@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { JwtPayload, resolveBranchScope } from '../common';
 import { ResourceLimitService } from '../common/services/resource-limit.service';
 import { BranchProvisioningService } from './branch-provisioning.service';
@@ -14,7 +14,7 @@ export class BranchesService {
   private readonly logger = new Logger(BranchesService.name);
 
   constructor(
-    private prisma: PrismaService,
+    private tenant: TenantPrisma,
     private resourceLimits: ResourceLimitService,
     private provisioning: BranchProvisioningService,
     private readonly events: EventEmitter2,
@@ -51,7 +51,7 @@ export class BranchesService {
     if (filters?.region_id) where.region_id = filters.region_id;
     if (filters?.status) where.status = filters.status;
 
-    return this.prisma.branch.findMany({
+    return this.tenant.client.branch.findMany({
       where,
       orderBy: { created_at: 'desc' },
       include: {
@@ -63,7 +63,7 @@ export class BranchesService {
   }
 
   async findOne(id: string) {
-    const branch = await this.prisma.branch.findUnique({
+    const branch = await this.tenant.client.branch.findUnique({
       where: { id },
       include: {
         organization: { select: { id: true, name: true, slug: true } },
@@ -91,13 +91,13 @@ export class BranchesService {
 
     // Resolve organization_id — if not provided, find the first org in the tenant schema
     if (!data.organization_id) {
-      const org = await this.prisma.organization.findFirst({ select: { id: true } });
+      const org = await this.tenant.client.organization.findFirst({ select: { id: true } });
       if (org) data.organization_id = org.id;
     }
 
     // Validate organization exists if provided
     if (data.organization_id) {
-      const org = await this.prisma.organization.findUnique({
+      const org = await this.tenant.client.organization.findUnique({
         where: { id: data.organization_id },
       });
       if (!org) throw new NotFoundException('Organization not found');
@@ -105,7 +105,7 @@ export class BranchesService {
 
     // Validate region exists and belongs to organization if provided
     if (data.region_id) {
-      const region = await this.prisma.region.findUnique({
+      const region = await this.tenant.client.region.findUnique({
         where: { id: data.region_id },
       });
       if (!region) throw new NotFoundException('Region not found');
@@ -119,7 +119,7 @@ export class BranchesService {
       ? 'provisioning'
       : (data.status ?? 'active');
 
-    const branch = await this.prisma.branch.create({
+    const branch = await this.tenant.client.branch.create({
       data: {
         gym_id: getTenantGymId()!,
         name: data.name,
@@ -159,12 +159,12 @@ export class BranchesService {
   }
 
   async update(id: string, data: UpdateBranchDto) {
-    const existing = await this.prisma.branch.findUnique({ where: { id } });
+    const existing = await this.tenant.client.branch.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Branch not found');
 
     // Validate organization if being changed
     if (data.organization_id) {
-      const org = await this.prisma.organization.findUnique({
+      const org = await this.tenant.client.organization.findUnique({
         where: { id: data.organization_id },
       });
       if (!org) throw new NotFoundException('Organization not found');
@@ -172,22 +172,22 @@ export class BranchesService {
 
     // Validate region if being changed
     if (data.region_id) {
-      const region = await this.prisma.region.findUnique({
+      const region = await this.tenant.client.region.findUnique({
         where: { id: data.region_id },
       });
       if (!region) throw new NotFoundException('Region not found');
     }
 
-    await this.prisma.branch.update({ where: { id }, data });
+    await this.tenant.client.branch.update({ where: { id }, data });
     return this.findOne(id);
   }
 
   async deleteBranch(id: string) {
-    const existing = await this.prisma.branch.findUnique({ where: { id } });
+    const existing = await this.tenant.client.branch.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Branch not found');
 
     // Cascade delete all linked data in a transaction
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.tenant.client.$transaction(async (tx) => {
       // Delete check-ins for members of this branch
       const deletedCheckIns = await tx.checkIn.deleteMany({ where: { branch_id: id } });
 
@@ -244,10 +244,10 @@ export class BranchesService {
   // ── Branch Settings ───────────────────────────────────────────
 
   async getSettings(branchId: string) {
-    const branch = await this.prisma.branch.findUnique({ where: { id: branchId } });
+    const branch = await this.tenant.client.branch.findUnique({ where: { id: branchId } });
     if (!branch) throw new NotFoundException('Branch not found');
 
-    const settings = await this.prisma.branchSettings.findUnique({
+    const settings = await this.tenant.client.branchSettings.findUnique({
       where: { branch_id: branchId },
     });
     if (!settings) throw new NotFoundException('Branch settings not found');
@@ -255,10 +255,10 @@ export class BranchesService {
   }
 
   async updateSettings(branchId: string, dto: UpdateBranchSettingsDto) {
-    const branch = await this.prisma.branch.findUnique({ where: { id: branchId } });
+    const branch = await this.tenant.client.branch.findUnique({ where: { id: branchId } });
     if (!branch) throw new NotFoundException('Branch not found');
 
-    return this.prisma.branchSettings.upsert({
+    return this.tenant.client.branchSettings.upsert({
       where: { branch_id: branchId },
       update: {
         ...(dto.currency !== undefined && { currency: dto.currency }),

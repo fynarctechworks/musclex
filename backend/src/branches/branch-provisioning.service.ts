@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '../../node_modules/.prisma/client-tenant';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { EventStoreService } from '../events/event-store.service';
 import { getTenantGymId } from '../common/tenant-context';
 
@@ -11,7 +11,7 @@ export class BranchProvisioningService {
   private readonly logger = new Logger(BranchProvisioningService.name);
 
   constructor(
-    private prisma: PrismaService,
+    private tenant: TenantPrisma,
     @Inject(forwardRef(() => EventStoreService))
     private eventStore: EventStoreService,
   ) {}
@@ -38,7 +38,7 @@ export class BranchProvisioningService {
           break;
       }
 
-      await this.prisma.branch.update({
+      await this.tenant.client.branch.update({
         where: { id: branchId },
         data: { status: 'active' },
       });
@@ -47,7 +47,7 @@ export class BranchProvisioningService {
         `Branch provisioning failed for ${branchId} (mode=${mode}): ${error.message}`,
         error.stack,
       );
-      await this.prisma.branch.update({
+      await this.tenant.client.branch.update({
         where: { id: branchId },
         data: { status: 'failed' },
       });
@@ -55,7 +55,7 @@ export class BranchProvisioningService {
   }
 
   async retry(branchId: string): Promise<void> {
-    const branch = await this.prisma.branch.findUnique({
+    const branch = await this.tenant.client.branch.findUnique({
       where: { id: branchId },
     });
 
@@ -75,7 +75,7 @@ export class BranchProvisioningService {
   private async seedDefaults(branchId: string): Promise<void> {
     const gymId = getTenantGymId()!;
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.tenant.client.$transaction(async (tx) => {
       const defaultPlans = [
         {
           gym_id: gymId,
@@ -141,7 +141,7 @@ export class BranchProvisioningService {
   ): Promise<void> {
     const gymId = getTenantGymId()!;
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.tenant.client.$transaction(async (tx) => {
       // Clone membership plans
       const sourcePlans = await tx.membershipPlan.findMany({
         where: { branch_id: sourceBranchId },

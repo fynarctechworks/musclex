@@ -3,14 +3,14 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 import { DEFAULT_TIMEZONE, DEFAULT_CURRENCY } from '../common/defaults';
 import { CreateOrganizationDto, UpdateOrganizationDto, UpdateOrganizationSettingsDto } from './dto';
 
 @Injectable()
 export class OrganizationService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   // ── Organization CRUD ─────────────────────────────────────────
 
@@ -18,7 +18,7 @@ export class OrganizationService {
     const where: Record<string, unknown> = {};
     if (filters?.status) where.status = filters.status;
 
-    return this.prisma.organization.findMany({
+    return this.tenant.client.organization.findMany({
       where,
       orderBy: { created_at: 'desc' },
       include: {
@@ -28,7 +28,7 @@ export class OrganizationService {
   }
 
   async findOne(id: string) {
-    const org = await this.prisma.organization.findUnique({
+    const org = await this.tenant.client.organization.findUnique({
       where: { id },
       include: {
         settings: true,
@@ -41,7 +41,7 @@ export class OrganizationService {
   }
 
   async findBySlug(slug: string) {
-    const org = await this.prisma.organization.findUnique({
+    const org = await this.tenant.client.organization.findUnique({
       where: { slug },
       include: {
         settings: true,
@@ -55,10 +55,10 @@ export class OrganizationService {
   async create(dto: CreateOrganizationDto) {
     const slug = this.generateSlug(dto.name);
 
-    const existing = await this.prisma.organization.findUnique({ where: { slug } });
+    const existing = await this.tenant.client.organization.findUnique({ where: { slug } });
     if (existing) throw new ConflictException(`Organization slug '${slug}' already exists`);
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.tenant.client.$transaction(async (tx) => {
       const org = await tx.organization.create({
         data: {
           gym_id: getTenantGymId()!,
@@ -87,7 +87,7 @@ export class OrganizationService {
   }
 
   async update(id: string, dto: UpdateOrganizationDto) {
-    const existing = await this.prisma.organization.findUnique({ where: { id } });
+    const existing = await this.tenant.client.organization.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Organization not found');
 
     const data: Record<string, unknown> = {};
@@ -95,7 +95,7 @@ export class OrganizationService {
       data.name = dto.name;
       data.slug = this.generateSlug(dto.name);
       // Check slug uniqueness
-      const slugConflict = await this.prisma.organization.findFirst({
+      const slugConflict = await this.tenant.client.organization.findFirst({
         where: { slug: data.slug as string, id: { not: id } },
       });
       if (slugConflict) throw new ConflictException(`Organization slug already exists`);
@@ -107,14 +107,14 @@ export class OrganizationService {
     if (dto.currency !== undefined) data.currency = dto.currency;
     if (dto.status !== undefined) data.status = dto.status;
 
-    await this.prisma.organization.update({ where: { id }, data });
+    await this.tenant.client.organization.update({ where: { id }, data });
     return this.findOne(id);
   }
 
   // ── Organization Settings ─────────────────────────────────────
 
   async getSettings(organizationId: string) {
-    const settings = await this.prisma.organizationSettings.findUnique({
+    const settings = await this.tenant.client.organizationSettings.findUnique({
       where: { organization_id: organizationId },
     });
     if (!settings) throw new NotFoundException('Organization settings not found');
@@ -123,10 +123,10 @@ export class OrganizationService {
 
   async updateSettings(organizationId: string, dto: UpdateOrganizationSettingsDto) {
     // Ensure organization exists
-    const org = await this.prisma.organization.findUnique({ where: { id: organizationId } });
+    const org = await this.tenant.client.organization.findUnique({ where: { id: organizationId } });
     if (!org) throw new NotFoundException('Organization not found');
 
-    return this.prisma.organizationSettings.upsert({
+    return this.tenant.client.organizationSettings.upsert({
       where: { organization_id: organizationId },
       update: {
         ...(dto.default_timezone !== undefined && { default_timezone: dto.default_timezone }),
@@ -150,7 +150,7 @@ export class OrganizationService {
   // ── Organization Hierarchy Stats ──────────────────────────────
 
   async getHierarchy(organizationId: string) {
-    const org = await this.prisma.organization.findUnique({
+    const org = await this.tenant.client.organization.findUnique({
       where: { id: organizationId },
       include: {
         regions: {

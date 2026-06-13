@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 import {
   CreateFranchiseOwnerDto,
@@ -9,7 +9,7 @@ import {
 
 @Injectable()
 export class FranchiseService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenant: TenantPrisma) {}
 
   // ── Franchise Owner CRUD ──────────────────────────────────────
 
@@ -18,7 +18,7 @@ export class FranchiseService {
     if (filters?.organization_id) where.organization_id = filters.organization_id;
     if (filters?.is_active !== undefined) where.is_active = filters.is_active;
 
-    return this.prisma.franchiseOwner.findMany({
+    return this.tenant.client.franchiseOwner.findMany({
       where,
       orderBy: { created_at: 'desc' },
       include: {
@@ -29,7 +29,7 @@ export class FranchiseService {
   }
 
   async findOneOwner(id: string) {
-    const owner = await this.prisma.franchiseOwner.findUnique({
+    const owner = await this.tenant.client.franchiseOwner.findUnique({
       where: { id },
       include: {
         organization: { select: { id: true, name: true } },
@@ -45,12 +45,12 @@ export class FranchiseService {
   }
 
   async createOwner(dto: CreateFranchiseOwnerDto) {
-    const org = await this.prisma.organization.findUnique({
+    const org = await this.tenant.client.organization.findUnique({
       where: { id: dto.organization_id },
     });
     if (!org) throw new NotFoundException('Organization not found');
 
-    const owner = await this.prisma.franchiseOwner.create({
+    const owner = await this.tenant.client.franchiseOwner.create({
       data: {
         gym_id: getTenantGymId()!,
         organization_id: dto.organization_id,
@@ -64,10 +64,10 @@ export class FranchiseService {
   }
 
   async updateOwner(id: string, dto: UpdateFranchiseOwnerDto) {
-    const existing = await this.prisma.franchiseOwner.findUnique({ where: { id } });
+    const existing = await this.tenant.client.franchiseOwner.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Franchise owner not found');
 
-    await this.prisma.franchiseOwner.update({ where: { id }, data: dto });
+    await this.tenant.client.franchiseOwner.update({ where: { id }, data: dto });
     return this.findOneOwner(id);
   }
 
@@ -76,14 +76,14 @@ export class FranchiseService {
   async assignBranch(dto: CreateBranchFranchiseDto) {
     // Verify both entities exist
     const [branch, owner] = await Promise.all([
-      this.prisma.branch.findUnique({ where: { id: dto.branch_id } }),
-      this.prisma.franchiseOwner.findUnique({ where: { id: dto.franchise_owner_id } }),
+      this.tenant.client.branch.findUnique({ where: { id: dto.branch_id } }),
+      this.tenant.client.franchiseOwner.findUnique({ where: { id: dto.franchise_owner_id } }),
     ]);
     if (!branch) throw new NotFoundException('Branch not found');
     if (!owner) throw new NotFoundException('Franchise owner not found');
 
     // Check for existing mapping
-    const existing = await this.prisma.branchFranchise.findUnique({
+    const existing = await this.tenant.client.branchFranchise.findUnique({
       where: {
         branch_id_franchise_owner_id: {
           branch_id: dto.branch_id,
@@ -93,7 +93,7 @@ export class FranchiseService {
     });
     if (existing) throw new ConflictException('Branch is already assigned to this franchise owner');
 
-    return this.prisma.branchFranchise.create({
+    return this.tenant.client.branchFranchise.create({
       data: {
         gym_id: getTenantGymId()!,
         branch_id: dto.branch_id,
@@ -110,7 +110,7 @@ export class FranchiseService {
   }
 
   async unassignBranch(branchId: string, franchiseOwnerId: string) {
-    const mapping = await this.prisma.branchFranchise.findUnique({
+    const mapping = await this.tenant.client.branchFranchise.findUnique({
       where: {
         branch_id_franchise_owner_id: {
           branch_id: branchId,
@@ -120,13 +120,13 @@ export class FranchiseService {
     });
     if (!mapping) throw new NotFoundException('Branch-franchise mapping not found');
 
-    return this.prisma.branchFranchise.delete({
+    return this.tenant.client.branchFranchise.delete({
       where: { id: mapping.id },
     });
   }
 
   async getBranchFranchises(branchId: string) {
-    return this.prisma.branchFranchise.findMany({
+    return this.tenant.client.branchFranchise.findMany({
       where: { branch_id: branchId },
       include: {
         franchise_owner: { select: { id: true, owner_name: true, email: true, phone: true } },
