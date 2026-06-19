@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { PageHeader, KPICard, LoadingSkeleton, AccessDenied } from "@/components/shared";
 import { useRequirePermission } from "@/hooks/use-require-permission";
+import { useEntitlement, LockedFeatureCard } from "@/features/entitlements";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAiChat, useDailyBriefing } from "@/features/ai";
 import { useChurnRisk, useAnalyticsDashboard, useDailyMetricsTrend } from "@/features/reports";
@@ -244,6 +245,7 @@ function InsightCard({ insight }: { insight: AIInsight }) {
 
 export default function AIAdvisorPage() {
   const { allowed, checked } = useRequirePermission("ai", "view", "deny");
+  const { locked: planLocked } = useEntitlement("ai_advisor");
   const { gymPath } = useGymSlug();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -313,6 +315,22 @@ export default function AIAdvisorPage() {
     return (
       <AppLayout>
         <AccessDenied module="ai" />
+      </AppLayout>
+    );
+  }
+
+  // Plan-tier lock (show-everything-but-locked): render the page shell + an upsell card
+  // instead of the live module. Backend stays authoritative — AI endpoints 403 regardless.
+  if (planLocked) {
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <PageHeader
+            title="AI Advisor"
+            description="Proactive insights and intelligent recommendations"
+          />
+          <LockedFeatureCard feature="ai_advisor" source="ai_page" />
+        </div>
       </AppLayout>
     );
   }

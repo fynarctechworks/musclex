@@ -111,8 +111,13 @@ export class CheckInOrchestrator {
     const memberId = await this.resolveMemberId(input);
 
     const [member, membership, branch] = await Promise.all([
-      this.prisma.member.findUnique({
-        where: { id: memberId },
+      // Scope the member load by gym_id. `member_id` can arrive directly from a
+      // kiosk/turnstile body (or a raw-id caller), and findUnique-by-id can't be
+      // gym-scoped by the tenant $use middleware (R3 fails-open). Using findFirst
+      // with gym_id means a cross-tenant id resolves to null → "Member not found"
+      // instead of leaking another gym's member in the denial payload.
+      this.prisma.member.findFirst({
+        where: { id: memberId, gym_id: gymId },
         include: {
           branch: {
             select: {
@@ -149,8 +154,8 @@ export class CheckInOrchestrator {
         orderBy: { created_at: 'desc' },
       }),
       input.branch_id
-        ? this.prisma.branch.findUnique({
-            where: { id: input.branch_id },
+        ? this.prisma.branch.findFirst({
+            where: { id: input.branch_id, gym_id: gymId },
             select: {
               id: true,
               timezone: true,

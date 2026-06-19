@@ -80,6 +80,7 @@ import { InventoryTile } from "@/components/dashboard/inventory-tile";
 import { StatusBar } from "@/components/dashboard/status-bar";
 import { DashboardCustomizer } from "@/components/dashboard/dashboard-customizer";
 import { useDashboardLayout } from "@/hooks/use-dashboard-layout";
+import { PremiumUpsellStrip } from "@/features/entitlements";
 
 interface RevenueDataPoint {
   month: string;
@@ -496,6 +497,10 @@ function OwnerManagerDashboard() {
           gymPath={gymPath}
         />
       </DeferUntilVisible>
+
+      {/* Premium upsell — compact locked cards for features not in the current plan.
+          Renders nothing when the plan already includes them (e.g. enterprise). */}
+      <PremiumUpsellStrip />
 
       {/* Wave 13 — System Status Bar (sticky bottom) */}
       <div className="mt-8">

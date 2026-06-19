@@ -18,6 +18,7 @@ import Redis from 'ioredis';
 import { PrismaService } from '../../database/prisma.service';
 import { REDIS_CLIENT } from '../../config/redis.module';
 import { AuditLogsService, AuditContext } from '../audit-logs/audit-logs.service';
+import { EmailService } from '../email/email.service';
 import { AdminRole, AuditAction } from '@prisma/client';
 
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -36,6 +37,7 @@ export class AuthService implements OnModuleInit {
     private jwt: JwtService,
     private config: ConfigService,
     private audit: AuditLogsService,
+    private email: EmailService,
     @Inject(REDIS_CLIENT) private redis: Redis,
   ) {}
 
@@ -281,10 +283,18 @@ export class AuthService implements OnModuleInit {
     });
 
     const resetUrl = `${this.config.get('SCC_FRONTEND_URL', 'http://localhost:3001')}/reset-password?token=${token}`;
-    this.logger.log(`Password reset requested for ${email}. Reset URL (dev): ${resetUrl}`);
 
-    // In production wire to email provider (Resend/SMTP). For now log the URL.
-    // TODO: await this.mailer.send({ to: email, subject: 'Reset your password', html: `...` });
+    // Deliver the branded reset email. Failure is logged but never surfaced to
+    // the caller (the response stays generic to prevent email enumeration). In
+    // dev with no RESEND_API_KEY, EmailService logs instead of sending.
+    try {
+      await this.email.sendPasswordReset(email, resetUrl, RESET_TOKEN_TTL_MINS);
+    } catch (err) {
+      this.logger.error(`Failed to send SCC password-reset email to ${email}: ${(err as Error).message}`);
+    }
+    if (process.env.NODE_ENV !== 'production') {
+      this.logger.log(`Password reset URL (dev only) for ${email}: ${resetUrl}`);
+    }
 
     return { success: true };
   }

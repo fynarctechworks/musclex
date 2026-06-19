@@ -103,7 +103,8 @@ function assertScoped(call: RawCall, gymId: string, label: string) {
 describe('SAFETY-NET / Dashboard raw queries carry an explicit gym_id filter (H1)', () => {
   it('DashboardPulseService — every $queryRawUnsafe call scopes by gym_id', async () => {
     const { prisma, rawCalls } = makeCapturingPrisma();
-    const svc = new DashboardPulseService(prisma);
+    // Migration (feat/per-gym-schemas): pulse reads via `this.tenant.client.*`.
+    const svc = new DashboardPulseService({ client: prisma } as any);
 
     await runAs(GYM_A, async () => {
       await svc.getPulse({ role: 'owner', studio_id: GYM_A } as any);
@@ -120,7 +121,8 @@ describe('SAFETY-NET / Dashboard raw queries carry an explicit gym_id filter (H1
 
   it('FootfallHeatmapService — the heatmap aggregate scopes by gym_id', async () => {
     const { prisma, rawCalls } = makeCapturingPrisma();
-    const svc = new FootfallHeatmapService(prisma);
+    // Migration (feat/per-gym-schemas): heatmap reads via `this.tenant.client.*`.
+    const svc = new FootfallHeatmapService({ client: prisma } as any);
 
     await runAs(GYM_A, async () => {
       await svc.getHeatmap({ role: 'owner', studio_id: GYM_A } as any, undefined, 30);

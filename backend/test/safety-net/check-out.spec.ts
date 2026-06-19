@@ -29,7 +29,9 @@ describe('SAFETY-NET / CheckInsService.checkOut', () => {
         findFirst: jest.fn(),
       },
     };
-    service = new CheckInsService(prisma, {} as any, {} as any);
+    // Migration (feat/per-gym-schemas): CheckInsService now reads via
+    // `this.tenant.client.*`, so the flat prisma mock is nested under `.client`.
+    service = new CheckInsService({ client: prisma } as any, {} as any, {} as any);
   });
 
   it('returns no_open_visit (not an error) when nothing is open', async () => {

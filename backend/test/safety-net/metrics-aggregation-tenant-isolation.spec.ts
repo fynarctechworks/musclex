@@ -31,44 +31,46 @@ import {
   tenantContext,
   getTenantGymId,
 } from '../../src/common/tenant-context';
+import { makeTaskRunner, makeTenantAccessor } from './_cron-tenant-harness';
 
 const GYM_A = '11111111-1111-1111-1111-111111111111';
 const GYM_B = '22222222-2222-2222-2222-222222222222';
 
 type AmbientObservation = { branchId?: string; gymId: string | undefined };
 
-function buildHarness(opts: {
+// One gym's tenant client. Under the migrated architecture `forEachTenant` binds
+// `this.tenant.client.*` to a single gym's schema, so `findMany` returns only
+// that gym's rows (we filter the seeded fixtures by gym_id). The aggregate/
+// count/upsert/create methods are gym-agnostic — they record the AMBIENT gymId
+// at call time so the test can assert each row was processed under its own gym.
+function makeClient(gymId: string, opts: {
   branches?: any[];
   templates?: any[];
   members?: any[];
   trainers?: any[];
   campaigns?: any[];
-}) {
-  const ambient: AmbientObservation[] = [];
+}, captureAmbient: (branchId?: string) => void) {
+  const byGym = (rows?: any[]) => (rows ?? []).filter((r) => r.gym_id === gymId);
 
-  const captureAmbient = (branchId?: string) => {
-    ambient.push({ branchId, gymId: getTenantGymId() });
-  };
-
-  const prisma: any = {
+  return {
     branch: {
-      findMany: jest.fn().mockResolvedValue(opts.branches ?? []),
+      findMany: jest.fn().mockResolvedValue(byGym(opts.branches)),
     },
     classTemplate: {
-      findMany: jest.fn().mockResolvedValue(opts.templates ?? []),
+      findMany: jest.fn().mockResolvedValue(byGym(opts.templates)),
     },
     member: {
-      findMany: jest.fn().mockResolvedValue(opts.members ?? []),
+      findMany: jest.fn().mockResolvedValue(byGym(opts.members)),
       update: jest.fn(async ({ where }: any) => {
         captureAmbient(where?.id);
         return { id: where?.id };
       }),
     },
     staff: {
-      findMany: jest.fn().mockResolvedValue(opts.trainers ?? []),
+      findMany: jest.fn().mockResolvedValue(byGym(opts.trainers)),
     },
     campaign: {
-      findMany: jest.fn().mockResolvedValue(opts.campaigns ?? []),
+      findMany: jest.fn().mockResolvedValue(byGym(opts.campaigns)),
     },
     campaignAudience: {
       groupBy: jest.fn(async ({ where }: any) => {
@@ -181,12 +183,45 @@ function buildHarness(opts: {
       }),
     },
   };
+}
 
+function buildHarness(opts: {
+  branches?: any[];
+  templates?: any[];
+  members?: any[];
+  trainers?: any[];
+  campaigns?: any[];
+}) {
+  const ambient: AmbientObservation[] = [];
+  const captureAmbient = (branchId?: string) => {
+    ambient.push({ branchId, gymId: getTenantGymId() });
+  };
+
+  // Every gym referenced by the seeded fixtures gets its own per-gym client.
+  const gymIds = [
+    ...new Set(
+      [
+        ...(opts.branches ?? []),
+        ...(opts.templates ?? []),
+        ...(opts.members ?? []),
+        ...(opts.trainers ?? []),
+        ...(opts.campaigns ?? []),
+      ]
+        .map((r) => r.gym_id)
+        .filter(Boolean),
+    ),
+  ] as string[];
+
+  const clientByGym: Record<string, any> = {};
+  for (const gid of gymIds) clientByGym[gid] = makeClient(gid, opts, captureAmbient);
+
+  const tenant = makeTenantAccessor(clientByGym);
+  const tasks = makeTaskRunner(gymIds);
   const cronLock: any = {
     withLock: jest.fn(async (_n: string, cb: () => Promise<unknown>) => cb()),
   };
 
-  const job = new MetricsAggregationJob(prisma, cronLock);
+  const job = new MetricsAggregationJob(tenant, tasks, cronLock);
 
   jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
   jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);

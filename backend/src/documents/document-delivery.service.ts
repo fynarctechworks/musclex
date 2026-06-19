@@ -2,6 +2,7 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { DocumentsService } from './documents.service';
 import { getTenantGymId } from '../common/tenant-context';
+import { EmailService } from '../email/email.service';
 
 export type DeliveryChannel = 'email' | 'whatsapp';
 
@@ -18,6 +19,7 @@ export class DocumentDeliveryService {
   constructor(
     private readonly tenant: TenantPrisma,
     private documents: DocumentsService,
+    private readonly emailService: EmailService,
   ) {}
 
   async sendPosReceipt(saleId: string, opts: SendOptions & { format?: 'a4' | 'thermal_80mm' }): Promise<{
@@ -123,13 +125,6 @@ export class DocumentDeliveryService {
     invoice: { invoice_number: string; total_amount: any; currency: string },
     doc: { signed_url: string },
   ): Promise<string | undefined> {
-    if (!process.env.RESEND_API_KEY) {
-      this.logger.warn('RESEND_API_KEY not configured — email skipped (logged only)');
-      return undefined;
-    }
-    const { Resend } = await import('resend');
-    const resend = new Resend(process.env.RESEND_API_KEY);
-
     const html = `
       <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
         <h2 style="color:#1A2F45;margin:0 0 12px;">Your invoice ${invoice.invoice_number}</h2>
@@ -151,19 +146,13 @@ export class DocumentDeliveryService {
     const pdfResponse = await fetch(doc.signed_url);
     const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
 
-    const result = await resend.emails.send({
-      from: process.env.EMAIL_FROM || 'MuscleX <noreply@musclex.com>',
+    const result = await this.emailService.sendRaw({
       to,
       subject: `Invoice ${invoice.invoice_number}`,
       html,
-      attachments: [
-        {
-          filename: `${invoice.invoice_number}.pdf`,
-          content: pdfBuffer,
-        },
-      ],
-    } as any);
-    return (result as any)?.data?.id;
+      attachments: [{ filename: `${invoice.invoice_number}.pdf`, content: pdfBuffer }],
+    });
+    return result.id;
   }
 
   private async sendWhatsApp(

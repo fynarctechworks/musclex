@@ -40,8 +40,17 @@ export class BookingService {
         throw new ConflictException('Member is already on the waitlist for this session');
       }
 
-      // Capacity check INSIDE transaction — prevents race condition
-      if (lockedSession.enrolled_count < lockedSession.capacity) {
+      // Atomically CLAIM a seat. A plain `read enrolled_count` then `increment`
+      // does NOT prevent overbooking under Postgres read-committed isolation:
+      // two concurrent bookings at capacity-1 both read room and both increment.
+      // The guarded updateMany only increments when a seat is actually free, so
+      // at most `capacity` claims can ever succeed; the loser falls to waitlist.
+      const seatClaim = await tx.classSession.updateMany({
+        where: { id: dto.session_id, enrolled_count: { lt: lockedSession.capacity } },
+        data: { enrolled_count: { increment: 1 } },
+      });
+
+      if (seatClaim.count === 1) {
         const booking = await tx.classBooking.upsert({
           where: { session_id_member_id: { session_id: dto.session_id, member_id: dto.member_id } },
           create: {
@@ -59,11 +68,6 @@ export class BookingService {
             session: { select: { id: true, name: true, start_time: true } },
             member: { select: { id: true, full_name: true, member_code: true } },
           },
-        });
-
-        await tx.classSession.update({
-          where: { id: dto.session_id },
-          data: { enrolled_count: { increment: 1 } },
         });
 
         // Auto-create attendance record

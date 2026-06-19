@@ -33,20 +33,6 @@ export class MembershipService {
     if (!plan) throw new BadRequestException('Invalid plan');
     if (!plan.is_active) throw new BadRequestException('Plan is no longer active');
 
-    // Expire any currently active or frozen membership for this member
-    await this.tenant.client.memberMembership.updateMany({
-      where: { member_id: memberId, status: { in: ['active', 'frozen'] } },
-      data: { status: 'expired' },
-    });
-    // Also complete any active freezes on those memberships
-    await this.tenant.client.membershipFreeze.updateMany({
-      where: {
-        membership: { member_id: memberId },
-        status: 'active',
-      },
-      data: { status: 'completed', end_date: new Date() },
-    });
-
     const startDate = dto.start_date ? new Date(dto.start_date) : new Date();
     const endDate = plan.duration_days
       ? new Date(startDate.getTime() + plan.duration_days * 86400000)
@@ -56,59 +42,80 @@ export class MembershipService {
       ? new Date(endDate.getTime() + plan.grace_period_days * 86400000)
       : null;
 
-    const membership = await this.tenant.client.memberMembership.create({
-      data: {
-        gym_id: getTenantGymId()!,
-        member_id: memberId,
-        plan_id: dto.plan_id,
-        branch_id: dto.branch_id,
-        start_date: startDate,
-        end_date: endDate,
-        classes_remaining: plan.total_classes,
-        remaining_visits: plan.max_visits,
-        grace_end_date: graceEndDate,
-        status: 'active',
-        auto_renew: dto.auto_renew || plan.auto_renew_enabled,
-      },
-      include: { plan: true, branch: { select: { id: true, name: true } } },
-    });
+    const gymId = getTenantGymId()!;
 
-    // Create payment record if payment_method specified
-    if (dto.payment_method) {
-      const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
-      // Branch-tier pricing: plan may override its base price per branch.
-      const chargeAmount = resolvePlanPrice(plan, dto.branch_id);
-      const payment = await this.tenant.client.payment.create({
+    // All writes run in ONE transaction so a mid-sequence failure can never leave
+    // the member with no active membership (old expired but new not created), or a
+    // membership with no payment/ledger row (revenue under-recorded). Either the
+    // whole assignment commits or none of it does.
+    const membership = await this.tenant.client.$transaction(async (tx) => {
+      // Expire any currently active or frozen membership for this member
+      await tx.memberMembership.updateMany({
+        where: { member_id: memberId, status: { in: ['active', 'frozen'] } },
+        data: { status: 'expired' },
+      });
+      // Also complete any active freezes on those memberships
+      await tx.membershipFreeze.updateMany({
+        where: { membership: { member_id: memberId }, status: 'active' },
+        data: { status: 'completed', end_date: new Date() },
+      });
+
+      const created = await tx.memberMembership.create({
         data: {
-          gym_id: getTenantGymId()!,
+          gym_id: gymId,
           member_id: memberId,
-          membership_id: membership.id,
+          plan_id: dto.plan_id,
           branch_id: dto.branch_id,
-          amount: chargeAmount,
-          payment_method: dto.payment_method,
-          status: 'paid',
-          receipt_number: receiptNumber,
-          paid_at: new Date(),
+          start_date: startDate,
+          end_date: endDate,
+          classes_remaining: plan.total_classes,
+          remaining_visits: plan.max_visits,
+          grace_end_date: graceEndDate,
+          status: 'active',
+          auto_renew: dto.auto_renew || plan.auto_renew_enabled,
         },
+        include: { plan: true, branch: { select: { id: true, name: true } } },
       });
 
-      // Create corresponding ledger entry
-      await this.tenant.client.financialTransaction.create({
-        data: {
-          gym_id: getTenantGymId()!,
-          branch_id: dto.branch_id,
-          reference_type: 'payment',
-          reference_id: payment.id,
-          transaction_type: 'credit',
-          amount: chargeAmount,
-          description: `Membership payment: ${plan.name}`,
-        },
-      });
-    }
+      // Create payment record if payment_method specified
+      if (dto.payment_method) {
+        const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
+        // Branch-tier pricing: plan may override its base price per branch.
+        const chargeAmount = resolvePlanPrice(plan, dto.branch_id);
+        const payment = await tx.payment.create({
+          data: {
+            gym_id: gymId,
+            member_id: memberId,
+            membership_id: created.id,
+            branch_id: dto.branch_id,
+            amount: chargeAmount,
+            payment_method: dto.payment_method,
+            status: 'paid',
+            receipt_number: receiptNumber,
+            paid_at: new Date(),
+          },
+        });
 
-    await this.tenant.client.member.update({
-      where: { id: memberId },
-      data: { status: 'active' },
+        // Create corresponding ledger entry
+        await tx.financialTransaction.create({
+          data: {
+            gym_id: gymId,
+            branch_id: dto.branch_id,
+            reference_type: 'payment',
+            reference_id: payment.id,
+            transaction_type: 'credit',
+            amount: chargeAmount,
+            description: `Membership payment: ${plan.name}`,
+          },
+        });
+      }
+
+      await tx.member.update({
+        where: { id: memberId },
+        data: { status: 'active' },
+      });
+
+      return created;
     });
 
     // ── B2C referral reward hook ───────────────────────────────────
@@ -368,12 +375,6 @@ export class MembershipService {
 
     const plan = membership.plan;
 
-    // Mark old membership as renewed
-    await this.tenant.client.memberMembership.update({
-      where: { id: membershipId },
-      data: { status: 'renewed' },
-    });
-
     // Create new membership
     const startDate = new Date();
     const endDate = plan.duration_days
@@ -382,58 +383,71 @@ export class MembershipService {
     const graceEndDate = endDate && plan.grace_period_days > 0
       ? new Date(endDate.getTime() + plan.grace_period_days * 86400000)
       : null;
+    const gymId = getTenantGymId()!;
 
-    const newMembership = await this.tenant.client.memberMembership.create({
-      data: {
-        gym_id: getTenantGymId()!,
-        member_id: membership.member_id,
-        plan_id: plan.id,
-        branch_id: membership.branch_id,
-        start_date: startDate,
-        end_date: endDate,
-        classes_remaining: plan.total_classes,
-        remaining_visits: plan.max_visits,
-        grace_end_date: graceEndDate,
-        status: 'active',
-        auto_renew: membership.auto_renew,
-      },
-      include: { plan: true, branch: { select: { id: true, name: true } } },
-    });
+    // Mark-old-renewed + create-new + payment + ledger + member update run in ONE
+    // transaction so a partial failure can't drop the old membership without
+    // creating the new one, or create a renewal with no payment/ledger row.
+    const newMembership = await this.tenant.client.$transaction(async (tx) => {
+      await tx.memberMembership.update({
+        where: { id: membershipId },
+        data: { status: 'renewed' },
+      });
 
-    // Create payment if method provided
-    if (paymentMethod) {
-      const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
-      const chargeAmount = resolvePlanPrice(plan, membership.branch_id);
-      const renewPayment = await this.tenant.client.payment.create({
+      const created = await tx.memberMembership.create({
         data: {
-          gym_id: getTenantGymId()!,
+          gym_id: gymId,
           member_id: membership.member_id,
-          membership_id: newMembership.id,
+          plan_id: plan.id,
           branch_id: membership.branch_id,
-          amount: chargeAmount,
-          payment_method: paymentMethod,
-          status: 'paid',
-          receipt_number: receiptNumber,
-          paid_at: new Date(),
+          start_date: startDate,
+          end_date: endDate,
+          classes_remaining: plan.total_classes,
+          remaining_visits: plan.max_visits,
+          grace_end_date: graceEndDate,
+          status: 'active',
+          auto_renew: membership.auto_renew,
         },
+        include: { plan: true, branch: { select: { id: true, name: true } } },
       });
 
-      await this.tenant.client.financialTransaction.create({
-        data: {
-          gym_id: getTenantGymId()!,
-          branch_id: membership.branch_id,
-          reference_type: 'payment',
-          reference_id: renewPayment.id,
-          transaction_type: 'credit',
-          amount: chargeAmount,
-          description: `Membership renewal: ${plan.name}`,
-        },
-      });
-    }
+      // Create payment if method provided
+      if (paymentMethod) {
+        const receiptNumber = `RCP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`;
+        const chargeAmount = resolvePlanPrice(plan, membership.branch_id);
+        const renewPayment = await tx.payment.create({
+          data: {
+            gym_id: gymId,
+            member_id: membership.member_id,
+            membership_id: created.id,
+            branch_id: membership.branch_id,
+            amount: chargeAmount,
+            payment_method: paymentMethod,
+            status: 'paid',
+            receipt_number: receiptNumber,
+            paid_at: new Date(),
+          },
+        });
 
-    await this.tenant.client.member.update({
-      where: { id: membership.member_id },
-      data: { status: 'active' },
+        await tx.financialTransaction.create({
+          data: {
+            gym_id: gymId,
+            branch_id: membership.branch_id,
+            reference_type: 'payment',
+            reference_id: renewPayment.id,
+            transaction_type: 'credit',
+            amount: chargeAmount,
+            description: `Membership renewal: ${plan.name}`,
+          },
+        });
+      }
+
+      await tx.member.update({
+        where: { id: membership.member_id },
+        data: { status: 'active' },
+      });
+
+      return created;
     });
 
     return newMembership;
@@ -450,17 +464,29 @@ export class MembershipService {
       throw new BadRequestException('Membership is not active');
     }
 
-    if (membership.remaining_visits !== null) {
-      if (membership.remaining_visits <= 0) {
-        throw new BadRequestException('No remaining visits on this membership');
-      }
-      await this.tenant.client.memberMembership.update({
-        where: { id: membershipId },
-        data: { remaining_visits: membership.remaining_visits - 1 },
-      });
+    // Unlimited-visit plan: nothing to decrement.
+    if (membership.remaining_visits === null) {
+      return { remaining_visits: null };
     }
 
-    return { remaining_visits: membership.remaining_visits !== null ? membership.remaining_visits - 1 : null };
+    // Atomic guarded decrement — `updateMany` with `remaining_visits > 0` means
+    // two concurrent visits can never drive the counter below zero. A plain
+    // read-then-write (read N, write N-1) would let both readers see the last
+    // visit and double-spend it.
+    const result = await this.tenant.client.memberMembership.updateMany({
+      where: { id: membershipId, status: 'active', remaining_visits: { gt: 0 } },
+      data: { remaining_visits: { decrement: 1 } },
+    });
+    if (result.count === 0) {
+      throw new BadRequestException('No remaining visits on this membership');
+    }
+
+    // updateMany doesn't return rows — re-read the post-decrement value.
+    const updated = await this.tenant.client.memberMembership.findUnique({
+      where: { id: membershipId },
+      select: { remaining_visits: true },
+    });
+    return { remaining_visits: updated?.remaining_visits ?? null };
   }
 
   // ── Toggle Auto-Renew ───────────────────────────────────────

@@ -47,9 +47,10 @@ export default function RegisterPage() {
         phone: data.phone,
       });
 
-      // If user already existed but had no studio (re-registration after DB reset),
-      // the API skips verification and returns tokens directly
-      if (res.skip_verification && res.access_token) {
+      // If the account already existed with a verified email but no studio
+      // (re-registration of an incomplete account), the API returns tokens
+      // directly so the user resumes onboarding — no re-verification needed.
+      if (res.already_verified && res.access_token) {
         const setAuth = useAuthStore.getState().setAuth;
         setAuth({
           user: res.user,
@@ -64,11 +65,6 @@ export default function RegisterPage() {
 
       // Store email for verify page to display
       sessionStorage.setItem('pendingEmail', data.email);
-
-      // In dev mode (no email service), the API returns verification_url
-      if (res.verification_url) {
-        sessionStorage.setItem('devVerificationUrl', res.verification_url);
-      }
 
       toast.success('Account created! Check your email for a verification link.');
       router.push('/verify-email');

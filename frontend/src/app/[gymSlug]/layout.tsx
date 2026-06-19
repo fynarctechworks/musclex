@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import { Loader2 } from "lucide-react";
 import { SubscriptionProvider, SubscriptionRenewalModal } from "@/features/subscription";
+import { EntitlementProvider, UpgradeModal } from "@/features/entitlements";
 import { ensureStudioScopedToken } from "@/services/api-client";
 
 export default function GymSlugLayout({
@@ -64,8 +65,11 @@ export default function GymSlugLayout({
 
   return (
     <SubscriptionProvider>
-      {children}
-      <SubscriptionRenewalModal />
+      <EntitlementProvider>
+        {children}
+        <SubscriptionRenewalModal />
+        <UpgradeModal />
+      </EntitlementProvider>
     </SubscriptionProvider>
   );
 }

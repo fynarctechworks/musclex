@@ -11,7 +11,9 @@ import { ErrorRetentionService } from './services/error-retention.service';
 import {
   ALERT_EMAIL_TRANSPORT,
   LoggingAlertEmailTransport,
+  ResendAlertEmailTransport,
 } from './services/alert-email.transport';
+import { EmailService } from '../email/email.service';
 import { MonitoringGateway } from './gateways/monitoring.gateway';
 import { IngestKeyGuard } from './guards/ingest-key.guard';
 
@@ -35,7 +37,14 @@ import { IngestKeyGuard } from './guards/ingest-key.guard';
     ErrorRetentionService,
     MonitoringGateway,
     IngestKeyGuard,
-    { provide: ALERT_EMAIL_TRANSPORT, useClass: LoggingAlertEmailTransport },
+    // Use the real Resend transport when an API key is configured; otherwise
+    // fall back to logging (dev/CI) so the app still boots without email.
+    {
+      provide: ALERT_EMAIL_TRANSPORT,
+      inject: [EmailService],
+      useFactory: (email: EmailService) =>
+        email.enabled ? new ResendAlertEmailTransport(email) : new LoggingAlertEmailTransport(),
+    },
   ],
   exports: [ErrorIngestService, ErrorGroupingService, PiiScrubService],
 })

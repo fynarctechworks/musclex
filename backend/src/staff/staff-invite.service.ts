@@ -14,6 +14,8 @@ import { RbacService } from '../auth/rbac.service';
 import { AuthIdentityService } from '../auth/auth-identity.service';
 import { getTenantGymId, tenantContext } from '../common/tenant-context';
 import { ENTERPRISE_ROLES } from '../auth/rbac-seed.service';
+import { EmailService } from '../email/email.service';
+import { EmailTemplateId } from '../email/email.types';
 
 @Injectable()
 export class StaffInviteService {
@@ -26,6 +28,7 @@ export class StaffInviteService {
     private rbacService: RbacService,
     private identityService: AuthIdentityService,
     private configService: ConfigService,
+    private emailService: EmailService,
   ) {
     this.supabase = createClient(
       this.configService.get<string>('SUPABASE_URL', ''),
@@ -566,53 +569,23 @@ export class StaffInviteService {
     email: string,
     data: { studio_name: string; role_name: string; invite_link: string },
   ) {
-    const resendKey = this.configService.get<string>('RESEND_API_KEY');
-    if (!resendKey) {
-      this.logger.warn('RESEND_API_KEY not configured — invite email skipped');
-      return;
-    }
-
-    const { Resend } = await import('resend');
-    const resend = new Resend(resendKey);
-
-    const roleDisplay = data.role_name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-
-    const fromEmail = this.configService.get<string>('RESEND_FROM_EMAIL', 'MuscleX <noreply@musclex.app>');
-    this.logger.log(`Sending invite email from="${fromEmail}" to="${email}"`);
-
-    const { data: emailResult, error: emailError } = await resend.emails.send({
-      from: fromEmail,
+    // Centralized branded delivery. Throw on non-delivery so createInvite's
+    // try/catch records email_sent=false + email_error for the caller.
+    const result = await this.emailService.send({
       to: email,
-      subject: `You've been invited to ${data.studio_name}`,
-      html: `
-        <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
-          <h2 style="color: #0D1B2A;">You've been invited!</h2>
-          <p style="color: #5A7A9A;">
-            <strong>${data.studio_name}</strong> has invited you to join as <strong>${roleDisplay}</strong>.
-          </p>
-          <p style="color: #5A7A9A;">Click below to set up your account and start working:</p>
-          <a href="${data.invite_link}" style="
-            display: inline-block;
-            background: #4A9FD4;
-            color: white;
-            padding: 14px 28px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 600;
-            margin: 16px 0;
-          ">Accept Invite</a>
-          <p style="color: #B0C8E0; font-size: 12px;">
-            This link expires in 7 days. If you didn't expect this, ignore it.
-          </p>
-        </div>
-      `,
+      templateId: EmailTemplateId.TenantInvitation,
+      data: {
+        studioName: data.studio_name,
+        roleName: data.role_name,
+        inviteUrl: data.invite_link,
+        expiresInDays: 7,
+      },
+      dedupeKey: `invite:${email}:${data.invite_link}`,
     });
 
-    if (emailError) {
-      this.logger.error(`Resend API error: ${JSON.stringify(emailError)}`);
-      throw new Error(`Resend API error: ${emailError.message}`);
+    if (!result.delivered && !result.queued) {
+      throw new Error('Invite email could not be delivered (no email provider configured or send failed)');
     }
-
-    this.logger.log(`Invite email sent successfully: id=${emailResult?.id}`);
+    this.logger.log(`Invite email dispatched to ${email} (id=${result.id ?? 'queued'})`);
   }
 }

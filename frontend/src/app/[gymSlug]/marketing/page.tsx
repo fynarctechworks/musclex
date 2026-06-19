@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { useRequirePermission } from "@/hooks/use-require-permission";
+import { useEntitlement, LockedFeatureCard } from "@/features/entitlements";
 
 const subNavItems = [
   { label: "Campaigns", href: "/marketing", icon: Megaphone },
@@ -31,6 +32,7 @@ const statusFilters = [
 
 export default function MarketingPage() {
   const { allowed, checked } = useRequirePermission("marketing", "view", "deny");
+  const { locked: planLocked } = useEntitlement("marketing_campaigns");
   const { gymPath } = useGymSlug();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
@@ -58,6 +60,20 @@ export default function MarketingPage() {
     return (
       <AppLayout>
         <AccessDenied module="marketing" />
+      </AppLayout>
+    );
+  }
+
+  // Plan-tier lock (show-everything-but-locked): render the page shell + an upsell card.
+  // Backend stays authoritative — campaign create/edit/send/delete 403 regardless (Slice F).
+  if (planLocked) {
+    return (
+      <AppLayout>
+        <PageHeader
+          title="Marketing"
+          description="Manage campaigns, templates, automation, and leads"
+        />
+        <LockedFeatureCard feature="marketing_campaigns" source="marketing_page" />
       </AppLayout>
     );
   }

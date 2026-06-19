@@ -12,19 +12,21 @@ export const authApi = {
     apiClient.post<LoginResponse>('/auth/oauth/sync', { access_token, refresh_token }),
 
   register: (data: { full_name: string; email: string; password: string; phone?: string }) =>
-    apiClient.post<{ success: boolean; email: string; verification_url?: string; skip_verification?: boolean; access_token?: string; refresh_token?: string; user?: any }>('/auth/register', data),
+    apiClient.post<{ success: boolean; email: string; already_verified?: boolean; access_token?: string; refresh_token?: string; user?: any }>('/auth/register', data),
 
   verifyEmail: (token: string) =>
     apiClient.post<LoginResponse>('/auth/verify-email', { token }),
 
   resendVerification: (email: string) =>
-    apiClient.post<{ sent: boolean; verification_url?: string }>('/auth/resend-verification', { email }),
+    apiClient.post<{ sent: boolean }>('/auth/resend-verification', { email }),
 
   forgotPassword: (email: string) =>
     apiClient.post<{ success: boolean }>('/auth/forgot-password', { email }),
 
-  resetPassword: (otp: string, new_password: string) =>
-    apiClient.post<{ success: boolean }>('/auth/reset-password', { otp, new_password }),
+  // Posts the verified Supabase recovery session token (not a user id). The
+  // backend re-verifies it and derives the user from it. See reset-password page.
+  resetPassword: (access_token: string, new_password: string) =>
+    apiClient.post<{ success: boolean }>('/auth/reset-password', { access_token, new_password }),
 
   getPlans: () =>
     apiClient.get<PlanItem[]>('/auth/plans'),

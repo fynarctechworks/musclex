@@ -1,13 +1,22 @@
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { QUEUE_NAMES } from '../queue.module';
 import { EmailJobData } from '../queue.service';
 import { reportJobFailure } from '../../common/sentry/report-job-failure';
+import {
+  EMAIL_PROVIDER,
+  EmailProvider,
+} from '../../email/providers/email-provider.interface';
 
 @Processor(QUEUE_NAMES.EMAIL)
 export class EmailProcessor extends WorkerHost {
   private readonly logger = new Logger(EmailProcessor.name);
+
+  // The single provider seam (EmailModule is @Global). No second Resend client.
+  constructor(@Inject(EMAIL_PROVIDER) private readonly provider: EmailProvider) {
+    super();
+  }
 
   @OnWorkerEvent('failed')
   onFailed(job: Job, err: Error) {
@@ -18,36 +27,39 @@ export class EmailProcessor extends WorkerHost {
     const { to, subject, template, variables } = job.data;
     this.logger.log(`Processing email job ${job.id}: to=${to}, subject=${subject}`);
 
-    try {
-      // Resend integration — import dynamically to avoid hard dependency
-      const { Resend } = await import('resend');
-      const resend = new Resend(process.env.RESEND_API_KEY);
+    const html = this.renderTemplate(template, variables);
+    const from =
+      process.env.RESEND_FROM_EMAIL ||
+      process.env.EMAIL_FROM ||
+      'MuscleX <noreply@musclex.app>';
 
-      if (!process.env.RESEND_API_KEY) {
-        this.logger.warn(`Email job ${job.id} skipped — RESEND_API_KEY not configured`);
-        return;
-      }
+    // Throw on failure so BullMQ applies its retry/backoff policy.
+    await this.provider.send({
+      from,
+      to,
+      subject,
+      html,
+      text: this.htmlToText(html),
+      ...(process.env.EMAIL_REPLY_TO ? { replyTo: process.env.EMAIL_REPLY_TO } : {}),
+    });
 
-      await resend.emails.send({
-        from: process.env.EMAIL_FROM || 'MuscleX <noreply@musclex.com>',
-        to,
-        subject,
-        html: this.renderTemplate(template, variables),
-      });
-
-      this.logger.log(`Email job ${job.id} delivered to ${to}`);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`Email job ${job.id} failed: ${message}`);
-      throw error; // Let BullMQ handle retries
-    }
+    this.logger.log(`Email job ${job.id} delivered to ${to} via ${this.provider.name}`);
   }
 
+  /** Legacy `{{var}}` interpolation for enqueueEmail callers that pass raw data. */
   private renderTemplate(template: string, variables: Record<string, unknown>): string {
     let html = template;
-    for (const [key, value] of Object.entries(variables)) {
+    for (const [key, value] of Object.entries(variables ?? {})) {
       html = html.replace(new RegExp(`{{\\s*${key}\\s*}}`, 'g'), String(value ?? ''));
     }
     return html;
+  }
+
+  private htmlToText(html: string): string {
+    return html
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 }

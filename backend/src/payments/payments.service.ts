@@ -200,15 +200,28 @@ export class PaymentsService {
 
     // Wrap entire operation in a transaction to prevent race conditions
     return this.tenant.client.$transaction(async (tx) => {
-      // Re-fetch payment inside transaction to prevent double-processing
-      const lockedPayment = await tx.payment.findFirst({
+      // Atomically CLAIM the pending→paid transition. A plain `findFirst pending`
+      // does not serialize concurrent transactions under read-committed, so
+      // overlapping confirmations (double-click verify×verify, or verify×webhook)
+      // would each create a membership + ledger credit. The guarded updateMany
+      // row-locks and re-checks status, so exactly one writer wins; the loser
+      // matches 0 rows and bails — no duplicate membership / double credit.
+      const claim = await tx.payment.updateMany({
         where: { id: payment.id, status: 'pending' },
+        data: {
+          gateway_payment_id: data.gateway_payment_id,
+          gateway_order_id: data.gateway_order_id,
+          status: 'paid',
+          paid_at: new Date(),
+        },
       });
-      if (!lockedPayment) {
+      if (claim.count !== 1) {
         throw new BadRequestException('Payment already processed or not found');
       }
 
-      // Create membership
+      // We now exclusively own the transition. `payment` holds the stable
+      // read-only fields (amount, receipt_number, payment_method, invoice_id)
+      // captured before the transaction.
       const startDate = new Date();
       const endDate = plan.duration_days
         ? new Date(startDate.getTime() + plan.duration_days * 86400000)
@@ -228,16 +241,10 @@ export class PaymentsService {
         include: { plan: true },
       });
 
-      // Update payment to paid
+      // Link the membership onto the now-paid payment.
       const updatedPayment = await tx.payment.update({
-        where: { id: lockedPayment.id },
-        data: {
-          membership_id: membership.id,
-          gateway_payment_id: data.gateway_payment_id,
-          gateway_order_id: data.gateway_order_id,
-          status: 'paid',
-          paid_at: new Date(),
-        },
+        where: { id: payment.id },
+        data: { membership_id: membership.id },
       });
 
       // Record financial transaction
@@ -249,7 +256,7 @@ export class PaymentsService {
           reference_id: updatedPayment.id,
           transaction_type: 'credit',
           amount: updatedPayment.amount,
-          description: `Gateway payment ${updatedPayment.receipt_number} via ${lockedPayment.payment_method}`,
+          description: `Gateway payment ${updatedPayment.receipt_number} via ${payment.payment_method}`,
         },
       });
 
@@ -260,8 +267,8 @@ export class PaymentsService {
       });
 
       // Update invoice if linked
-      if (lockedPayment.invoice_id) {
-        await this.billingService.recalculateInvoiceStatus(lockedPayment.invoice_id);
+      if (payment.invoice_id) {
+        await this.billingService.recalculateInvoiceStatus(payment.invoice_id);
       }
 
       return { payment: updatedPayment, membership };
@@ -391,14 +398,19 @@ export class PaymentsService {
     if (!payment) return; // Already processed or not found — idempotent
 
     await this.tenant.client.$transaction(async (tx) => {
-      await tx.payment.update({
-        where: { id: payment.id },
+      // Atomically CLAIM pending→paid. Razorpay delivers at-least-once, and this
+      // can race the frontend verify path; the guarded updateMany ensures only
+      // one writer transitions the payment and creates the ledger credit (the
+      // loser matches 0 rows and returns without double-crediting).
+      const claim = await tx.payment.updateMany({
+        where: { id: payment.id, status: 'pending' },
         data: {
           gateway_payment_id: gatewayPaymentId,
           status: 'paid',
           paid_at: new Date(),
         },
       });
+      if (claim.count !== 1) return; // lost the race — another writer already credited
 
       await tx.financialTransaction.create({
         data: {

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { EmailService } from '../../email/email.service';
 
 export interface AlertEmailMessage {
   to: string[];
@@ -12,6 +13,24 @@ export interface AlertEmailTransport {
 }
 
 export const ALERT_EMAIL_TRANSPORT = 'ALERT_EMAIL_TRANSPORT';
+
+/**
+ * Real transport: delivers critical alerts via the SCC EmailService (Resend).
+ * Throws on failure so AlertService leaves the SystemAlert row undelivered.
+ * Bound in system-monitoring.module when RESEND_API_KEY is configured.
+ */
+@Injectable()
+export class ResendAlertEmailTransport implements AlertEmailTransport {
+  constructor(private readonly email: EmailService) {}
+
+  async send(message: AlertEmailMessage): Promise<void> {
+    await this.email.sendRaw({
+      to: message.to,
+      subject: message.subject,
+      text: message.text,
+    });
+  }
+}
 
 /**
  * Default transport: logs the alert instead of sending.

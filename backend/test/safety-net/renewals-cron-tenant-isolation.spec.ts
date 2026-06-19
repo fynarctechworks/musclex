@@ -25,6 +25,7 @@
 import { Logger } from '@nestjs/common';
 import { RenewalsService } from '../../src/members/renewals.service';
 import { tenantContext, getTenantGymId } from '../../src/common/tenant-context';
+import { makeTaskRunner, makeTenantAccessor } from './_cron-tenant-harness';
 
 const GYM_A = '11111111-1111-1111-1111-111111111111';
 const GYM_B = '22222222-2222-2222-2222-222222222222';
@@ -35,11 +36,14 @@ type CapturedWrite = {
   ambientGymId: string | undefined;
 };
 
-function buildHarness(memberships: any[]) {
-  const writes: CapturedWrite[] = [];
-  const statusUpdates: Array<{ id: string; ambientGymId: string | undefined }> = [];
-
-  // Mock tx — the object passed into the $transaction callback.
+// One gym's tenant client. Under the migrated architecture each gym's body runs
+// in its own schema, so findMany returns ONLY that gym's candidates and writes
+// take gym_id from the iteration context (forEachTenant), never from the row.
+function makeGymClient(
+  candidates: any[],
+  writes: CapturedWrite[],
+  statusUpdates: Array<{ id: string; ambientGymId: string | undefined }>,
+) {
   const tx: any = {
     memberMembership: {
       update: jest.fn(async ({ where, data }: any) => {
@@ -59,26 +63,43 @@ function buildHarness(memberships: any[]) {
     },
   };
 
-  const prisma: any = {
+  return {
     memberMembership: {
-      // The cron's outer findMany — we ignore any filter and just return both
-      // candidates, simulating the current bug (no gym_id filter is applied).
-      findMany: jest.fn().mockResolvedValue(memberships),
+      findMany: jest.fn().mockResolvedValue(candidates),
     },
     $transaction: jest.fn(async (fn: any) => fn(tx)),
   };
+}
 
+function buildHarness(memberships: any[]) {
+  const writes: CapturedWrite[] = [];
+  const statusUpdates: Array<{ id: string; ambientGymId: string | undefined }> = [];
+
+  // Partition the seeded memberships by their owning gym — each gym's schema
+  // only ever returns its own rows.
+  const gymIds = [...new Set(memberships.map((m) => m.gym_id).filter(Boolean))];
+  const clientByGym: Record<string, any> = {};
+  for (const gid of gymIds) {
+    clientByGym[gid] = makeGymClient(
+      memberships.filter((m) => m.gym_id === gid),
+      writes,
+      statusUpdates,
+    );
+  }
+
+  const tenant = makeTenantAccessor(clientByGym);
+  const tasks = makeTaskRunner(gymIds);
   const cronLock: any = {
     withLock: jest.fn(async (_name: string, cb: () => Promise<unknown>) => cb()),
   };
 
-  const service = new RenewalsService(prisma, cronLock);
+  const service = new RenewalsService(tenant, tasks, cronLock);
   // Silence the verbose logger output during the test run.
   jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
   jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
   jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => undefined);
 
-  return { service, prisma, tx, writes, statusUpdates };
+  return { service, writes, statusUpdates };
 }
 
 function makeMembership(opts: { id: string; gymId: string; branchId: string; memberId: string; planPrice: number }) {
@@ -168,21 +189,18 @@ describe('SAFETY-NET / RenewalsService.handleAutoRenewals tenant isolation (B1)'
     expect(tenantContext.getStore()).toBeUndefined();
   });
 
-  it('skips (and counts as failed) any candidate that somehow lacks a gym_id, rather than writing under the wrong/empty scope', async () => {
-    const ghost = makeMembership({
-      id: 'mm-ghost',
-      gymId: '', // simulate corrupt/missing source gym_id
-      branchId: 'branch-X',
-      memberId: 'member-X',
-      planPrice: 500,
-    });
-    (ghost as any).gym_id = null;
-
-    const { service, writes } = buildHarness([ghost]);
+  it('is a safe no-op when there are no processable tenants — never writes under an undefined/empty scope', async () => {
+    // Migration note: gym_id is now taken from the per-gym iteration context
+    // (forEachTenant), never from the candidate row — so a "row with a bad
+    // gym_id" is no longer the failure mode. The equivalent isolation guarantee
+    // is that with no registered/processable tenant, the cron does nothing and
+    // never issues a write under an undefined ambient scope.
+    const { service, writes } = buildHarness([]);
     const result = await service.handleAutoRenewals();
 
-    expect(result).toEqual({ renewed: 0, failed: 1 });
-    // No writes happened — failed safe rather than processing under undefined scope.
+    expect(result).toEqual({ renewed: 0, failed: 0 });
     expect(writes).toHaveLength(0);
+    // No ambient context leaked out of the cron.
+    expect(tenantContext.getStore()).toBeUndefined();
   });
 });

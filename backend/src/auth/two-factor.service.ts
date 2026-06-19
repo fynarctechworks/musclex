@@ -11,8 +11,8 @@ import { JwtService } from '@nestjs/jwt';
 import * as speakeasy from 'speakeasy';
 import * as QRCode from 'qrcode';
 import { randomBytes, createHash, createCipheriv, createDecipheriv } from 'crypto';
-import { Resend } from 'resend';
 import { Prisma } from '../../node_modules/.prisma/client-public';
+import { EmailService } from '../email/email.service';
 import { AuthSessionService } from './auth-session.service';
 import { AuthDeviceService } from './auth-device.service';
 import { AuthLoginHistoryService } from './auth-login-history.service';
@@ -36,7 +36,6 @@ interface PendingSession {
 @Injectable()
 export class TwoFactorService {
   private supabase: SupabaseClient;
-  private resend: Resend | null = null;
   private readonly logger = new Logger(TwoFactorService.name);
   private readonly encryptionKey: Buffer;
   private readonly frontendUrl: string;
@@ -52,6 +51,7 @@ export class TwoFactorService {
     private deviceService: AuthDeviceService,
     private loginHistoryService: AuthLoginHistoryService,
     private rbacService: RbacService,
+    private emailService: EmailService,
   ) {
     this.supabase = createClient(
       this.configService.get<string>('SUPABASE_URL', ''),
@@ -65,11 +65,6 @@ export class TwoFactorService {
     }
     this.encryptionKey = createHash('sha256').update(keySource).digest();
 
-    // Resend email client
-    const resendKey = this.configService.get<string>('RESEND_API_KEY', '');
-    if (resendKey) {
-      this.resend = new Resend(resendKey);
-    }
     this.frontendUrl = this.configService
       .get('CORS_ORIGINS', 'http://localhost:3000')
       .split(',')[0]
@@ -673,19 +668,8 @@ export class TwoFactorService {
     name: string,
     recoveryUrl: string,
   ) {
-    if (!this.resend) {
-      this.logger.warn(
-        `No RESEND_API_KEY — 2FA recovery link for ${email}: ${recoveryUrl}`,
-      );
-      return;
-    }
     try {
-      const fromEmail = this.configService.get(
-        'RESEND_FROM_EMAIL',
-        'MuscleX <security@musclex.com>',
-      );
-      await this.resend.emails.send({
-        from: fromEmail,
+      await this.emailService.sendRaw({
         to: email,
         subject: 'Reset your two-factor authentication — MuscleX',
         html: `
@@ -720,17 +704,8 @@ export class TwoFactorService {
   }
 
   private async send2faResetNotification(email: string, name: string) {
-    if (!this.resend) {
-      this.logger.warn(`No RESEND_API_KEY — skipping 2FA reset notification to ${email}`);
-      return;
-    }
     try {
-      const fromEmail = this.configService.get(
-        'RESEND_FROM_EMAIL',
-        'MuscleX <security@musclex.com>',
-      );
-      await this.resend.emails.send({
-        from: fromEmail,
+      await this.emailService.sendRaw({
         to: email,
         subject: '⚠️ Two-factor authentication was reset — MuscleX',
         html: `

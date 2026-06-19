@@ -12,8 +12,9 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { PrismaService } from '../prisma/prisma.service';
 import { PublicPrismaService } from '../prisma/public-prisma.service';
 import { randomBytes, createCipheriv, createDecipheriv, pbkdf2Sync } from 'crypto';
-import { Resend } from 'resend';
 import { tenantContext } from '../common/tenant-context';
+import { EmailService } from '../email/email.service';
+import { EmailTemplateId } from '../email/email.types';
 import {
   LoginDto,
   ForgotPasswordDto,
@@ -58,7 +59,6 @@ export interface LoginContext {
 @Injectable()
 export class AuthService {
   private supabase: SupabaseClient;
-  private resend: Resend | null = null;
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
@@ -79,17 +79,12 @@ export class AuthService {
     private sccSync: SccSyncService,
     private subscriptionPolicy: SubscriptionPolicyService,
     private razorpay: RazorpayService,
+    private emailService: EmailService,
   ) {
     this.supabase = createClient(
       this.configService.get<string>('SUPABASE_URL', ''),
       this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY', ''),
     );
-    const resendKey = this.configService.get<string>('RESEND_API_KEY', '');
-    if (resendKey) {
-      this.resend = new Resend(resendKey);
-    } else {
-      this.logger.warn('RESEND_API_KEY not set — verification emails will only be logged to console');
-    }
   }
 
   /**
@@ -734,7 +729,31 @@ export class AuthService {
   }
 
   async resetPassword(dto: ResetPasswordDto) {
-    const { error } = await this.supabase.auth.admin.updateUserById(dto.otp, {
+    // Verify the Supabase recovery session SERVER-SIDE. The frontend exchanges
+    // the emailed recovery code/hash for a session and posts its access_token
+    // here; we re-validate that token with Supabase and derive the user id FROM
+    // the verified token — never from client-supplied input. This closes the
+    // account-takeover hole where any caller could pass an arbitrary user id to
+    // `updateUserById` and set that account's password without holding the
+    // recovery link (the endpoint is public/unauthenticated).
+    let userId: string;
+    try {
+      const { data, error } = await this.supabase.auth.getUser(dto.access_token);
+      if (error || !data.user) {
+        throw new BadRequestException(
+          'Invalid or expired reset link. Please request a new one.',
+        );
+      }
+      userId = data.user.id;
+    } catch (err) {
+      if (err instanceof BadRequestException) throw err;
+      this.logger.warn(`resetPassword token verification failed: ${(err as Error).message}`);
+      throw new BadRequestException(
+        'Invalid or expired reset link. Please request a new one.',
+      );
+    }
+
+    const { error } = await this.supabase.auth.admin.updateUserById(userId, {
       password: dto.new_password,
     });
 
@@ -948,13 +967,16 @@ export class AuthService {
   async register(dto: RegisterDto) {
     // Check if email already has a completed account in Supabase Auth
     const { data: listData } = await this.supabase.auth.admin.listUsers({ perPage: 1000 });
-    const existingAuthUser = (listData?.users as unknown as Array<{ id: string; email?: string; user_metadata?: Record<string, unknown> }>)
+    const existingAuthUser = (listData?.users as unknown as Array<{ id: string; email?: string; email_confirmed_at?: string | null; user_metadata?: Record<string, unknown> }>)
       ?.find((u) => u.email === dto.email);
     if (existingAuthUser) {
       const meta = existingAuthUser.user_metadata || {};
-      // If user exists but never completed onboarding (no studio_id),
-      // reset their metadata and allow re-registration through the normal flow
-      if (!meta.studio_id) {
+      // Re-registration of an incomplete account (no studio_id): only fast-path
+      // an account whose email is ALREADY verified in Supabase. This is not a
+      // bypass — the email was confirmed when the account was first created; we
+      // never issue a session for an unverified address. An unconfirmed account
+      // falls through to the normal pending-registration + verification flow.
+      if (!meta.studio_id && existingAuthUser.email_confirmed_at) {
         await this.supabase.auth.admin.updateUserById(existingAuthUser.id, {
           password: dto.password,
           user_metadata: {
@@ -983,7 +1005,10 @@ export class AuthService {
         return {
           success: true,
           email: dto.email,
-          skip_verification: true,
+          // The account's email is already verified (guarded above) — the client
+          // can proceed straight to onboarding rather than the "check your email"
+          // screen. This is not an unverified login.
+          already_verified: true,
           access_token: signInData?.session?.access_token,
           refresh_token: signInData?.session?.refresh_token,
           user: {
@@ -1021,16 +1046,19 @@ export class AuthService {
 
     const frontendUrl = this.getAppFrontendUrl();
     const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
-    this.logger.log(`📧 Verification link for ${dto.email}: ${verificationUrl}`);
-    const emailSent = await this.sendVerificationEmail(dto.email, dto.full_name, verificationUrl);
-
-    // Always return verification_url if email delivery failed (domain not verified, etc.)
-    // so the user can still verify via the link shown in the UI
-    const result: Record<string, unknown> = { success: true, email: dto.email };
-    if (!emailSent) {
-      result.verification_url = verificationUrl;
+    // Dev convenience only — never log verification links in production.
+    if (process.env.NODE_ENV !== 'production') {
+      this.logger.log(`📧 Verification link (dev) for ${dto.email}: ${verificationUrl}`);
     }
-    return result;
+    const emailSent = await this.sendVerificationEmail(dto.email, dto.full_name, verificationUrl);
+    if (!emailSent) {
+      // Do NOT leak the verification link to the client. Surface a clear error so
+      // the user can retry; the link reaches them only via real email delivery.
+      this.logger.error(`Verification email could not be delivered to ${dto.email}`);
+    }
+
+    // The token/link is intentionally never returned to the client.
+    return { success: true, email: dto.email };
   }
 
   // ── Email Verification (creates Supabase account after token validated) ──────
@@ -1197,14 +1225,16 @@ export class AuthService {
 
     const frontendUrl = this.getAppFrontendUrl();
     const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
-    this.logger.log(`📧 Resent verification for ${email}: ${verificationUrl}`);
-    const emailSent = await this.sendVerificationEmail(email, pending.full_name, verificationUrl);
-
-    const result: Record<string, unknown> = { sent: true };
-    if (!emailSent) {
-      result.verification_url = verificationUrl;
+    if (process.env.NODE_ENV !== 'production') {
+      this.logger.log(`📧 Resent verification (dev) for ${email}: ${verificationUrl}`);
     }
-    return result;
+    const emailSent = await this.sendVerificationEmail(email, pending.full_name, verificationUrl);
+    if (!emailSent) {
+      this.logger.error(`Resent verification email could not be delivered to ${email}`);
+    }
+
+    // The token/link is intentionally never returned to the client.
+    return { sent: true };
   }
 
   // ── Send Verification Email ──────────────────────────────
@@ -1236,52 +1266,15 @@ export class AuthService {
     name: string,
     verificationUrl: string,
   ): Promise<boolean> {
-    if (!this.resend) {
-      this.logger.warn(`No RESEND_API_KEY — skipping email to ${email}. Use console link above.`);
-      return false;
-    }
-    try {
-      const fromEmail = this.configService.get(
-        'RESEND_FROM_EMAIL',
-        'MuscleX <onboarding@resend.dev>',
-      );
-      const { error } = await this.resend.emails.send({
-        from: fromEmail,
-        to: email,
-        subject: 'Verify your MuscleX account',
-        html: `
-          <div style="font-family: 'Inter', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
-            <div style="text-align: center; margin-bottom: 32px;">
-              <div style="display: inline-block; background: #3ECF8E; border-radius: 8px; width: 40px; height: 40px; line-height: 40px; text-align: center;">
-                <span style="color: #171717; font-weight: bold; font-size: 18px;">M</span>
-              </div>
-              <p style="font-size: 16px; font-weight: 600; color: #171717; margin: 8px 0 0;">MuscleX</p>
-            </div>
-            <h1 style="font-size: 22px; font-weight: 700; color: #171717; margin-bottom: 8px;">Verify your email</h1>
-            <p style="font-size: 14px; color: #666; line-height: 1.6; margin-bottom: 24px;">
-              Hi${name ? ` ${name}` : ''}, thanks for signing up! Click the button below to verify your email address and continue setting up your studio.
-            </p>
-            <div style="text-align: center; margin-bottom: 24px;">
-              <a href="${verificationUrl}" style="display: inline-block; background: #3ECF8E; color: #171717; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">Verify Email Address</a>
-            </div>
-            <p style="font-size: 12px; color: #999; line-height: 1.5;">
-              This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.
-            </p>
-            <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-            <p style="font-size: 11px; color: #bbb; text-align: center;">MuscleX — The complete operating system for modern fitness studios.</p>
-          </div>
-        `,
-      });
-      if (error) {
-        this.logger.warn(`⚠️ Resend rejected email to ${email}: ${error.message} — returning verification_url as fallback`);
-        return false;
-      }
-      this.logger.log(`✅ Verification email sent to ${email}`);
-      return true;
-    } catch (err) {
-      this.logger.error(`❌ Failed to send verification email to ${email}: ${err.message}`);
-      return false;
-    }
+    // Centralized branded delivery. "Sent" = delivered inline OR accepted by the
+    // queue; either way the user will get the email and no link should be leaked.
+    const result = await this.emailService.send({
+      to: email,
+      templateId: EmailTemplateId.VerifyEmail,
+      data: { name, verificationUrl, expiresInHours: 24 },
+      dedupeKey: `verify:${email}`,
+    });
+    return result.delivered || result.queued;
   }
 
   // ── AES-256-GCM Password Encryption (for temporary pending_registrations storage) ──
@@ -1898,6 +1891,9 @@ export class AuthService {
       // Honor the plan the user paid for during onboarding.
       new_plan: dto.plan_id || studio.subscription_plan,
       new_billing_cycle: studio.billing_cycle,
+      // Idempotency key — a replayed onboarding payment (double-submit) won't
+      // grant a second billing period or duplicate invoice.
+      payment_reference: paymentReference,
       metadata: {
         source: 'onboarding',
         payment_method: paymentMethod,

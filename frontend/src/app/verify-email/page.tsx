@@ -23,11 +23,9 @@ function VerifyEmailContent() {
   const [resending, setResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [email, setEmail] = useState('');
-  const [devVerifyUrl, setDevVerifyUrl] = useState('');
 
   useEffect(() => {
     setEmail(sessionStorage.getItem('pendingEmail') || '');
-    setDevVerifyUrl(sessionStorage.getItem('devVerificationUrl') || '');
   }, []);
 
   // Cooldown timer
@@ -104,13 +102,9 @@ function VerifyEmailContent() {
 
     setResending(true);
     try {
-      const res = await authApi.resendVerification(pendingEmail);
+      await authApi.resendVerification(pendingEmail);
       toast.success('Verification email sent! Check your inbox.');
       setCooldown(60);
-      if (res.verification_url) {
-        sessionStorage.setItem('devVerificationUrl', res.verification_url);
-        setDevVerifyUrl(res.verification_url);
-      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to resend email';
       if (msg.includes('No pending registration')) {
@@ -123,25 +117,6 @@ function VerifyEmailContent() {
       setResending(false);
     }
   }, [email, router]);
-
-  // Dev/testing shortcut: the stored verification URL may carry a stale host/port
-  // (e.g. an old FRONTEND_URL). Pull just the token out and re-verify against the
-  // CURRENT origin so the click can never die on a refused connection. The real
-  // /auth/verify-email endpoint runs either way — this is not an auth bypass.
-  const handleDevVerify = useCallback(() => {
-    let verifyToken = '';
-    try {
-      verifyToken = new URL(devVerifyUrl).searchParams.get('token') || '';
-    } catch {
-      verifyToken = devVerifyUrl.match(/token=([^&]+)/)?.[1] ?? '';
-    }
-    if (!verifyToken) {
-      toast.error('No verification token available. Please resend the email.');
-      return;
-    }
-    // Same-route push: the auto-verify effect re-fires on the new ?token=.
-    router.push(`/verify-email?token=${verifyToken}`);
-  }, [devVerifyUrl, router]);
 
   // Token verification in progress
   if (status === 'verifying') {
@@ -223,22 +198,6 @@ function VerifyEmailContent() {
         <p className="text-[13px] text-muted-foreground leading-relaxed max-w-[300px] mx-auto">
           Click the link in the email to verify your account and continue setting up your studio. The link expires in 24 hours.
         </p>
-
-        {/* Fallback: show direct verification link if email delivery failed */}
-        {devVerifyUrl && (
-          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-center">
-            <p className="text-[13px] text-muted-foreground mb-3">
-              Having trouble receiving the email? Verify directly using the button below:
-            </p>
-            <button
-              type="button"
-              onClick={handleDevVerify}
-              className="inline-block bg-primary text-primary-foreground px-5 py-2.5 rounded-lg text-[13px] font-semibold hover:opacity-90 transition-opacity"
-            >
-              Verify My Email →
-            </button>
-          </div>
-        )}
 
         <div className="pt-2 space-y-3">
           <Button

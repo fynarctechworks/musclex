@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MembersService } from '../../src/members/members.service';
-import { PrismaService } from '../../src/prisma/prisma.service';
+import { PublicPrismaService } from '../../src/prisma/public-prisma.service';
+import { TenantPrisma } from '../../src/prisma/tenant-prisma.accessor';
 import { ResourceLimitService } from '../../src/common/services/resource-limit.service';
 import { QueueService } from '../../src/queue/queue.service';
 import { EventStoreService } from '../../src/events/event-store.service';
@@ -61,7 +62,12 @@ describe('MembersService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MembersService,
-        { provide: PrismaService, useValue: prisma },
+        // Migration (feat/per-gym-schemas): MembersService is fully on Road B
+        // clients — registry reads via PublicPrismaService, tenant reads/writes
+        // via TenantPrisma.client. Both resolve to the same mock so the existing
+        // `prisma.member.*` assertions still hold.
+        { provide: PublicPrismaService, useValue: prisma },
+        { provide: TenantPrisma, useValue: { client: prisma } },
         { provide: ResourceLimitService, useValue: mockResourceLimitService },
         { provide: QueueService, useValue: mockQueueService },
         { provide: EventStoreService, useValue: mockEventStoreService },
@@ -275,25 +281,17 @@ describe('MembersService', () => {
         findFirst: jest.fn().mockResolvedValue(null),
       };
 
-      // Simulate two studios. After the fix, the query will bind the current
-      // gym id. Before the fix, it has no bindings — return gym B's settings
-      // to represent an arbitrary wrong row.
-      prisma.$queryRaw.mockImplementation((_strings: any, ...values: any[]) => {
-        const boundGymId = values[0];
-        if (boundGymId === GYM_A) {
-          return Promise.resolve([
-            { referral_free_days: 5, referral_reward_days: 0 },
-          ]);
-        }
-        if (boundGymId === GYM_B) {
-          return Promise.resolve([
-            { referral_free_days: 99, referral_reward_days: 0 },
-          ]);
-        }
-        // No binding present (current buggy LIMIT 1) — arbitrary row wins.
-        return Promise.resolve([
-          { referral_free_days: 99, referral_reward_days: 0 },
-        ]);
+      // Migration (feat/per-gym-schemas): the R1 isolation fix is already in —
+      // referral settings now come from `this.pub.studio.findUnique({ where: {
+      // id: currentStudioId }})`, keyed by the trusted tenant gym id, NOT a bare
+      // `SELECT ... LIMIT 1`. So the test simulates two studios via findUnique:
+      // gym A gets 5 free days, gym B gets 99. Under gym A's context we MUST read
+      // gym A's row (5), never gym B's (99).
+      prisma.studio.findUnique = jest.fn().mockImplementation(async (args: any) => {
+        const id = args?.where?.id;
+        if (id === GYM_A) return { referral_free_days: 5, referral_reward_days: 0 };
+        if (id === GYM_B) return { referral_free_days: 99, referral_reward_days: 0 };
+        return null;
       });
     }
 

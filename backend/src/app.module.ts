@@ -29,6 +29,7 @@ import { WalletModule } from './wallet/wallet.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { PlatformModule } from './platform/platform.module';
 import { QueueModule } from './queue/queue.module';
+import { EmailModule } from './email/email.module';
 import { SearchModule } from './search/search.module';
 import { ComplianceModule } from './compliance/compliance.module';
 import { ReferralsModule } from './referrals/referrals.module';
@@ -110,6 +111,7 @@ import { SentryTenantMiddleware } from './common/sentry/sentry-tenant.middleware
     AnalyticsModule,
     PlatformModule,
     QueueModule.register(),
+    EmailModule,
     SearchModule,
     ComplianceModule,
     ReferralsModule,

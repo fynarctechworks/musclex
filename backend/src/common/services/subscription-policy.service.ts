@@ -390,6 +390,14 @@ export class SubscriptionPolicyService {
      */
     new_plan?: string;
     new_billing_cycle?: string;
+    /**
+     * Gateway payment id / UTR for this renewal. When present, recordRenewal is
+     * idempotent on it: a replayed real payment (double-click, gateway retry)
+     * returns the prior renewal instead of granting a second billing period +
+     * duplicate invoice. NOTE: app-level dedup — fully race-proof handling needs
+     * a DB unique constraint (documented schema-backed follow-up, P1-M9-1).
+     */
+    payment_reference?: string;
   }): Promise<{
     period_start: Date;
     period_end: Date;
@@ -402,6 +410,7 @@ export class SubscriptionPolicyService {
     slug: string;
   }> {
     const now = params.now ?? new Date();
+    let replayed = false;
 
     const result = await this.pub.$transaction(async (tx) => {
       const studio = await tx.studio.findUnique({
@@ -417,6 +426,46 @@ export class SubscriptionPolicyService {
         },
       });
       if (!studio) throw new Error(`Studio ${params.studio_id} not found`);
+
+      // ── Idempotency guard ──────────────────────────────────────────────
+      // If a prior payment_recorded event already carries this payment_reference
+      // for this studio, this is a replay (double-click / gateway retry). Return
+      // the prior renewal instead of granting another period + duplicate invoice.
+      if (params.payment_reference) {
+        const prior = await tx.subscriptionEvent.findFirst({
+          where: {
+            studio_id: params.studio_id,
+            event_type: 'payment_recorded',
+            metadata: { path: ['payment_reference'], equals: params.payment_reference },
+          },
+          orderBy: { created_at: 'desc' },
+          select: {
+            period_start: true,
+            period_end: true,
+            plan_name: true,
+            billing_cycle: true,
+            metadata: true,
+          },
+        });
+        if (prior) {
+          replayed = true;
+          const meta = (prior.metadata ?? {}) as Record<string, unknown>;
+          this.logger.warn(
+            `recordRenewal idempotent replay for studio ${studio.id} (payment_reference=${params.payment_reference}) — returning prior renewal, no new period`,
+          );
+          return {
+            period_start: prior.period_start ?? studio.next_billing_date ?? now,
+            period_end: prior.period_end ?? studio.next_billing_date ?? now,
+            previous_status: studio.lifecycle_status as SubscriptionLifecycleStatus,
+            invoice_number: (meta.invoice_number as string) ?? '',
+            invoice_id: (meta.invoice_id as string) ?? '',
+            plan_changed: false,
+            plan: prior.plan_name ?? studio.subscription_plan,
+            billing_cycle: prior.billing_cycle ?? studio.billing_cycle,
+            slug: studio.slug,
+          };
+        }
+      }
 
       // Resolve target plan + billing cycle (defaults to current).
       const targetPlan = params.new_plan ?? studio.subscription_plan;
@@ -509,6 +558,9 @@ export class SubscriptionPolicyService {
           actor_type: params.actor_type ?? 'user',
           metadata: {
             ...(params.metadata ?? {}),
+            // Persist the dedup key explicitly so the idempotency guard above can
+            // find it regardless of how the caller threaded it.
+            ...(params.payment_reference ? { payment_reference: params.payment_reference } : {}),
             invoice_id: invoice.id,
             invoice_number: invoice.invoice_number,
           },
@@ -553,6 +605,12 @@ export class SubscriptionPolicyService {
         slug: studio.slug,
       };
     });
+
+    // On an idempotent replay no new invoice was created — skip the SCC mirror
+    // so a duplicate payment never lands in scc.payments either.
+    if (replayed) {
+      return result;
+    }
 
     // Mirror this SaaS billing invoice into the Control Center (scc.payments)
     // so the SCC /billing page reflects EVERY paid renewal — not just the first

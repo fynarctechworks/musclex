@@ -49,16 +49,24 @@ describe('SAFETY-NET / AuthService.login', () => {
     const mockEvents = { emit: jest.fn() };
     const mockScc = { syncStudio: jest.fn().mockResolvedValue(undefined) };
     const mockSubPolicy = { evaluateForUser: jest.fn() };
+    const mockRazorpay = {} as any;
+    const mockEmail = { send: jest.fn().mockResolvedValue({ delivered: true, queued: false }), sendRaw: jest.fn() } as any;
 
     const prisma: any = {
       userIdentity: {
         findUnique: jest.fn().mockResolvedValue({ two_factor_enabled: false }),
       },
     };
+    // Public-schema client (registry models) — login error paths don't touch it.
+    const mockPub: any = {
+      userIdentity: { findUnique: jest.fn().mockResolvedValue(null) },
+      studio: { findUnique: jest.fn().mockResolvedValue(null) },
+    };
 
     service = new AuthService(
       createMockConfigService() as any,
       prisma,
+      mockPub,
       mockIdentity,
       mockDevice as any,
       mockLoginHistory,
@@ -69,6 +77,8 @@ describe('SAFETY-NET / AuthService.login', () => {
       mockEvents as any,
       mockScc as any,
       mockSubPolicy as any,
+      mockRazorpay,
+      mockEmail,
     );
 
     // Replace the real Supabase client with a controllable stub.

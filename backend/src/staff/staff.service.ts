@@ -14,6 +14,7 @@ import { SetAvailabilityDto } from './dto/set-availability.dto';
 import { RecordAttendanceDto } from './dto/record-attendance.dto';
 import { CreateStaffShiftDto, UpdateStaffShiftDto } from './dto/create-staff-shift.dto';
 import { CreateLeaveRequestDto, ReviewLeaveRequestDto } from './dto/leave-request.dto';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class StaffService {
@@ -28,6 +29,7 @@ export class StaffService {
     private eventProjector: EventProjectorService,
     @Inject(forwardRef(() => StaffInviteService))
     private inviteService: StaffInviteService,
+    private emailService: EmailService,
   ) {}
 
   private stripSalary(staff: any, userRole: string): any {
@@ -697,17 +699,7 @@ export class StaffService {
       }
     }
 
-    // 2. Send emails
-    const resendKey = this.configService.get<string>('RESEND_API_KEY');
-    if (!resendKey) {
-      this.logger.warn('RESEND_API_KEY not configured — leave notification emails skipped');
-      return;
-    }
-
-    const { Resend } = await import('resend');
-    const resend = new Resend(resendKey);
-    const fromEmail = this.configService.get<string>('RESEND_FROM_EMAIL', 'MuscleX <noreply@musclex.app>');
-
+    // 2. Send emails (centralized provider seam)
     const toEmails = recipients.filter((r) => isTo(r.id) && r.email).map((r) => r.email!);
     const ccEmails = recipients.filter((r) => !isTo(r.id) && r.email).map((r) => r.email!);
 
@@ -730,17 +722,16 @@ export class StaffService {
     `;
 
     try {
-      const { error } = await resend.emails.send({
-        from: fromEmail,
+      const result = await this.emailService.sendRaw({
         to: toEmails.length > 0 ? toEmails : ccEmails,
-        cc: toEmails.length > 0 ? ccEmails : undefined,
+        cc: toEmails.length > 0 && ccEmails.length > 0 ? ccEmails : undefined,
         subject,
         html,
       });
-      if (error) {
-        this.logger.warn(`Leave email error: ${JSON.stringify(error)}`);
-      } else {
+      if (result.delivered) {
         this.logger.log(`Leave notification email sent to: ${[...toEmails, ...ccEmails].join(', ')}`);
+      } else {
+        this.logger.warn('Leave notification email not delivered (no provider configured or send failed)');
       }
     } catch (err) {
       this.logger.warn(`Leave notification email failed: ${(err as Error).message}`);

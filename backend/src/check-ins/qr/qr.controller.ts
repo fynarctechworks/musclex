@@ -47,8 +47,12 @@ export class QrController {
     @CurrentUser() user: JwtPayload,
     @Param('id', new ParseUUIDPipe()) memberId: string,
   ) {
-    const member = await this.prisma.member.findUnique({
-      where: { id: memberId },
+    // Scope by gym_id: a caller authenticated for one gym must not be able to
+    // read another gym's member (or mint a QR token for them) by passing a raw
+    // member UUID. findUnique-by-id can't be gym-scoped by the tenant middleware
+    // (R3 fails-open), so we filter explicitly on the caller's studio_id.
+    const member = await this.prisma.member.findFirst({
+      where: { id: memberId, gym_id: user.studio_id },
       select: { id: true, qr_version: true, full_name: true, member_code: true },
     });
     if (!member) throw new NotFoundException('Member not found');
@@ -74,6 +78,16 @@ export class QrController {
     @CurrentUser() user: JwtPayload,
     @Param('id', new ParseUUIDPipe()) memberId: string,
   ) {
+    // Verify the member belongs to the caller's gym BEFORE the write. Without
+    // this, a staff member at one gym could bump another gym's member
+    // qr_version and invalidate that gym's QR cards (cross-tenant tampering/DoS),
+    // because update-by-id can't be gym-scoped by the tenant middleware (R3).
+    const owned = await this.prisma.member.findFirst({
+      where: { id: memberId, gym_id: user.studio_id },
+      select: { id: true },
+    });
+    if (!owned) throw new NotFoundException('Member not found');
+
     const updated = await this.prisma.member.update({
       where: { id: memberId },
       data: {
@@ -108,8 +122,9 @@ export class QrController {
     @CurrentUser() user: JwtPayload,
     @Param('id', new ParseUUIDPipe()) memberId: string,
   ) {
-    const member = await this.prisma.member.findUnique({
-      where: { id: memberId },
+    // Gym-scoped (see getStatic) — no cross-tenant member read / token mint.
+    const member = await this.prisma.member.findFirst({
+      where: { id: memberId, gym_id: user.studio_id },
       select: { id: true, member_code: true },
     });
     if (!member) throw new NotFoundException('Member not found');

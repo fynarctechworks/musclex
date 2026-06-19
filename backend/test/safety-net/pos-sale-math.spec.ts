@@ -84,7 +84,13 @@ function buildMocks() {
   };
   const bundleService: any = { checkAvailability: jest.fn(), buildSaleLines: jest.fn() };
 
-  return { prisma, batchService, walletService, bundleService, created };
+  // Migration (feat/per-gym-schemas): PosService now takes (pub, tenant, ...) and
+  // reads the studio GST row via `this.pub.studio` while everything else goes
+  // through `this.tenant.client.*`. Split the flat mock to match.
+  const pub: any = { studio: prisma.studio };
+  const tenant: any = { client: prisma };
+
+  return { prisma, pub, tenant, batchService, walletService, bundleService, created };
 }
 
 function withTenant<T>(fn: () => Promise<T>): Promise<T> {
@@ -102,8 +108,8 @@ function withTenant<T>(fn: () => Promise<T>): Promise<T> {
 
 describe('SAFETY-NET / PosService.createSale — money math', () => {
   it('computes subtotal, tax and total correctly for a simple cash sale', async () => {
-    const { prisma, batchService, walletService, bundleService, created } = buildMocks();
-    const service = new PosService(prisma, batchService, walletService, bundleService);
+    const { prisma, pub, tenant, batchService, walletService, bundleService, created } = buildMocks();
+    const service = new PosService(pub, tenant, batchService, walletService, bundleService);
 
     const sale: any = await withTenant(() =>
       service.createSale({
@@ -131,8 +137,8 @@ describe('SAFETY-NET / PosService.createSale — money math', () => {
   });
 
   it('clamps total to zero when manual discount exceeds the bill', async () => {
-    const { prisma, batchService, walletService, bundleService, created } = buildMocks();
-    const service = new PosService(prisma, batchService, walletService, bundleService);
+    const { pub, tenant, batchService, walletService, bundleService, created } = buildMocks();
+    const service = new PosService(pub, tenant, batchService, walletService, bundleService);
 
     await withTenant(() =>
       service.createSale({
@@ -150,8 +156,8 @@ describe('SAFETY-NET / PosService.createSale — money math', () => {
   });
 
   it('rejects a cart line that names both product_id and bundle_id', async () => {
-    const { prisma, batchService, walletService, bundleService } = buildMocks();
-    const service = new PosService(prisma, batchService, walletService, bundleService);
+    const { pub, tenant, batchService, walletService, bundleService } = buildMocks();
+    const service = new PosService(pub, tenant, batchService, walletService, bundleService);
 
     await expect(
       withTenant(() =>
@@ -166,8 +172,8 @@ describe('SAFETY-NET / PosService.createSale — money math', () => {
   });
 
   it('rejects a cart line that names neither product_id nor bundle_id', async () => {
-    const { prisma, batchService, walletService, bundleService } = buildMocks();
-    const service = new PosService(prisma, batchService, walletService, bundleService);
+    const { pub, tenant, batchService, walletService, bundleService } = buildMocks();
+    const service = new PosService(pub, tenant, batchService, walletService, bundleService);
 
     await expect(
       withTenant(() =>

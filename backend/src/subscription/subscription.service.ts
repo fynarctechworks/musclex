@@ -350,6 +350,9 @@ export class SubscriptionService {
         currency: params.currency ?? 'INR',
         new_plan: params.plan ? targetPlan : undefined,
         new_billing_cycle: params.billing_cycle ? targetCycle : undefined,
+        // Dedup key — makes recordRenewal idempotent against a replayed payment
+        // (double-click / gateway retry) so it can't double-bill the gym.
+        payment_reference: params.payment_reference,
         metadata: {
           payment_reference: params.payment_reference,
           payment_method: method,

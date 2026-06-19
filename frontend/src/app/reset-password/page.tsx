@@ -25,7 +25,10 @@ function ResetPasswordContent() {
 
   const [loading, setLoading] = useState(false);
   const [exchanging, setExchanging] = useState(!!code);
-  const [userId, setUserId] = useState<string | null>(null);
+  // The verified Supabase recovery session access token. Sent to the backend,
+  // which re-verifies it server-side and derives the user from it — we never
+  // send a raw user id (that was an account-takeover hole).
+  const [recoveryToken, setRecoveryToken] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [done, setDone] = useState(false);
   const [exchangeError, setExchangeError] = useState('');
@@ -66,12 +69,12 @@ function ResetPasswordContent() {
           session = data.session;
         }
 
-        if (!session?.user?.id) {
+        if (!session?.access_token) {
           throw new Error('Could not verify recovery link. It may have expired.');
         }
 
         if (!cancelled) {
-          setUserId(session.user.id);
+          setRecoveryToken(session.access_token);
           setExchanging(false);
         }
       } catch (err) {
@@ -88,7 +91,7 @@ function ResetPasswordContent() {
 
   // Also try to handle hash-only redirects (no code param)
   useEffect(() => {
-    if (code || userId) return;
+    if (code || recoveryToken) return;
     const hash = window.location.hash;
     if (!hash) return;
 
@@ -101,15 +104,15 @@ function ResetPasswordContent() {
       setExchanging(true);
       supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
         .then(({ data, error }) => {
-          if (error || !data.session?.user?.id) {
+          if (error || !data.session?.access_token) {
             setExchangeError('Invalid or expired reset link.');
           } else {
-            setUserId(data.session.user.id);
+            setRecoveryToken(data.session.access_token);
           }
           setExchanging(false);
         });
     }
-  }, [code, userId]);
+  }, [code, recoveryToken]);
 
   const onSubmit = async (data: ResetFormData) => {
     if (data.password !== data.confirm_password) {
@@ -117,14 +120,14 @@ function ResetPasswordContent() {
       return;
     }
 
-    if (!userId) {
+    if (!recoveryToken) {
       toast.error('Missing recovery token. Please request a new reset link.');
       return;
     }
 
     setLoading(true);
     try {
-      await authApi.resetPassword(userId, data.password);
+      await authApi.resetPassword(recoveryToken, data.password);
       setDone(true);
       toast.success('Password reset successfully!');
       setTimeout(() => router.push('/login'), 2000);
@@ -177,7 +180,7 @@ function ResetPasswordContent() {
   }
 
   // No code/hash — user navigated directly, show error
-  if (!userId && !code) {
+  if (!recoveryToken && !code) {
     return (
       <AuthLayout heading="Reset your password" subheading="Use the link from your email to reset your password.">
         <div className="text-center space-y-4">

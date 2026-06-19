@@ -6,6 +6,7 @@ import { AccessDenied } from "@/components/shared/access-denied";
 import { FormInput, FormSelect, FormTextarea, FieldWrapper } from "@/components/shared/form-fields";
 import { Input } from "@/components/ui/input";
 import { useRequirePermission } from "@/hooks/use-require-permission";
+import { useEntitlement, LockedFeatureCard } from "@/features/entitlements";
 import { apiClient } from "@/lib/api";
 import { ClassItem, Staff, Branch } from "@/lib/types";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -151,6 +152,7 @@ interface CreateClassForm {
 
 export default function SchedulePage() {
   const { allowed, checked } = useRequirePermission("classes", "view", "deny");
+  const { locked: planLocked } = useEntitlement("class_scheduling");
   const { gymPath, gymSlug } = useGymSlug();
   const { activeBranchId } = useAuthStore();
   const queryClient = useQueryClient();
@@ -256,6 +258,20 @@ export default function SchedulePage() {
     return (
       <AppLayout>
         <AccessDenied module="classes" />
+      </AppLayout>
+    );
+  }
+
+  // Plan-tier lock (show-everything-but-locked): render the page shell + an upsell card
+  // instead of the live schedule. Backend stays authoritative — class endpoints 403 regardless.
+  if (planLocked) {
+    return (
+      <AppLayout>
+        <div className="flex items-center gap-3 mb-4">
+          <CalendarDays className="w-6 h-6 text-primary" />
+          <h1 className="text-xl font-semibold text-foreground">Class Schedule</h1>
+        </div>
+        <LockedFeatureCard feature="class_scheduling" source="schedule_page" />
       </AppLayout>
     );
   }

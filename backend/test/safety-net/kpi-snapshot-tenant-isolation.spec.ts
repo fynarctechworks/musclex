@@ -33,14 +33,28 @@ function buildHarness(studios: Array<{ id: string; owner_user_id: string }>) {
   const pulseAmbient: Array<{ studioId: string; gymId: string | undefined }> = [];
   const writes: Array<{ args: any[]; gymId: string | undefined }> = [];
 
-  const prisma: any = {
+  // Migration (feat/per-gym-schemas): the cron reads studios from the REGISTRY
+  // (`this.pub.studio`) and needs each to carry a valid `schema_name` (else it
+  // skips them), then writes snapshot rows via `this.tenant.client.*` inside the
+  // per-studio tenantContext.run it establishes itself.
+  const studiosWithSchema = studios.map((s) => ({
+    ...s,
+    schema_name: s.id ? `studio_${s.id.replace(/-/g, '_')}` : '',
+  }));
+
+  const pub: any = {
     studio: {
-      findMany: jest.fn().mockResolvedValue(studios),
+      findMany: jest.fn().mockResolvedValue(studiosWithSchema),
     },
-    $executeRawUnsafe: jest.fn(async (...args: any[]) => {
-      writes.push({ args, gymId: getTenantGymId() });
-      return 1;
-    }),
+  };
+
+  const tenant: any = {
+    client: {
+      $executeRawUnsafe: jest.fn(async (...args: any[]) => {
+        writes.push({ args, gymId: getTenantGymId() });
+        return 1;
+      }),
+    },
   };
 
   const pulse: any = {
@@ -57,7 +71,7 @@ function buildHarness(studios: Array<{ id: string; owner_user_id: string }>) {
     }),
   };
 
-  const service = new KpiSnapshotService(prisma, pulse);
+  const service = new KpiSnapshotService(pub, tenant, pulse);
   jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
   jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
   jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);

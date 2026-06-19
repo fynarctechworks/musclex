@@ -66,11 +66,16 @@ import { toast } from "sonner";
 import type { Branch } from "@/lib/types";
 import { TwoFactorBanner } from "@/components/shared/two-factor-banner";
 import { SubscriptionBanner } from "@/features/subscription";
+import { useEntitlements, getFeatureMeta, PremiumTag, trackUpsell } from "@/features/entitlements";
+import type { PlanName } from "@/features/entitlements";
 import { useSessionSync } from "@/hooks/use-session-sync";
 import { useAuth } from "@/hooks/use-auth";
 
 /* ─── Nav item type ─── */
 type NavItem = { label: string; href: string; icon: React.ElementType; feature?: string; module?: string };
+/* A nav item after entitlement resolution — `locked` items still render, but show a
+   PremiumTag and open the upgrade modal instead of navigating. */
+type DecoratedNavItem = NavItem & { locked: boolean; requiredPlan?: PlanName };
 
 /* ─── Mobile bottom nav tabs ─── */
 const mobileNavTabs: NavItem[] = [
@@ -81,7 +86,7 @@ const mobileNavTabs: NavItem[] = [
   { label: "AI", href: "/ai", icon: Bot, module: "ai" },
 ];
 
-/* ─── Gym navigation (filtered by plan features) ─── */
+/* ─── Gym navigation (role-filtered; plan-locked items shown locked, not hidden) ─── */
 const gymNavItems: NavItem[] = [
   { label: "Dashboard",   href: "/dashboard",        icon: LayoutDashboard, module: "dashboard" },
   { label: "Members",     href: "/members",           icon: Users,        feature: "member_management", module: "members" },
@@ -119,21 +124,33 @@ const commerceMobileTabs: NavItem[] = [
   { label: "Reports",   href: "/reports",   icon: BarChart3 },
 ];
 
-const bottomNavItems: NavItem[] = [
-  { label: "Settings", href: "/settings", icon: Settings, module: "settings" },
+const bottomNavItems: DecoratedNavItem[] = [
+  { label: "Settings", href: "/settings", icon: Settings, module: "settings", locked: false },
 ];
 
-/** Filter nav items against the plan's feature map. Items without a feature key are always shown. */
-function filterByFeatures(items: NavItem[], features: Record<string, boolean>): NavItem[] {
-  return items.filter((item) => !item.feature || features[item.feature] === true);
-}
-
-/** Filter nav items by user permission. Items without a module are always shown. Owners/admins always pass. */
+/** Filter nav items by user permission. Items without a module are always shown. Owners/admins always pass.
+ *  ROLE-based hiding stays hiding (audit decision): a staffer never sees a module their role can't view. */
 function filterByPermissions(
   items: NavItem[],
   can: (module: string, action: string) => boolean,
 ): NavItem[] {
   return items.filter((item) => !item.module || can(item.module, "view"));
+}
+
+/** Decorate (never drop) nav items against the plan's entitlements.
+ *  Items the plan doesn't include are marked `locked` so they render with a PremiumTag and
+ *  open the upgrade modal on click — instead of being hidden (audit: show-everything-but-locked).
+ *  Runs AFTER filterByPermissions so role-hidden items are already gone. */
+function decorateByEntitlement(
+  items: NavItem[],
+  state: (feature: string) => "available" | "locked",
+): DecoratedNavItem[] {
+  return items.map((item) => {
+    if (!item.feature) return { ...item, locked: false };
+    const locked = state(item.feature) === "locked";
+    const requiredPlan = locked ? getFeatureMeta(item.feature)?.requiredPlan : undefined;
+    return { ...item, locked, requiredPlan };
+  });
 }
 
 /* ─── Breadcrumb extraction from pathname ─── */
@@ -208,33 +225,63 @@ function NavLink({
   basePath,
   pathname,
   collapsed,
+  onLockedClick,
 }: {
-  item: { label: string; href: string; icon: React.ElementType };
+  item: DecoratedNavItem;
   basePath: string;
   pathname: string;
   collapsed: boolean;
+  onLockedClick?: (feature: string) => void;
 }) {
   const fullHref = `${basePath}${item.href}`;
   const isActive = pathname === fullHref || pathname.startsWith(fullHref + "/");
 
-  const linkContent = (
-    <Link
-      href={fullHref}
-      aria-current={isActive ? "page" : undefined}
-      className={cn(
-        "group relative flex items-center gap-2.5 rounded-sm px-2.5 h-8 text-sm font-medium transition-colors",
-        collapsed && "justify-center px-0",
-        isActive
-          ? "bg-canvas-soft-2 text-foreground"
-          : "text-muted-foreground hover:bg-canvas-soft hover:text-foreground"
-      )}
-    >
+  const rowClass = cn(
+    "group relative flex items-center gap-2.5 rounded-sm px-2.5 h-8 text-sm font-medium transition-colors",
+    collapsed && "justify-center px-0",
+    isActive
+      ? "bg-canvas-soft-2 text-foreground"
+      : "text-muted-foreground hover:bg-canvas-soft hover:text-foreground"
+  );
+
+  const inner = (
+    <>
       {/* Active indicator — ink bar on the left edge (Design.md `ex-app-shell-row`) */}
       {isActive && !collapsed && (
         <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-primary" />
       )}
-      <item.icon className={cn("h-[15px] w-[15px] shrink-0", isActive ? "text-foreground" : "text-muted-foreground")} />
-      {!collapsed && <span className="truncate">{item.label}</span>}
+      <item.icon
+        className={cn(
+          "h-[15px] w-[15px] shrink-0",
+          item.locked ? "text-muted-foreground/60" : isActive ? "text-foreground" : "text-muted-foreground",
+        )}
+      />
+      {!collapsed && <span className={cn("truncate", item.locked && "text-muted-foreground/80")}>{item.label}</span>}
+      {/* Plan-locked items show a small upgrade tag (collapsed sidebar shows a lock dot instead) */}
+      {item.locked && !collapsed && item.requiredPlan && (
+        <span className="ml-auto">
+          <PremiumTag requiredPlan={item.requiredPlan} />
+        </span>
+      )}
+      {item.locked && collapsed && (
+        <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-link" aria-hidden />
+      )}
+    </>
+  );
+
+  // Locked → not a navigation target. Render a button that opens the upgrade modal.
+  const linkContent = item.locked ? (
+    <button
+      type="button"
+      onClick={() => item.feature && onLockedClick?.(item.feature)}
+      aria-label={`${item.label} — locked, upgrade to unlock`}
+      className={cn(rowClass, "w-full text-left")}
+    >
+      {inner}
+    </button>
+  ) : (
+    <Link href={fullHref} aria-current={isActive ? "page" : undefined} className={rowClass}>
+      {inner}
     </Link>
   );
 
@@ -244,6 +291,7 @@ function NavLink({
         <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
         <TooltipContent side="right" className="text-xs">
           {item.label}
+          {item.locked && item.requiredPlan ? ` · ${item.requiredPlan} plan` : ""}
         </TooltipContent>
       </Tooltip>
     );
@@ -261,14 +309,16 @@ function SidebarContent({
   primaryItems,
   secondaryItems,
   secondaryLabel,
+  onLockedClick,
 }: {
   pathname: string;
   basePath: string;
   collapsed: boolean;
   onCollapse?: () => void;
-  primaryItems: NavItem[];
-  secondaryItems: NavItem[];
+  primaryItems: DecoratedNavItem[];
+  secondaryItems: DecoratedNavItem[];
   secondaryLabel: string;
+  onLockedClick?: (feature: string) => void;
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -301,7 +351,7 @@ function SidebarContent({
       <ScrollArea className="flex-1 px-2.5 py-3">
         <nav className="flex flex-col gap-0.5" role="navigation" aria-label="Main navigation">
           {primaryItems.map((item) => (
-            <NavLink key={item.href} item={item} basePath={basePath} pathname={pathname} collapsed={collapsed} />
+            <NavLink key={item.href} item={item} basePath={basePath} pathname={pathname} collapsed={collapsed} onLockedClick={onLockedClick} />
           ))}
         </nav>
 
@@ -315,7 +365,7 @@ function SidebarContent({
             {collapsed && <div className="mx-auto my-2 h-px w-6 bg-hairline" />}
             <nav className="flex flex-col gap-0.5">
               {secondaryItems.map((item) => (
-                <NavLink key={item.href} item={item} basePath={basePath} pathname={pathname} collapsed={collapsed} />
+                <NavLink key={item.href} item={item} basePath={basePath} pathname={pathname} collapsed={collapsed} onLockedClick={onLockedClick} />
               ))}
             </nav>
           </div>
@@ -340,12 +390,14 @@ function CommerceSidebarContent({
   collapsed,
   onCollapse,
   items,
+  onLockedClick,
 }: {
   pathname: string;
   basePath: string;
   collapsed: boolean;
   onCollapse?: () => void;
-  items: NavItem[];
+  items: DecoratedNavItem[];
+  onLockedClick?: (feature: string) => void;
 }) {
   const backLink = (
     <Link
@@ -411,7 +463,7 @@ function CommerceSidebarContent({
           {collapsed && <div className="mx-auto my-2 h-px w-6 bg-hairline" />}
           <nav className="flex flex-col gap-0.5" role="navigation" aria-label="Store navigation">
             {items.map((item) => (
-              <NavLink key={item.href} item={item} basePath={basePath} pathname={pathname} collapsed={collapsed} />
+              <NavLink key={item.href} item={item} basePath={basePath} pathname={pathname} collapsed={collapsed} onLockedClick={onLockedClick} />
             ))}
           </nav>
         </div>
@@ -483,21 +535,25 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   // issued before the backend wrote studio_id to user_metadata.
   useSessionSync();
 
-  /* ─── Account / plan features (cached 5 min, refetch on window focus) ─── */
-  const { data: account } = useQuery<{ features: Record<string, boolean>; subscription: { plan: string } }>({
-    queryKey: ["account-overview"],
-    queryFn: () => apiClient.get("/settings/account"),
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-    enabled: !!user,
-  });
+  /* ─── Entitlements — single source for plan-tier lock state (shares the
+     `account-overview` query, so no extra fetch). Role hiding still uses
+     hasPermission; plan-locked items are DECORATED (shown locked), not removed. ─── */
+  const { state: entitlementState, openUpgrade } = useEntitlements();
 
-  const features: Record<string, boolean> = account?.features ?? {};
+  const handleLockedNavClick = useCallback(
+    (feature: string) => {
+      trackUpsell("locked_feature_opened", { feature, source: "sidebar_nav" });
+      openUpgrade(feature, "sidebar_nav");
+    },
+    [openUpgrade],
+  );
 
-  const primaryNav = filterByPermissions(filterByFeatures(gymNavItems, features), hasPermission);
-  const commerceNav = filterByPermissions(filterByFeatures(commerceNavItems, features), hasPermission);
+  // Role filter first (hides what the role can't see), then entitlement decoration
+  // (keeps everything, marks plan-locked items). Order matters — audit decision.
+  const primaryNav = decorateByEntitlement(filterByPermissions(gymNavItems, hasPermission), entitlementState);
+  const commerceNav = decorateByEntitlement(filterByPermissions(commerceNavItems, hasPermission), entitlementState);
   // Hide the "Store" entry entirely if the user can't reach any section inside it.
-  const secondaryNav = filterByPermissions(filterByFeatures(gymSecondaryNavItems, features), hasPermission)
+  const secondaryNav = decorateByEntitlement(filterByPermissions(gymSecondaryNavItems, hasPermission), entitlementState)
     .filter((item) => item.href !== "/pos" || commerceNav.length > 0);
   const secondaryLabel = "Tools";
 
@@ -655,6 +711,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               collapsed={sidebarCollapsed}
               onCollapse={toggleSidebar}
               items={commerceNav}
+              onLockedClick={handleLockedNavClick}
             />
           ) : (
             <SidebarContent
@@ -665,6 +722,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               primaryItems={primaryNav}
               secondaryItems={secondaryNav}
               secondaryLabel={secondaryLabel}
+              onLockedClick={handleLockedNavClick}
             />
           )}
         </aside>
@@ -673,9 +731,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <Sheet open={sidebarMobileOpen} onOpenChange={setSidebarMobileOpen}>
           <SheetContent side="left" className="w-[232px] bg-card p-0 border-hairline">
             {inCommerceSection ? (
-              <CommerceSidebarContent pathname={pathname} basePath={basePath} collapsed={false} items={commerceNav} />
+              <CommerceSidebarContent pathname={pathname} basePath={basePath} collapsed={false} items={commerceNav} onLockedClick={handleLockedNavClick} />
             ) : (
-              <SidebarContent pathname={pathname} basePath={basePath} collapsed={false} primaryItems={primaryNav} secondaryItems={secondaryNav} secondaryLabel={secondaryLabel} />
+              <SidebarContent pathname={pathname} basePath={basePath} collapsed={false} primaryItems={primaryNav} secondaryItems={secondaryNav} secondaryLabel={secondaryLabel} onLockedClick={handleLockedNavClick} />
             )}
           </SheetContent>
         </Sheet>

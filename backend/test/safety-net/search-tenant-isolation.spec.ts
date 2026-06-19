@@ -31,7 +31,9 @@ describe('SAFETY-NET / SearchService tenant isolation (C1)', () => {
       lead: { findMany: jest.fn().mockResolvedValue([]) },
     };
 
-    const service = new SearchService(config, prisma);
+    // Migration (feat/per-gym-schemas): SearchService.reindexAll now reads via
+    // `this.tenant.client.*`, so the flat prisma mock is nested under `.client`.
+    const service = new SearchService(config, { client: prisma } as any);
 
     // Capture the queries Meilisearch is asked to run.
     const captured: { queries: any[] } = { queries: [] };

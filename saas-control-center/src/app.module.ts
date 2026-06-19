@@ -6,6 +6,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { DatabaseModule } from './database/database.module';
 import { RedisModule } from './config/redis.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { EmailModule } from './modules/email/email.module';
 import { TenantModule } from './modules/tenant/tenant.module';
 import { PlansModule } from './modules/plans/plans.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
@@ -26,6 +27,7 @@ import { MemberAppAnalyticsModule } from './modules/member-app-analytics/member-
     ScheduleModule.forRoot(),
     DatabaseModule,
     RedisModule,
+    EmailModule,
     AuthModule,
     TenantModule,
     PlansModule,

@@ -10,13 +10,23 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { MarketingService } from './marketing.service';
-import { JwtAuthGuard, PermissionsGuard, Permissions } from '../common';
+import {
+  JwtAuthGuard,
+  PermissionsGuard,
+  Permissions,
+  CurrentUser,
+  JwtPayload,
+  ResourceLimitService,
+} from '../common';
 import { CreateCampaignDto, UpdateCampaignDto } from './dto';
 
 @Controller('api/v1/campaigns')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class MarketingController {
-  constructor(private readonly marketingService: MarketingService) {}
+  constructor(
+    private readonly marketingService: MarketingService,
+    private readonly resourceLimits: ResourceLimitService,
+  ) {}
 
   @Get()
   @Permissions({ module: 'marketing', action: 'view' })
@@ -36,7 +46,8 @@ export class MarketingController {
 
   @Post()
   @Permissions({ module: 'marketing', action: 'create' })
-  create(@Body() data: CreateCampaignDto) {
+  async create(@Body() data: CreateCampaignDto, @CurrentUser() user: JwtPayload) {
+    await this.resourceLimits.checkFeatureAccess(user.studio_id, 'marketing_campaigns');
     return this.marketingService.create(data);
   }
 
@@ -48,19 +59,26 @@ export class MarketingController {
 
   @Patch(':id')
   @Permissions({ module: 'marketing', action: 'edit' })
-  update(@Param('id') id: string, @Body() data: UpdateCampaignDto) {
+  async update(
+    @Param('id') id: string,
+    @Body() data: UpdateCampaignDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    await this.resourceLimits.checkFeatureAccess(user.studio_id, 'marketing_campaigns');
     return this.marketingService.update(id, data);
   }
 
   @Delete(':id')
   @Permissions({ module: 'marketing', action: 'delete' })
-  remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    await this.resourceLimits.checkFeatureAccess(user.studio_id, 'marketing_campaigns');
     return this.marketingService.remove(id);
   }
 
   @Post(':id/send')
   @Permissions({ module: 'marketing', action: 'edit' })
-  sendCampaign(@Param('id') id: string) {
+  async sendCampaign(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    await this.resourceLimits.checkFeatureAccess(user.studio_id, 'marketing_campaigns');
     return this.marketingService.sendCampaign(id);
   }
 
@@ -81,11 +99,13 @@ export class MarketingController {
 
   @Patch(':campaignId/audience/:memberId')
   @Permissions({ module: 'marketing', action: 'edit' })
-  updateAudienceStatus(
+  async updateAudienceStatus(
     @Param('campaignId') campaignId: string,
     @Param('memberId') memberId: string,
     @Body('status') status: string,
+    @CurrentUser() user: JwtPayload,
   ) {
+    await this.resourceLimits.checkFeatureAccess(user.studio_id, 'marketing_campaigns');
     return this.marketingService.updateAudienceStatus(campaignId, memberId, status);
   }
 
