@@ -33,6 +33,6 @@ import { NoopEmailProvider } from './providers/noop.provider';
     },
     EmailService,
   ],
-  exports: [EmailService],
+  exports: [EmailService, EMAIL_PROVIDER],
 })
 export class EmailModule {}
