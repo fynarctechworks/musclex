@@ -65,7 +65,9 @@ export class MetricsAggregationJob {
           where: {
             branch_id: branchId,
             paid_at: { gte: date, lt: nextDay },
-            status: 'completed',
+            // Payment.status is only ever 'pending' | 'paid' | 'refunded';
+            // 'completed' never matched a row.
+            status: 'paid',
           },
           _sum: { amount: true },
         }),
@@ -106,35 +108,38 @@ export class MetricsAggregationJob {
     const totalRevenue = revenue._sum?.amount ?? 0;
     const totalProductsSold = productsSold._sum?.quantity ?? 0;
 
-    await this.tenant.client.dailyGymMetrics.upsert({
-      where: {
-        organization_id_branch_id_date: {
-          organization_id: organizationId ?? '',
+    // organization_id is nullable and part of the compound unique key: '' is
+    // not valid uuid input, and Postgres unique indexes treat NULLs as
+    // distinct so an upsert by that key can never match NULL-org rows.
+    // findFirst + update/create instead — single writer under the cron lock.
+    const metricsData = {
+      total_revenue: totalRevenue,
+      new_members: newMembers,
+      active_members: activeMembers,
+      total_visits: visits,
+      classes_held: classesHeld,
+      products_sold: totalProductsSold,
+    };
+    const existing = await this.tenant.client.dailyGymMetrics.findFirst({
+      where: { organization_id: organizationId, branch_id: branchId, date },
+      select: { id: true },
+    });
+    if (existing) {
+      await this.tenant.client.dailyGymMetrics.update({
+        where: { id: existing.id },
+        data: metricsData,
+      });
+    } else {
+      await this.tenant.client.dailyGymMetrics.create({
+        data: {
+          gym_id: gymId,
+          organization_id: organizationId,
           branch_id: branchId,
           date,
+          ...metricsData,
         },
-      },
-      create: {
-        gym_id: gymId,
-        organization_id: organizationId,
-        branch_id: branchId,
-        date,
-        total_revenue: totalRevenue,
-        new_members: newMembers,
-        active_members: activeMembers,
-        total_visits: visits,
-        classes_held: classesHeld,
-        products_sold: totalProductsSold,
-      },
-      update: {
-        total_revenue: totalRevenue,
-        new_members: newMembers,
-        active_members: activeMembers,
-        total_visits: visits,
-        classes_held: classesHeld,
-        products_sold: totalProductsSold,
-      },
-    });
+      });
+    }
   }
 
   // ─── Nightly: Revenue Analytics ──────────────────────────────
@@ -179,20 +184,24 @@ export class MetricsAggregationJob {
       where: {
         branch_id: branchId,
         paid_at: { gte: periodStart, lt: periodEnd },
-        status: 'completed',
-        payment_method: { in: ['card', 'upi', 'cash'] },
+        // Payment.status is only ever 'pending' | 'paid' | 'refunded'.
+        status: 'paid',
+        // Membership revenue = payments tied to a membership; the previous
+        // payment_method filter categorized by method, not by what was sold.
+        membership_id: { not: null },
       },
       _sum: { amount: true },
       _count: true,
     });
 
-    const ptRevenue = await this.tenant.client.payment.aggregate({
+    // PT revenue lives in TrainerRevenue (written when a session completes).
+    // The previous query summed ALL payments, double-counting membership.
+    const ptRevenue = await this.tenant.client.trainerRevenue.aggregate({
       where: {
         branch_id: branchId,
-        paid_at: { gte: periodStart, lt: periodEnd },
-        status: 'completed',
+        created_at: { gte: periodStart, lt: periodEnd },
       },
-      _sum: { amount: true },
+      _sum: { revenue_amount: true },
       _count: true,
     });
 
@@ -208,37 +217,71 @@ export class MetricsAggregationJob {
 
     const revenueTypes = [
       { type: 'membership', amount: membershipRevenue._sum?.amount ?? 0, count: membershipRevenue._count ?? 0 },
-      { type: 'personal_training', amount: ptRevenue._sum?.amount ?? 0, count: ptRevenue._count ?? 0 },
+      { type: 'personal_training', amount: ptRevenue._sum?.revenue_amount ?? 0, count: ptRevenue._count ?? 0 },
       { type: 'retail', amount: retailRevenue._sum?.total_amount ?? 0, count: retailRevenue._count ?? 0 },
     ];
 
+    // Same nullable-org compound-key problem as dailyGymMetrics — see there.
     for (const rt of revenueTypes) {
-      await this.tenant.client.revenueAnalytics.upsert({
+      const existing = await this.tenant.client.revenueAnalytics.findFirst({
         where: {
-          organization_id_branch_id_revenue_type_period_start_period_end: {
-            organization_id: organizationId ?? '',
-            branch_id: branchId,
-            revenue_type: rt.type,
-            period_start: periodStart,
-            period_end: periodEnd,
-          },
-        },
-        create: {
-          gym_id: gymId,
           organization_id: organizationId,
           branch_id: branchId,
           revenue_type: rt.type,
-          amount: rt.amount,
-          transaction_count: rt.count,
           period_start: periodStart,
           period_end: periodEnd,
         },
-        update: {
-          amount: rt.amount,
-          transaction_count: rt.count,
-        },
+        select: { id: true },
       });
+      if (existing) {
+        await this.tenant.client.revenueAnalytics.update({
+          where: { id: existing.id },
+          data: { amount: rt.amount, transaction_count: rt.count },
+        });
+      } else {
+        await this.tenant.client.revenueAnalytics.create({
+          data: {
+            gym_id: gymId,
+            organization_id: organizationId,
+            branch_id: branchId,
+            revenue_type: rt.type,
+            amount: rt.amount,
+            transaction_count: rt.count,
+            period_start: periodStart,
+            period_end: periodEnd,
+          },
+        });
+      }
     }
+  }
+
+  // ─── Backfill (scripts/backfill-analytics.ts — never scheduled) ──
+
+  /**
+   * Re-aggregates one historical day for every gym/branch: daily metrics,
+   * revenue analytics, and membership analytics. Idempotent — re-running a
+   * day overwrites that day's rows. Membership counts that are point-in-time
+   * (total_active, churn base) reflect the state at RUN time, not the
+   * historical date; period-scoped counts (revenue, signups, cancellations)
+   * are historically accurate.
+   */
+  async backfillDay(day: Date) {
+    const dayStart = new Date(day);
+    dayStart.setHours(0, 0, 0, 0);
+    const nextDay = new Date(dayStart);
+    nextDay.setDate(nextDay.getDate() + 1);
+
+    return this.tasks.forEachTenant(async ({ gymId }) => {
+      const branches = await this.tenant.client.branch.findMany({
+        where: { is_active: true },
+        select: { id: true, organization_id: true },
+      });
+      for (const branch of branches) {
+        await this.aggregateBranchDailyMetrics(branch.id, branch.organization_id, gymId, dayStart);
+        await this.aggregateBranchRevenue(branch.id, branch.organization_id, gymId, dayStart, nextDay);
+        await this.aggregateBranchMembership(branch.id, branch.organization_id, gymId, dayStart, nextDay);
+      }
+    });
   }
 
   // ─── Nightly: Membership Analytics ───────────────────────────
@@ -308,36 +351,42 @@ export class MetricsAggregationJob {
     const totalBase = active + cancellations;
     const churnRate = totalBase > 0 ? (cancellations / totalBase) * 100 : 0;
 
-    await this.tenant.client.membershipAnalytics.upsert({
+    // Same nullable-org compound-key problem as dailyGymMetrics — see there.
+    // plan_id is null for this branch-level rollup ('' was invalid uuid input).
+    const analyticsData = {
+      total_active: active,
+      renewals,
+      cancellations,
+      new_signups: newSignups,
+      churn_rate: churnRate,
+    };
+    const existing = await this.tenant.client.membershipAnalytics.findFirst({
       where: {
-        organization_id_branch_id_plan_id_period_start_period_end: {
-          organization_id: organizationId ?? '',
-          branch_id: branchId,
-          plan_id: '',
-          period_start: periodStart,
-          period_end: periodEnd,
-        },
-      },
-      create: {
-        gym_id: gymId,
         organization_id: organizationId,
         branch_id: branchId,
-        total_active: active,
-        renewals,
-        cancellations,
-        new_signups: newSignups,
-        churn_rate: churnRate,
+        plan_id: null,
         period_start: periodStart,
         period_end: periodEnd,
       },
-      update: {
-        total_active: active,
-        renewals,
-        cancellations,
-        new_signups: newSignups,
-        churn_rate: churnRate,
-      },
+      select: { id: true },
     });
+    if (existing) {
+      await this.tenant.client.membershipAnalytics.update({
+        where: { id: existing.id },
+        data: analyticsData,
+      });
+    } else {
+      await this.tenant.client.membershipAnalytics.create({
+        data: {
+          gym_id: gymId,
+          organization_id: organizationId,
+          branch_id: branchId,
+          period_start: periodStart,
+          period_end: periodEnd,
+          ...analyticsData,
+        },
+      });
+    }
   }
 
   // ─── Nightly: Class Analytics ────────────────────────────────

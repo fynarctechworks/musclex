@@ -6,7 +6,7 @@ One item per slice; each lands only after review approval.
 ## ⚠️ Deploy-day steps (run after deploying this milestone)
 
 1. **RBAC resync** (Fix 1): `cd backend && npm run build && npx ts-node scripts/resync-role-permissions.ts`
-2. **Analytics backfill** (Fix 2): see Fix 2 entry once landed.
+2. **Analytics backfill** (Fix 2): `cd backend && npm run build && npx ts-node scripts/backfill-analytics.ts --from <YYYY-MM-DD> --to <YYYY-MM-DD>` (defaults to last 90 days). Run AFTER deploying the fixed job. Point-in-time fields (active counts) reflect run-time state; period-scoped numbers (revenue, visits, signups) are historically accurate.
 
 ## Fix 1 — `analytics` permission module registered (APPROVED 2026-08-03)
 
@@ -28,3 +28,23 @@ One item per slice; each lands only after review approval.
 - `backend` `tsc --noEmit` — PASS (exit 0).
 - `npx jest test/auth/auth.service.spec.ts` — 8/8 FAIL, **pre-existing**: the suite dies at DI compile with "Nest can't resolve dependencies of the AuthService … PublicPrismaService at index [2]" — the spec's provider list is stale vs the uncommitted per-gym-schemas changes to `auth.service.ts`. Not caused by this fix (constants-only edit, no DI surface). No spec covers `rbac-seed.service.ts` itself.
 - `resync-role-permissions.ts` written but **not run** (touches prod DB; run post-deploy).
+
+## Fix 2 — revenue/metrics aggregation job corrected (PENDING APPROVAL)
+
+**Bug (3 defects):** `backend/src/analytics/jobs/metrics-aggregation.job.ts`
+1. Filtered `Payment.status: 'completed'` — a value never written anywhere (real values: `pending|paid|refunded`) → `DailyGymMetrics.total_revenue`, `RevenueAnalytics.membership`, `RevenueAnalytics.personal_training` were permanently 0.
+2. "PT revenue" summed ALL payments (superset of membership) → double-count; "membership" was filtered by payment METHOD (`card/upi/cash`), a category-by-method mixup.
+3. Upserts passed `organization_id: '' `/`plan_id: ''` into nullable `@db.Uuid` compound-unique keys — `''` is invalid uuid input, and Postgres unique treats NULLs as distinct so those upserts could never match NULL-org rows anyway.
+
+**Change:**
+- `status: 'paid'` at the 2 payment aggregation sites (daily metrics + membership revenue).
+- Membership revenue now = paid payments with `membership_id: { not: null }` (method filter removed).
+- PT revenue now sourced from `TrainerRevenue` (branch-scoped, written on session completion) — no overlap with membership. NOTE: TrainerRevenue amounts still derive from the hardcoded ₹500 session rate (separate bug, Milestone 2).
+- All 3 upserts replaced with `findFirst` (matching real NULLs) + `update`/`create`; single-writer safe under the existing cron locks.
+- New public `backfillDay(day)` on the job + `backend/scripts/backfill-analytics.ts` (**written, NOT run**) — see deploy-day steps.
+- POS (`PosSale.status='completed'`) untouched — that default is genuinely `'completed'`.
+
+**Tests:**
+- `backend` `tsc --noEmit` — PASS.
+- `npx jest test/safety-net/metrics-aggregation-tenant-isolation.spec.ts` — **8/8 PASS** (validates every aggregation body runs under per-tenant scope, including the rewritten findFirst/update/create paths).
+- Backfill script not run (touches prod data; run post-deploy).
