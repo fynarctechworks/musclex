@@ -14,6 +14,7 @@ interface PermissionDef {
 
 const MODULES_ACTIONS: Record<string, string[]> = {
   dashboard: ['view', 'export'],
+  analytics: ['view', 'export'],
   members: ['view', 'create', 'edit', 'delete', 'export'],
   check_ins: ['view', 'create', 'edit', 'delete', 'export'],
   payments: ['view', 'create', 'edit', 'delete', 'export'],
@@ -66,6 +67,7 @@ export const ENTERPRISE_ROLES: Record<string, { description: string; permissions
     description: 'Regional manager — manages multiple branches',
     permissions: [
       'dashboard.view', 'dashboard.export',
+      'analytics.view', 'analytics.export',
       'members.view', 'members.create', 'members.edit', 'members.export',
       'check_ins.view', 'check_ins.create', 'check_ins.edit', 'check_ins.export',
       'payments.view', 'payments.create', 'payments.edit', 'payments.export',
@@ -85,6 +87,7 @@ export const ENTERPRISE_ROLES: Record<string, { description: string; permissions
     description: 'Branch manager — full control of a single branch',
     permissions: [
       'dashboard.view', 'dashboard.export',
+      'analytics.view', 'analytics.export',
       'members.view', 'members.create', 'members.edit', 'members.export',
       'check_ins.view', 'check_ins.create', 'check_ins.edit', 'check_ins.export',
       'payments.view', 'payments.create', 'payments.edit', 'payments.export',
@@ -104,6 +107,9 @@ export const ENTERPRISE_ROLES: Record<string, { description: string; permissions
     description: 'Trainer — manages classes and views members',
     permissions: [
       'dashboard.view',
+      // NOTE: no 'analytics.view' — /api/v1/analytics/* has no per-role data
+      // scoping, so the grant would expose gym-wide revenue to trainers.
+      // Trainers get their own scoped surface via /dashboard/trainer-cockpit.
       'members.view',
       'check_ins.view', 'check_ins.create',
       'classes.view', 'classes.edit',
@@ -132,6 +138,7 @@ export const ENTERPRISE_ROLES: Record<string, { description: string; permissions
     description: 'Accountant — manages payments, invoices, and financial reports',
     permissions: [
       'dashboard.view', 'dashboard.export',
+      'analytics.view', 'analytics.export',
       'members.view',
       'payments.view', 'payments.create', 'payments.edit', 'payments.delete', 'payments.export',
       'branches.view',
@@ -143,6 +150,7 @@ export const ENTERPRISE_ROLES: Record<string, { description: string; permissions
     description: 'Marketing manager — manages campaigns and member engagement',
     permissions: [
       'dashboard.view',
+      'analytics.view',
       'members.view', 'members.export',
       'marketing.view', 'marketing.create', 'marketing.edit', 'marketing.delete', 'marketing.export',
       'ai.view', 'ai.create',
