@@ -48,3 +48,11 @@ One item per slice; each lands only after review approval.
 - `backend` `tsc --noEmit` — PASS.
 - `npx jest test/safety-net/metrics-aggregation-tenant-isolation.spec.ts` — **8/8 PASS** (validates every aggregation body runs under per-tenant scope, including the rewritten findFirst/update/create paths).
 - Backfill script not run (touches prod data; run post-deploy).
+
+## Fix 3 — assign-membership 404 (COMMITTED)
+
+**Bug:** `frontend/src/features/memberships/api.ts` called `POST/GET /members/:id/memberships` — routes that don't exist. 404'd `AssignMembershipDialog` (members list + member detail), `useMemberMemberships` consumers (`AccessNetworkCard`, `MemberAccessTab`).
+
+**Change:** `assign` → `POST /memberships/assign/:memberId`, `listByMember` → `GET /memberships/member/:memberId` (real routes in `memberships.controller.ts`). DTO shapes verified identical (plan_id, branch_id, start_date?, auto_renew?, payment_method?).
+
+**Tests:** frontend `tsc --noEmit` PASS. Runtime assign flow needs a manual click-through (no frontend test suite covers it).

@@ -47,11 +47,11 @@ export const plansApi = {
 export const memberMembershipsApi = {
   /** Assign a new membership to a member */
   assign: (memberId: string, data: AssignMembershipDto) =>
-    apiClient.post<MemberMembership>(`/members/${memberId}/memberships`, data),
+    apiClient.post<MemberMembership>(`/memberships/assign/${memberId}`, data),
 
   /** Get all memberships for a member (included in member detail, but explicit endpoint) */
   listByMember: (memberId: string) =>
-    apiClient.get<MemberMembership[]>(`/members/${memberId}/memberships`),
+    apiClient.get<MemberMembership[]>(`/memberships/member/${memberId}`),
 
   /** Freeze a member's membership */
   freeze: (memberId: string, data: FreezeMembershipDto) =>
