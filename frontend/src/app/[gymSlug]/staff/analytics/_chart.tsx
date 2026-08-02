@@ -10,16 +10,16 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-interface TrainerOccupancyPoint {
+interface TrainerSessionsPoint {
   trainer_name: string;
-  avg_occupancy: number;
+  sessions_conducted: number;
 }
 
-interface TrainerOccupancyChartProps {
-  data: TrainerOccupancyPoint[];
+interface TrainerSessionsChartProps {
+  data: TrainerSessionsPoint[];
 }
 
-export function TrainerOccupancyChart({ data }: TrainerOccupancyChartProps) {
+export function TrainerSessionsChart({ data }: TrainerSessionsChartProps) {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data}>
@@ -29,7 +29,7 @@ export function TrainerOccupancyChart({ data }: TrainerOccupancyChartProps) {
           stroke="hsl(var(--muted-foreground))"
           fontSize={12}
         />
-        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} allowDecimals={false} />
         <Tooltip
           contentStyle={{
             backgroundColor: "hsl(var(--card))",
@@ -39,7 +39,7 @@ export function TrainerOccupancyChart({ data }: TrainerOccupancyChartProps) {
           }}
         />
         <Bar
-          dataKey="avg_occupancy"
+          dataKey="sessions_conducted"
           fill="hsl(var(--primary))"
           radius={[4, 4, 0, 0]}
         />

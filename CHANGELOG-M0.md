@@ -56,3 +56,11 @@ One item per slice; each lands only after review approval.
 **Change:** `assign` → `POST /memberships/assign/:memberId`, `listByMember` → `GET /memberships/member/:memberId` (real routes in `memberships.controller.ts`). DTO shapes verified identical (plan_id, branch_id, start_date?, auto_renew?, payment_method?).
 
 **Tests:** frontend `tsc --noEmit` PASS. Runtime assign flow needs a manual click-through (no frontend test suite covers it).
+
+## Fix 4 — staff analytics page called a nonexistent route (COMMITTED)
+
+**Bug:** `staff/analytics/page.tsx` queried `GET /analytics/trainer-performance` (no such route) with a fictional shape (`avg_occupancy`, `performance_score`) → page always rendered "No trainer data available".
+
+**Change:** Page now consumes the real `GET /analytics/trainers/leaderboard` (TrainerAnalytics rows: sessions_conducted, members_trained, no_show_rate, revenue_generated + trainer.full_name); chart plots sessions-by-trainer. Permission gate changed from `staff.view` to `analytics.view` — the leaderboard exposes per-trainer revenue, and trainers were deliberately excluded from analytics in Fix 1.
+
+**Tests:** frontend `tsc --noEmit` PASS. Rendering with real rows needs manual check after the Fix-2 backfill populates TrainerAnalytics.

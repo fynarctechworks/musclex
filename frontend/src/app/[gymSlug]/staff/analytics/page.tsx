@@ -8,35 +8,43 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 
-const TrainerOccupancyChart = dynamic(
-  () => import("./_chart").then((m) => ({ default: m.TrainerOccupancyChart })),
+const TrainerSessionsChart = dynamic(
+  () => import("./_chart").then((m) => ({ default: m.TrainerSessionsChart })),
   { ssr: false, loading: () => <LoadingSkeleton className="h-64 w-full" /> },
 );
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import { useRequirePermission } from "@/hooks/use-require-permission";
 
-interface TrainerPerformance {
+interface TrainerLeaderboardRow {
   trainer_id: string;
-  trainer_name: string;
-  total_classes: number;
-  total_enrollments: number;
-  avg_occupancy: number;
-  performance_score: number;
+  sessions_conducted: number;
+  members_trained: number;
+  revenue_generated: string | number;
+  no_show_rate: string | number;
+  period_start: string;
+  period_end: string;
+  trainer: { full_name: string; specializations?: string[] | null };
 }
 
 export default function StaffAnalyticsPage() {
-  const { allowed, checked } = useRequirePermission("staff", "view", "deny");
+  // Leaderboard exposes per-trainer revenue → gate on analytics, not staff
+  const { allowed, checked } = useRequirePermission("analytics", "view", "deny");
   const { gymPath } = useGymSlug();
-  const { data, isLoading } = useQuery<TrainerPerformance[]>({
-    queryKey: ["trainer-performance"],
-    queryFn: () => apiClient.get("/analytics/trainer-performance"),
+  const { data, isLoading } = useQuery<TrainerLeaderboardRow[]>({
+    queryKey: ["trainer-leaderboard"],
+    queryFn: () => apiClient.get("/analytics/trainers/leaderboard"),
+    enabled: checked && allowed,
   });
 
+  const chartData = (data ?? []).map((t) => ({
+    trainer_name: t.trainer.full_name,
+    sessions_conducted: t.sessions_conducted,
+  }));
 
   if (checked && !allowed) {
     return (
       <AppLayout>
-        <AccessDenied module="staff" />
+        <AccessDenied module="analytics" />
       </AppLayout>
     );
   }
@@ -60,11 +68,11 @@ export default function StaffAnalyticsPage() {
           {/* Chart */}
           <div className="bg-card border border-border rounded-lg p-6 mb-6">
             <h2 className="text-base font-semibold text-foreground mb-4">
-              Avg Occupancy Rate by Trainer
+              Sessions Conducted by Trainer (latest period)
             </h2>
             <div className="h-64">
-              {data && data.length > 0 ? (
-                <TrainerOccupancyChart data={data} />
+              {chartData.length > 0 ? (
+                <TrainerSessionsChart data={chartData} />
               ) : (
                 <div className="h-full flex items-center justify-center text-muted-foreground">
                   No trainer data available
@@ -82,39 +90,39 @@ export default function StaffAnalyticsPage() {
                     Trainer
                   </th>
                   <th className="text-right p-4 text-sm font-semibold text-muted-foreground">
-                    Classes
+                    Sessions
                   </th>
                   <th className="text-right p-4 text-sm font-semibold text-muted-foreground">
-                    Total Enrollments
+                    Members Trained
                   </th>
                   <th className="text-right p-4 text-sm font-semibold text-muted-foreground">
-                    Avg Occupancy
+                    No-show Rate
                   </th>
                   <th className="text-right p-4 text-sm font-semibold text-muted-foreground">
-                    Score
+                    Revenue
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {data?.map((trainer) => (
+                {data?.map((t) => (
                   <tr
-                    key={trainer.trainer_id}
+                    key={t.trainer_id}
                     className="border-b border-border last:border-0 hover:bg-canvas-soft"
                   >
                     <td className="p-4 text-sm text-foreground font-medium">
-                      {trainer.trainer_name}
+                      {t.trainer.full_name}
                     </td>
                     <td className="p-4 text-sm text-foreground text-right">
-                      {trainer.total_classes}
+                      {t.sessions_conducted}
                     </td>
                     <td className="p-4 text-sm text-foreground text-right">
-                      {trainer.total_enrollments}
+                      {t.members_trained}
                     </td>
                     <td className="p-4 text-sm text-foreground text-right">
-                      {trainer.avg_occupancy}%
+                      {Number(t.no_show_rate).toFixed(1)}%
                     </td>
                     <td className="p-4 text-sm text-foreground text-right">
-                      {trainer.performance_score}/100
+                      ₹{Number(t.revenue_generated).toLocaleString("en-IN")}
                     </td>
                   </tr>
                 ))}
