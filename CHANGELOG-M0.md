@@ -72,3 +72,17 @@ One item per slice; each lands only after review approval.
 **Change:** The three GET routes now accept `'owner', 'branch_manager', 'regional_manager'`. Write routes stay owner-only. **Found during fix:** the same phantom-role pattern (`'manager'`/`'admin'`/`'staff'`) exists at ~60 more decorator sites across 15 controllers — NOT fixed here (per-controller role mapping is a product decision); logged as DEBT.md #3.
 
 **Tests:** backend `tsc --noEmit` PASS. No spec covers RolesController.
+
+## Fix 6 — outbound webhooks now actually fire (COMMITTED)
+
+**Bug:** `WebhooksService` advertised 21 events (CRUD, HMAC signing, SSRF guard, delivery log, retry) but `dispatch()` had ZERO callers — no business event ever reached a customer webhook.
+
+**Change:**
+- `platform/services/webhooks.service.ts`: new `dispatchEvent(event, payload, branchId?)` — resolves the owning organization from the branch when known (branch-less events go to all of the gym's active subscribed webhooks; tenant client scopes the query).
+- `events/event-projector.service.ts`: the domain-event funnel now maps `DomainEventType` → public catalog names (`WEBHOOK_EVENT_MAP`: member.created/updated, member.plan_assigned/expired, payment.received/refunded, checkin.completed, class.booked/cancelled, staff.created/updated) and fire-and-forgets `dispatchEvent` for fresh events. Dispatch happens BEFORE the no-metrics-delta early return (so class.booked etc. still fire) and never blocks/fails metrics projection.
+- Replay protection: `replay()` → `catchup(skipWebhooks=true)` — rebuilding metrics does NOT re-deliver historical events to customer endpoints; normal catchup (missed events) still dispatches.
+- `events.module.ts` imports `PlatformModule` (exports WebhooksService; no cycle).
+
+**Not covered (unchanged from audit):** lead.created / lead.converted / invoice.created / campaign.* have no domain-event emitters yet — they'll wire in when those flows emit to the outbox.
+
+**Tests:** backend `tsc --noEmit` PASS; `test/members/members.service.spec.ts` (only suite touching the projector) 12/12 PASS. No dedicated webhook spec exists; end-to-end delivery needs a real subscribed URL to verify.

@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../../common/tenant-context';
 import { Prisma } from '../../../node_modules/.prisma/client-tenant';
 import { createHmac, randomBytes } from 'crypto';
+import { lookup } from 'dns/promises';
+import { isIP } from 'net';
 import {
   CreateWebhookDto,
   UpdateWebhookDto,
@@ -11,6 +13,61 @@ import {
 @Injectable()
 export class WebhooksService {
   constructor(private readonly tenant: TenantPrisma) {}
+
+  // ─── SSRF guard ───────────────────────────────────────────
+  // Tenant-supplied webhook URLs are fetched server-side and their response body
+  // is stored and readable, so an unguarded fetch is a classic SSRF: a tenant
+  // could point a webhook at 127.0.0.1, 169.254.169.254 (cloud metadata), or an
+  // internal service and read the reply. We require http(s) and reject any URL
+  // whose host resolves to a private / loopback / link-local / reserved address.
+
+  private isPrivateIp(ip: string): boolean {
+    const low = ip.toLowerCase();
+    if (low.includes(':')) {
+      // IPv6
+      if (low === '::1' || low === '::') return true;
+      if (low.startsWith('fc') || low.startsWith('fd')) return true; // unique-local
+      if (low.startsWith('fe80')) return true; // link-local
+      const mapped = low.startsWith('::ffff:') ? low.slice(7) : null;
+      return mapped && isIP(mapped) === 4 ? this.isPrivateIp(mapped) : false;
+    }
+    const p = low.split('.').map((n) => Number(n));
+    if (p.length !== 4 || p.some((n) => Number.isNaN(n))) return true; // unparseable → treat as unsafe
+    const [a, b] = p;
+    if (a === 0 || a === 10 || a === 127) return true;
+    if (a === 169 && b === 254) return true; // link-local + cloud metadata
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+    if (a >= 224) return true; // multicast / reserved
+    return false;
+  }
+
+  /** Reject non-http(s) schemes and any host that resolves to a non-public address. */
+  private async assertPublicWebhookUrl(rawUrl: string): Promise<void> {
+    let url: URL;
+    try {
+      url = new URL(rawUrl);
+    } catch {
+      throw new BadRequestException('Invalid webhook URL');
+    }
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      throw new BadRequestException('Webhook URL must use http or https');
+    }
+    const host = url.hostname.replace(/^\[|\]$/g, '');
+    if (!host || host === 'localhost' || host.endsWith('.local') || host.endsWith('.internal')) {
+      throw new ForbiddenException('Webhook URL host is not permitted');
+    }
+    const addresses = isIP(host)
+      ? [host]
+      : (await lookup(host, { all: true }).catch(() => [])).map((a) => a.address);
+    if (addresses.length === 0) {
+      throw new BadRequestException('Webhook host could not be resolved');
+    }
+    if (addresses.some((ip) => this.isPrivateIp(ip))) {
+      throw new ForbiddenException('Webhook URL resolves to a private or reserved address');
+    }
+  }
 
   // ─── Supported Events ─────────────────────────────────────
 
@@ -204,6 +261,44 @@ export class WebhooksService {
     };
   }
 
+  /**
+   * Dispatch an event to every active subscribed webhook in the current gym,
+   * resolving the owning organization from the branch when one is known.
+   * Branch-less events (gym-wide) go to all of the gym's webhooks — the
+   * tenant client already scopes the query to this gym.
+   */
+  async dispatchEvent(event: string, payload: Record<string, unknown>, branchId?: string | null) {
+    let organizationId: string | undefined;
+    if (branchId) {
+      const branch = await this.tenant.client.branch.findUnique({
+        where: { id: branchId },
+        select: { organization_id: true },
+      });
+      organizationId = branch?.organization_id ?? undefined;
+    }
+
+    const webhooks = await this.tenant.client.webhook.findMany({
+      where: {
+        is_active: true,
+        events: { has: event },
+        ...(organizationId ? { organization_id: organizationId } : {}),
+      },
+      select: { id: true },
+    });
+    if (webhooks.length === 0) return { event, dispatched: 0, succeeded: 0, failed: 0 };
+
+    const results = await Promise.allSettled(
+      webhooks.map((webhook) => this.dispatchDelivery(webhook.id, event, payload)),
+    );
+
+    return {
+      event,
+      dispatched: webhooks.length,
+      succeeded: results.filter((r) => r.status === 'fulfilled').length,
+      failed: results.filter((r) => r.status === 'rejected').length,
+    };
+  }
+
   private async dispatchDelivery(webhookId: string, event: string, payload: unknown) {
     const webhook = await this.tenant.client.webhook.findUnique({ where: { id: webhookId } });
     if (!webhook) return;
@@ -222,6 +317,9 @@ export class WebhooksService {
     });
 
     try {
+      // SSRF guard: never fetch a URL that resolves to an internal address.
+      await this.assertPublicWebhookUrl(webhook.url);
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), webhook.timeout_ms);
 

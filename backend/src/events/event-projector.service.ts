@@ -1,9 +1,34 @@
 import { Injectable, Inject, forwardRef, Logger } from '@nestjs/common';
 import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { DashboardGateway } from '../dashboard/dashboard.gateway';
+import { WebhooksService } from '../platform/services/webhooks.service';
 import { getTenantGymId } from '../common/tenant-context';
 import { DEFAULT_CURRENCY } from '../common/defaults';
 import { DomainEventType } from './event-store.service';
+
+/**
+ * Domain events → public webhook catalog names (WebhooksService.getSupportedEvents).
+ * Unlisted domain events are internal-only and never leave the platform.
+ */
+const WEBHOOK_EVENT_MAP: Partial<Record<DomainEventType, string>> = {
+  MEMBER_CREATED: 'member.created',
+  MEMBER_ACTIVATED: 'member.updated',
+  MEMBER_FROZEN: 'member.updated',
+  MEMBER_UNFROZEN: 'member.updated',
+  MEMBER_CANCELLED: 'member.updated',
+  MEMBER_EXPIRED: 'member.updated',
+  STAFF_CREATED: 'staff.created',
+  STAFF_DEACTIVATED: 'staff.updated',
+  STAFF_REACTIVATED: 'staff.updated',
+  MEMBERSHIP_ASSIGNED: 'member.plan_assigned',
+  MEMBERSHIP_RENEWED: 'member.plan_assigned',
+  MEMBERSHIP_EXPIRED: 'member.plan_expired',
+  PAYMENT_RECORDED: 'payment.received',
+  PAYMENT_REFUNDED: 'payment.refunded',
+  CHECK_IN_COMPLETED: 'checkin.completed',
+  CLASS_BOOKED: 'class.booked',
+  CLASS_CANCELLED: 'class.cancelled',
+};
 
 /**
  * EventProjector — Reads domain events and projects them into materialized views.
@@ -23,6 +48,7 @@ export class EventProjectorService {
   constructor(
     private readonly tenant: TenantPrisma,
     @Inject(forwardRef(() => DashboardGateway)) private dashboardGateway: DashboardGateway,
+    private readonly webhooks: WebhooksService,
   ) {}
 
   // ── Inline Processing (called right after tx commit) ──────────
@@ -32,14 +58,34 @@ export class EventProjectorService {
    * Called immediately after the transaction that created the event commits.
    * This gives sub-second dashboard updates without async workers.
    */
-  async processEvent(event: {
-    id: string;
-    gym_id: string;
-    event_type: string;
-    payload: any;
-    branch_id?: string | null;
-    version: bigint;
-  }): Promise<void> {
+  async processEvent(
+    event: {
+      id: string;
+      gym_id: string;
+      event_type: string;
+      payload: any;
+      branch_id?: string | null;
+      version: bigint;
+    },
+    opts?: { skipWebhooks?: boolean },
+  ): Promise<void> {
+    // Outbound webhooks fire for fresh events only (replay passes skipWebhooks
+    // — re-delivering historical events to customer endpoints would be wrong).
+    // Fire-and-forget: a slow/failing customer endpoint must never block or
+    // fail metrics projection.
+    if (!opts?.skipWebhooks) {
+      const webhookEvent = WEBHOOK_EVENT_MAP[event.event_type as DomainEventType];
+      if (webhookEvent) {
+        this.webhooks
+          .dispatchEvent(webhookEvent, { ...event.payload, event_id: event.id }, event.branch_id)
+          .catch((err) =>
+            this.logger.warn(
+              `Webhook dispatch failed for ${webhookEvent} (event ${event.id}): ${(err as Error).message}`,
+            ),
+          );
+      }
+    }
+
     const delta = this.computeDelta(event.event_type as DomainEventType, event.payload);
     if (!delta) {
       // Mark processed even if no metrics impact (e.g. unknown event type)
@@ -73,7 +119,7 @@ export class EventProjectorService {
    * Run on a cron or manually via POST /dashboard/catchup.
    * Returns count of events processed.
    */
-  async catchup(): Promise<number> {
+  async catchup(skipWebhooks = false): Promise<number> {
     const gymId = getTenantGymId();
     if (!gymId) return 0;
 
@@ -94,7 +140,7 @@ export class EventProjectorService {
 
       for (const event of events) {
         try {
-          await this.processEvent(event);
+          await this.processEvent(event, { skipWebhooks });
           processed++;
         } catch (err) {
           this.logger.error(
@@ -150,8 +196,8 @@ export class EventProjectorService {
       data: { processed: false },
     });
 
-    // Reprocess everything
-    const count = await this.catchup();
+    // Reprocess everything — without re-firing webhooks for historical events
+    const count = await this.catchup(true);
 
     // Push full snapshot to connected clients
     const snapshot = await this.tenant.client.dashboardMetrics.findFirst({
