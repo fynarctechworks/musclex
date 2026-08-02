@@ -86,3 +86,11 @@ One item per slice; each lands only after review approval.
 **Not covered (unchanged from audit):** lead.created / lead.converted / invoice.created / campaign.* have no domain-event emitters yet — they'll wire in when those flows emit to the outbox.
 
 **Tests:** backend `tsc --noEmit` PASS; `test/members/members.service.spec.ts` (only suite touching the projector) 12/12 PASS. No dedicated webhook spec exists; end-to-end delivery needs a real subscribed URL to verify.
+
+## Fix 7 — admin push endpoint actually sends (COMMITTED)
+
+**Bug:** `POST /api/v1/push-notifications` → `AutomationService.sendPushNotification` created a `PushNotification` row with `status:'sent'`, `sent_at:now` **without ever calling PushService** — no device was notified; the status lied.
+
+**Change:** `marketing/automation.service.ts` now injects the global `PushService` and calls `sendToMember(member_id, {title, body, data}, {category:'promos'})` first; the DB row records the truth — `sent` + `sent_at` only when Expo accepted ≥1 device token, else `failed` (PushNotification.status already documents `failed` as a valid value).
+
+**Tests:** backend `tsc --noEmit` PASS. No spec covers AutomationService; real delivery needs a device with a registered Expo token.

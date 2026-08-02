@@ -14,10 +14,14 @@ import {
   UpdateReferralProgramDto,
 } from './dto';
 import { getTenantGymId } from '../common/tenant-context';
+import { PushService } from '../push/push.service';
 
 @Injectable()
 export class AutomationService {
-  constructor(private readonly tenant: TenantPrisma) {}
+  constructor(
+    private readonly tenant: TenantPrisma,
+    private readonly push: PushService,
+  ) {}
 
   // ── Message Templates ─────────────────────────────────────────
 
@@ -433,6 +437,12 @@ export class AutomationService {
     message: string;
     data?: Record<string, unknown>;
   }) {
+    const delivered = await this.push.sendToMember(
+      data.member_id,
+      { title: data.title, body: data.message, data: data.data },
+      { category: 'promos' },
+    );
+
     return this.tenant.client.pushNotification.create({
       data: {
         gym_id: getTenantGymId()!,
@@ -440,8 +450,10 @@ export class AutomationService {
         title: data.title,
         message: data.message,
         data: data.data as Prisma.InputJsonValue ?? Prisma.JsonNull,
-        status: 'sent',
-        sent_at: new Date(),
+        // delivered = device count the Expo push accepted; 0 → no registered
+        // usable token, recorded as failed rather than pretending it sent.
+        status: delivered > 0 ? 'sent' : 'failed',
+        sent_at: delivered > 0 ? new Date() : null,
       },
     });
   }
