@@ -18,19 +18,19 @@ export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
   @Get()
-  @Roles('owner', 'manager')
+  @Roles('owner', 'branch_manager', 'regional_manager')
   findAll() {
     return this.rolesService.findAll();
   }
 
   @Get('permissions')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'branch_manager', 'regional_manager')
   getPermissionModules() {
     return this.rolesService.getPermissionModules();
   }
 
   @Get(':id')
-  @Roles('owner', 'manager')
+  @Roles('owner', 'branch_manager', 'regional_manager')
   findOne(@Param('id') id: string) {
     return this.rolesService.findOne(id);
   }

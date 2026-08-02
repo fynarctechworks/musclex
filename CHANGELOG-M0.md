@@ -64,3 +64,11 @@ One item per slice; each lands only after review approval.
 **Change:** Page now consumes the real `GET /analytics/trainers/leaderboard` (TrainerAnalytics rows: sessions_conducted, members_trained, no_show_rate, revenue_generated + trainer.full_name); chart plots sessions-by-trainer. Permission gate changed from `staff.view` to `analytics.view` — the leaderboard exposes per-trainer revenue, and trainers were deliberately excluded from analytics in Fix 1.
 
 **Tests:** frontend `tsc --noEmit` PASS. Rendering with real rows needs manual check after the Fix-2 backfill populates TrainerAnalytics.
+
+## Fix 5 — roles API 403'd real managers (COMMITTED)
+
+**Bug:** `roles.controller.ts` read routes required `@Roles('owner', 'manager')` — `'manager'` is not a seeded role (real: `branch_manager`, `regional_manager`), so actual managers got 403 on `GET /api/v1/roles*` despite `DEFAULT_ROLE_PERMISSIONS.branch_manager.roles = ['view']`.
+
+**Change:** The three GET routes now accept `'owner', 'branch_manager', 'regional_manager'`. Write routes stay owner-only. **Found during fix:** the same phantom-role pattern (`'manager'`/`'admin'`/`'staff'`) exists at ~60 more decorator sites across 15 controllers — NOT fixed here (per-controller role mapping is a product decision); logged as DEBT.md #3.
+
+**Tests:** backend `tsc --noEmit` PASS. No spec covers RolesController.
