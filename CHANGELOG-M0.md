@@ -123,3 +123,15 @@ One item per slice; each lands only after review approval.
 - New hooks `useCancelInvoice`, `useTaxRates` (+ exports).
 
 **Tests:** frontend + backend `tsc --noEmit` PASS. `jest test/payments src/payments` = 20 failed/27 passed — **verified pre-existing**: re-ran with my DTO change stashed and got the identical 20/27 (stale specs constructing `PaymentsService` with 3 of 6 args, from the in-flight per-gym-schemas refactor). Logged as DEBT #4.
+
+## Fix 10 — gym-wide Reports section mounted (COMMITTED)
+
+**Bug:** `features/reports/components/` contained a complete 8-tab gym analytics UI (Overview, Revenue, Members, Attendance, Trainers, Subscriptions, Marketing, Branches) imported by **no page**; `/reports` was a Store/POS report reachable only inside the Store workspace, and the whole `/api/v1/analytics/*` + `/reports/*` surface had no gym-level UI.
+
+**Change:**
+- Store report moved `/reports` → `/store/reports` (page + loading.tsx via `git mv`; it was already titled "Store Reports"). Store workspace nav + mobile tabs updated, so workspace detection still works.
+- New `app/[gymSlug]/reports/page.tsx` renders all 8 tabs with a shared start/end date range picker (default last 30 days) and honors `activeBranchId`. Wired to the existing hooks: dashboard, trend, revenue, memberships, churn-risk, classes, trainers, leaderboard, campaigns, branch-comparison, subscription metrics; branch names resolved from `/branches` for the Branches tab.
+- Gated on `analytics.view` (matches the backend `@Permissions({ module: 'analytics' })`), so it depends on Fix 1 + the deploy-day resync.
+- "Reports" added to the gym Tools nav; `features/reports/index.ts` now re-exports `./components`.
+
+**Tests:** frontend `tsc --noEmit` PASS. Tabs render real numbers only after the Fix-2 backfill runs (analytics tables were zeroed by the `'completed'` bug).

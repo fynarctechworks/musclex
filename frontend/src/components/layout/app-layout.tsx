@@ -32,6 +32,10 @@ import {
   ScanFace,
   Store,
   ArrowLeft,
+  Dumbbell,
+  MessageCircle,
+  Zap,
+  Fingerprint,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -93,14 +97,19 @@ const gymNavItems: NavItem[] = [
   { label: "Memberships", href: "/memberships/plans", icon: CreditCard,   feature: "member_management", module: "members" },
   { label: "Check-ins",   href: "/check-in",          icon: UserCheck,    feature: "check_in", module: "check_ins" },
   { label: "Biometrics",  href: "/biometrics",        icon: ScanFace,     feature: "check_in", module: "members" },
+  { label: "Devices",     href: "/check-in/devices",  icon: Fingerprint,  feature: "check_in", module: "check_ins" },
   { label: "Visits",      href: "/visits",            icon: Activity,     feature: "check_in", module: "check_ins" },
   { label: "Schedule",    href: "/schedule",          icon: CalendarDays, feature: "class_scheduling", module: "classes" },
   { label: "Finance",     href: "/finance",           icon: DollarSign,   feature: "manual_payments", module: "payments" },
   { label: "Staff",       href: "/staff",             icon: UserCog,      feature: "staff_management", module: "staff" },
   { label: "Marketing",   href: "/marketing",         icon: Megaphone,    feature: "marketing_campaigns", module: "marketing" },
+  { label: "WhatsApp Inbox", href: "/marketing/whatsapp", icon: MessageCircle, feature: "marketing_campaigns", module: "marketing" },
+  { label: "Automations", href: "/marketing/automations", icon: Zap,      feature: "marketing_campaigns", module: "marketing" },
 ];
 
 const gymSecondaryNavItems: NavItem[] = [
+  { label: "Reports",     href: "/reports",    icon: BarChart3,     feature: "basic_reports", module: "analytics" },
+  { label: "Training Plans", href: "/training/plans", icon: Dumbbell, feature: "member_management", module: "members" },
   { label: "CRM",         href: "/crm",        icon: BookUser,      feature: "member_management", module: "members" },
   { label: "Referrals",   href: "/referrals",  icon: UserPlus,      feature: "marketing_campaigns", module: "marketing" },
   { label: "Store",       href: "/pos",        icon: Store },
@@ -113,7 +122,7 @@ const gymSecondaryNavItems: NavItem[] = [
 const commerceNavItems: NavItem[] = [
   { label: "Point of Sale", href: "/pos",       icon: ShoppingCart, module: "payments" },
   { label: "Inventory",     href: "/inventory", icon: Package,      module: "settings" },
-  { label: "Reports",       href: "/reports",   icon: BarChart3,    feature: "basic_reports", module: "reports" },
+  { label: "Store Reports", href: "/store/reports", icon: BarChart3, feature: "basic_reports", module: "reports" },
 ];
 
 /* ─── Store workspace mobile bottom-nav (replaces global tabs inside the section) ─── */
@@ -121,7 +130,7 @@ const commerceMobileTabs: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "POS",       href: "/pos",       icon: ShoppingCart },
   { label: "Inventory", href: "/inventory", icon: Package },
-  { label: "Reports",   href: "/reports",   icon: BarChart3 },
+  { label: "Reports",   href: "/store/reports", icon: BarChart3 },
 ];
 
 const bottomNavItems: DecoratedNavItem[] = [
