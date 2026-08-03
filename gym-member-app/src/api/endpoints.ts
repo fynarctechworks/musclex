@@ -68,6 +68,12 @@ import type {
   WeeklyProgress,
   ToolsComputeInput,
   GymProfile,
+  MyPlans,
+  CoachConversation,
+  CoachChatResult,
+  DigitalId,
+  VisitList,
+  VisitSummary,
 } from './types';
 
 /** Typed wrappers for every Phase-1 BFF endpoint. */
@@ -156,6 +162,18 @@ export const api = {
     request<ClassCancelResult>(`/classes/${classId}/booking`, {
       method: 'DELETE',
     }),
+
+  // ── Digital ID + visits ──
+  digitalId: () => request<DigitalId>('/id'),
+  visits: (params?: { limit?: number; cursor?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.limit) q.set('limit', String(params.limit));
+    if (params?.cursor) q.set('cursor', params.cursor);
+    const qs = q.toString();
+    return request<VisitList>(`/visits${qs ? `?${qs}` : ''}`);
+  },
+  visitSummary: (months?: number) =>
+    request<VisitSummary>(`/visits/summary${months ? `?months=${months}` : ''}`),
 
   // ── Progress ──
   progress: () => request<Progress>('/progress'),
@@ -250,6 +268,14 @@ export const api = {
       body: { body },
       idempotencyKey,
     }),
+
+  // ── My Plan (trainer-assigned diet + upcoming workouts) ──
+  myPlans: () => request<MyPlans>('/plans'),
+
+  // ── AI Coach ──
+  coachHistory: () => request<CoachConversation>('/coach'),
+  coachChat: (message: string) =>
+    request<CoachChatResult>('/coach/chat', { method: 'POST', body: { message } }),
 
   // ── Community (V2.5) ──
   leaderboard: (period?: number) =>

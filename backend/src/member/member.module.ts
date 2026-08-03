@@ -25,6 +25,8 @@ import { PersonalizationService } from './data/personalization.service';
 import { MemberStreakService } from './data/member-streak.service';
 import { MemberCheckInService } from './data/member-checkin.service';
 import { MemberWorkoutService } from './data/member-workout.service';
+import { MemberPlanService } from './data/member-plan.service';
+import { MemberCoachService } from './data/member-coach.service';
 import { MemberClassService } from './data/member-class.service';
 import { MemberNutritionService } from './data/member-nutrition.service';
 import { MemberExerciseService } from './data/member-exercise.service';
@@ -33,6 +35,7 @@ import { MemberChatGateway } from './data/member-chat.gateway';
 import { MemberNotificationService } from './data/member-notification.service';
 import { MemberCommunityService } from './data/member-community.service';
 import { MemberHealthService } from './data/member-health.service';
+import { MemberIdentityService } from './data/member-identity.service';
 import { MemberContextService } from './data/member-context.service';
 import { MemberPublicHealthService } from './data/member-public-health.service';
 import { MemberEventsService } from './data/member-events.service';
@@ -42,6 +45,8 @@ import { MemberCoreController } from './data/member-core.controller';
 import { MemberPublicController } from './data/member-public.controller';
 import { MemberCheckInController } from './data/member-checkin.controller';
 import { MemberWorkoutController } from './data/member-workout.controller';
+import { MemberPlanController } from './data/member-plan.controller';
+import { MemberCoachController } from './data/member-coach.controller';
 import { MemberClassController } from './data/member-class.controller';
 import { MemberNutritionController } from './data/member-nutrition.controller';
 import { MemberExerciseController } from './data/member-exercise.controller';
@@ -49,6 +54,7 @@ import { MemberChatController } from './data/member-chat.controller';
 import { MemberNotificationController } from './data/member-notification.controller';
 import { MemberCommunityController } from './data/member-community.controller';
 import { MemberHealthController } from './data/member-health.controller';
+import { MemberIdentityController } from './data/member-identity.controller';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -81,6 +87,8 @@ import { MemberHealthController } from './data/member-health.controller';
     MemberPublicController,
     MemberCheckInController,
     MemberWorkoutController,
+    MemberPlanController,
+    MemberCoachController,
     MemberClassController,
     MemberNutritionController,
     MemberExerciseController,
@@ -88,6 +96,7 @@ import { MemberHealthController } from './data/member-health.controller';
     MemberNotificationController,
     MemberCommunityController,
     MemberHealthController,
+    MemberIdentityController,
   ],
   providers: [
     MemberTokenService,
@@ -104,6 +113,8 @@ import { MemberHealthController } from './data/member-health.controller';
     MemberStreakService,
     MemberCheckInService,
     MemberWorkoutService,
+    MemberPlanService,
+    MemberCoachService,
     MemberClassService,
     MemberNutritionService,
     MemberExerciseService,
@@ -112,6 +123,7 @@ import { MemberHealthController } from './data/member-health.controller';
     MemberNotificationService,
     MemberCommunityService,
     MemberHealthService,
+    MemberIdentityService,
     MemberContextService,
     MemberPublicHealthService,
     MemberEventsService,

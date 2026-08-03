@@ -837,6 +837,79 @@ export interface HealthDailyInput {
   source?: string | null;
 }
 
+// ── My Plan: trainer-assigned diet + upcoming workouts ────────────
+export interface DietPlanMeal {
+  id: string;
+  meal_type: MealType;
+  position: number;
+  title: string;
+  /** Free-form array of { food, quantity, … } rows entered by the trainer. */
+  items: unknown;
+  calories: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+  notes: string | null;
+}
+
+export interface DietPlanDetail {
+  id: string;
+  title: string;
+  description: string | null;
+  goal: string | null;
+  daily_calories: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+  meals: DietPlanMeal[];
+}
+
+export interface DietPlanAssignment {
+  assignment_id: string;
+  starts_on: string;
+  ends_on: string | null;
+  notes: string | null;
+  assigned_by: string | null;
+  plan: DietPlanDetail;
+}
+
+export interface UpcomingWorkout {
+  assignment_id: string;
+  scheduled_date: string; // YYYY-MM-DD
+  status: 'assigned' | 'completed';
+  plan: {
+    id: string;
+    title: string;
+    goal: string | null;
+    difficulty: string | null;
+    exercise_count: number;
+  };
+}
+
+export interface MyPlans {
+  diet_plan: DietPlanAssignment | null;
+  upcoming_workouts: UpcomingWorkout[];
+}
+
+// ── AI Coach (one rolling conversation per member) ────────────────
+export interface CoachMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+export interface CoachConversation {
+  conversation_id: string | null;
+  messages: CoachMessage[];
+}
+
+export interface CoachChatResult {
+  conversation_id: string;
+  response: string;
+  /** Full updated history including the new user + assistant turns. */
+  messages: CoachMessage[];
+}
+
 // ── Conversion: public gym directory (Phase 5) ────────────────────
 export interface NearbyGym {
   tenantId: string;
@@ -876,4 +949,41 @@ export interface EventInput {
 }
 export interface EventIngestResult {
   accepted: number;
+}
+
+// ── Digital ID + visit history (M1) ───────────────────────────────
+export interface DigitalId {
+  memberCode: string;
+  fullName: string;
+  status: string;
+  photoUrl: string | null;
+  /** Long-lived signed token — safe to cache and render offline. */
+  staticToken: string;
+  /** PNG data URI rendered server-side (no QR dep in the app). */
+  staticQr: string | null;
+  /** Rolling ~30s token for replay-protected turnstiles. */
+  dynamicToken: string;
+  dynamicQr: string | null;
+  dynamicExpiresAt: string;
+}
+
+export interface VisitEntry {
+  id: string;
+  checkedInAt: string | null;
+  checkedOutAt: string | null;
+  durationMinutes: number | null;
+  method: string;
+  status: string;
+  branchName: string | null;
+}
+export interface VisitList {
+  visits: VisitEntry[];
+  nextCursor: string | null;
+}
+
+export interface VisitSummary {
+  totalVisits: number;
+  thisMonthVisits: number;
+  months: Array<{ month: string; count: number }>;
+  days: Array<{ date: string; count: number }>;
 }

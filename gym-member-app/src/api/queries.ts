@@ -24,6 +24,8 @@ import type {
   WeightInput,
   PublicGoalInput,
   PublicGoalUpdate,
+  CoachConversation,
+  CoachMessage,
 } from './types';
 
 export const qk = {
@@ -42,6 +44,9 @@ export const qk = {
   water: ['me', 'water'] as const,
   goals: ['me', 'goals'] as const,
   healthDaily: ['me', 'health-daily'] as const,
+  digitalId: ['digital-id'] as const,
+  visits: ['visits'] as const,
+  visitSummary: ['visits', 'summary'] as const,
 };
 
 // ── Public (gym-less) personal tracking ───────────────────────────
@@ -151,8 +156,17 @@ export function useLocations() {
   });
 }
 
-export function useMembership() {
-  return useQuery({ queryKey: qk.membership, queryFn: api.membership });
+/**
+ * Membership snapshot. Pass `refetchInterval` (ms) to poll — the renewal flow
+ * uses this while waiting for the hosted-checkout payment to confirm
+ * server-side (webhook), since the app never trusts a client payment result.
+ */
+export function useMembership(refetchInterval?: number | false) {
+  return useQuery({
+    queryKey: qk.membership,
+    queryFn: api.membership,
+    refetchInterval,
+  });
 }
 
 export function useProgress() {
@@ -409,6 +423,72 @@ export function useSendMessage(trainerId: string) {
   });
 }
 
+// ── My Plan (trainer-assigned diet + upcoming workouts) ───────────
+export const planKeys = {
+  myPlans: ['plans', 'my'] as const,
+};
+
+/** Pass `enabled: false` for non-members so the API is never called. */
+export function useMyPlans(enabled = true) {
+  return useQuery({
+    queryKey: planKeys.myPlans,
+    queryFn: api.myPlans,
+    enabled,
+    staleTime: 60_000, // trainer assignments change rarely
+  });
+}
+
+// ── AI Coach ──────────────────────────────────────────────────────
+export const coachKeys = {
+  conversation: ['coach', 'conversation'] as const,
+};
+
+/** Pass `enabled: false` for non-members so the API is never called. */
+export function useCoachConversation(enabled = true) {
+  return useQuery({
+    queryKey: coachKeys.conversation,
+    queryFn: api.coachHistory,
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * Send a message to the AI coach. Optimistically appends the user's bubble so
+ * it appears instantly (the screen shows a typing indicator while pending),
+ * then replaces the whole thread with the server's authoritative history.
+ */
+export function useCoachChat() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (message: string) => api.coachChat(message),
+    onMutate: async (message: string) => {
+      await qc.cancelQueries({ queryKey: coachKeys.conversation });
+      const prev = qc.getQueryData<CoachConversation>(coachKeys.conversation);
+      const optimistic: CoachMessage = {
+        role: 'user',
+        content: message,
+        timestamp: new Date().toISOString(),
+      };
+      qc.setQueryData<CoachConversation>(coachKeys.conversation, (old) =>
+        old
+          ? { ...old, messages: [...old.messages, optimistic] }
+          : { conversation_id: null, messages: [optimistic] },
+      );
+      return { prev };
+    },
+    onError: (_e, _message, ctx) => {
+      if (ctx) qc.setQueryData(coachKeys.conversation, ctx.prev);
+    },
+    onSuccess: (result) => {
+      qc.setQueryData<CoachConversation>(coachKeys.conversation, {
+        conversation_id: result.conversation_id,
+        messages: result.messages,
+      });
+    },
+  });
+}
+
 // ── Community (V2.5) ──────────────────────────────────────────────
 export const communityKeys = {
   leaderboard: (period: number) => ['community', 'leaderboard', period] as const,
@@ -511,5 +591,37 @@ export function useLogHealthSample() {
       qc.invalidateQueries({ queryKey: ['health', 'summary'] });
       qc.invalidateQueries({ queryKey: qk.home });
     },
+  });
+}
+
+// ── Digital ID + visit history ────────────────────────────────────
+
+/**
+ * The member's QR card. The static token is stable (invalidated only by a
+ * staff regenerate), the dynamic one rolls ~every 30s — so we refetch on a
+ * short interval while the screen is mounted rather than caching it long.
+ */
+export function useDigitalId() {
+  return useQuery({
+    queryKey: qk.digitalId,
+    queryFn: api.digitalId,
+    staleTime: 20_000,
+    refetchInterval: 25_000,
+  });
+}
+
+export function useVisits(limit?: number) {
+  return useQuery({
+    queryKey: [...qk.visits, limit ?? 30],
+    queryFn: () => api.visits({ limit }),
+    staleTime: 60_000,
+  });
+}
+
+export function useVisitSummary(months?: number) {
+  return useQuery({
+    queryKey: [...qk.visitSummary, months ?? 6],
+    queryFn: () => api.visitSummary(months),
+    staleTime: 5 * 60_000,
   });
 }

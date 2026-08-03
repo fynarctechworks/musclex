@@ -1,8 +1,8 @@
 "use client";
 
-import React, { lazy, Suspense, useState } from "react";
+import React, { useState } from "react";
 import { format, formatDistanceToNow } from "date-fns";
-import { TrendingUp, TrendingDown, Scale, QrCode, Download, Gift, Copy, Check, Share2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Scale, Gift, Copy, Check, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,11 @@ import { useEnsureMemberCode } from "@/features/member-referrals";
 import type { Member, CheckIn } from "@/types";
 import { statusToVariant, statusLabels } from "./member-utils";
 import { MemberFitnessProfile } from "./MemberFitnessProfile";
+import { MemberIdCard } from "@/features/members/components/MemberIdCard";
+import { useAuthStore } from "@/stores/auth-store";
 import { resolvePlanPrice, planHasBranchPricing } from "@/lib/plan-pricing";
 
 // Lazy-load QR to avoid SSR issues
-const QRCodeSVG = lazy(() => import("qrcode.react").then(m => ({ default: m.QRCodeSVG })));
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -132,6 +133,7 @@ interface MemberOverviewProps {
 }
 
 export function MemberOverview({ member, checkIns }: MemberOverviewProps) {
+  const hasPermission = useAuthStore((s) => s.hasPermission);
   const { data: progress } = useProgressSummary(member.id);
 
   const activeMembership =
@@ -301,35 +303,15 @@ export function MemberOverview({ member, checkIns }: MemberOverviewProps) {
       {/* Fitness Profile (member-app onboarding data) */}
       <MemberFitnessProfile member={member} />
 
-      {/* QR Code Card */}
-      {member.qr_code && (
-        <div className="rounded-lg border border-border bg-card p-6 flex flex-col items-center gap-4">
-          <div className="flex items-center gap-2 w-full">
-            <QrCode className="h-4 w-4 text-primary" />
-            <h3 className="text-base font-semibold text-foreground">Member QR Code</h3>
-          </div>
-          <div className="bg-canvas p-3 rounded-lg">
-            <Suspense fallback={<div className="h-40 w-40 bg-muted animate-pulse rounded" />}>
-              <QRCodeSVG
-                value={member.qr_code}
-                size={160}
-                level="M"
-                includeMargin={false}
-              />
-            </Suspense>
-          </div>
-          <div className="text-center">
-            <p className="text-xs font-mono text-muted-foreground">{member.member_code}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {activeMembership?.status === "active" ? (
-                <span className="text-success font-medium">✓ Active — scan to check in</span>
-              ) : (
-                <span className="text-warning font-medium">⚠ No active plan — check-in blocked</span>
-              )}
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Member ID card — renders the SIGNED QR token (not member.qr_code,
+          which the scanner does not verify), printable + regenerable. */}
+      <MemberIdCard
+        memberId={member.id}
+        memberName={member.full_name}
+        memberCode={member.member_code}
+        isActive={activeMembership?.status === "active"}
+        canRegenerate={hasPermission("members", "edit")}
+      />
 
       {/* Recent Check-ins */}
       <div className="rounded-lg border border-border bg-card p-6 lg:col-span-2">
