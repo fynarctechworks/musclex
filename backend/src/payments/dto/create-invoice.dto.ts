@@ -79,6 +79,8 @@ export class CreateInvoiceDto {
 }
 
 export class UpdateInvoiceStatusDto {
-  @IsIn(['pending', 'paid', 'partial', 'cancelled', 'refunded'])
+  // 'cancelled' is deliberately excluded — cancellation must go through
+  // POST /invoices/:id/cancel, which writes the reversing ledger entry.
+  @IsIn(['pending', 'paid', 'partial', 'refunded'])
   status: string;
 }

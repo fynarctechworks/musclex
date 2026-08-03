@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, FileText, ArrowLeft, Download, Mail, MessageCircle, Loader2 } from "lucide-react";
+import { Plus, FileText, ArrowLeft, Download, Mail, MessageCircle, Loader2, Banknote, XCircle } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import {
   AccessDenied,
@@ -16,8 +16,9 @@ import { useRequirePermission } from "@/hooks/use-require-permission";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import { useAuthStore } from "@/stores/auth-store";
-import { useInvoices, useInvoicePdfLink, useSendInvoice } from "@/features/payments";
+import { useInvoices, useInvoicePdfLink, useSendInvoice, useCancelInvoice } from "@/features/payments";
 import { format } from "date-fns";
+import { useRouter } from "next/navigation";
 
 interface InvoiceRow {
   id: string;
@@ -46,7 +47,16 @@ export default function InvoicesListPage() {
 
   const pdfMut = useInvoicePdfLink();
   const sendMut = useSendInvoice();
+  const cancelMut = useCancelInvoice();
+  const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
+
+  const cancelInvoice = (inv: InvoiceRow) => {
+    const label = inv.invoice_number ?? inv.id.slice(0, 8);
+    if (!window.confirm(`Cancel invoice ${label}? It will be excluded from revenue via a reversing ledger entry. This cannot be undone.`)) return;
+    setPendingId(`${inv.id}:cancel`);
+    cancelMut.mutate(inv.id, { onSettled: () => setPendingId(null) });
+  };
 
   const openPdf = async (id: string) => {
     setPendingId(id);
@@ -227,6 +237,29 @@ export default function InvoicesListPage() {
                           <MessageCircle className="h-3.5 w-3.5" />
                         )}
                       </button>
+                      {(inv.status === "pending" || inv.status === "partial") && (
+                        <button
+                          onClick={() => router.push(gymPath(`/finance/payments/new?invoice_id=${inv.id}`))}
+                          title="Collect payment"
+                          className="p-1.5 rounded hover:bg-canvas-soft-2 text-primary transition-colors"
+                        >
+                          <Banknote className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {inv.status !== "paid" && inv.status !== "cancelled" && inv.status !== "refunded" && (
+                        <button
+                          onClick={() => cancelInvoice(inv)}
+                          disabled={pendingId === `${inv.id}:cancel`}
+                          title="Cancel invoice (excludes from revenue)"
+                          className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                        >
+                          {pendingId === `${inv.id}:cancel` ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <XCircle className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

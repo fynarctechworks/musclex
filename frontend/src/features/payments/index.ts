@@ -41,6 +41,8 @@ export {
   useInvoice,
   useCreateInvoice,
   useUpdateInvoiceStatus,
+  useCancelInvoice,
+  useTaxRates,
   useInvoicePdfLink,
   useSendInvoice,
   usePosReceiptPdfLink,

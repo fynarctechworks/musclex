@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, CreditCard, Smartphone, Banknote, Building2, Zap } from "lucide-react";
@@ -46,6 +46,8 @@ export default function RecordPaymentPage() {
   const { gymPath } = useGymSlug();
   const CURRENCY_SYMBOL = useCurrency();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const invoiceId = searchParams.get("invoice_id");
   const [memberSearch, setMemberSearch] = useState("");
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("cash");
@@ -66,6 +68,35 @@ export default function RecordPaymentPage() {
     queryFn: () => apiClient.get<MembershipPlan[]>("/membership-plans"),
   });
 
+  // When arriving via "Collect payment" on an invoice row, pin the invoice:
+  // prefill member + outstanding amount and send invoice_id with the payment
+  // so the backend reconciles invoice status (paid/partial).
+  interface CollectInvoice {
+    id: string;
+    invoice_number?: string;
+    total_amount?: string | number;
+    status?: string;
+    branch_id?: string;
+    branch?: { id: string } | null;
+    member?: { id: string; full_name: string; member_code: string } | null;
+  }
+  const { data: collectInvoice } = useQuery({
+    queryKey: ["invoice-collect", invoiceId],
+    queryFn: () => apiClient.get<CollectInvoice>(`/invoices/${invoiceId}`),
+    enabled: !!invoiceId,
+  });
+
+  useEffect(() => {
+    if (!collectInvoice) return;
+    if (collectInvoice.member) {
+      setSelectedMember(collectInvoice.member as unknown as Member);
+      setValue("member_id", collectInvoice.member.id);
+    }
+    if (collectInvoice.total_amount != null) {
+      setValue("amount", String(Number(collectInvoice.total_amount)));
+    }
+  }, [collectInvoice, setValue]);
+
   const selectedPlan = (Array.isArray(plans) ? plans : []).find((p) => p.id === selectedPlanId);
 
   // Auto-update amount when plan or billing cycle changes
@@ -84,7 +115,10 @@ export default function RecordPaymentPage() {
         "/payments/cash",
         {
           member_id: data.member_id,
-          branch_id: selectedMember?.branch_id,
+          // Invoice-collect prefill has no member.branch_id — fall back to the
+          // invoice's own branch.
+          branch_id: selectedMember?.branch_id ?? collectInvoice?.branch_id ?? collectInvoice?.branch?.id,
+          invoice_id: invoiceId || undefined,
           amount: Number(data.amount),
           payment_method: data.payment_method,
           billing_cycle: billingCycle,
@@ -202,6 +236,18 @@ export default function RecordPaymentPage() {
         <ArrowLeft className="h-4 w-4" /> Back
       </Link>
       <h1 className="text-xl font-semibold text-foreground mb-6">Record Payment</h1>
+
+      {invoiceId && collectInvoice && (
+        <div className="max-w-lg mb-4 rounded-md border border-primary/30 bg-canvas-soft-2 px-4 py-3 text-sm">
+          <p className="text-foreground font-medium">
+            Collecting against invoice {collectInvoice.invoice_number ?? invoiceId.slice(0, 8)}
+          </p>
+          <p className="text-muted-foreground text-xs mt-0.5">
+            Total {CURRENCY_SYMBOL}{Number(collectInvoice.total_amount ?? 0).toLocaleString()} — a smaller
+            amount records a partial payment; the invoice status updates automatically.
+          </p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="max-w-lg space-y-6">
         {/* Member Search */}

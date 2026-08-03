@@ -8,6 +8,7 @@ import {
   posReceiptsApi,
   refundsApi,
   discountsApi,
+  taxRatesApi,
   financialReportsApi,
   type PaymentFilters,
   type ExpenseFilters,
@@ -261,13 +262,35 @@ export function useCreateInvoice() {
 export function useUpdateInvoiceStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: 'pending' | 'paid' | 'partial' | 'cancelled' | 'refunded' }) =>
+    // 'cancelled' is deliberately not accepted here — cancellation must go
+    // through useCancelInvoice so the reversing ledger entry is written.
+    mutationFn: ({ id, status }: { id: string; status: 'pending' | 'paid' | 'partial' | 'refunded' }) =>
       invoicesApi.updateStatus(id, status),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.finance.all });
       toast.success('Invoice status updated');
     },
     onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useCancelInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => invoicesApi.cancel(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.finance.all });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+      toast.success('Invoice cancelled and excluded from revenue');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useTaxRates() {
+  return useQuery({
+    queryKey: ['tax-rates'],
+    queryFn: () => taxRatesApi.list(),
   });
 }
 

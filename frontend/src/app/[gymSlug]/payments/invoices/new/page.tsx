@@ -13,7 +13,7 @@ import { useRequirePermission } from "@/hooks/use-require-permission";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import { apiClient } from "@/lib/api";
-import { useCreateInvoice } from "@/features/payments";
+import { useCreateInvoice, useTaxRates, useDiscounts } from "@/features/payments";
 import type { Member, MembershipPlan, PaginatedResponse } from "@/lib/types";
 import { resolvePlanPrice } from "@/lib/plan-pricing";
 import { toast } from "sonner";
@@ -44,6 +44,8 @@ export default function NewInvoicePage() {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
+  const [taxRateId, setTaxRateId] = useState("");
+  const [discountCode, setDiscountCode] = useState("");
   const [items, setItems] = useState<LineItem[]>([
     { item_type: "membership", description: "", quantity: 1, unit_price: 0 },
   ]);
@@ -63,6 +65,12 @@ export default function NewInvoicePage() {
   });
 
   const createInvoice = useCreateInvoice();
+  const { data: taxRates } = useTaxRates();
+  const { data: discounts } = useDiscounts({ is_active: true });
+
+  const taxRateRows = (taxRates ?? []) as { id: string; tax_name: string; rate: string | number }[];
+  const discountRows = (discounts ?? []) as { id: string; code: string | null; name: string }[];
+  const selectedTaxRate = taxRateRows.find((t) => t.id === taxRateId);
 
   const updateItem = (idx: number, patch: Partial<LineItem>) => {
     setItems((prev) =>
@@ -106,6 +114,8 @@ export default function NewInvoicePage() {
           quantity: i.quantity,
           unit_price: i.unit_price,
         })),
+        tax_rate_id: taxRateId || undefined,
+        discount_code: discountCode || undefined,
         due_date: dueDate || undefined,
         notes: notes || undefined,
       },
@@ -321,6 +331,66 @@ export default function NewInvoicePage() {
               {CURRENCY_SYMBOL}
               {subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </span>
+          </div>
+        </div>
+
+        {/* Tax & discount */}
+        <div className="rounded-lg border border-border bg-card p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-foreground">Tax & Discount</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-foreground block mb-1">
+                Tax Rate (GST)
+              </label>
+              <select
+                value={taxRateId}
+                onChange={(e) => setTaxRateId(e.target.value)}
+                className="w-full rounded-md border border-border bg-background text-foreground p-2 text-sm"
+              >
+                <option value="">No tax</option>
+                {taxRateRows.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.tax_name} ({Number(t.rate)}%)
+                  </option>
+                ))}
+              </select>
+              {selectedTaxRate && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  +{CURRENCY_SYMBOL}
+                  {((subtotal * Number(selectedTaxRate.rate)) / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}{" "}
+                  GST (CGST/SGST vs IGST split computed from place of supply)
+                </p>
+              )}
+              {taxRateRows.length === 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  No tax rates configured — set one up in Settings → Tax & Invoice.
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground block mb-1">
+                Discount Code
+              </label>
+              <Input
+                value={discountCode}
+                onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                placeholder="e.g. NEWYEAR10"
+                className="bg-background border-border text-foreground"
+                list="invoice-discount-codes"
+              />
+              <datalist id="invoice-discount-codes">
+                {discountRows
+                  .filter((d) => d.code)
+                  .map((d) => (
+                    <option key={d.id} value={d.code!}>
+                      {d.name}
+                    </option>
+                  ))}
+              </datalist>
+              <p className="text-xs text-muted-foreground mt-1">
+                Validated and applied server-side at creation.
+              </p>
+            </div>
           </div>
         </div>
 

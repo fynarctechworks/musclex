@@ -107,3 +107,19 @@ One item per slice; each lands only after review approval.
 **Still true (unchanged):** refunds remain ledger-only — no Razorpay/Stripe gateway refund call (`gateway_refund_id` never populated). That's a Milestone-1+ item, not UI.
 
 **Tests:** frontend `tsc --noEmit` PASS. Flow needs manual click-through (no frontend test suite).
+
+## Fix 9 — invoice UI: tax/discount, collect payment, cancel (COMMITTED)
+
+**Bugs (3):**
+1. Manual invoices computed ₹0 GST — the create form never sent `tax_rate_id`/`discount_code` despite the DTO accepting both.
+2. Invoice↔payment reconciliation was unreachable: the payment form never sent `invoice_id`, so `recalculateInvoiceStatus` (paid/partial) never ran from the UI, and invoice rows had no "collect" action.
+3. `cancelInvoice()` (reversing ledger entry, revenue exclusion) had no UI caller; the generic status-PATCH could set `cancelled` while bypassing the ledger.
+
+**Change:**
+- `payments/invoices/new/page.tsx`: new "Tax & Discount" card — tax-rate select (from `GET /tax-rates`, live GST preview on subtotal, empty-state pointing at Settings → Tax & Invoice) + discount-code input with `datalist` of active codes; both now sent on create (server validates/applies).
+- `payments/invoices/page.tsx`: row actions gain **Collect payment** (pending/partial only → `/finance/payments/new?invoice_id=…`) and **Cancel** (non-paid/cancelled/refunded only, confirm dialog, calls the ledger-correct `POST /invoices/:id/cancel`).
+- `finance/payments/new/page.tsx`: reads `?invoice_id`, fetches the invoice, prefills member + outstanding amount, shows a "collecting against invoice N" banner, and passes `invoice_id` to `/payments/cash` (branch falls back to the invoice's branch). Partial amounts are supported — backend sets `partial`.
+- Footgun closed on BOTH sides: `useUpdateInvoiceStatus` and backend `UpdateInvoiceStatusDto` no longer accept `'cancelled'` — cancellation must go through the ledger-writing endpoint.
+- New hooks `useCancelInvoice`, `useTaxRates` (+ exports).
+
+**Tests:** frontend + backend `tsc --noEmit` PASS. `jest test/payments src/payments` = 20 failed/27 passed — **verified pre-existing**: re-ran with my DTO change stashed and got the identical 20/27 (stale specs constructing `PaymentsService` with 3 of 6 args, from the in-flight per-gym-schemas refactor). Logged as DEBT #4.
