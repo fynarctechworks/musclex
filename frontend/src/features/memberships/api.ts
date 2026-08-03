@@ -79,6 +79,28 @@ export const memberMembershipsApi = {
     }),
 };
 
+// ─── Membership Stats API ────────────────────────────────────
+
+export interface MembershipStats {
+  total: number;
+  active: number;
+  frozen: number;
+  expired: number;
+  cancelled: number;
+  renewed: number;
+  paused: number;
+  expiring_soon: number;
+  auto_renew_enabled: number;
+}
+
+export const membershipStatsApi = {
+  /** Status breakdown + expiring-soon + auto-renew counts. */
+  getStats: (branchId?: string) =>
+    apiClient.get<MembershipStats>('/memberships/stats/summary', {
+      params: branchId ? { branch_id: branchId } : undefined,
+    }),
+};
+
 // ─── Subscription Metrics API ────────────────────────────────
 
 export const subscriptionMetricsApi = {

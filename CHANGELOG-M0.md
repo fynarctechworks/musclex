@@ -146,3 +146,15 @@ One item per slice; each lands only after review approval.
 - Values are still hand-synced (no public pricing API) — logged as DEBT #5.
 
 **Tests:** frontend `tsc --noEmit` PASS. Visual check of the landing page is manual (no test suite; `next build` deliberately not run — it would poison the dev `.next/` cache per CLAUDE.md).
+
+## Quick wins (COMMITTED)
+
+**QW-A — membership status cards.** `GET /memberships/stats/summary` had no frontend caller. Added `membershipStatsApi` + `useMembershipStats` and four KPI cards (Active / Expiring in 7 days / Frozen / Auto-renew on) to `/memberships/plans`, respecting the page's branch filter.
+
+**QW-C1 — stale member-app copy.** `gym-member-app/app/(app)/workout.tsx` still said "Trainer-assigned plans arrive in a later update" — they've shipped. Now points members at the Plan tab.
+
+**QW-C2 — duplicate automation pages.** `/marketing/automation` (older, raw `workflowsApi`) and `/marketing/automations` (canonical: `features/automations`, LIVE_TRIGGERS, templates tab, sidebar nav) both existed and were linked from different places. Repointed the 3 marketing-hub sub-nav links to the canonical route. **Did NOT delete** the old page (CLAUDE.md HARD STOP #6) — it is now unlinked; see "Awaiting approval" below.
+
+**QW-D — occupancy.** `OCCUPANCY_UPDATED` was declared in `check-in.events.ts` and listened for by `CheckInsGateway` but **never emitted** — the WS occupancy channel was dead. The orchestrator now emits it after a successful check-in (same 4h auto-checkout heuristic as `OccupancyService`, so both agree), fire-and-forget so it can't fail a check-in. Also `CapacityWidget` was hardcoded `max={0}`; the check-in page now reads real capacity from `/dashboard/ops/occupancy` (`BranchSettings.checkin_policy.max_occupancy`), and the widget keeps its honest "set capacity" CTA when unset.
+
+**Tests:** backend + frontend + member-app `tsc --noEmit` all PASS; `jest test/check-ins src/check-ins` **28/28 PASS**.

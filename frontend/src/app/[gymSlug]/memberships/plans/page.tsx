@@ -27,8 +27,11 @@ import Link from "next/link";
 import {
   useMembershipPlans,
   useDuplicatePlan,
+  useMembershipStats,
   PlanTable,
 } from "@/features/memberships";
+import { KPICard } from "@/components/shared";
+import { Users, Snowflake, CalendarClock, RefreshCw } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 
 export default function MembershipPlansPage() {
@@ -55,6 +58,9 @@ export default function MembershipPlansPage() {
   });
 
   const duplicateMutation = useDuplicatePlan();
+  const { data: stats } = useMembershipStats(
+    branchFilter !== "all" ? branchFilter : undefined,
+  );
 
   // For archive toggle we use updatePlan with inline id
   const handleArchiveConfirm = () => {
@@ -93,6 +99,30 @@ export default function MembershipPlansPage() {
             </Link>
           }
         />
+
+        {/* Membership status snapshot — counts across all plans, not per-plan */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KPICard
+            icon={Users}
+            label="Active Memberships"
+            value={String(stats?.active ?? 0)}
+          />
+          <KPICard
+            icon={CalendarClock}
+            label="Expiring in 7 Days"
+            value={String(stats?.expiring_soon ?? 0)}
+          />
+          <KPICard
+            icon={Snowflake}
+            label="Frozen"
+            value={String(stats?.frozen ?? 0)}
+          />
+          <KPICard
+            icon={RefreshCw}
+            label="Auto-renew On"
+            value={String(stats?.auto_renew_enabled ?? 0)}
+          />
+        </div>
 
         {/* Filters */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

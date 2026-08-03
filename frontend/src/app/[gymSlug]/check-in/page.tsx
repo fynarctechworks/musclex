@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Search, QrCode, ScanFace, WifiOff, Upload, Clock, Command as CommandIcon, ExternalLink } from "lucide-react";
+import { apiClient } from "@/lib/api";
 import { AppLayout } from "@/components/layout/app-layout";
 import { AccessDenied } from "@/components/shared/access-denied";
 import { useRequirePermission } from "@/hooks/use-require-permission";
@@ -96,6 +98,18 @@ export default function CheckInPage() {
       .filter((c) => c.status === "success")
       .map((c) => c.member_id)
   ).size;
+
+  // Real branch capacity (BranchSettings.checkin_policy.max_occupancy) — the
+  // widget still renders its "set capacity" CTA when the gym hasn't set one.
+  const { data: occupancy } = useQuery({
+    queryKey: ["dashboard-occupancy", branchId],
+    queryFn: () =>
+      apiClient.get<{ current: number; capacity?: number }>(
+        "/dashboard/ops/occupancy",
+        { params: branchId ? { branch_id: branchId } : undefined },
+      ),
+    enabled: Boolean(branchId),
+  });
 
   // Derive alerts from recent check-ins
   const alerts = deriveAlerts(recentCheckIns);
@@ -524,9 +538,10 @@ export default function CheckInPage() {
 
         {/* ─── Right: Sidebar ─── */}
         <div className="w-full lg:w-80 xl:w-96 space-y-5 shrink-0">
-          {/* Capacity — `max` is 0 until branch.max_capacity is wired
-              up; the widget renders an honest "set capacity" CTA. */}
-          <CapacityWidget current={currentInGym} max={0} />
+          {/* Capacity — from BranchSettings.checkin_policy.max_occupancy via
+              /dashboard/ops/occupancy; the widget still renders its honest
+              "set capacity" CTA when the gym hasn't configured one. */}
+          <CapacityWidget current={currentInGym} max={occupancy?.capacity ?? 0} />
 
           {/* Visit Analytics — avgDurationMinutes is null until we capture
               exit times; the widget renders "—" instead of fake data. */}

@@ -13,7 +13,7 @@ import { useRequirePermission } from "@/hooks/use-require-permission";
 const subNavItems = [
   { label: "Campaigns", href: "/marketing", icon: Megaphone },
   { label: "Templates", href: "/marketing/templates", icon: FileText },
-  { label: "Automation", href: "/marketing/automation", icon: Zap },
+  { label: "Automation", href: "/marketing/automations", icon: Zap },
   { label: "Leads", href: "/marketing/leads", icon: Users2 },
 ];
 

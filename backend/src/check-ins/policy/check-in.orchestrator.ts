@@ -13,9 +13,11 @@ import {
   CHECK_IN_DENIED,
   CHECK_IN_OVERRIDDEN,
   CHECK_IN_RECORDED,
+  OCCUPANCY_UPDATED,
   type CheckInDeniedPayload,
   type CheckInOverriddenPayload,
   type CheckInRecordedPayload,
+  type OccupancyUpdatedPayload,
 } from '../check-in.events';
 
 export interface OrchestratorInput {
@@ -687,8 +689,36 @@ export class CheckInOrchestrator {
         };
         this.eventBus.emit(CHECK_IN_OVERRIDDEN, overridden);
       }
+
+      // OCCUPANCY_UPDATED was declared and listened for by the gateway but
+      // never emitted, so the occupancy channel was dead. Count uses the same
+      // 4h auto-checkout heuristic as OccupancyService so both agree.
+      void this.emitOccupancy(ctx.gym_id, branchId, ctx.now);
     } catch (err) {
       this.logger.warn(`Failed to emit CHECK_IN_RECORDED: ${(err as Error).message}`);
+    }
+  }
+
+  /** Broadcast the branch's live head-count after a successful entry. */
+  private async emitOccupancy(gymId: string, branchId: string, now: Date) {
+    try {
+      const cutoff = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+      const current = await this.prisma.checkIn.count({
+        where: {
+          branch_id: branchId,
+          status: 'success',
+          checked_in_at: { gte: cutoff },
+        },
+      });
+      const payload: OccupancyUpdatedPayload = {
+        gym_id: gymId,
+        branch_id: branchId,
+        current,
+        as_of: now.toISOString(),
+      };
+      this.eventBus.emit(OCCUPANCY_UPDATED, payload);
+    } catch (err) {
+      this.logger.warn(`Failed to emit OCCUPANCY_UPDATED: ${(err as Error).message}`);
     }
   }
 

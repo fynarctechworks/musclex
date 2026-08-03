@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/services/query-client';
-import { plansApi, memberMembershipsApi, subscriptionMetricsApi } from './api';
+import { plansApi, memberMembershipsApi, subscriptionMetricsApi, membershipStatsApi } from './api';
 import type {
   CreatePlanDto,
   UpdatePlanDto,
@@ -171,6 +171,15 @@ export function useCancelMembership(membershipId: string, memberId: string) {
       toast.success('Membership cancelled');
     },
     onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+// ─── Membership Stats Hook ───────────────────────────────────
+
+export function useMembershipStats(branchId?: string) {
+  return useQuery({
+    queryKey: [...queryKeys.memberships.all, 'stats', branchId] as const,
+    queryFn: () => membershipStatsApi.getStats(branchId),
   });
 }
 

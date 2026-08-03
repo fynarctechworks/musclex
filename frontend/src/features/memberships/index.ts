@@ -32,6 +32,7 @@ export {
   useChangePlan,
   useCancelMembership,
   useSubscriptionMetrics,
+  useMembershipStats,
 } from './hooks';
 
 // Components

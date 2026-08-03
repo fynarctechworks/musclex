@@ -94,7 +94,8 @@ export default function WorkoutScreen() {
                 />
               </View>
               <Txt variant="caption" className="mt-xs text-mute">
-                Trainer-assigned plans arrive in a later update.
+                Assigned plans show up here automatically — see your full plan
+                under Plan.
               </Txt>
             </Card>
           )}
