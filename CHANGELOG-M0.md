@@ -158,3 +158,21 @@ One item per slice; each lands only after review approval.
 **QW-D — occupancy.** `OCCUPANCY_UPDATED` was declared in `check-in.events.ts` and listened for by `CheckInsGateway` but **never emitted** — the WS occupancy channel was dead. The orchestrator now emits it after a successful check-in (same 4h auto-checkout heuristic as `OccupancyService`, so both agree), fire-and-forget so it can't fail a check-in. Also `CapacityWidget` was hardcoded `max={0}`; the check-in page now reads real capacity from `/dashboard/ops/occupancy` (`BranchSettings.checkin_policy.max_occupancy`), and the widget keeps its honest "set capacity" CTA when unset.
 
 **Tests:** backend + frontend + member-app `tsc --noEmit` all PASS; `jest test/check-ins src/check-ins` **28/28 PASS**.
+
+---
+
+## Skipped — needs your decision
+
+**QW-B — kiosk exit PIN validated against `CheckInDevice.pin_hash`.** Listed as a quick win in the roadmap, but it isn't one. The web kiosk (`/kiosk/[branchSlug]`) authenticates with the **staff JWT** and has no `CheckInDevice` binding at all — `pin_hash` is only ever written as a `pending:<random>` sentinel at device registration (`devices.service.ts:83`) and the column is explicitly documented as "not used by device-token auth". Doing this properly needs: (1) a browser↔device registration/pairing step for the web kiosk, (2) a new PIN set/verify endpoint, (3) a rewrite of `KioskPinLock`. That is a real slice and it lands in **HARD STOP #2 territory (auth/identity)**, so it needs explicit sign-off. Current behaviour is unchanged: SHA-256 of `branch-salt:pin` in `localStorage`, so a wiped browser profile resets the PIN.
+
+**Exercise library seed data.** The roadmap listed "exercise seed" as a quick win. There is genuinely **no exercise seed anywhere** (no `INSERT`, no `createMany`, no `DEFAULT_EXERCISES`) and no admin CRUD (`exercises.controller.ts` is `@Get()`-only) — so a fresh tenant's workout builder has an empty picker. Seeding is a **data migration** plus new write endpoints; both are outside "no schema changes, no new deps". Deferred to Milestone 1 as scoped in the roadmap.
+
+## Awaiting approval — code I did not delete (CLAUDE.md HARD STOP #6)
+
+- `frontend/src/app/[gymSlug]/marketing/automation/page.tsx` (457 lines) — the older duplicate automations page. As of QW-C2 **nothing links to it**; the canonical page is `/marketing/automations` (uses `features/automations`, `LIVE_TRIGGERS`, templates tab, and is the sidebar entry). Safe to delete on your word; left in place for now.
+
+## Not addressed in M0 (roadmap says later, unchanged)
+
+- Refunds are still **ledger-only** — no Razorpay/Stripe gateway refund call (`gateway_refund_id` stays null).
+- PT session rate is still hardcoded `₹500` (`staff/trainer.service.ts:247`), so `TrainerRevenue` — and therefore the new PT revenue category from Fix 2 — is internally consistent but not correctly priced. Milestone 2.
+- Webhook events `lead.created` / `lead.converted` / `invoice.created` / `campaign.*` still don't fire: they have no domain-event emitter to hook into (Fix 6 covers member/staff/membership/payment/checkin/class).
