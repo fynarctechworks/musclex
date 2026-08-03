@@ -82,7 +82,10 @@ export default function FinancePage() {
         <KPICard icon={TrendingUp} label="Net Profit" value={`${CURRENCY_SYMBOL}${kpis.netProfit.toLocaleString("en-IN")}`} trend={{ value: 0, isPositive: kpis.netProfit >= 0 }} />
       </div>
 
-      <div className="mb-6 flex justify-end">
+      <div className="mb-6 flex justify-end gap-4">
+        <Link href={gymPath("/finance/refunds")} className="text-sm text-primary hover:text-primary/80">
+          View Refunds →
+        </Link>
         <Link href={gymPath("/finance/expenses")} className="text-sm text-primary hover:text-primary/80">
           View Expenses →
         </Link>

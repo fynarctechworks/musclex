@@ -94,3 +94,16 @@ One item per slice; each lands only after review approval.
 **Change:** `marketing/automation.service.ts` now injects the global `PushService` and calls `sendToMember(member_id, {title, body, data}, {category:'promos'})` first; the DB row records the truth — `sent` + `sent_at` only when Expo accepted ≥1 device token, else `failed` (PushNotification.status already documents `failed` as a valid value).
 
 **Tests:** backend `tsc --noEmit` PASS. No spec covers AutomationService; real delivery needs a device with a registered Expo token.
+
+## Fix 8 — refunds screen (COMMITTED)
+
+**Bug:** Refund backend (`/api/v1/refunds` — over-refund validation, ledger reversal, cascade to invoice status) and frontend hooks (`useRefunds`/`useProcessRefund`) were complete but no page imported them — refunds were unreachable from the product.
+
+**Change:**
+- New `frontend/src/app/[gymSlug]/finance/refunds/page.tsx` — refunds list (receipt, member, refunded vs original amount, reason, processed-by, status, date; status filter chips) + "Process Refund" dialog (paid-payment picker from `/payments?status=paid`, amount with max hint, optional reason) wired to the existing idempotent `POST /refunds`.
+- Finance hub now links "View Refunds →" beside "View Expenses →".
+- Reuses existing hooks/permissions (`payments.view` to see, backend enforces `payments.create` to process).
+
+**Still true (unchanged):** refunds remain ledger-only — no Razorpay/Stripe gateway refund call (`gateway_refund_id` never populated). That's a Milestone-1+ item, not UI.
+
+**Tests:** frontend `tsc --noEmit` PASS. Flow needs manual click-through (no frontend test suite).
