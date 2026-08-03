@@ -4,6 +4,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { RazorpayService } from './razorpay.service';
+import { StripeService } from './stripe.service';
 import { ExpensesController } from './expenses.controller';
 import { ExpensesService } from './expenses.service';
 import { InvoicesController } from './invoices.controller';
@@ -24,9 +25,11 @@ import { ExpenseMetricsListener } from './expenses/expense-metrics.listener';
 import { ExpenseIntelligenceService } from './expenses/expense-intelligence.service';
 import { ExpenseExportService } from './expenses/expense-export.service';
 import { BranchDefaultsListener } from './expenses/branch-defaults.listener';
+import { DocumentsModule } from '../documents/documents.module';
+import { PaymentReceiptService } from './payment-receipt.service';
 
 @Module({
-  imports: [PrismaModule, ConfigModule],
+  imports: [PrismaModule, ConfigModule, DocumentsModule],
   controllers: [
     PaymentsController,
     ExpensesController,
@@ -38,7 +41,9 @@ import { BranchDefaultsListener } from './expenses/branch-defaults.listener';
   ],
   providers: [
     PaymentsService,
+    PaymentReceiptService,
     RazorpayService,
+    StripeService,
     ExpensesService,
     BillingService,
     RefundsService,
@@ -55,6 +60,9 @@ import { BranchDefaultsListener } from './expenses/branch-defaults.listener';
   ],
   exports: [
     PaymentsService,
+    PaymentReceiptService,
+    RazorpayService,
+    StripeService,
     BillingService,
     RefundsService,
     DiscountsService,

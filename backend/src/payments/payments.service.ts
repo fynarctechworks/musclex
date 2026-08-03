@@ -9,6 +9,9 @@ import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { TenantTaskRunner } from '../prisma/tenant-task-runner';
 import { BillingService } from './billing.service';
 import { RazorpayService } from './razorpay.service';
+import { StripeService } from './stripe.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { PAYMENT_PAID, type PaymentPaidPayload } from './payment.events';
 import { randomBytes } from 'crypto';
 import { getTenantGymId } from '../common/tenant-context';
 
@@ -20,13 +23,44 @@ export class PaymentsService {
     private tasks: TenantTaskRunner, // webhook has no req context
     private billingService: BillingService,
     private razorpay: RazorpayService,
+    private stripe: StripeService,
+    private events: EventEmitter2,
   ) {}
+
+  /**
+   * Announce a captured payment so the receipt listener can deliver the
+   * invoice PDF. Emitted (not awaited) — a slow or failing WhatsApp/email
+   * send must never delay or roll back a payment that already succeeded.
+   * Going through the bus also keeps the PDF/document stack out of this
+   * module's import graph.
+   */
+  private queueReceipt(paymentId: string, gymId?: string): void {
+    const payload: PaymentPaidPayload = { payment_id: paymentId, gym_id: gymId };
+    this.events.emit(PAYMENT_PAID, payload);
+  }
 
   private generateReceiptNumber(): string {
     const now = new Date();
     const date = now.toISOString().slice(0, 10).replace(/-/g, '');
     const rand = randomBytes(4).toString('hex').toUpperCase();
     return `RCP-${date}-${rand}`;
+  }
+
+  /**
+   * Per-gym gateway keys from payment_gateway_configs (owner-configured under
+   * /payment-gateways). Returns null when the gym has no active config — the
+   * gateway services then fall back to platform env keys. Requires tenant ctx.
+   */
+  private async gatewayCreds(gatewayName: 'razorpay' | 'stripe'): Promise<{ keyId: string; keySecret: string } | null> {
+    try {
+      const cfg = await this.tenant.client.paymentGatewayConfig.findFirst({
+        where: { gateway_name: gatewayName, is_active: true },
+      });
+      if (!cfg?.api_key || !cfg?.secret_key) return null;
+      return { keyId: cfg.api_key, keySecret: cfg.secret_key };
+    } catch {
+      return null;
+    }
   }
 
   async recordCash(studioId: string, data: {
@@ -99,6 +133,9 @@ export class PaymentsService {
         await this.billingService.recalculateInvoiceStatus(data.invoice_id);
       }
 
+      // Auto-receipt (only sends when the payment is invoice-linked).
+      this.queueReceipt(payment.id);
+
       return payment;
     });
   }
@@ -139,18 +176,22 @@ export class PaymentsService {
     // Create a real Razorpay order and bind it to our pending payment. The
     // Razorpay order id (order_xxx) is what Checkout needs and what the
     // signature is computed over, so we persist it as gateway_order_id and
-    // return it as order_id.
-    const order = await this.razorpay.createOrder({
-      amount: Number(plan.price),
-      currency: payment.currency,
-      receipt: receiptNumber,
-      notes: {
-        gym_id: studioId,
-        payment_id: payment.id,
-        member_id: data.member_id,
-        plan_id: data.plan_id,
+    // return it as order_id. Per-gym keys win over platform env keys.
+    const creds = (await this.gatewayCreds('razorpay')) ?? undefined;
+    const order = await this.razorpay.createOrder(
+      {
+        amount: Number(plan.price),
+        currency: payment.currency,
+        receipt: receiptNumber,
+        notes: {
+          gym_id: studioId,
+          payment_id: payment.id,
+          member_id: data.member_id,
+          plan_id: data.plan_id,
+        },
       },
-    });
+      creds,
+    );
     await this.tenant.client.payment.update({
       where: { id: payment.id },
       data: { gateway_order_id: order.id },
@@ -158,7 +199,7 @@ export class PaymentsService {
     return {
       order_id: order.id,
       payment_id: payment.id,
-      key_id: this.razorpay.getKeyId(),
+      key_id: this.razorpay.getKeyId(creds),
       receipt_number: receiptNumber,
       amount: Number(plan.price),
       currency: payment.currency,
@@ -171,9 +212,17 @@ export class PaymentsService {
     gateway_payment_id: string;
     gateway_order_id: string;
     signature: string;
-    member_id: string;
-    plan_id: string;
-    branch_id: string;
+    // NOTE: member_id / plan_id / branch_id are accepted for backward-compat
+    // but DELIBERATELY IGNORED. The Razorpay checkout signature only proves
+    // `order_id|payment_id` are authentic — it does NOT bind which plan/member
+    // the grant is for. Trusting client-supplied values here let a caller pay
+    // for a cheap plan then claim an expensive one (or activate a different
+    // member). We derive all three server-side instead: member/branch from the
+    // pending Payment row (set at createOrder), plan from the gateway order's
+    // server-set notes. This binds "what was paid" to "what is granted".
+    member_id?: string;
+    plan_id?: string;
+    branch_id?: string;
   }) {
     // Look up the pending payment by the gateway order id (order_xxx for
     // Razorpay) — NOT our local payment id.
@@ -182,21 +231,45 @@ export class PaymentsService {
     });
     if (!payment) throw new NotFoundException('Pending payment not found');
 
+    const creds = (await this.gatewayCreds('razorpay')) ?? undefined;
+
     // Verify the Razorpay Checkout handshake — signed `order_id|payment_id`
-    // with the KEY SECRET (timing-safe).
+    // with the KEY SECRET (timing-safe). Per-gym keys win over env.
     const isValid = this.razorpay.verifyCheckoutSignature(
       data.gateway_order_id,
       data.gateway_payment_id,
       data.signature,
+      creds,
     );
     if (!isValid) {
       throw new ForbiddenException('Invalid payment signature');
     }
 
-    const plan = await this.tenant.client.membershipPlan.findUnique({
-      where: { id: data.plan_id },
+    // Server-derived plan/member/branch — never the client's word.
+    const order = await this.razorpay.getOrder(data.gateway_order_id, creds);
+    const notes = (order.notes ?? {}) as Record<string, string>;
+    const planId = notes.plan_id;
+    const memberId = payment.member_id;
+    const branchId = payment.branch_id;
+    if (!planId || !memberId || !branchId) {
+      throw new BadRequestException('Order is missing required metadata');
+    }
+
+    // Plan must belong to THIS gym (findFirst is gym-scoped; guards against a
+    // notes-injected cross-gym plan id).
+    const plan = await this.tenant.client.membershipPlan.findFirst({
+      where: { id: planId, gym_id: getTenantGymId()! },
     });
     if (!plan) throw new BadRequestException('Invalid plan');
+
+    // Amount-integrity: the amount we recorded as pending (and that Razorpay
+    // enforced on capture) MUST equal the price of the plan we are about to
+    // grant. Compare in integer minor units to avoid float drift.
+    const paidMinor = Math.round(Number(payment.amount) * 100);
+    const planMinor = Math.round(Number(plan.price) * 100);
+    if (paidMinor !== planMinor) {
+      throw new BadRequestException('Payment amount does not match plan price');
+    }
 
     // Wrap entire operation in a transaction to prevent race conditions
     return this.tenant.client.$transaction(async (tx) => {
@@ -230,9 +303,9 @@ export class PaymentsService {
       const membership = await tx.memberMembership.create({
         data: {
           gym_id: getTenantGymId()!,
-          member_id: data.member_id,
-          plan_id: data.plan_id,
-          branch_id: data.branch_id,
+          member_id: memberId,
+          plan_id: planId,
+          branch_id: branchId,
           start_date: startDate,
           end_date: endDate,
           classes_remaining: plan.total_classes,
@@ -251,7 +324,7 @@ export class PaymentsService {
       await tx.financialTransaction.create({
         data: {
           gym_id: getTenantGymId()!,
-          branch_id: data.branch_id,
+          branch_id: branchId,
           reference_type: 'payment',
           reference_id: updatedPayment.id,
           transaction_type: 'credit',
@@ -262,7 +335,7 @@ export class PaymentsService {
 
       // Activate member
       await tx.member.update({
-        where: { id: data.member_id },
+        where: { id: memberId },
         data: { status: 'active' },
       });
 
@@ -270,6 +343,8 @@ export class PaymentsService {
       if (payment.invoice_id) {
         await this.billingService.recalculateInvoiceStatus(payment.invoice_id);
       }
+
+      this.queueReceipt(updatedPayment.id);
 
       return { payment: updatedPayment, membership };
     });
@@ -427,10 +502,234 @@ export class PaymentsService {
       if (payment.invoice_id) {
         await this.billingService.recalculateInvoiceStatus(payment.invoice_id);
       }
+
+      // Webhook has no request tenant context — pass the resolved gym so the
+      // receipt dispatch re-enters the right schema.
+      this.queueReceipt(payment.id, payment.gym_id);
     });
     });
   }
 
+  // ────────────────────────────────────────────────────────────
+  // Stripe (international cards/wallets) — mirrors the Razorpay flow:
+  // pending Payment + gateway object carrying server-set metadata, then a
+  // guarded pending→paid claim on verify/webhook.
+  // ────────────────────────────────────────────────────────────
+
+  get stripeConfigured(): boolean {
+    return this.stripe.configured;
+  }
+
+  async createStripeIntent(studioId: string, data: {
+    member_id: string;
+    plan_id: string;
+    branch_id: string;
+    invoice_id?: string;
+  }) {
+    // For Stripe configs: api_key = publishable key, secret_key = secret key.
+    const gymStripeCreds = await this.gatewayCreds('stripe');
+    if (!this.stripe.configured && !gymStripeCreds) {
+      throw new BadRequestException('Stripe is not configured for this gym');
+    }
+    const member = await this.tenant.client.member.findFirst({
+      where: { id: data.member_id },
+    });
+    if (!member) throw new NotFoundException('Member not found');
+
+    const plan = await this.tenant.client.membershipPlan.findUnique({
+      where: { id: data.plan_id },
+    });
+    if (!plan) throw new BadRequestException('Invalid plan');
+
+    const receiptNumber = this.generateReceiptNumber();
+    const payment = await this.tenant.client.payment.create({
+      data: {
+        gym_id: getTenantGymId()!,
+        member_id: data.member_id,
+        branch_id: data.branch_id,
+        invoice_id: data.invoice_id,
+        amount: plan.price,
+        payment_method: 'stripe',
+        status: 'pending',
+        receipt_number: receiptNumber,
+      },
+    });
+
+    const intent = await this.stripe.createPaymentIntent(
+      {
+        amount: Number(plan.price),
+        currency: plan.currency ?? 'INR',
+        metadata: {
+          gym_id: studioId,
+          payment_id: payment.id,
+          member_id: data.member_id,
+          plan_id: data.plan_id,
+          branch_id: data.branch_id,
+        },
+      },
+      gymStripeCreds?.keySecret,
+    );
+    await this.tenant.client.payment.update({
+      where: { id: payment.id },
+      data: { gateway_order_id: intent.id },
+    });
+
+    return {
+      payment_intent_id: intent.id,
+      client_secret: intent.client_secret,
+      publishable_key: gymStripeCreds?.keyId || this.stripe.getPublishableKey(),
+      payment_id: payment.id,
+      receipt_number: receiptNumber,
+      amount: Number(plan.price),
+      currency: plan.currency ?? 'INR',
+      gateway: 'stripe',
+      plan_name: plan.name,
+    };
+  }
+
+  /**
+   * Server-side confirmation: retrieve the PaymentIntent from Stripe (the
+   * client can't forge this) and, when succeeded, claim pending→paid and
+   * create the membership. Member/plan/branch come from the intent's
+   * server-set metadata — never from the client.
+   */
+  async verifyStripePayment(data: { payment_intent_id: string }) {
+    const stripeCreds = await this.gatewayCreds('stripe');
+    const intent = await this.stripe.getPaymentIntent(data.payment_intent_id, stripeCreds?.keySecret);
+    if (intent.status !== 'succeeded') {
+      throw new BadRequestException(`Payment not completed (status: ${intent.status})`);
+    }
+    const meta = intent.metadata ?? {};
+    const { member_id, plan_id, branch_id } = meta;
+    if (!member_id || !plan_id || !branch_id) {
+      throw new BadRequestException('Payment intent is missing metadata');
+    }
+
+    const payment = await this.tenant.client.payment.findFirst({
+      where: { gateway_order_id: intent.id, status: 'pending' },
+    });
+    if (!payment) throw new NotFoundException('Pending payment not found');
+
+    // Plan gym-scoped (guards a metadata-injected cross-gym plan id).
+    const plan = await this.tenant.client.membershipPlan.findFirst({
+      where: { id: plan_id, gym_id: getTenantGymId()! },
+    });
+    if (!plan) throw new BadRequestException('Invalid plan');
+
+    // Amount-integrity: pending amount (== the intent amount Stripe captured)
+    // must equal the granted plan's price. Minor units, no float drift.
+    if (Math.round(Number(payment.amount) * 100) !== Math.round(Number(plan.price) * 100)) {
+      throw new BadRequestException('Payment amount does not match plan price');
+    }
+    // member_id must match the member the pending payment was created for.
+    if (payment.member_id && payment.member_id !== member_id) {
+      throw new BadRequestException('Payment/member mismatch');
+    }
+
+    return this.tenant.client.$transaction(async (tx) => {
+      const claim = await tx.payment.updateMany({
+        where: { id: payment.id, status: 'pending' },
+        data: {
+          gateway_payment_id: intent.id,
+          status: 'paid',
+          paid_at: new Date(),
+        },
+      });
+      if (claim.count !== 1) {
+        throw new BadRequestException('Payment already processed or not found');
+      }
+
+      const startDate = new Date();
+      const endDate = plan.duration_days
+        ? new Date(startDate.getTime() + plan.duration_days * 86400000)
+        : null;
+
+      const membership = await tx.memberMembership.create({
+        data: {
+          gym_id: getTenantGymId()!,
+          member_id,
+          plan_id,
+          branch_id,
+          start_date: startDate,
+          end_date: endDate,
+          classes_remaining: plan.total_classes,
+          status: 'active',
+        },
+        include: { plan: true },
+      });
+
+      const updatedPayment = await tx.payment.update({
+        where: { id: payment.id },
+        data: { membership_id: membership.id },
+      });
+
+      await tx.financialTransaction.create({
+        data: {
+          gym_id: getTenantGymId()!,
+          branch_id,
+          reference_type: 'payment',
+          reference_id: updatedPayment.id,
+          transaction_type: 'credit',
+          amount: updatedPayment.amount,
+          description: `Gateway payment ${updatedPayment.receipt_number} via stripe`,
+        },
+      });
+
+      await tx.member.update({ where: { id: member_id }, data: { status: 'active' } });
+
+      if (payment.invoice_id) {
+        await this.billingService.recalculateInvoiceStatus(payment.invoice_id);
+      }
+
+      this.queueReceipt(updatedPayment.id);
+
+      return { payment: updatedPayment, membership };
+    });
+  }
+
+  /**
+   * Stripe webhook (payment_intent.succeeded): marks the pending payment paid
+   * + ledger credit, same scope as the Razorpay webhook (membership creation
+   * stays on the verify path). Tenant resolved from server-set metadata.
+   */
+  async handleStripeWebhook(intent: { id: string; metadata?: Record<string, string> }) {
+    const gymId = intent.metadata?.gym_id;
+    if (!gymId) return; // can't resolve tenant — skip (idempotent)
+
+    await this.tasks.runForGym(gymId, async () => {
+      const payment = await this.tenant.client.payment.findFirst({
+        where: { gateway_order_id: intent.id, status: 'pending' },
+      });
+      if (!payment) return; // already processed — idempotent
+
+      await this.tenant.client.$transaction(async (tx) => {
+        const claim = await tx.payment.updateMany({
+          where: { id: payment.id, status: 'pending' },
+          data: { gateway_payment_id: intent.id, status: 'paid', paid_at: new Date() },
+        });
+        if (claim.count !== 1) return;
+
+        await tx.financialTransaction.create({
+          data: {
+            gym_id: getTenantGymId()!,
+            branch_id: payment.branch_id,
+            reference_type: 'payment',
+            reference_id: payment.id,
+            transaction_type: 'credit',
+            amount: payment.amount,
+            description: `Stripe payment ${payment.receipt_number} (webhook)`,
+          },
+        });
+
+        if (payment.invoice_id) {
+          await this.billingService.recalculateInvoiceStatus(payment.invoice_id);
+        }
+
+        // Webhook has no request tenant context — see the Razorpay path.
+        this.queueReceipt(payment.id, payment.gym_id);
+      });
+    });
+  }
 
   // ────────────────────────────────────────────────────────────
   // PDF receipt rendering (member payments)
