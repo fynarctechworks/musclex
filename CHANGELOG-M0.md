@@ -135,3 +135,14 @@ One item per slice; each lands only after review approval.
 - "Reports" added to the gym Tools nav; `features/reports/index.ts` now re-exports `./components`.
 
 **Tests:** frontend `tsc --noEmit` PASS. Tabs render real numbers only after the Fix-2 backfill runs (analytics tables were zeroed by the `'completed'` bug).
+
+## Fix 11 — landing page reachable + pricing synced (COMMITTED)
+
+**Bug:** `app/page.tsx` was `redirect('/login')` and `app/landing/` has **no `page.tsx`** — so the entire marketing site (Hero/Features/HowItWorks/Pricing/Testimonials/CTA/Footer) was unreachable at any URL, not merely orphaned. Its pricing was also hardcoded and stale: Pro shown as ₹1,999 (real ₹2,499), Enterprise "Custom" (real ₹4,999), and the Free tier missing entirely.
+
+**Change:**
+- `app/page.tsx` now renders `<LandingPage />` at `/` (already allowlisted in middleware; Navbar/CTA already link to `/login` + `/onboarding`).
+- `Pricing.tsx` rewritten against `backend/src/common/plan-configs.ts`: 4 cards (Free ₹0 / Starter ₹999 / Pro ₹2,499 — marked Most Popular / Enterprise ₹4,999) with real member/branch/staff limits and per-tier feature flags; grid widened to 4 columns; a comment names PLAN_CONFIGS as the source of truth.
+- Values are still hand-synced (no public pricing API) — logged as DEBT #5.
+
+**Tests:** frontend `tsc --noEmit` PASS. Visual check of the landing page is manual (no test suite; `next build` deliberately not run — it would poison the dev `.next/` cache per CLAUDE.md).

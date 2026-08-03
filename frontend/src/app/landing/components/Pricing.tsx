@@ -1,50 +1,71 @@
 import Link from 'next/link';
 import { Check } from 'lucide-react';
 
+/**
+ * SOURCE OF TRUTH: `backend/src/common/plan-configs.ts` (PLAN_CONFIGS) — the
+ * same limits/prices the resource-limit service enforces. Keep these in sync;
+ * there is no public pricing API to read them from yet (see DEBT.md).
+ * Annual prices are ~2 months free (e.g. Starter ₹9,990/yr vs ₹11,988).
+ */
 const plans = [
+  {
+    name: 'Free',
+    price: '₹0',
+    period: '/month',
+    description: 'Basic gym management for a single location.',
+    features: [
+      'Up to 50 members',
+      '1 branch · up to 3 staff',
+      'Check-in & attendance',
+      'Manual payments & invoices',
+      'Basic reports',
+    ],
+    cta: 'Get Started Free',
+    popular: false,
+  },
   {
     name: 'Starter',
     price: '₹999',
     period: '/month',
-    description: 'Perfect for small gyms just getting started.',
+    description: 'Growing gyms with staff and class management.',
     features: [
-      'Up to 100 Members',
-      'Attendance Tracking',
-      'Billing System',
-      'Basic Analytics',
-      'Email Support',
+      'Up to 200 members',
+      '1 branch · up to 10 staff',
+      'Class scheduling',
+      'Online payments (Razorpay)',
+      'WhatsApp notifications',
+      'Audit logs',
     ],
     cta: 'Start Free Trial',
     popular: false,
   },
   {
-    name: 'Professional',
-    price: '₹1,999',
+    name: 'Pro',
+    price: '₹2,499',
     period: '/month',
-    description: 'For growing gyms that need more power.',
+    description: 'Multi-branch fitness chains with advanced features.',
     features: [
-      'Unlimited Members',
-      'Trainer Management',
-      'Advanced Analytics',
-      'Marketing Automation',
-      'QR & Facial Check-in',
-      'Priority Support',
+      'Up to 1,000 members',
+      'Up to 5 branches · 50 staff',
+      'Marketing campaigns & email',
+      'AI advisor',
+      'Custom roles & API access',
+      'Everything in Starter',
     ],
     cta: 'Start Free Trial',
     popular: true,
   },
   {
     name: 'Enterprise',
-    price: 'Custom',
-    period: '',
-    description: 'For multi-branch fitness chains.',
+    price: '₹4,999',
+    period: '/month',
+    description: 'Unlimited scale for large fitness organizations.',
     features: [
-      'Multiple Branches',
-      'Full API Access',
-      'Dedicated Account Manager',
-      'Custom Integrations',
-      'SLA Guarantee',
-      'On-premise Option',
+      'Unlimited members & branches',
+      '100 GB storage',
+      'Full API access',
+      'Priority support',
+      'Everything in Pro',
     ],
     cta: 'Contact Sales',
     popular: false,
@@ -69,7 +90,7 @@ export default function Pricing() {
         </div>
 
         {/* Cards */}
-        <div className="grid md:grid-cols-3 gap-6 lg:gap-8 max-w-5xl mx-auto">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
           {plans.map((plan) => (
             <div
               key={plan.name}
@@ -105,7 +126,7 @@ export default function Pricing() {
               </ul>
 
               <Link
-                href={plan.name === 'Enterprise' ? '/onboarding' : '/onboarding'}
+                href="/onboarding"
                 className={`block text-center px-6 py-3 text-sm font-semibold rounded-lg transition-all duration-fast ${
                   plan.popular
                     ? 'text-on-primary bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-level-3 shadow-blue-500/25 hover:shadow-blue-500/40'
