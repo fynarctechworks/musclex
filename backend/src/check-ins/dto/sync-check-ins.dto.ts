@@ -21,6 +21,17 @@ export class OfflineCheckInDto {
   @IsUUID()
   @IsOptional()
   class_id?: string;
+
+  /**
+   * Stable per-queued-row id minted by the client at enqueue time. Doubles as
+   * the idempotency key so a re-sent batch (retry, double "Sync Now", a tab
+   * that reconnects twice) cannot create duplicate visits. Optional because
+   * rows queued by an older client won't carry one — those still sync, just
+   * without dedupe protection.
+   */
+  @IsUUID()
+  @IsOptional()
+  client_event_id?: string;
 }
 
 export class SyncCheckInsDto {

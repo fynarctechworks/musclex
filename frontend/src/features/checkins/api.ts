@@ -42,6 +42,8 @@ export const checkInsApi = {
     checkin_method: string;
     checked_in_at: string;
     class_id?: string;
+    /** Queued row id, reused as the server-side idempotency key. */
+    client_event_id?: string;
   }>) => apiClient.post<SyncResult>('/check-ins/sync', { check_ins: checkIns }),
 };
 

@@ -132,38 +132,60 @@ export default function CheckInPage() {
     offlineQueue.count().then(setOfflineCount);
   }, [result]);
 
-  // Sync offline queue when back online
-  useEffect(() => {
-    if (!isOnline) return;
-    offlineQueue.count().then((c) => {
-      if (c > 0) {
-        syncMutation.mutate(
-          [],  // Will be populated by sync handler
-          { onSuccess: async () => { await offlineQueue.clear(); setOfflineCount(0); } }
-        );
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOnline]);
-
-  const handleSyncOffline = async () => {
+  // Replay the offline queue. Shared by the reconnect effect and the manual
+  // "Sync Now" button so there is exactly ONE implementation of this.
+  //
+  // The reconnect path used to post an empty array and then clear() the store
+  // on success — every check-in taken during an outage was destroyed the
+  // moment the browser came back online.
+  const syncOfflineQueue = useCallback(async () => {
     const pending = await offlineQueue.getAll();
     if (pending.length === 0) return;
+
     syncMutation.mutate(
       pending.map((p) => ({
         member_id: p.member_id,
         branch_id: p.branch_id,
         checkin_method: p.checkin_method,
         checked_in_at: p.checked_in_at,
+        // The queued row id doubles as the idempotency key, so replaying a
+        // batch the server already processed cannot duplicate visits.
+        client_event_id: p.id,
       })),
       {
-        onSuccess: async () => {
-          await offlineQueue.clear();
-          setOfflineCount(0);
+        onSuccess: async (res) => {
+          // Drop only rows the server actually reached a decision on (accepted
+          // or policy-denied). Transient failures stay queued for next time.
+          // If an older server returns no per-row results we keep everything —
+          // re-sending is safe now that each row carries an idempotency key,
+          // whereas dropping would lose data.
+          if (res.results?.length) {
+            const decided = new Set(
+              res.results
+                .filter((r) => r.ok || !r.retryable)
+                .map((r) => r.client_event_id)
+                .filter((id): id is string => !!id),
+            );
+            await Promise.all(
+              pending
+                .filter((p) => decided.has(p.id))
+                .map((p) => offlineQueue.remove(p.id)),
+            );
+          }
+          setOfflineCount(await offlineQueue.count());
         },
-      }
+      },
     );
-  };
+  }, [syncMutation]);
+
+  // Sync offline queue when back online
+  useEffect(() => {
+    if (!isOnline) return;
+    void syncOfflineQueue();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline]);
+
+  const handleSyncOffline = syncOfflineQueue;
 
   // Successes push into a small toast stack instead of opening the
   // full-screen overlay; the operator's hands stay free to scan the next

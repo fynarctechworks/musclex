@@ -34,6 +34,12 @@ export class CheckInsService {
       source?: string;
       ip_address?: string | null;
       user_agent?: string | null;
+      /**
+       * When the entry really happened, if not now — offline queue replay and
+       * batched hardware ATTLOG. Policy rules still evaluate against the
+       * current time; only the stored timestamp uses this.
+       */
+      occurred_at?: Date;
     },
   ) {
     const input: OrchestratorInput = {
@@ -43,6 +49,7 @@ export class CheckInsService {
       class_id: data.class_id,
       checkin_method: data.checkin_method,
       client_event_id: data.client_event_id,
+      occurred_at: data.occurred_at,
       override_authorized: data.override_authorized,
       override_reason: data.override_reason ?? null,
       override_by_user_id: data.override_by_user_id ?? null,
@@ -141,6 +148,21 @@ export class CheckInsService {
   ) {
     let synced = 0;
     let failed = 0;
+    // Per-row outcomes so the client can drop exactly the rows that landed and
+    // KEEP the ones that didn't. Returning only counts forced callers to clear
+    // the whole queue on success, which silently discarded partial failures.
+    const results: Array<{
+      client_event_id?: string;
+      member_id: string;
+      ok: boolean;
+      /**
+       * false = the server reached a decision (accepted, or denied by policy).
+       * Re-sending changes nothing, so the client should drop the row.
+       * true = transient (network/DB); the client should keep it and retry.
+       */
+      retryable: boolean;
+      reason?: string;
+    }> = [];
 
     for (const ci of checkIns) {
       try {
@@ -151,18 +173,37 @@ export class CheckInsService {
           class_id: ci.class_id,
           client_event_id: ci.client_event_id,
           source: 'offline_sync',
+          // Preserve when the member actually walked in. Without this a
+          // check-in taken at 6am during an outage was stored at sync time,
+          // corrupting attendance history and peak-hour analytics.
+          occurred_at: ci.checked_in_at ? new Date(ci.checked_in_at) : undefined,
         });
-        if ((result as any).success !== false) {
-          synced++;
-        } else {
-          failed++;
-        }
-      } catch {
+        const ok = (result as any).success !== false;
+        if (ok) synced++;
+        else failed++;
+        results.push({
+          client_event_id: ci.client_event_id,
+          member_id: ci.member_id,
+          ok,
+          // A policy denial is a final answer, not a failed delivery.
+          retryable: false,
+          // The orchestrator result carries `failure_reason`; `denial_reason`
+          // only appears in its audit/event payloads.
+          reason: ok ? undefined : (result as any)?.failure_reason ?? 'denied',
+        });
+      } catch (err: unknown) {
         failed++;
+        results.push({
+          client_event_id: ci.client_event_id,
+          member_id: ci.member_id,
+          ok: false,
+          retryable: true,
+          reason: err instanceof Error ? err.message : 'sync failed',
+        });
       }
     }
 
-    return { synced, failed };
+    return { synced, failed, results };
   }
 
   async findAll(

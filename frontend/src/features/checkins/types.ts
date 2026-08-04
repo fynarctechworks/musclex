@@ -21,6 +21,19 @@ export interface FacialCheckInResponse extends CheckInResponse {
 export interface SyncResult {
   synced: number;
   failed: number;
+  /**
+   * Per-row outcomes, keyed by the queued row's id (sent as client_event_id).
+   * Present on any server new enough to return it; callers must tolerate it
+   * being undefined and fall back to keeping the queue intact.
+   */
+  results?: Array<{
+    client_event_id?: string;
+    member_id: string;
+    ok: boolean;
+    /** true = transient, keep and retry. false = server decided, drop it. */
+    retryable: boolean;
+    reason?: string;
+  }>;
 }
 
 export interface OfflineCheckIn {
