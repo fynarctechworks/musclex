@@ -204,3 +204,48 @@ Constraints held throughout: **zero schema changes, zero new npm packages.**
 **Verification status:** everything typechecks (backend, frontend, member app) and the relevant Jest suites pass. **Nothing is runtime-verified** — no dev server exercised these endpoints, and the member-app screens need on-device QA per CLAUDE.md. Highest-risk for a first real run: Stripe Elements mount, QR data-URI rendering, and the two new crons (class reminders send real WhatsApp messages once a gym has an active `class_reminder` workflow).
 
 **Remaining schema-gated work:** see `SCHEMA_MIGRATION_PLANS.md` (7 items, planned not applied).
+
+---
+
+# Milestone 3 — final non-gated sweep
+
+Three items I had listed as "not code" or "partial" in the close-out but which,
+on re-reading, needed **no schema change and no new dependency**. Finishing them
+means every roadmap item that can be built under those constraints is now built.
+
+| Item | What shipped | Commit |
+|---|---|---|
+| M3-1 | **Gateway refunds.** Refunds were ledger-only — `gateway_refund_id` existed but no gateway was ever called, so a "processed" refund debited our books while the customer's money stayed with us. Razorpay + Stripe refund calls, made BEFORE the DB transaction so a gateway rejection leaves no row claiming money moved. Cash/UPI/card stay ledger-only by nature. | `feae6ae` |
+| M3-2 | **Turnstile routed through the policy engine.** The iclock/eSSL path wrote `CheckIn` directly, bypassing the entire access-policy engine — a frozen member, one outside their branch scope, one with no class credits, or one already inside another branch walked straight through the hardware door. It also skipped the audit row, rule trace, WebSocket broadcast and credit decrement. Now calls `CheckInOrchestrator` like every other entrance. Added `occurred_at` so batched ATTLOG keeps its real timestamps instead of being recorded as "now". | `cd3368e` |
+| M3-3 | **Revenue forecasting.** No forward-looking number existed anywhere. Run-rate projection (this month by days elapsed; next month = trailing average + half the trend) with an explicit `method` string and confidence capped at `medium`. Exposed as an 8th AI-advisor tool. | `506bf92` |
+
+**Test note:** the iclock spec asserted the old direct-write behaviour, so I
+rewrote it against the policy contract — it now includes a test proving a frozen
+member is *blocked* at the turnstile, which is the whole point of the change.
+
+---
+
+# Final state
+
+**Everything buildable without a schema change or a new dependency is done.**
+19 commits: M0 (11 fixes + quick wins) → M1 (9 features) → M2 (5 features) →
+M3 (3 features).
+
+**What remains, and why it is genuinely blocked:**
+
+| Remaining | Blocker | Where |
+|---|---|---|
+| PT packages, CRM follow-ups, waiver e-sign, notification inbox, WhatsApp templates, campaign opt-out, auto-charge mandates | Prisma migration — CLAUDE.md HARD STOP #1 | `SCHEMA_MIGRATION_PLANS.md` |
+| Hindi / regional i18n | New dependency (HARD STOP #3) + translators; XL | roadmap M2 |
+| App Store / Play submission | `eas.json` `submit.production` is empty; needs ASC + Play credentials I don't have | roadmap M1 |
+| WhatsApp template approval | Meta review, days-to-weeks, external | plan #5 |
+| Recurring auto-charge | Razorpay Subscriptions / UPI Autopay is a separate KYC application | plan #7 |
+| Class-system unification | Data migration across `ClassEnrollment` → `ClassBooking`; plan-first per CLAUDE.md | roadmap M2 |
+| Per-branch branding | `WhiteLabelConfig` is keyed `organization_id` — needs schema | gap analysis #44 |
+
+**Still unverified at runtime.** Everything typechecks across all three apps and
+the Jest suites pass, but no dev server has exercised these endpoints and the
+member-app screens need on-device QA per CLAUDE.md. Highest-risk on first real
+run: Stripe Elements mount, QR data-URI rendering, the gateway refund calls
+(need live keys), and the three crons — class reminders will send **real
+WhatsApp messages** once a gym has an active `class_reminder` workflow.
