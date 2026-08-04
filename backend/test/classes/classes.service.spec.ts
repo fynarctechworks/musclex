@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ClassesService } from '../../src/classes/classes.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { PublicPrismaService } from '../../src/prisma/public-prisma.service';
+import { TenantPrisma } from '../../src/prisma/tenant-prisma.accessor';
 import { ResourceLimitService } from '../../src/common/services/resource-limit.service';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { createMockPrismaService, mockClass, mockMember } from '../test-utils';
@@ -24,6 +26,8 @@ describe('ClassesService', () => {
       providers: [
         ClassesService,
         { provide: PrismaService, useValue: prisma },
+        { provide: PublicPrismaService, useValue: prisma },
+        { provide: TenantPrisma, useValue: { client: prisma } },
         { provide: ResourceLimitService, useValue: mockResourceLimitService },
       ],
     }).compile();

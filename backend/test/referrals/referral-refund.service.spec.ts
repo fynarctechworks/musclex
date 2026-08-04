@@ -6,6 +6,7 @@ import { RewardProcessorService } from '../../src/referrals/reward-processor.ser
 import { ReferralLifecycleService } from '../../src/referrals/referral-lifecycle.service';
 import { ReferralFraudService } from '../../src/referrals/referral-fraud.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { PublicPrismaService } from '../../src/prisma/public-prisma.service';
 import { SubscriptionRefundedPayload } from '../../src/referrals/events/domain-events';
 
 /**
@@ -38,6 +39,7 @@ describe('ReferralsService.handleSubscriptionRefunded', () => {
       providers: [
         ReferralsService,
         { provide: PrismaService, useValue: prisma },
+        { provide: PublicPrismaService, useValue: prisma },
         { provide: RuleEngineService, useValue: {} },
         { provide: RewardProcessorService, useValue: rewardProcessor },
         { provide: ReferralLifecycleService, useValue: lifecycle },

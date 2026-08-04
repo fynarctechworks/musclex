@@ -55,7 +55,7 @@ describe('MemberStreakService — source union + member scoping', () => {
       workoutLog: { findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn().mockResolvedValue(null) },
       mealLog: { findMany: jest.fn().mockResolvedValue([]), findFirst: jest.fn().mockResolvedValue(null) },
     };
-    service = new MemberStreakService(prisma);
+    service = new MemberStreakService( { client: prisma } as any);
   });
 
   it('queries all three sources, each filtered by the authenticated member_id', async () => {

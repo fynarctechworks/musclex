@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DashboardService } from '../../src/dashboard/dashboard.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { PublicPrismaService } from '../../src/prisma/public-prisma.service';
+import { TenantPrisma } from '../../src/prisma/tenant-prisma.accessor';
 import { createMockPrismaService, mockUserPayload } from '../test-utils';
 
 describe('DashboardService', () => {
@@ -14,6 +16,8 @@ describe('DashboardService', () => {
       providers: [
         DashboardService,
         { provide: PrismaService, useValue: prisma },
+        { provide: PublicPrismaService, useValue: prisma },
+        { provide: TenantPrisma, useValue: { client: prisma } },
       ],
     }).compile();
 

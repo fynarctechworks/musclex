@@ -25,7 +25,7 @@ describe('MemberClassService', () => {
       classEnrollment: { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
     };
     classes = { enroll: jest.fn(), cancelEnrollment: jest.fn() };
-    service = new MemberClassService(prisma, classes);
+    service = new MemberClassService( { client: prisma } as any, classes);
   });
 
   describe('listUpcoming', () => {

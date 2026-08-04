@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SettingsService } from '../../src/settings/settings.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { PublicPrismaService } from '../../src/prisma/public-prisma.service';
+import { TenantPrisma } from '../../src/prisma/tenant-prisma.accessor';
 import { QueueService } from '../../src/queue/queue.service';
 import { SccSyncService } from '../../src/common/services/scc-sync.service';
 import { SubscriptionPolicyService } from '../../src/common/services/subscription-policy.service';
@@ -57,6 +59,8 @@ describe('SettingsService.getAccountOverview — subscription status', () => {
       providers: [
         SettingsService,
         { provide: PrismaService, useValue: prisma },
+        { provide: PublicPrismaService, useValue: prisma },
+        { provide: TenantPrisma, useValue: { client: prisma } },
         { provide: QueueService, useValue: {} },
         { provide: SccSyncService, useValue: {} },
         { provide: SubscriptionPolicyService, useValue: policy },

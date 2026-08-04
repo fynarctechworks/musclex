@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SccSyncService } from '../../src/common/services/scc-sync.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { PublicPrismaService } from '../../src/prisma/public-prisma.service';
+import { TenantPrisma } from '../../src/prisma/tenant-prisma.accessor';
 
 /**
  * Regression test for SccSyncService.mapStatus.
@@ -29,6 +31,8 @@ describe('SccSyncService — status mapping for SCC TenantStatus', () => {
       providers: [
         SccSyncService,
         { provide: PrismaService, useValue: prisma },
+        { provide: PublicPrismaService, useValue: prisma },
+        { provide: TenantPrisma, useValue: { client: prisma } },
       ],
     }).compile();
 

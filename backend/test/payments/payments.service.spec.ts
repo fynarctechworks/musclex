@@ -1,6 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PaymentsService } from '../../src/payments/payments.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { PublicPrismaService } from '../../src/prisma/public-prisma.service';
+import { TenantPrisma } from '../../src/prisma/tenant-prisma.accessor';
+import { TenantTaskRunner } from '../../src/prisma/tenant-task-runner';
+import { StripeService } from '../../src/payments/stripe.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BillingService } from '../../src/payments/billing.service';
 import { RazorpayService } from '../../src/payments/razorpay.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
@@ -31,6 +36,12 @@ describe('PaymentsService', () => {
       providers: [
         PaymentsService,
         { provide: PrismaService, useValue: prisma },
+        { provide: PublicPrismaService, useValue: prisma },
+        { provide: TenantPrisma, useValue: { client: prisma } },
+        // Cron/webhook paths re-enter tenant context through this.
+        { provide: TenantTaskRunner, useValue: { runForGym: (_g: string, fn: () => unknown) => fn(), forEachTenant: jest.fn() } },
+        { provide: StripeService, useValue: { createPaymentIntent: jest.fn(), getPaymentIntent: jest.fn(), refundPayment: jest.fn() } },
+        { provide: EventEmitter2, useValue: { emit: jest.fn() } },
         { provide: BillingService, useValue: mockBillingService },
         { provide: RazorpayService, useValue: mockRazorpayService },
       ],

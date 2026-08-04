@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SubscriptionPolicyService } from '../../src/common/services/subscription-policy.service';
 import { SccSyncService } from '../../src/common/services/scc-sync.service';
-import { PrismaService } from '../../src/prisma/prisma.service';
+import { PublicPrismaService } from '../../src/prisma/public-prisma.service';
 
 /**
  * Regression test for the SCC /billing data gap.
@@ -57,7 +57,7 @@ describe('SubscriptionPolicyService.recordRenewal → SCC payment sync', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SubscriptionPolicyService,
-        { provide: PrismaService, useValue: prisma },
+        { provide: PublicPrismaService, useValue: prisma },
         { provide: SccSyncService, useValue: sccSync },
       ],
     }).compile();

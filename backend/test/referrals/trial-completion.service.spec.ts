@@ -6,6 +6,7 @@ import { RewardProcessorService } from '../../src/referrals/reward-processor.ser
 import { ReferralLifecycleService } from '../../src/referrals/referral-lifecycle.service';
 import { ReferralFraudService } from '../../src/referrals/referral-fraud.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { PublicPrismaService } from '../../src/prisma/public-prisma.service';
 import {
   REFERRAL_EVENTS,
   SubscriptionActivatedPayload,
@@ -81,6 +82,7 @@ describe('ReferralsService — trial-completion reward pipeline', () => {
       providers: [
         ReferralsService,
         { provide: PrismaService, useValue: prisma },
+        { provide: PublicPrismaService, useValue: prisma },
         { provide: RuleEngineService, useValue: ruleEngine },
         { provide: RewardProcessorService, useValue: rewardProcessor },
         { provide: ReferralLifecycleService, useValue: lifecycle },

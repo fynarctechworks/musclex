@@ -3,6 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { UnauthorizedException, ConflictException } from '@nestjs/common';
 import { AuthService } from '../../src/auth/auth.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { PublicPrismaService } from '../../src/prisma/public-prisma.service';
+import { EmailService } from '../../src/email/email.service';
+import { TenantPrisma } from '../../src/prisma/tenant-prisma.accessor';
 import { AuthIdentityService } from '../../src/auth/auth-identity.service';
 import { AuthDeviceService } from '../../src/auth/auth-device.service';
 import { AuthLoginHistoryService } from '../../src/auth/auth-login-history.service';
@@ -96,6 +99,8 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         { provide: PrismaService, useValue: prisma },
+        { provide: PublicPrismaService, useValue: prisma },
+        { provide: TenantPrisma, useValue: { client: prisma } },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: AuthIdentityService, useValue: mockIdentityService },
         { provide: AuthDeviceService, useValue: mockDeviceService },
@@ -108,6 +113,8 @@ describe('AuthService', () => {
         { provide: SccSyncService, useValue: mockSccSyncService },
         { provide: SubscriptionPolicyService, useValue: mockSubscriptionPolicyService },
         { provide: RazorpayService, useValue: mockRazorpayService },
+        // AuthService now sends verification/welcome mail.
+        { provide: EmailService, useValue: { send: jest.fn(), sendRaw: jest.fn() } },
       ],
     }).compile();
 

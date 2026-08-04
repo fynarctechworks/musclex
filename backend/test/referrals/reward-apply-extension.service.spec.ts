@@ -4,6 +4,7 @@ import { RuleEngineService } from '../../src/referrals/rule-engine.service';
 import { ReferralWalletService } from '../../src/referrals/referral-wallet.service';
 import { SubscriptionPolicyService } from '../../src/common/services/subscription-policy.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { PublicPrismaService } from '../../src/prisma/public-prisma.service';
 
 /**
  * Regression test for the bug Shiva Gym surfaced:
@@ -47,6 +48,7 @@ describe('RewardProcessorService.applySubscriptionExtension (apply path)', () =>
       providers: [
         RewardProcessorService,
         { provide: PrismaService, useValue: prisma },
+        { provide: PublicPrismaService, useValue: prisma },
         { provide: RuleEngineService, useValue: ruleEngine },
         { provide: ReferralWalletService, useValue: {} },
         { provide: SubscriptionPolicyService, useValue: subscriptionPolicy },

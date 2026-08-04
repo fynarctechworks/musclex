@@ -124,9 +124,21 @@ export function occupancyLevel(
  * calendar day collapse to one — the Set keys on the day, not the timestamp.
  */
 export function computeStreakDays(activityDates: Date[]): number {
-  const days = new Set(
-    activityDates.map((d) => new Date(d).toISOString().slice(0, 10)),
-  );
+  // Key on the LOCAL calendar day, never toISOString().
+  //
+  // The old version mixed the two: `today` was local midnight but was then
+  // formatted with toISOString(), which shifts back across the date line for
+  // any timezone ahead of UTC. In IST (+5:30) local midnight on the 4th
+  // formats as the 3rd, while an activity logged that morning formats as the
+  // 4th — so "did I train today?" never matched and the streak silently reset
+  // or came back one short. It only looked correct because the tests run under
+  // TZ=UTC, where the shift is zero.
+  const dayKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+      d.getDate(),
+    ).padStart(2, '0')}`;
+
+  const days = new Set(activityDates.map((d) => dayKey(new Date(d))));
   if (days.size === 0) return 0;
 
   const oneDay = 86_400_000;
@@ -135,14 +147,13 @@ export function computeStreakDays(activityDates: Date[]): number {
 
   // Streak may count from today or yesterday (today not yet visited is OK).
   let cursor = today;
-  const todayStr = today.toISOString().slice(0, 10);
-  if (!days.has(todayStr)) {
+  if (!days.has(dayKey(today))) {
     cursor = new Date(today.getTime() - oneDay);
-    if (!days.has(cursor.toISOString().slice(0, 10))) return 0;
+    if (!days.has(dayKey(cursor))) return 0;
   }
 
   let streak = 0;
-  while (days.has(cursor.toISOString().slice(0, 10))) {
+  while (days.has(dayKey(cursor))) {
     streak++;
     cursor = new Date(cursor.getTime() - oneDay);
   }

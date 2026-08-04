@@ -27,7 +27,7 @@ describe('MemberBillingService', () => {
     };
     payments = { createOrder: jest.fn() };
     audit = { log: jest.fn().mockResolvedValue(undefined) };
-    service = new MemberBillingService(prisma, payments, audit);
+    service = new MemberBillingService( { client: prisma } as any, payments, audit);
   });
 
   it('rejects a plan that does not belong to the member gym (no order created)', async () => {

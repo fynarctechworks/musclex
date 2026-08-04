@@ -28,7 +28,7 @@ describe('MemberWorkoutService', () => {
         update: jest.fn().mockResolvedValue({}),
       },
     };
-    service = new MemberWorkoutService(prisma);
+    service = new MemberWorkoutService( { client: prisma } as any);
   });
 
   it('getTodayWorkout filters the assignment by the authenticated member_id', async () => {

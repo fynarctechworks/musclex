@@ -4,6 +4,7 @@ import { RuleEngineService } from '../../src/referrals/rule-engine.service';
 import { ReferralWalletService } from '../../src/referrals/referral-wallet.service';
 import { SubscriptionPolicyService } from '../../src/common/services/subscription-policy.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
+import { PublicPrismaService } from '../../src/prisma/public-prisma.service';
 
 /**
  * Unit tests for the referral reward CLAWBACK path (RewardProcessorService.reverseReward).
@@ -49,6 +50,7 @@ describe('RewardProcessorService.reverseReward (clawback)', () => {
       providers: [
         RewardProcessorService,
         { provide: PrismaService, useValue: prisma },
+        { provide: PublicPrismaService, useValue: prisma },
         { provide: RuleEngineService, useValue: {} },
         { provide: ReferralWalletService, useValue: wallet },
         { provide: SubscriptionPolicyService, useValue: subscriptionPolicy },

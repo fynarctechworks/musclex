@@ -51,7 +51,7 @@ describe('MemberHealthService', () => {
         findMany: jest.fn().mockResolvedValue([]),
       },
     };
-    service = new MemberHealthService(prisma);
+    service = new MemberHealthService( { client: prisma } as any);
   });
 
   it('ingests a manual sample (no connection required) with member_id + gym_id', async () => {
