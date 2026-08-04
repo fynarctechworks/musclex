@@ -176,3 +176,31 @@ One item per slice; each lands only after review approval.
 - Refunds are still **ledger-only** — no Razorpay/Stripe gateway refund call (`gateway_refund_id` stays null).
 - PT session rate is still hardcoded `₹500` (`staff/trainer.service.ts:247`), so `TrainerRevenue` — and therefore the new PT revenue category from Fix 2 — is internally consistent but not correctly priced. Milestone 2.
 - Webhook events `lead.created` / `lead.converted` / `invoice.created` / `campaign.*` still don't fire: they have no domain-event emitter to hook into (Fix 6 covers member/staff/membership/payment/checkin/class).
+
+---
+
+# Milestone 1 & 2 — feature build (post-M0)
+
+All roadmap items buildable without a schema change or new dependency.
+Constraints held throughout: **zero schema changes, zero new npm packages.**
+
+| Item | What shipped | Commit |
+|---|---|---|
+| M1-1/2 | Member digital QR ID + visit history. `GET /member/v1/id`, `/visits`, `/visits/summary`; app screens `/id` + `/visits`; admin ID card now renders the SIGNED token (was the raw `qr_code` DB string the scanner doesn't verify) with print + regenerate. QR rendered server-side via the existing `qrcode` dep so the app needed no new package. | `14f15cb` |
+| M1-3 | Automatic receipts on all 5 paid-payment paths, via a `payment.paid` event (routed through EventEmitter2 rather than a direct import, so payments no longer pulls the ESM PDF renderer into every test that imports it). | `456d89e` |
+| M1-4/5 | Hourly class-reminder cron (one-hour window `hours_before` out = one reminder per booking without a `reminded_at` column; covers BOTH class systems) + 5-minute scheduled-campaign dispatcher. Also fixed a live copy bug: seeded templates used `{{name}}` while triggers supplied `{{member_name}}`, so members would have received a literal `"{{name}}"`. | `8b4f523` |
+| M1-6 | Shareable payment links with WhatsApp/email delivery. Mints the same Razorpay order the member path uses, so the hosted pay page, webhook and reconciliation work unchanged. Also fixed two invoice-table display bugs (member name and amount read fields the API never returned). | `3b80dab` |
+| M1-7 | In-app plan upgrade/downgrade. `GET /member/v1/membership/plans` + picker sheet; renew already accepted any planId, the app just hardcoded the current plan. | `285695c` |
+| M1-8 | Stripe card checkout UI. Backend was complete with zero callers. Stripe.js loads from CDN (same pattern as Razorpay) rather than adding `@stripe/stripe-js`. Client result never trusted — verify-stripe re-reads the intent server-side. | `5a50b98` |
+| M1-9 | Exercise library CRUD + 50-exercise starter catalog (data only, idempotent by name) + `/training/exercises` page. The catalog was GET-only and unseeded, so a fresh tenant's plan builder was unusable. | `46d3d98` |
+| M2-1 | Payroll and shift-schedule screens over the complete-but-unreachable backends. | `fecb69f` |
+| M2-2 | PT session logging screen — sessions were never logged, so commissions never accrued in practice. | `2d27647` |
+| M2-3 | Lead→member conversion, duplicate detection (phone last-10 + email, across leads AND members), and assignee history. | `2fbffcd` |
+| M2-4 | Custom roles made assignable: `Staff.role_id` now written, invites accept custom roles, role dropdown fetches them. | `f9102e1` |
+| M2-5 | AI advisor grounded in real data via 7 read-only tools + a tool-use loop. No tool takes a gym/branch argument, so a hallucinated argument cannot widen scope. | `49cfda3` |
+
+**Specs I broke with constructor changes and fixed** (rather than logging as debt): payments safety-net 6/6, marketing dispatcher 6/6, payments webhook 7/7. Full backend safety-net suite: 14 suites / 49 tests green.
+
+**Verification status:** everything typechecks (backend, frontend, member app) and the relevant Jest suites pass. **Nothing is runtime-verified** — no dev server exercised these endpoints, and the member-app screens need on-device QA per CLAUDE.md. Highest-risk for a first real run: Stripe Elements mount, QR data-URI rendering, and the two new crons (class reminders send real WhatsApp messages once a gym has an active `class_reminder` workflow).
+
+**Remaining schema-gated work:** see `SCHEMA_MIGRATION_PLANS.md` (7 items, planned not applied).
