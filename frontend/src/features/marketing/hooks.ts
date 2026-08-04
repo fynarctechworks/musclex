@@ -288,6 +288,43 @@ export function useUpdateLead() {
   });
 }
 
+export function useLeadDuplicates(params: {
+  phone?: string;
+  email?: string;
+  exclude_lead_id?: string;
+}) {
+  const enabled = Boolean(params.phone || params.email);
+  return useQuery({
+    queryKey: [...queryKeys.marketing.all, 'lead-duplicates', params] as const,
+    queryFn: () => leadsApi.checkDuplicates(params),
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+export function useConvertLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data?: { branch_id?: string; existing_member_id?: string };
+    }) => leadsApi.convert(id, data),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: queryKeys.marketing.all });
+      qc.invalidateQueries({ queryKey: queryKeys.members.all });
+      toast.success(
+        res.converted_member
+          ? `Converted — ${res.converted_member.full_name} (${res.converted_member.member_code})`
+          : 'Lead converted',
+      );
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 export function useAddLeadActivity() {
   const qc = useQueryClient();
   return useMutation({

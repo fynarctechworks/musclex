@@ -137,6 +137,8 @@ export interface Lead {
   assigned_staff_id?: string;
   notes?: string;
   converted_member_id?: string;
+  /** Populated by the detail endpoint's include. */
+  converted_member?: { id: string; full_name: string; member_code?: string } | null;
   organization_id?: string;
   branch_id?: string;
   created_at: string;

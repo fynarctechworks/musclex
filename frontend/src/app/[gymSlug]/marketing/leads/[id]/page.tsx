@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { AppLayout } from "@/components/layout/app-layout";
 import { LoadingSkeleton, EmptyState, FormSelect, FormTextarea , AccessDenied } from "@/components/shared";
-import { useLead, useLeadActivities, useUpdateLead, useAddLeadActivity } from "@/features/marketing/hooks";
+import { useLead, useLeadActivities, useUpdateLead, useAddLeadActivity, useConvertLead, useLeadDuplicates } from "@/features/marketing/hooks";
 import type { Lead, LeadActivity, LeadStatus } from "@/features/marketing/types";
 import {
   ArrowLeft,
@@ -74,9 +74,19 @@ export default function LeadDetailPage() {
   const { data: leadData, isLoading } = useLead(leadId);
   const { data: activitiesData } = useLeadActivities(leadId);
   const updateMutation = useUpdateLead();
+  const convertMutation = useConvertLead();
   const addActivityMutation = useAddLeadActivity();
 
   const lead = leadData as Lead | undefined;
+
+  // Advisory duplicate scan on the lead's own contact details. Declared after
+  // `lead` resolves; the hook self-disables until it has a phone or email.
+  const { data: dupes } = useLeadDuplicates({
+    phone: lead?.phone ?? undefined,
+    email: lead?.email ?? undefined,
+    exclude_lead_id: leadId,
+  });
+
   const activities: LeadActivity[] = Array.isArray(activitiesData)
     ? activitiesData
     : (activitiesData as { data?: LeadActivity[] })?.data ?? [];
@@ -165,6 +175,74 @@ export default function LeadDetailPage() {
                 <p className="text-xs font-medium text-muted-foreground mb-1">Notes</p>
                 <p className="text-sm text-foreground">{lead.notes}</p>
               </div>
+            )}
+          </div>
+
+          {/* Duplicate warning — advisory, never blocks */}
+          {(dupes?.members?.length || dupes?.leads?.length) && !lead.converted_member_id ? (
+            <div className="bg-warning/10 border border-warning/40 rounded-lg p-4">
+              <p className="text-sm font-medium text-foreground mb-1.5">
+                Possible duplicate
+              </p>
+              {dupes.members.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Already a member:{" "}
+                  {dupes.members.map((m) => `${m.full_name} (${m.member_code})`).join(", ")}
+                </p>
+              )}
+              {dupes.leads.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Other lead{dupes.leads.length > 1 ? "s" : ""}:{" "}
+                  {dupes.leads.map((l) => `${l.full_name} (${l.status})`).join(", ")}
+                </p>
+              )}
+            </div>
+          ) : null}
+
+          {/* Convert to member */}
+          <div className="bg-card border border-border rounded-lg p-5">
+            <h3 className="text-sm font-medium text-foreground mb-1">Conversion</h3>
+            {lead.converted_member_id ? (
+              <p className="text-xs text-success">
+                Converted{lead.converted_member?.full_name ? ` — ${lead.converted_member.full_name}` : ""}
+              </p>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Creates a member from this lead&apos;s details and links both records.
+                </p>
+                {dupes?.members?.length ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-warning">
+                      This person may already be a member — link instead of creating a duplicate.
+                    </p>
+                    {dupes.members.map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() =>
+                          convertMutation.mutate({
+                            id: lead.id,
+                            data: { existing_member_id: m.id },
+                          })
+                        }
+                        disabled={convertMutation.isPending}
+                        className="w-full px-3 py-2 rounded-lg text-xs font-medium border border-border bg-background text-foreground hover:bg-muted disabled:opacity-50"
+                      >
+                        Link to {m.full_name} ({m.member_code})
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => convertMutation.mutate({ id: lead.id })}
+                    disabled={convertMutation.isPending || !lead.phone}
+                    title={!lead.phone ? "Add a phone number first" : undefined}
+                    className="w-full bg-primary text-primary-foreground px-3 py-2 rounded-lg text-xs font-medium hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {convertMutation.isPending ? "Converting…" : "Convert to member"}
+                  </button>
+                )}
+              </>
             )}
           </div>
 

@@ -15,8 +15,10 @@ import {
   PermissionsGuard,
   Roles,
   Permissions,
+  CurrentUser,
+  JwtPayload,
 } from '../common';
-import { CreateLeadDto, UpdateLeadDto, CreateLeadActivityDto } from './dto';
+import { CreateLeadDto, UpdateLeadDto, CreateLeadActivityDto, ConvertLeadDto } from './dto';
 
 @Controller('api/v1/leads')
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
@@ -27,6 +29,39 @@ export class LeadsController {
   @Permissions({ module: 'marketing', action: 'create' })
   create(@Body() dto: CreateLeadDto) {
     return this.leadsService.create(dto);
+  }
+
+  /**
+   * Possible duplicates by phone/email across leads AND members. Advisory —
+   * the UI shows a warning; it never blocks creating a lead.
+   */
+  @Get('check-duplicates')
+  @Permissions({ module: 'marketing', action: 'view' })
+  checkDuplicates(
+    @Query('phone') phone?: string,
+    @Query('email') email?: string,
+    @Query('exclude_lead_id') excludeLeadId?: string,
+  ) {
+    return this.leadsService.findDuplicates({
+      phone,
+      email,
+      excludeLeadId: excludeLeadId,
+    });
+  }
+
+  /** One-tap conversion: creates (or links) the member and closes the lead. */
+  @Post(':id/convert')
+  @Permissions({ module: 'marketing', action: 'edit' })
+  convert(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: ConvertLeadDto,
+  ) {
+    return this.leadsService.convertToMember(user.studio_id, id, {
+      branch_id: dto.branch_id ?? user.branch_id,
+      existing_member_id: dto.existing_member_id,
+      user_id: user.user_id,
+    });
   }
 
   @Get()

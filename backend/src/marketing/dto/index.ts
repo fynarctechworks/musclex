@@ -1,3 +1,4 @@
+export * from './convert-lead.dto';
 export { CreateCampaignDto } from './create-campaign.dto';
 export { UpdateCampaignDto } from './update-campaign.dto';
 export { CreateLeadDto, UpdateLeadDto, CreateLeadActivityDto } from './lead.dto';

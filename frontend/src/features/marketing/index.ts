@@ -40,5 +40,7 @@ export {
   useLeadFunnel,
   useCreateLead,
   useUpdateLead,
+  useConvertLead,
+  useLeadDuplicates,
   useAddLeadActivity,
 } from './hooks';

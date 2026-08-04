@@ -216,6 +216,27 @@ export const leadsApi = {
   funnel: (filters?: { organization_id?: string; branch_id?: string; start_date?: string; end_date?: string }) =>
     apiClient.get('/leads/funnel', { params: filters }),
 
+  /** Advisory duplicate check across existing leads AND members. */
+  checkDuplicates: (params: { phone?: string; email?: string; exclude_lead_id?: string }) =>
+    apiClient.get<{
+      leads: Array<{ id: string; full_name: string; phone?: string | null; status: string }>;
+      members: Array<{
+        id: string;
+        full_name: string;
+        member_code: string;
+        phone?: string | null;
+        status: string;
+      }>;
+    }>('/leads/check-duplicates', { params }),
+
+  /** One-tap conversion — creates (or links) the member and closes the lead. */
+  convert: (id: string, data?: { branch_id?: string; existing_member_id?: string }) =>
+    apiClient.post<{
+      id: string;
+      status: string;
+      converted_member?: { id: string; full_name: string; member_code: string } | null;
+    }>(`/leads/${id}/convert`, data ?? {}),
+
   addActivity: (leadId: string, data: {
     staff_id?: string;
     activity_type: 'call' | 'email' | 'visit' | 'trial_booking' | 'note' | 'status_change';
