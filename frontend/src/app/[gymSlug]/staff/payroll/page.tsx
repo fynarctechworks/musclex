@@ -39,6 +39,8 @@ interface PayrollSummaryRow {
     salary_type: string;
     base_salary: number;
     commission_percentage: number;
+    /** What the gym charges per PT session; prices commission. */
+    session_rate?: number | null;
   } | null;
   current_month: {
     revenue_generated: number;
@@ -110,6 +112,9 @@ export default function PayrollPage() {
           | "hybrid",
         base_salary: Number(form.get("base_salary") ?? 0),
         commission_percentage: Number(form.get("commission_percentage") ?? 0),
+        // Merged into bonus_structure server-side so sibling pay-config keys
+        // survive. 0 / blank means "use the platform default".
+        session_rate: Number(form.get("session_rate") ?? 0),
       },
       { onSuccess: () => setConfigFor(null) },
     );
@@ -374,8 +379,22 @@ export default function PayrollPage() {
                 />
               </div>
             </div>
+            <div>
+              <Label htmlFor="session_rate">PT session rate ({CURRENCY})</Label>
+              <Input
+                id="session_rate"
+                name="session_rate"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="500"
+                defaultValue={configFor?.payroll?.session_rate ?? ""}
+              />
+            </div>
             <p className="text-xs text-muted-foreground">
-              Commission accrues when a personal-training session is marked complete.
+              Commission accrues when a personal-training session is marked complete,
+              calculated as this percentage of the PT session rate. Leave the rate blank
+              to use the platform default of {CURRENCY}500.
             </p>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setConfigFor(null)}>

@@ -23,4 +23,16 @@ export class UpsertPayrollConfigDto {
   @IsOptional()
   @IsObject()
   bonus_structure?: Prisma.InputJsonValue;
+
+  /**
+   * What the gym charges for one PT session. Merged into `bonus_structure`
+   * server-side so the client never has to round-trip the whole pay config
+   * (which can hold other compensation keys). Every TrainerRevenue row and
+   * therefore every commission figure is priced off this; omit or send 0 to
+   * fall back to the platform default.
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  session_rate?: number;
 }

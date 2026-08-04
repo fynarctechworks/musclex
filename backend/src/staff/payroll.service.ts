@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
 import { UpsertPayrollConfigDto } from './dto/upsert-payroll-config.dto';
@@ -27,6 +28,27 @@ export class PayrollService {
     });
     if (!staff) throw new NotFoundException('Staff member not found');
 
+    // session_rate is edited on its own, so merge it into the existing
+    // bonus_structure rather than letting a partial write wipe sibling keys
+    // (monthly_target, bonus_per_session, …).
+    const existing = await this.tenant.client.payrollConfig.findUnique({
+      where: { staff_id: dto.staff_id },
+      select: { bonus_structure: true },
+    });
+    const baseBonus =
+      (dto.bonus_structure as Record<string, unknown> | undefined) ??
+      ((existing?.bonus_structure as Record<string, unknown> | null) ?? {});
+    const bonusStructure =
+      dto.session_rate !== undefined
+        ? {
+            ...baseBonus,
+            // 0 means "clear it and use the platform default".
+            ...(dto.session_rate > 0
+              ? { session_rate: dto.session_rate }
+              : { session_rate: undefined }),
+          }
+        : dto.bonus_structure;
+
     return this.tenant.client.payrollConfig.upsert({
       where: { staff_id: dto.staff_id },
       update: {
@@ -35,8 +57,8 @@ export class PayrollService {
         ...(dto.commission_percentage !== undefined && {
           commission_percentage: dto.commission_percentage,
         }),
-        ...(dto.bonus_structure !== undefined && {
-          bonus_structure: dto.bonus_structure,
+        ...(bonusStructure !== undefined && {
+          bonus_structure: bonusStructure as Prisma.InputJsonValue,
         }),
       },
       create: {
@@ -45,7 +67,7 @@ export class PayrollService {
         salary_type: dto.salary_type ?? 'fixed',
         base_salary: dto.base_salary ?? 0,
         commission_percentage: dto.commission_percentage ?? 0,
-        bonus_structure: dto.bonus_structure ?? {},
+        bonus_structure: (bonusStructure ?? {}) as Prisma.InputJsonValue,
       },
       include: {
         staff: { select: { id: true, full_name: true, role: true } },
@@ -162,6 +184,15 @@ export class PayrollService {
               salary_type: config.salary_type,
               base_salary: Number(config.base_salary),
               commission_percentage: Number(config.commission_percentage),
+              // Only the PT session rate is surfaced, not the whole
+              // bonus_structure — that can hold other compensation keys and
+              // StripSecretsInterceptor does not cover them.
+              session_rate:
+                Number(
+                  (config.bonus_structure as Record<string, unknown> | null)?.[
+                    'session_rate'
+                  ] ?? 0,
+                ) || null,
             }
           : null,
         current_month: {

@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ConflictException,
   BadRequestException,
@@ -14,6 +15,8 @@ import { PayrollService } from './payroll.service';
 
 @Injectable()
 export class TrainerService {
+  private readonly logger = new Logger(TrainerService.name);
+
   constructor(
     private tenant: TenantPrisma,
     private payrollService: PayrollService,
@@ -244,8 +247,10 @@ export class TrainerService {
         where: { staff_id: session.trainer_id },
       });
       const commissionPct = Number(config?.commission_percentage ?? 0);
-      // Default session rate; in production this would come from pricing config
-      const sessionRate = 500;
+      const sessionRate = this.resolveSessionRate(
+        config?.bonus_structure,
+        session.trainer_id,
+      );
       const commissionAmount = (sessionRate * commissionPct) / 100;
 
       await this.payrollService.recordRevenue({
@@ -258,6 +263,43 @@ export class TrainerService {
     }
 
     return updated;
+  }
+
+  /**
+   * Fallback when a trainer has no configured rate. Kept as a named constant
+   * so the number is greppable and shows up in logs, instead of the silent
+   * `const sessionRate = 500` that used to price every PT session in the
+   * product regardless of what the gym actually charges.
+   */
+  private static readonly DEFAULT_PT_SESSION_RATE = 500;
+
+  /**
+   * Per-trainer PT session rate, read from PayrollConfig.bonus_structure —
+   * a Json column already documented as holding this kind of pay config
+   * ({ monthly_target, bonus_per_session, … }), so no schema change is needed.
+   *
+   * Every TrainerRevenue row, and therefore every commission and payroll
+   * figure, is derived from this. Falling back is logged rather than silent:
+   * a gym charging ₹1,200/session would otherwise see internally-consistent
+   * but completely wrong payouts with nothing to indicate why.
+   */
+  private resolveSessionRate(
+    bonusStructure: unknown,
+    trainerId: string,
+  ): number {
+    const raw = (bonusStructure as Record<string, unknown> | null | undefined)?.[
+      'session_rate'
+    ];
+    const rate = Number(raw);
+    if (Number.isFinite(rate) && rate > 0) return rate;
+
+    if (raw !== undefined && raw !== null) {
+      this.logger.warn(
+        `Ignoring invalid session_rate (${JSON.stringify(raw)}) for trainer ${trainerId}; ` +
+          `falling back to ${TrainerService.DEFAULT_PT_SESSION_RATE}`,
+      );
+    }
+    return TrainerService.DEFAULT_PT_SESSION_RATE;
   }
 
   // ── Performance Analytics ─────────────────────────────────────

@@ -258,6 +258,8 @@ export const payrollApi = {
     base_salary?: number;
     commission_percentage?: number;
     bonus_structure?: Record<string, unknown>;
+    /** Merged into bonus_structure server-side; 0 clears it. */
+    session_rate?: number;
   }) => apiClient.post('/payroll/config', data),
 
   summary: (filters?: { branch_id?: string; organization_id?: string }) =>
