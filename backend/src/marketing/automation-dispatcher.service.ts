@@ -14,6 +14,8 @@ import { getTenantGymId } from '../common/tenant-context';
 
 export const AUTOMATION_EVENTS = {
   LEAD_CREATED: 'lead.created',
+  MEMBER_REGISTERED: 'member.registered',
+  MEMBER_RENEWED: 'member.renewed',
 } as const;
 
 export interface LeadCreatedPayload {
@@ -22,6 +24,18 @@ export interface LeadCreatedPayload {
   fullName: string;
   phone?: string | null;
   email?: string | null;
+}
+
+/** Emitted on member creation and on a completed renewal respectively. */
+export interface MemberLifecyclePayload {
+  gymId: string;
+  memberId: string;
+  fullName: string;
+  phone?: string | null;
+  email?: string | null;
+  /** Renewal only — used in the thank-you copy. */
+  planName?: string | null;
+  expiresOn?: string | null;
 }
 
 type WorkflowWithActions = {
@@ -47,6 +61,10 @@ const DEFAULT_MESSAGES: Record<string, string> = {
     'Hi {{lead_name}}, thanks for your interest in {{gym_name}}! Our team will reach out shortly — reply here if you’d like to book a free trial.',
   class_reminder:
     'Hi {{member_name}}, reminder: {{class_name}} at {{gym_name}} starts {{starts_at}}. See you there!',
+  member_registered:
+    'Welcome to {{gym_name}}, {{member_name}}! 🎉 Your membership is active. Reply here any time if you need help getting started.',
+  member_renewed:
+    'Thanks for renewing, {{member_name}}! Your {{plan_name}} at {{gym_name}} now runs to {{expiry_date}}. See you at the gym!',
 };
 
 /**
@@ -162,6 +180,56 @@ export class AutomationDispatcherService {
       });
     } catch (e) {
       this.logger.error(`lead_created automation failed for gym ${payload.gymId}: ${(e as Error).message}`);
+    }
+  }
+
+  /**
+   * `member_registered` and `member_renewed` were seeded as ACTIVE starter
+   * workflows but had no executor anywhere, so owners believed welcome and
+   * thank-you messages were going out when nothing ever fired. These are the
+   * missing executors.
+   */
+  @OnEvent(AUTOMATION_EVENTS.MEMBER_REGISTERED, { async: true })
+  async onMemberRegistered(payload: MemberLifecyclePayload): Promise<void> {
+    await this.fireMemberLifecycle('member_registered', payload);
+  }
+
+  @OnEvent(AUTOMATION_EVENTS.MEMBER_RENEWED, { async: true })
+  async onMemberRenewed(payload: MemberLifecyclePayload): Promise<void> {
+    await this.fireMemberLifecycle('member_renewed', payload);
+  }
+
+  private async fireMemberLifecycle(
+    trigger: 'member_registered' | 'member_renewed',
+    payload: MemberLifecyclePayload,
+  ): Promise<void> {
+    try {
+      await this.tasks.runForGym(payload.gymId, async () => {
+        const workflows = await this.activeWorkflows(trigger);
+        if (workflows.length === 0) return;
+        const gymName = await this.gymName(payload.gymId);
+        for (const workflow of workflows) {
+          await this.executeActions(workflow, {
+            to: {
+              phone: payload.phone,
+              email: payload.email,
+              memberId: payload.memberId,
+            },
+            vars: {
+              member_name: payload.fullName,
+              gym_name: gymName,
+              plan_name: payload.planName ?? '',
+              expiry_date: payload.expiresOn ?? '',
+            },
+            defaultMessage: DEFAULT_MESSAGES[trigger],
+            triggerType: `automation:${trigger}`,
+          });
+        }
+      });
+    } catch (e) {
+      this.logger.error(
+        `${trigger} automation failed for gym ${payload.gymId}: ${(e as Error).message}`,
+      );
     }
   }
 

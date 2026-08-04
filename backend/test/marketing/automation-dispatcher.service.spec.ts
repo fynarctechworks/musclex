@@ -189,4 +189,79 @@ describe('AutomationDispatcherService', () => {
     expect(whatsapp.sendText).toHaveBeenCalledTimes(1);
     expect((whatsapp.sendText as jest.Mock).mock.calls[0][0].text).toContain('Curious Prospect');
   });
+
+  // member_registered and member_renewed shipped as ACTIVE seeded workflows
+  // with no executor anywhere — gyms believed welcome and thank-you messages
+  // were going out while nothing ever fired.
+  it('runs the member_registered welcome workflow on the event', async () => {
+    const { service, whatsapp, tasks } = makeService({
+      workflows: [
+        {
+          id: 'wf-reg',
+          workflow_name: 'Welcome new members',
+          trigger_event: 'member_registered',
+          trigger_config: null,
+          actions: [{ id: 'a-5', action_type: 'send_whatsapp', delay_minutes: 0, action_config: null, template: null }],
+        },
+      ],
+    });
+
+    await service.onMemberRegistered({
+      gymId: GYM,
+      memberId: 'mem-1',
+      fullName: 'Brand New',
+      phone: '9998887776',
+      email: null,
+    });
+
+    expect(tasks.runForGym).toHaveBeenCalledWith(GYM, expect.any(Function));
+    const text = (whatsapp.sendText as jest.Mock).mock.calls[0][0].text;
+    expect(text).toContain('Brand New');
+    expect(text).toContain('Phani Gym');
+  });
+
+  it('runs the member_renewed workflow and fills plan/expiry copy', async () => {
+    const { service, whatsapp } = makeService({
+      workflows: [
+        {
+          id: 'wf-ren',
+          workflow_name: 'Thank members for renewing',
+          trigger_event: 'member_renewed',
+          trigger_config: null,
+          actions: [{ id: 'a-6', action_type: 'send_whatsapp', delay_minutes: 0, action_config: null, template: null }],
+        },
+      ],
+    });
+
+    await service.onMemberRenewed({
+      gymId: GYM,
+      memberId: 'mem-2',
+      fullName: 'Loyal Member',
+      phone: '9998887776',
+      email: null,
+      planName: 'Annual Gold',
+      expiresOn: '2027-08-04',
+    });
+
+    const text = (whatsapp.sendText as jest.Mock).mock.calls[0][0].text;
+    expect(text).toContain('Loyal Member');
+    expect(text).toContain('Annual Gold');
+    expect(text).toContain('2027-08-04');
+    // No unsubstituted placeholders should reach a real member.
+    expect(text).not.toMatch(/\{\{|\}\}/);
+  });
+
+  it('does nothing when a lifecycle trigger has no active workflow', async () => {
+    const { service, whatsapp } = makeService({ workflows: [] });
+
+    await service.onMemberRegistered({
+      gymId: GYM,
+      memberId: 'mem-3',
+      fullName: 'Nobody',
+      phone: '9998887776',
+      email: null,
+    });
+
+    expect(whatsapp.sendText).not.toHaveBeenCalled();
+  });
 });

@@ -11,6 +11,25 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
+/**
+ * Single source for the accepted trigger names. Create and Update each carried
+ * their own hand-maintained list and had already drifted: `class_reminder` was
+ * creatable but not editable, so saving an edit to a class-reminder workflow
+ * was rejected. Keep this in sync with the executors in
+ * AutomationDispatcherService and with LIVE_TRIGGERS in the frontend.
+ */
+export const TRIGGER_EVENTS = [
+  'membership_expiring',
+  'member_inactive',
+  'member_registered',
+  'member_renewed',
+  'lead_created',
+  'class_missed',
+  'class_reminder',
+  'birthday',
+  'payment_failed',
+] as const;
+
 export class CreateWorkflowActionDto {
   @IsInt()
   @Min(1)
@@ -40,15 +59,7 @@ export class CreateAutomationWorkflowDto {
   workflow_name: string;
 
   @IsString()
-  @IsIn([
-    'membership_expiring',
-    'member_inactive',
-    'lead_created',
-    'class_missed',
-    'class_reminder',
-    'birthday',
-    'payment_failed',
-  ])
+  @IsIn(TRIGGER_EVENTS)
   trigger_event: string;
 
   @IsObject()
@@ -72,14 +83,7 @@ export class UpdateAutomationWorkflowDto {
   workflow_name?: string;
 
   @IsString()
-  @IsIn([
-    'membership_expiring',
-    'member_inactive',
-    'lead_created',
-    'class_missed',
-    'birthday',
-    'payment_failed',
-  ])
+  @IsIn(TRIGGER_EVENTS)
   @IsOptional()
   trigger_event?: string;
 

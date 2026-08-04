@@ -8,6 +8,7 @@ import { EventStoreService } from '../../src/events/event-store.service';
 import { EventProjectorService } from '../../src/events/event-projector.service';
 import { MemberDirectoryService } from '../../src/member/directory/member-directory.service';
 import { tenantContext } from '../../src/common/tenant-context';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { NotFoundException } from '@nestjs/common';
 import {
   createMockPrismaService,
@@ -39,6 +40,8 @@ const mockEventProjectorService = {
   // Service calls `this.eventProjector.processEvent(...)` post-commit.
   processEvent: jest.fn().mockResolvedValue(undefined),
 };
+
+const mockEvents = { emit: jest.fn() };
 
 const mockMemberDirectoryService = {
   // Post-commit fire-and-forget directory sync (phone → gym lookup).
@@ -73,6 +76,8 @@ describe('MembersService', () => {
         { provide: EventStoreService, useValue: mockEventStoreService },
         { provide: EventProjectorService, useValue: mockEventProjectorService },
         { provide: MemberDirectoryService, useValue: mockMemberDirectoryService },
+        // member_registered / member_renewed automation triggers.
+        { provide: EventEmitter2, useValue: mockEvents },
       ],
     }).compile();
 

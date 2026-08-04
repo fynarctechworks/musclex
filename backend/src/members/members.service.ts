@@ -9,6 +9,11 @@ import { PublicPrismaService } from '../prisma/public-prisma.service';
 import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { ResourceLimitService } from '../common/services/resource-limit.service';
 import { QueueService } from '../queue/queue.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  AUTOMATION_EVENTS,
+  type MemberLifecyclePayload,
+} from '../marketing/automation-dispatcher.service';
 import {
   CreateMemberDto,
   UpdateMemberDto,
@@ -47,6 +52,7 @@ export class MembersService {
     private eventStore: EventStoreService,
     private eventProjector: EventProjectorService,
     private memberDirectory: MemberDirectoryService,
+    private events: EventEmitter2,
   ) {}
 
   private generateMemberCode(): string {
@@ -561,6 +567,17 @@ export class MembersService {
         );
       });
 
+    // Fires the seeded `member_registered` welcome workflow. This trigger was
+    // seeded ACTIVE with no emitter anywhere, so gyms believed welcome messages
+    // were going out while nothing ever ran.
+    this.events.emit(AUTOMATION_EVENTS.MEMBER_REGISTERED, {
+      gymId: getTenantGymId()!,
+      memberId: member.id,
+      fullName: member.full_name,
+      phone: member.phone,
+      email: member.email,
+    } satisfies MemberLifecyclePayload);
+
     if (payment && paymentEvent) {
       this.eventProjector
         .processEvent({
@@ -919,6 +936,18 @@ export class MembersService {
       where: { id },
       data: { status: 'active' },
     });
+
+    // Fires the seeded `member_renewed` thank-you workflow — the other trigger
+    // that was seeded ACTIVE with no emitter.
+    this.events.emit(AUTOMATION_EVENTS.MEMBER_RENEWED, {
+      gymId: getTenantGymId()!,
+      memberId: id,
+      fullName: member.full_name,
+      phone: member.phone,
+      email: member.email,
+      planName: plan.name,
+      expiresOn: endDate ? endDate.toISOString().slice(0, 10) : null,
+    } satisfies MemberLifecyclePayload);
 
     return { membership, payment };
   }
