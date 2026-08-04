@@ -61,11 +61,14 @@ export class OccupancyService {
     const branchScope = this.getBranchScope(user, branchId);
 
     const [current, peakToday, lastCheckIn, capacity] = await Promise.all([
-      // Currently in gym: successful check-ins since heuristic cutoff
+      // Currently in gym: successful check-ins since the heuristic cutoff that
+      // have NOT checked out. The 4h cutoff is the fallback for members who
+      // never scan out; an explicit check-out must remove them immediately.
       this.tenant.client.checkIn.count({
         where: {
           status: 'success',
           checked_in_at: { gte: openCutoff },
+          check_out_at: null,
           ...branchScope,
         },
       }),

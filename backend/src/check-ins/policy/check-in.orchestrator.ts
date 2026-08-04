@@ -712,8 +712,13 @@ export class CheckInOrchestrator {
     }
   }
 
-  /** Broadcast the branch's live head-count after a successful entry. */
-  private async emitOccupancy(gymId: string, branchId: string, now: Date) {
+  /**
+   * Broadcast the branch's live head-count. Called after a successful entry
+   * and after a check-out — both change who is inside, and the check-out path
+   * does not run through the orchestrator, so it calls this directly rather
+   * than duplicating the count and the 4h heuristic.
+   */
+  async emitOccupancy(gymId: string, branchId: string, now: Date) {
     try {
       const cutoff = new Date(now.getTime() - 4 * 60 * 60 * 1000);
       const current = await this.tenant.client.checkIn.count({
@@ -721,6 +726,10 @@ export class CheckInOrchestrator {
           branch_id: branchId,
           status: 'success',
           checked_in_at: { gte: cutoff },
+          // Someone who has checked out is no longer inside. Without this the
+          // tile disagreed with the "who's inside" list (which does filter it)
+          // and the kiosk's Check Out mode had no effect on the number.
+          check_out_at: null,
         },
       });
       const payload: OccupancyUpdatedPayload = {

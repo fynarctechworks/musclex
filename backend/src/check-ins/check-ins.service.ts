@@ -351,6 +351,19 @@ export class CheckInsService {
       updated.check_out_at!.getTime() - updated.checked_in_at.getTime();
     const durationMinutes = Math.max(0, Math.round(durationMs / 60_000));
 
+    // Someone just left — rebroadcast the head-count. Entry emitted this but
+    // exit did not, so the live tile only ever climbed. Fire-and-forget: a
+    // failed broadcast must not fail the check-out itself.
+    // Prefer the visit's own gym_id over ambient context — the row is the
+    // authority, and relying on context alone made this a silent no-op
+    // anywhere the tenant ALS isn't established.
+    const gymId = updated.gym_id ?? getTenantGymId();
+    if (gymId) {
+      void this.orchestrator
+        .emitOccupancy(gymId, data.branch_id, new Date())
+        .catch(() => undefined);
+    }
+
     return {
       success: true,
       check_in: updated,
