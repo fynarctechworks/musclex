@@ -1,318 +1,317 @@
 # MuscleX — Gap Analysis & Roadmap vs MyGymDesk
 
-> Generated 2026-08-02 by a full-codebase audit (5 parallel deep-read agents over `backend/`, `frontend/`, `gym-member-app/`, `saas-control-center/`). Every status below was verified by reading controllers/services/schema/screens — **not** file names. Statuses: ✅ fully wired (API + DB + UI connected) · 🟡 partial (gap stated) · 🔴 stub/dead/misleading code · ❌ missing.
+> **Originally generated 2026-08-02** by a full-codebase audit.
+> **Re-verified 2026-08-04** after 38 commits of remediation (M0 → M3), by 5 parallel agents that
+> re-read every row against current `HEAD`. Every status below was checked in two directions:
+> **backend route/service exists** AND **a UI actually calls it**. A backend with no caller is
+> explicitly marked "UI: none" and does **not** count as done.
 >
-> Note: `mygymdesk-competitor-analysis.md` was not present in the repo root; the audit ran against the full checklist embedded in `gym-software-audit-prompt.md`.
+> Statuses: ✅ fully wired (API + DB + UI connected) · 🟡 partial (gap stated) · 🔴 stub/dead/misleading code · ❌ missing.
 
 ---
 
-## Phase 1 — Feature inventory (what MuscleX actually has)
+## Scorecard — 2026-08-02 → 2026-08-04
 
-Condensed inventory by domain. Evidence = representative files/endpoints; the Phase 2 table has per-feature detail.
-
-| Domain | Status | Where it lives | Verdict |
+| Status | Was | Now | Δ |
 |---|---|---|---|
-| Member CRUD, profiles, body stats, progress photos | ✅ | `backend/src/members/*` (`/api/v1/members`), `MemberBodyStats`, `MemberProgressPhoto`; `frontend/.../members/*`; member BFF write path too | Production-grade, incl. duplicate-phone guard, soft delete, transfer logs |
-| Membership plans, assignment, renewal, expiry, freeze | ✅ | `plans.controller.ts`, `memberships.controller.ts`, `renewals.service.ts` (4 daily crons: expiry, expiring-soon, auto-renew, auto-unfreeze) | Real cron-driven lifecycle. **Bug:** assign dialog calls nonexistent `/members/:id/memberships` → 404 |
-| Billing: invoices, GST split, PDF, ledger | ✅ | `payments/billing.service.ts` (CGST/SGST vs IGST by place-of-supply), `documents/templates/invoice-pdf.ts`, `FinancialTransaction` double-entry | Manual-invoice UI never sends `tax_rate_id` → ₹0 GST on hand-made invoices |
-| Payments: Razorpay (full), Stripe (backend), per-gym gateway keys, webhooks | ✅/🟡 | `razorpay.service.ts`, `stripe.service.ts`, `PaymentGatewayConfig`, `/payments/webhooks/*` (HMAC, timing-safe) | Stripe has no UI caller; PayPal absent |
-| Refunds, partial payments, invoice cancel | 🟡 | `refunds.service.ts`, `billing.service.ts:recalculateInvoiceStatus/cancelInvoice` | All backend-only — zero UI consumers; refunds never call the gateway |
-| Check-ins: QR (static+dynamic HMAC), kiosk, policy engine, WS realtime, offline sync | ✅ | `check-ins/*` — `qr-token.service.ts`, `check-in.orchestrator.ts` (8-rule access-policy chain), `check-ins.gateway.ts`, kiosk at `frontend/src/app/kiosk/[branchSlug]` | One of the strongest areas in the product |
-| Biometrics: face (pgvector), eSSL/ZKTeco iclock ADMS ingest | ✅/🟡 | `check-ins/facial/`, `biometric/iclock.*`, `/iclock/cdata` | iclock bypasses the policy engine; fingerprint SDK provider is an explicit `NotImplementedException` stub |
-| Classes: capacity, waitlists (atomic), recurring sessions, rooms | ✅ | `classes/booking.service.ts` (guarded increment, auto-promote), `scheduling.service.ts` | **Two parallel systems**: new `ClassSession` stack vs legacy `Class`/`ClassEnrollment`; member app books only the legacy one |
-| PT: trainer-client assignment, session logging, commission → payroll | 🟡 | `staff/trainer.service.ts`, `payroll.service.ts`, `TrainerRevenue`, `PayrollRecord` | Backend complete; **zero UI**; session rate hardcoded `= 500`; no PT-package model |
-| Workout/diet plans + member delivery + logging | ✅ | `plans/*` (`/workout-plans`, `/diet-plans`), member BFF `/member/v1/plans`, `/workouts/today` + set logging + PRs | Exercise catalog has **no seed data and no CRUD** → empty picker on a fresh tenant |
-| Nutrition, exercise library, AI coach (member) | ✅/🟡 | `member-nutrition.service.ts`, `member-exercise.controller.ts`, `member-coach.service.ts` (real Anthropic call, server-built context) | Coach is chat-only; no structured plan generation |
-| CRM leads + funnel + public join portal | 🟡 | `marketing/leads.*`, `public-portal/*`, `/join/[gymSlug]` | Fixed 5 stages, no follow-ups, no dedupe, no lead→member conversion flow |
-| WhatsApp: Meta Cloud provider, per-gym creds, HMAC webhook, shared inbox | ✅ | `whatsapp/*`, `WhatsAppNumberIndex` tenant routing, inbox UI | `sendTemplate` implemented but **never called** — all sends are 24h-window session text |
-| Automations + campaigns + email (Resend) + SMS (Twilio via queue) + Expo push | 🟡 | `marketing/automation-dispatcher.service.ts` (expiry, birthday, lead-created fire), `campaign-sender.service.ts` | Receipts manual-only; class reminders absent; campaign `scheduled_at` never dispatched; admin push endpoint writes "sent" without sending |
-| Staff: roles, permission matrix, overrides, attendance, leaves | ✅ | `auth/rbac-seed.service.ts`, `rbac.service.ts`, `StaffPermissionOverride`, permissions UI (667-line matrix) | Custom roles creatable but **unassignable** (`staff-invite` rejects non-enterprise roles; `role_id` never written) |
-| Payroll + shifts | 🟡 | `payroll.controller.ts`, `StaffShift` routes | Backend real; hooks exist; **no page imports them** |
-| Multi-branch: orgs, regions, provisioning, scoping, portfolio dashboard | ✅ | `branches/*`, `branch-scope.util.ts` (fail-closed), `dashboard/portfolio.service.ts` | Branding is org-level only; `BranchSettings` has API but no UI |
-| Reports/analytics | 🟡 | `analytics/*`, `dashboard/*` (31 files, role-specific shells, KPI inspector, cohorts, anomaly detection) | **Defect cluster**: `analytics` permission module unregistered (non-owners 403 everywhere); aggregation job filters `Payment.status='completed'` which is never written → revenue analytics permanently 0; complete 8-tab reports UI exists but is mounted by no page |
-| Expenses & P&L | ✅ | `payments/expenses/*` — immutable ledger, reversals, intelligence (cashflow prediction, recurring detection), full UI | Strongest reporting area |
-| Inventory / POS | ✅ | `inventory/*` — products, batches, suppliers, POs, transfers, bundles, POS sales/returns, thermal receipts, full UI | Competitor weakness we already win |
-| Member app (Expo) | ✅/🟡 | 40+ screens: home, membership+renewal, classes, plans, workout logging, nutrition, progress, community, challenges, rewards, steps, health/wearables, AI coach, trainer chat, referrals, mindfulness | Dev-build only; `eas.json submit.production` empty (never store-submitted) |
-| Offline mode | ✅ | `gym-member-app/src/offline/` (SQLite outbox, idempotency keys) + server `@Idempotent()`; admin check-in offline queue | Genuinely done, both sides |
-| Public/gym-less fitness identity, multi-gym chooser, discovery | ✅ | `member-public.controller.ts`, `app_users`, `choose-gym.tsx`, nearby gyms | Unique — no competitor equivalent |
-| Platform webhooks/integrations | 🔴 | `platform/services/webhooks.service.ts` (21-event catalog, HMAC, SSRF guard, delivery log) | **`dispatch()` has zero callers** — no event ever fires; `testIntegration()` always returns ok without contacting anything |
-| SaaS subscription billing (gyms paying us) | ✅ | `subscription/*` (proration, GST, invoices PDF, WS gateway, cron) + SCC | Separate from member billing; complete |
+| ✅ done | 23 | **35** | **+12** |
+| 🟡 partial | 33 | 28 | −5 |
+| 🔴 stub/dead | 5 | 7 | +2 ¹ |
+| ❌ missing | 14 | 5 | −9 |
+
+¹ 🔴 rose because re-verification **downgraded three rows the original audit was too generous
+about** (#21 class credits, #22 instructor notifications, #23 class-system split are dead, not
+partial) and #55 / #11 proved to be stubs. Nothing regressed — the original grades were wrong.
+
+**Bug list: 11 of 15 fixed, 1 partial, 3 still open.** 24 **new** defects found during
+re-verification, including one **critical data-loss** bug (see below).
 
 ---
 
-## Phase 2 — Gap table vs the MyGymDesk checklist
+## 🔴 Critical — fix before the next deploy
+
+**Admin offline check-ins are silently destroyed on reconnect.**
+`frontend/src/app/[gymSlug]/check-in/page.tsx:140-143` — the auto-sync effect calls
+`syncMutation.mutate([], { onSuccess: () => offlineQueue.clear() })`. It posts an **empty array**
+(the comment says `// Will be populated by sync handler`; nothing ever populates it) and then wipes
+the IndexedDB queue. Every check-in recorded during an outage is lost the instant the browser
+comes back online. The manual "Sync Now" path at `:149-166` is correct — but the effect fires
+first. Offline mode is listed as a competitive **win** (#71); on the admin side it currently
+loses data. Verified by direct code read, not agent report.
+
+Related: the admin replay carries **no idempotency key** (`features/checkins/types.ts:26-34` has no
+`client_event_id`) even though the backend dedupes on it (`check-ins.service.ts:139,152`), and
+`onSuccess` clears the whole store rather than per-row, so partial failures are discarded too.
+
+---
+
+## Phase 2 — Gap table (re-verified)
 
 Effort: **S** < 1 day · **M** 1–3 days · **L** ~1–2 weeks · **XL** > 2 weeks.
 Priority: **P0** core gym ops · **P1** Indian-market selling points · **P2** growth/retention · **P3** differentiators.
+"Was" = the 2026-08-02 grade.
 
 ### Member Management
 
-| # | Feature | Competitor | My status | Evidence | Effort | Priority |
+| # | Feature | Was | **Now** | Evidence / what remains | Effort | Pri |
 |---|---|---|---|---|---|---|
-| 1 | Member CRUD + photos + measurements + progress | ✅ | ✅ | `members.controller.ts`, `MemberBodyStats`, `features/progress/*` | — | P0 (done) |
-| 2 | Membership status / renewal / expiry tracking | ✅ | ✅ | `renewals.service.ts` crons; `MembershipStatusBadge` · *bug: assign dialog 404s (`features/memberships/api.ts:50`)* | S (bugfix) | P0 |
-| 3 | Digital member ID card with QR | ✅ | 🟡 | Signed QR backend ✅ (`qr-token.service.ts`); admin renders raw DB string, no printable card, **member app displays no QR** (it scans instead) | M | **P1** |
-| 4 | Custom plans (monthly/quarterly/annual) | ✅ | ✅ | `plans.controller.ts`; 10 plan types incl. class_pack, day_pass, corporate, family | — | P0 (done) |
-| 5 | Freeze / pause membership | ✅ | ✅ | `/members/:id/freeze`, `MembershipFreeze`, auto-unfreeze cron extends end_date | — | P0 (done) |
-| 6 | Member data import / migration | ✅ | ❌ | Zero import code anywhere (exports only) | M | **P0** — switching gyms can't migrate |
+| 1 | Member CRUD + photos + measurements + progress | ✅ | ✅ | `members.controller.ts:112,134,197-259`; UI `MemberProgressTab.tsx` | — | done |
+| 2 | Membership status / renewal / expiry | 🟡 | ✅ | **404 fixed** — `features/memberships/api.ts:50,54` → `/memberships/assign/:id` (`memberships.controller.ts:28,39`) | — | done |
+| 3 | Digital member ID card with QR | 🟡 | ✅ | **Shipped** `14f15cb` — BFF `member-identity.controller.ts:17`, app `id.tsx:31`, admin printable `MemberIdCard.tsx:54` | — | done |
+| 4 | Custom plans (monthly/quarterly/annual) | ✅ | ✅ | `plans.service.ts:129`; `PlanForm.tsx:48-51` | — | done |
+| 5 | Freeze / pause membership | ✅ | ✅ | `memberships.controller.ts:56,64`; auto-unfreeze cron `renewals.service.ts:207` | — | done |
+| 6 | Member data import / migration | ❌ | ❌ | Zero import routes repo-wide; no CSV parser dep; no mapping UI. **Switching gyms still cannot migrate.** | M | **P0** |
 
 ### Billing & Payments
 
-| # | Feature | Competitor | My status | Evidence | Effort | Priority |
+| # | Feature | Was | **Now** | Evidence / what remains | Effort | Pri |
 |---|---|---|---|---|---|---|
-| 7 | Instant bill + payment collection | ✅ | 🟡 | Both halves exist (`billing.service.ts`, `/payments/cash`) but payment form never sends `invoice_id`; no "Collect" action on invoice rows; invoice UI omits tax/discount | S | **P0** |
-| 8 | Razorpay; Stripe/PayPal international | ✅ (Razorpay) | 🟡 | Razorpay ✅ end-to-end; Stripe backend ✅ no UI; PayPal ❌ | M (Stripe UI) | P1 |
-| 9 | GST-compliant auto-generated invoices | ✅ | ✅ | `billing.service.ts:102-146` CGST/SGST/IGST by place-of-supply; `invoice-pdf.ts` TAX INVOICE + HSN + amount-in-words · *manual-invoice UI sends no tax_rate → ₹0 GST* | S (UI fix) | P1 |
-| 10 | Payment links via WhatsApp | ✅ | 🟡 | Sends invoice **PDF** via WA (`document-delivery.service.ts`); no payable link — `/pay/[orderId]` page exists but is never minted/shared by admin | S–M | **P1** |
-| 11 | Recurring billing (member memberships) | ✅ | 🟡 | `auto_renew` cron creates renewal but hardcodes `pending`/`bank_transfer` — **never charges a gateway**; `payment_method_token` never written. (SaaS-level recurring ✅ separately) | L | P1 |
-| 12 | Partial payments, refunds, outstanding dues | ✅ | 🟡 | Dues ✅ (dashboard KPI + inspector). Partial: backend-only (unreachable). Refunds: backend + hooks, **no screen**, no gateway refund call | M | **P0** |
-| 13 | Invoice cancellation with revenue exclusion | ✅ | 🟡 | `cancelInvoice()` correct (reversing ledger entry; excluded from dues/revenue) — **no UI action**; generic status-PATCH footgun bypasses ledger | S | **P0** |
+| 7 | Instant bill + payment collection | 🟡 | ✅ | Collect button `invoices/page.tsx:279` → posts `invoice_id` to `/payments/cash` · ⚠️ **gateway path drops it — see NEW-1** | — | done |
+| 8 | Razorpay / Stripe / PayPal | 🟡 | ✅ | Stripe UI shipped `5a50b98` (`StripeCheckoutDialog.tsx`, CDN-loaded, no new dep). PayPal absent (out of scope) | — | done |
+| 9 | GST-compliant invoices | 🟡 | ✅ | `invoices/new/page.tsx:117` now sends `tax_rate_id`; CGST/SGST/IGST `billing.service.ts:106-167` | — | done |
+| 10 | Payment links via WhatsApp | 🟡 | ✅ | `payment-links.service.ts:71` + `POST /payments/links`; UI `invoices/page.tsx:265` | — | done |
+| 11 | Recurring billing (member auto-charge) | 🟡 | 🔴 | **Unchanged** — `renewals.service.ts:176-186` still writes `pending`/`bank_transfer`, **no gateway call**. Needs stored mandate. | L | P1 |
+| 12 | Partial payments, refunds, dues | 🟡 | 🟡 | Refunds **now move real money** (`refunds.service.ts:44-76` calls gateway before DB write, `feae6ae`) + screen. **No AR/aging view** | S | P1 |
+| 13 | Invoice cancellation w/ revenue exclusion | 🟡 | ✅ | `POST /invoices/:id/cancel` + reversing ledger entry; UI Cancel `invoices/page.tsx:290` | — | done |
 
 ### Attendance
 
-| # | Feature | Competitor | My status | Evidence | Effort | Priority |
+| # | Feature | Was | **Now** | Evidence / what remains | Effort | Pri |
 |---|---|---|---|---|---|---|
-| 14 | QR check-in / check-out | ✅ | ✅ | HMAC static + 30s dynamic QR, replay nonce, orchestrator, checkout pairing | — | P1 (done) |
-| 15 | Front-desk kiosk mode (tablets) | ✅ | ✅ | `/kiosk/[branchSlug]` — QR/Face toggle, idle PIN lock, offline queue · *PIN is client-side localStorage, not `CheckInDevice.pin_hash`* | S (harden) | P1 (done) |
-| 16 | Real-time attendance dashboard | ✅ | ✅ | Socket.IO `/check-ins` gateway + live feed/heatmap/occupancy tiles · *`OCCUPANCY_UPDATED` declared but never emitted* | S | P2 (done) |
-| 17 | Biometric (fingerprint) device integration | ✅ | 🟡 | Face+pgvector ✅; eSSL/ZKTeco iclock ADMS ingest ✅ (`/iclock/cdata`); direct fingerprint SDK = `NotImplementedException` stub; iclock bypasses policy engine | L | P3 |
-| 18 | Staff attendance + shift tracking | ✅ | 🟡 | Attendance + biometric clock + leaves ✅ with UI; **shifts = API+hooks only, no page** | S | P2 |
-| 19 | Member attendance calendar, streaks, monthly stats | ✅ | 🟡 | Streaks ✅ (`member-streak.service.ts`); admin shows flat table only; **no member-facing check-in history endpoint or screen**, no calendar | M | **P1** |
+| 14 | QR check-in / check-out | ✅ | ✅ | `qr.controller.ts:44,119`; admin + kiosk + member card all consume | — | done |
+| 15 | Front-desk kiosk mode | ✅ | 🟡 | PIN still SHA-256 in `localStorage` (`KioskPinLock.tsx:108`); `pin_hash` written as a throwaway sentinel and never read. Hardened (salt + lockout), not fixed. **HARD STOP #2** | M | P2 |
+| 16 | Real-time attendance dashboard | ✅ | ✅ | `OCCUPANCY_UPDATED` **now emitted** `check-in.orchestrator.ts:732` → gateway `:175` · ⚠️ NEW-7 | — | done |
+| 17 | Biometric device integration | 🟡 | 🟡 | **Policy bypass fixed** `cd3368e` — iclock routes through `CheckInOrchestrator`. No server→device command channel (`getrequest` returns bare `'OK'`) | L | P3 |
+| 18 | Staff attendance + shift tracking | 🟡 | ✅ | **Shifts UI shipped** `fecb69f` — `staff/shifts/page.tsx:34` over real routes | — | done |
+| 19 | Member attendance calendar / streaks | 🟡 | 🟡 | Visits + summary shipped `14f15cb`; app screen renders month bars. Backend's per-day `days[]` **has no consumer** — no calendar grid | S | P2 |
 
 ### Classes & Scheduling
 
-| # | Feature | Competitor | My status | Evidence | Effort | Priority |
+| # | Feature | Was | **Now** | Evidence / what remains | Effort | Pri |
 |---|---|---|---|---|---|---|
-| 20 | Group classes + capacity + waitlists | ✅ | ✅ | Atomic guarded-increment booking, auto-promotion (`booking.service.ts`) · *duplicated across two class systems* | — | P2 (done) |
-| 21 | Session-based class packages | ✅ | 🟡 | `class_pack` plans + `classes_remaining` auto-created on purchase ✅; **credits burn on gym check-in only, never on class booking** | M | P2 |
-| 22 | Instructor assignment + schedules + notifications | ✅ | 🟡 | Assignment + conflict detection + trainer schedule routes ✅; **zero notifications** on assign/substitute/cancel | M | P2 |
-| 23 | Online class booking by members | ✅ | 🟡 | Works end-to-end (`member-class.service.ts` reuses admin enroll) — but **only against legacy `Class`**; new `ClassSession` stack invisible to members | M–L (unify) | P2 |
-| 24 | Class reminders 24h before | ✅ | ❌ | No cron; inbox card is client-derived at render; `class_reminders` pref read by nothing | M | P2 |
+| 20 | Group classes + capacity + waitlists | ✅ | 🟡 | Correct on **both** stacks, but UI exists only on legacy. `useBookClass`/`useSessionBookings` have **zero importers** | M | P2 |
+| 21 | Session-based class packages | 🟡 | 🔴 | **Downgraded.** Credits burn on gym check-in ONLY (`check-in.orchestrator.ts:506-512`); `backend/src/classes/**` never touches `classes_remaining` | M | P2 |
+| 22 | Instructor assignment + notifications | 🟡 | 🔴 | **Downgraded.** Assignment works; **zero** notifications. `cancelSession` mass-cancels and hard-deletes the waitlist silently | M | P2 |
+| 23 | Online class booking by members | 🟡 | 🔴 | **Downgraded.** `member-class.service.ts:45` still queries legacy `client.class`. Admin-created sessions are **invisible to members** | L | P2 |
+| 24 | Class reminders 24h before | ❌ | 🟡 | **Cron shipped** `8b4f523` (hourly, covers both stacks, real delivery) — but **dormant by default**: needs a manual "seed defaults" click, and the trigger is missing from the UI (NEW-8) | S | P1 |
 
 ### Personal Training
 
-| # | Feature | Competitor | My status | Evidence | Effort | Priority |
+| # | Feature | Was | **Now** | Evidence / what remains | Effort | Pri |
 |---|---|---|---|---|---|---|
-| 25 | Trainer-member assignment + PT packages | ✅ | 🟡 | `TrainerClient` assignment backend ✅ (hooks exist, **no UI**); **PT package model absent entirely** (no sessions_remaining anywhere) | L (schema — hard gate) | P2 |
-| 26 | PT session logging with notes | ✅ | 🟡 | `TrainerSession` CRUD + conflict check + notes ✅ backend; **no screen logs a session**; not linked to `WorkoutLog` | M | P2 |
-| 27 | PT commission tracking + payouts | ✅ | 🟡 | `TrainerRevenue` → `PayrollRecord` mechanics ✅; **`sessionRate = 500` hardcoded**; payroll hooks have zero UI consumers | M | P2 |
+| 25 | Trainer-member assignment + PT packages | 🟡 | 🟡 | `TrainerClient` backend ✅ but `useAssignClient` has **UI: none**. No `PTPackage` model — **[schema]** | L | P2 |
+| 26 | PT session logging with notes | 🟡 | ✅ | **Shipped** `2d27647` — `staff/pt-sessions/page.tsx:68` over real routes | — | done |
+| 27 | PT commission + payouts | 🟡 | 🟡 | Payroll UI shipped `fecb69f` (real aggregation, not mocked). **`sessionRate = 500` still hardcoded** (`trainer.service.ts:247`) → every commission figure is wrong | M | P2 |
+| 28 | Workout builder + exercise library | 🟡 | 🟡 | CRUD + 51-exercise catalog shipped `46d3d98`. **Seeder not called on tenant creation** (NEW-21); `WorkoutPlanExercise` has no day/week column → no PPL split | S | P2 |
 
-### Workout & Diet Plans
+### Workout & Diet
 
-| # | Feature | Competitor | My status | Evidence | Effort | Priority |
+| # | Feature | Was | **Now** | Evidence / what remains | Effort | Pri |
 |---|---|---|---|---|---|---|
-| 28 | Workout plan builder + exercise library | ✅ | 🟡 | Builder + sets/reps/rest editor + assignment ✅; **exercise catalog has no seed data and no CRUD** → unusable on fresh tenant | S | P2 |
-| 29 | Diet plans + meals + calorie/macro targets | ✅ | ✅ | `diet-plans.controller.ts`, `MealsEditor.tsx`, per-meal macros | — | P2 (done) |
-| 30 | Plans in member app + progress/goal tracking | ✅ | ✅ | `/member/v1/plans`, workout logging + PRs, goals, weight/BMI charts | — | P1 (done) |
-| 31 | AI-generated workout/diet plans | ✅ (claimed) | 🟡 | AI coach is real Claude chat with member context; **never writes a structured plan** | M | P3 |
+| 29 | Diet plans + meals + macros | ✅ | ✅ | `diet-plans.controller.ts:24-102`; `MealsEditor.tsx` | — | done |
+| 30 | Plans in member app + progress | ✅ | ✅ | `plan.tsx`, `progress.tsx`; progress-photo routes confirmed live (old 404 finding is stale) | — | done |
+| 31 | AI-generated workout/diet plans | 🟡 | ❌ | **Downgraded.** `ai-tools.ts:12` — "Every tool is a READ". No `generatePlan` anywhere; coach screen has no accept/save | M | P3 |
 
 ### CRM & Leads
 
-| # | Feature | Competitor | My status | Evidence | Effort | Priority |
+| # | Feature | Was | **Now** | Evidence / what remains | Effort | Pri |
 |---|---|---|---|---|---|---|
-| 32 | Lead capture (walk-in, phone, website, social) | ✅ | 🟡 | `/leads` CRUD + public `/join` trial form ✅; no `phone` source in enum, no UTM capture, WhatsApp inbox never creates leads | S | P2 |
-| 33 | Pipeline custom stages + follow-ups + assignee history | ✅ | 🔴 | 5 hardcoded stages; **no follow-up field/reminder anywhere**; reassignment logged nowhere; no kanban | M | P2 |
-| 34 | Duplicate detection + one-tap lead→member conversion | ✅ | ❌ | No dedupe logic; no `/leads/:id/convert`; `converted_member_id` only settable as raw UUID | M | P2 |
-| 35 | Lead conversion funnel report | ✅ | ✅ | `GET /leads/funnel` + UI (basic — no stage-to-stage rates) | — | P2 (done) |
+| 32 | Lead capture (walk-in/phone/web/social) | 🟡 | 🟡 | DTO gained `phone`/`whatsapp`/`other` (`7761ac8`) but **the UI dropdown was never updated** (NEW-10) — the fix is unreachable. No UTM; inbox creates no leads | S | P2 |
+| 33 | Custom stages + follow-ups + assignee history | 🔴 | 🟡 | Assignee history shipped `2fbffcd`. No `next_follow_up_at` **[schema]**, stages hardcoded, no kanban | M | P2 |
+| 34 | Duplicate detection + lead→member conversion | ❌ | ✅ | **Shipped** `2fbffcd` — `findDuplicates()`/`convertToMember()` + full UI. Gap: create-form doesn't call the dedupe check (NEW-22) | — | done |
+| 35 | Lead conversion funnel report | ✅ | ✅ | `/leads/funnel` + UI | — | done |
 
-### Communication (WhatsApp-first)
+### Communication
 
-| # | Feature | Competitor | My status | Evidence | Effort | Priority |
+| # | Feature | Was | **Now** | Evidence / what remains | Effort | Pri |
 |---|---|---|---|---|---|---|
-| 36 | Official WhatsApp Business API | ✅ | ✅ | Meta Cloud provider, per-gym creds + `WhatsAppNumberIndex` routing, HMAC webhook, shared inbox · *`sendTemplate` never called → cold sends will be rejected by Meta* | M (templates) | **P1** |
-| 37 | Automated: receipts, expiry, birthday, class reminders | ✅ | 🟡 | Expiry + birthday + lead-created fire daily ✅; **payment receipts manual-only; class reminders absent**; 2 of 3 seeded "essential rules" have no trigger emitter | M | **P1** |
-| 38 | Bulk WhatsApp/email/SMS campaigns | ✅ | 🟡 | Real multi-channel sender (batching, per-row bookkeeping) ✅; **`scheduled_at` never dispatched**; no opt-out/consent; no open/click tracking | M | P1 |
-| 39 | Push notification broadcasts | ✅ | 🟡 | Campaign `push` channel genuinely sends via Expo ✅; dedicated `/push-notifications` endpoint writes a row marked "sent" **without calling PushService**; no admin UI | S | P1 |
+| 36 | Official WhatsApp Business API | ✅ | 🟡 | **`sendTemplate` still has zero callers** (only interface + 2 providers + a mock). Every send is free-form text → **fails outside the 24h WABA window**. Template registry is **[schema]** | M | **P1** |
+| 37 | Automated receipts / expiry / birthday / class reminders | 🟡 | 🟡 | **Receipts now automatic** `456d89e` (`@OnEvent(PAYMENT_PAID)`, 5 emit sites). Class reminders shipped but dormant. **2 of 5 seeded workflows have no emitter** (NEW-9) | S | P1 |
+| 38 | Bulk campaigns | 🟡 | 🟡 | `scheduled_at` **now dispatched** (5-min cron). **No opt-out/consent check at all** — `ConsentLog` exists and is never read (NEW-5, compliance risk) | M | **P1** |
+| 39 | Push broadcasts | 🟡 | 🟡 | Endpoint **now really sends** `b38f547`. **UI: none**; single-member only. Broadcast works via campaigns | S | P2 |
 
 ### Staff & Permissions
 
-| # | Feature | Competitor | My status | Evidence | Effort | Priority |
+| # | Feature | Was | **Now** | Evidence / what remains | Effort | Pri |
 |---|---|---|---|---|---|---|
-| 40 | Roles: Owner/Manager/Receptionist/Trainer/Custom | ✅ | 🟡 | 9 seeded enterprise roles ✅; **custom roles creatable but unassignable** (`staff-invite.service.ts:53` rejects them; `role_id` never written) | S–M | P2 |
-| 41 | Granular per-role permissions | ✅ | ✅ | Full RBAC chain + per-staff grant/deny overrides + 667-line matrix UI · *critical bug: `analytics` module unregistered → non-owners 403 on all 12 analytics routes; `@Roles('manager')` mismatch* | S (bugfix) | **P0 (fix)** |
-| 42 | Payroll + commission + shift scheduling | ✅ | 🟡 | Complete backend (config, process, records, revenue) — **zero UI pages**; ₹500 hardcoded session rate | M | P2 |
+| 40 | Roles incl. custom | 🟡 | ✅ | **Fixed** `f9102e1` — invites accept custom roles; selector merges them. (Join key is `UserRole.role_name`, not `role_id`) | — | done |
+| 41 | Granular per-role permissions | 🟡 | ✅ | **`analytics` registered** `ddb0be5` + granted to 5 roles · ⚠️ **72 phantom `@Roles` sites** remain (NEW-11) | S | P2 |
+| 42 | Payroll + commission + shifts | 🟡 | ✅ | **Both screens shipped** `fecb69f` over real aggregation | — | done |
 
 ### Multi-Location
 
-| # | Feature | Competitor | My status | Evidence | Effort | Priority |
+| # | Feature | Was | **Now** | Evidence / what remains | Effort | Pri |
 |---|---|---|---|---|---|---|
-| 43 | Multiple branches, one owner dashboard | ✅ | ✅ | `branches/*`, portfolio rollup (`/dashboard/portfolio`), branch scorecards + map | — | P2 (done) |
-| 44 | Branch-scoped staff access; per-branch plans/schedules/branding | ✅ | 🟡 | Access scoping ✅ (fail-closed util + guard); per-branch plans/pricing/schedules ✅; **branding is org-level only** (`WhiteLabelConfig` keyed org); `BranchSettings` has API, no UI | M | P2 |
-| 45 | Shared exercise/diet libraries across branches | ✅ | ✅ | `Exercise`/`DietPlan` are gym-wide by design · *no catalog CRUD (see #28)* | — | P2 (done) |
-| 46 | Per-branch + consolidated reports; per-branch billing | ✅ | 🟡 | Branch-clamped reports backend ✅ + branch-comparison UI; **gateway config is gym-wide** (no per-branch merchant); report UI gaps (see #53) | M | P2 |
+| 43 | Multiple branches, one dashboard | ✅ | ✅ | `branches/page.tsx`, portfolio rollup | — | done |
+| 44 | Branch-scoped access; per-branch plans/branding | 🟡 | 🟡 | Scoping ✅, per-branch plans ✅. `useBranchSettings` has **UI: none** (no branch detail route). Branding still org-level — **[schema]** | M | P2 |
+| 45 | Shared exercise/diet libraries | ✅ | ✅ | Gym-scoped library + CRUD page | — | done |
+| 46 | Per-branch + consolidated reports | 🟡 | ✅ | Branch filter + dedicated Branches comparison tab on `/reports` | — | done |
 
 ### Reports & Analytics
 
-| # | Feature | Competitor | My status | Evidence | Effort | Priority |
+| # | Feature | Was | **Now** | Evidence / what remains | Effort | Pri |
 |---|---|---|---|---|---|---|
-| 47 | Revenue by category (membership/PT/classes/products) | ✅ | 🟡 | `revenue-mix` tile works (by plan type) but omits POS + real PT; **aggregation job filters `status:'completed'` (never written) → `RevenueAnalytics`/`DailyGymMetrics` permanently 0**; PT category is a superset double-count | M | **P0 (fix)** |
-| 48 | Active/expired/expiring-soon analytics | ✅ | 🟡 | Backend complete (`/memberships/stats`, `/members/lifecycle`, cron-maintained statuses); **no UI consumer** beyond list filter + one KPI tile | S | P2 |
-| 49 | Attendance trends | ✅ | ✅ | `/visits` charts, 7×24 heatmap with anomaly flags, peak hours | — | P2 (done) |
-| 50 | Staff performance | ✅ | 🟡 | Backend ✅ (`/trainer/performance`, leaderboard); **staff analytics page calls nonexistent `/analytics/trainer-performance`** → always empty | S | P2 |
-| 51 | Retention / churn | ✅ | ✅ | Real cohort retention curves, nightly engagement/churn-risk scoring, at-risk playbook UI | — | P2 (done) |
-| 52 | Income / expense / net profit | ✅ | ✅ | Immutable expense ledger + reversals, P&L, cashflow prediction, full UI — strongest area | — | P0 (done) |
-| 53 | Daily + monthly report views | ✅ | 🟡 | Dashboard is excellent (role shells, ~15 tiles); `/reports` page is **Store-only**; a complete 8-tab gym reports UI (`features/reports/components/*Tab.tsx`) is **imported by no page**; `useMonthlyReport` has zero consumers | S–M | **P0** |
+| 47 | Revenue by category | 🟡 | 🟡 | **Core fix landed** `8616ade` — `status:'paid'`, membership by `membership_id`, PT from `TrainerRevenue` (no double-count), POS included. **No `classes` category**; `/dashboard/revenue-mix` still omits POS | S | P2 |
+| 48 | Active/expired/expiring analytics | 🟡 | 🟡 | Stats cards shipped (QW-A). `GET /members/lifecycle` still has **UI: none** | S | P2 |
+| 49 | Attendance trends | ✅ | ✅ | `AttendanceTab` on the mounted reports page | — | done |
+| 50 | Staff performance | 🟡 | ✅ | **Route fixed** `c5e6ad6` → `/analytics/trainers/leaderboard` | — | done |
+| 51 | Retention / churn | ✅ | ✅ | Cohort curves + churn-risk UI | — | done |
+| 52 | Income / expense / net profit | ✅ | ✅ | Strongest area | — | done |
+| 53 | Daily + monthly report views | 🟡 | 🟡 | **8 tabs mounted** `5645287` at `/reports` + nav entry. `useMonthlyReport` **still orphaned** — no monthly view | S | P2 |
 
 ### Member Self-Service
 
-| # | Feature | Competitor | My status | Evidence | Effort | Priority |
+| # | Feature | Was | **Now** | Evidence / what remains | Effort | Pri |
 |---|---|---|---|---|---|---|
-| 54 | Dashboard (status/expiry/days-left) + in-app renewal/upgrade | ✅ | 🟡 | Dashboard + renewal ✅ end-to-end (Razorpay hosted `/pay` + webhook polling — the old "orphaned renew" finding is stale); **no upgrade/plan-picker, autoRenew display-only** | M | P1 |
-| 55 | Payment history | ✅ | 🟡 | Last 10 invoices inside membership screen; no dedicated screen, pagination, or receipt PDF via BFF | S | P1 |
-| 56 | Class booking + waitlists in app | ✅ | ✅ | `classes.tsx` — waitlist join/leave, position badge, promotion toast | — | P1 (done) |
-| 57 | View workout/diet/PT plans | ✅ | 🟡 | Workout+diet ✅; **PT sessions have zero BFF exposure** | M | P2 |
-| 58 | Log weight; BMI + trend charts | ✅ | ✅ | Server-computed BMI, 365-pt series, range filters, photo compare | — | P1 (done) |
-| 59 | Check-in history; digital QR ID in app | ✅ | ❌ | **Neither exists.** App *scans* the gym's QR (inverted vs competitors); no visit-history endpoint/screen | M | **P1** |
-| 60 | Health profile (height, blood group, allergies, goals) | ✅ | 🟡 | Fitness profile ✅; `blood_group`/`allergies`/`emergency_contact` exist in schema but are **admin-panel only** — absent from BFF DTO + app | S | P2 |
-| 61 | Notification inbox; feedback form | ✅ | 🟡 | Inbox is client-side synthesis (no `GET /notifications` feed, device-local read state); **feedback form: zero code** | M | P2 |
+| 54 | Dashboard + in-app renewal/upgrade | 🟡 | ✅ | **Plan picker shipped** `285695c` — `GET /membership/plans` + gym-scoped `planId` validation | — | done |
+| 55 | Payment history (member) | 🟡 | 🔴 | **Downgraded.** There is **no** `member/v1/payments|invoices|receipts` route at all. UI: none | M | P1 |
+| 56 | Class booking + waitlists in app | ✅ | ✅ | Waitlist position + promotion | — | done |
+| 57 | View workout/diet/PT plans | 🟡 | 🟡 | Workout + diet ✅. **PT sessions still have zero BFF exposure** | M | P2 |
+| 58 | Log weight; BMI + trends | ✅ | ✅ | Server-computed BMI + series | — | done |
+| 59 | Check-in history + digital QR ID | ❌ | ✅ | **Both shipped** `14f15cb` — `/id` (rolling QR) + `/visits` (cursor-paged) + screens | — | done |
+| 60 | Health profile (blood group, allergies) | 🟡 | ❌ | **Downgraded.** Columns exist; grep for them across BFF + app = **zero hits**. Not exposed anywhere | S | P2 |
+| 61 | Notification inbox; feedback form | 🟡 | 🔴 | No `GET /member/v1/notifications` — inbox is still client-side synthesis. **Feedback: zero code.** Both **[schema]** | M | P2 |
 
 ### Platform / Misc
 
-| # | Feature | Competitor | My status | Evidence | Effort | Priority |
+| # | Feature | Was | **Now** | Evidence / what remains | Effort | Pri |
 |---|---|---|---|---|---|---|
-| 62 | Native iOS + Android (owner + member apps) | ✅ | 🟡 | Member app real (Expo 56, dev-build) but **never store-submitted** (`eas.json submit.production: {}`); owner native app ❌ (web only) | L (publish) / XL (owner app) | P1 / P3 |
-| 63 | WhatsApp OTP login; Face ID / Touch ID | ✅ | 🟡 | OTP is **SMS via Supabase**, not WhatsApp; biometrics = app-lock overlay on existing session, not an auth factor (that part is fine for parity) | M | P2 |
-| 64 | Gym public landing page; payment link generation | ✅ | 🟡 | `/join/[gymSlug]` portal + trial + checkout ✅; SaaS landing orphaned at `/landing` (root redirects to /login); **no admin "generate payment link" flow** | S–M | P1 |
-| 65 | Waiver collection | ✅ | 🔴 | Only a `document_type: 'waiver'` upload string — no signature capture, no consent record, no member-app flow | M (schema — hard gate) | P2 |
-| 66 | Multi-currency + tax + timezone | ✅ | 🟡 | Timezone ✅ (used in real date math); GST ✅ (India-only); currency nominal — INR hardcoded formatting, no FX | L | P3 |
-| 67 | AI insights (forecast, churn) + NL analytics assistant | ✅ (claimed) | 🟡 | Grounded daily briefing ✅; churn scoring ✅ (heuristic); NL assistant is real Claude but **not data-grounded** (can't answer "revenue last month"); revenue forecast ❌ | M–L | P3 |
-
-### Competitor weaknesses — can WE win here?
-
-| # | Feature | Competitor | My status | Evidence | Effort | Priority |
-|---|---|---|---|---|---|---|
-| 68 | Multiple gateways beyond Razorpay | ❌ | 🟡 → win | Stripe fully implemented backend + per-gym `PaymentGatewayConfig` + settings UI; needs a checkout UI caller; member paths Razorpay-only | M | P2 |
-| 69 | Open API / webhooks / Zapier | ❌ | 🔴 | Webhook infra is excellent (21 events, HMAC, SSRF guard, retries) but **`dispatch()` has zero callers — no event ever fires**; no API keys; Zapier is a catalog string; `testIntegration()` always returns ok | S (wire) / L (API keys) | **P1** |
-| 70 | Door/turnstile access control (auto-block expired) | ❌ | 🟡 | Policy engine auto-blocks/auto-expires at QR/kiosk ✅; iclock path bypasses it and `getrequest` returns hardcoded `OK` — **no device commands, no door actuation** | L | P3 |
-| 71 | Offline mode with sync | ❌ | ✅ **win** | SQLite outbox + idempotent server + kiosk offline queue — already better than competitor | — | market it |
-| 72 | POS / supplement inventory | ❌ | ✅ **win** | Full inventory+POS module with batches, POs, transfers, returns, receipts | — | market it |
-| 73 | Hindi + regional language UI | ❌ | ❌ | Zero i18n anywhere (no library, hardcoded English) | XL | P2 |
-| 74 | Website builder / wearables / workout video library | ❌ | ❌ / ✅ / ❌ | Wearables **win**: HealthKit + Health Connect + HR/HRV/sleep/SpO2 sync (code-complete, on-device QA pending). Builder + video library absent | — / XL | P3 |
-| 75 | Free tier / transparent pricing | ❌ | 🟡 | Free tier exists in `plan-configs.ts` + SCC; public pricing page hardcoded, out of sync, hides Free, and orphaned at `/landing` | S | P1 |
-
-### Features WE have that MyGymDesk does NOT (protect & market)
-
-1. **Public "gym-less" fitness platform** — anyone can use the app without a gym; multi-gym identity; nearby-gym discovery funnel (`app_users`, `choose-gym`, `nearby-gyms`). This is a member-acquisition flywheel no gym-admin competitor has.
-2. **Member AI Coach** (Claude, context-aware) + staff AI advisor + grounded daily briefing.
-3. **Face-recognition check-in** (pgvector cosine search) + hybrid static/dynamic signed QR + kiosk hardening + anti-QR-sharing parallel-session rule.
-4. **Access-policy engine** — 8 ordered rules with persisted rule traces, staff override flow, denial catalog.
-5. **Wearables/health platform** — HealthKit/Health Connect, HR/HRV/sleep/SpO2/VO2max, on-device step tracker, activity rings.
-6. **Community layer** — leaderboard (real check-ins), challenges, badges, streak milestones with haptics.
-7. **Trainer↔member realtime chat** + WhatsApp shared team inbox.
-8. **Enterprise referral engine** — fraud signals, wallets, clawbacks, attributed-revenue analytics (24 files).
-9. **Expense intelligence** — immutable ledger, P&L, cashflow prediction, recurring-expense detection.
-10. **Full inventory/POS/supplement retail** with batches, purchase orders, stock transfers, GST receipts.
-11. **Offline-first member app + offline kiosk queue** with idempotent sync.
-12. **Nutrition tracking with Indian food catalog** + personalized macro targets.
-13. **Corporate + family memberships, multi-branch access passes, city access, branch transfer audit.**
-14. **DPDP/GDPR compliance module** (consent logs, data export/delete) + SCC error-monitoring pipeline.
-15. **Dashboard intelligence** — KPI provenance inspector, anomaly detection, cohort curves, role-specific dashboards.
+| 62 | Native iOS + Android | 🟡 | 🟡 | `eas.json` `submit.production` still `{}`, **and no `extra.eas.projectId`/`owner`** — the project isn't linked to EAS at all | L | P1 |
+| 63 | WhatsApp OTP; Face ID / Touch ID | 🟡 | 🟡 | **Face ID/Touch ID ✅ shipped** (`biometric.ts`, `AppLock.tsx`, settings toggle). WhatsApp OTP ❌ — `member-auth.service.ts:75-80` hardcodes `channel:'sms'` | M | P2 |
+| 64 | Public landing + payment links | 🟡 | ✅ | **Root `/` serves marketing** `58d2d5c`; payment links UI-called. Minor: no admin surface for the `/join/<slug>` share link | — | done |
+| 65 | Waiver collection | 🔴 | 🔴 | **Unchanged** — only a `document_type:'waiver'` upload string. No signature capture. **[schema]** | M | P2 |
+| 66 | Multi-currency + tax + timezone | 🟡 | 🟡 | `useCurrency` used 23× while **66 files hardcode `₹`**; branch tz read only by the orchestrator; tz is free text not an IANA picker | L | P3 |
+| 67 | AI insights + NL analytics | 🟡 | 🟡 | **AI advisor now genuinely tool-grounded** `49cfda3` (8 read-only tenant-bound tools). **Revenue forecast built** `c84235f` but has **zero frontend callers** | S | P3 |
+| 68 | Multiple gateways beyond Razorpay | 🟡 | ✅ | Stripe end-to-end + per-gym key config UI. Member app still Razorpay-only | — | done |
+| 69 | Open API / webhooks / Zapier | 🔴 | 🟡 | Webhooks **now fire** `c5c42b7` via `dispatchEvent` — but only **5 of 17** mapped events actually emit; `dispatch()` is now dead code; `testIntegration()` still always returns ok; **`ApiKeyGuard` guards zero controllers** | M | P1 |
+| 70 | Door/turnstile access control | 🟡 | 🟡 | Policy now evaluated on the iclock path, but denial is **log-only** — no door command channel, so the turnstile already opened | L | P3 |
+| 71 | Offline mode with sync | ✅ | 🟡 | **Downgraded.** Member app is genuinely excellent. **Admin side loses data on reconnect** (see Critical); kiosk has no queue at all | S | **P0** |
+| 72 | POS / supplement inventory | ✅ | ✅ | Real sales, batches, bundles, thermal receipts — **still a win** | — | market it |
+| 73 | Hindi + regional i18n | ❌ | ❌ | Zero matches for any i18n lib across all 5 `package.json`; no locale dirs; 100% hardcoded English | XL | P2 |
+| 74 | Website builder / wearables / video library | ❌/✅/❌ | ❌/🟡/🔴 | Wearables pipeline complete but self-flagged **UNVERIFIED — needs on-device QA**. Video library: `video_url` = **0 hits repo-wide**; catalog carries no media | XL | P3 |
+| 75 | Free tier / transparent pricing | 🟡 | 🟡 | Prices **now match** `58d2d5c` and Free tier shows. Sync is **comment-enforced only** — no public pricing API, so the next change silently desyncs (DEBT #5) | S | P1 |
 
 ---
 
-## Phase 3 — Implementation roadmap
+## What shipped (38 commits, 2026-08-03 → 04)
 
-Ordering logic: **fix what lies before building what's missing** (broken analytics/permissions poison every demo), then close P0 revenue-ops gaps, then the Indian-market P1 selling points, then growth features. Anything marked **[schema]** touches `schema.prisma`/migrations and is a **HARD-GATE item requiring explicit approval** per CLAUDE.md; same for the two-class-system unification.
+| Milestone | Delivered |
+|---|---|
+| **M0** — stop the bleeding | analytics RBAC registration · revenue-aggregation correctness · assign-membership 404 · staff-analytics route · roles-API manager 403 · outbound webhook dispatch · push actually sends · refunds screen · invoice tax/discount/collect/cancel · 8-tab reports mounted · landing at `/` + pricing sync · membership stat cards · occupancy event |
+| **M1** — Indian-market parity | member QR ID + visit history · automatic receipts · class-reminder + scheduled-campaign crons · payment links · in-app plan upgrade · Stripe checkout UI · exercise CRUD + 51-item catalog |
+| **M2** — growth | payroll + shift screens · PT session logging · lead conversion/dedupe/assignee history · custom roles assignable · data-grounded AI advisor |
+| **M3** — final sweep | gateway refunds (real money) · turnstile through the policy engine · revenue forecasting |
+| **Correctness** | IST streak bug (`computeStreakDays`) · month-label off-by-one · report jobs fail closed without a gym · check-in core bound to the tenant client · **backend suite 190 failures → 0** (528 passing) |
 
-### Milestone 0 — "Stop the bleeding" (v-next, ~1 week, mostly S items)
+**Constraint honoured throughout:** zero schema changes, zero new npm dependencies.
+`git diff dea6034..HEAD -- prisma/` is empty and `tenant-models.ts` is unchanged — **no new tenant-model drift.**
 
-Bug-fix release. No schema changes. Everything here is a quick win (see list below) plus:
+---
 
-| Item | Scope | Effort |
+## Original bug list — status
+
+| # | Bug | Status |
 |---|---|---|
-| Register `analytics` in `MODULES_ACTIONS` + fix `@Roles('manager')` mismatch | `auth/rbac-seed.service.ts`, `roles.controller.ts` — unblocks all analytics for non-owner roles | S |
-| Fix `Payment.status: 'completed'` → `'paid'` in `metrics-aggregation.job.ts` (3 sites) + fix `organization_id: ''` uuid upserts + fix PT-superset double-count | Makes `RevenueAnalytics`/`DailyGymMetrics`/`/reports/*` non-zero; add a backfill re-run | S–M |
-| Fix assign-membership 404 (`features/memberships/api.ts` → real routes) | Restores membership assignment from the UI | S |
-| Fix staff analytics page route (`/analytics/trainer-performance` → `/analytics/trainers`) | S |
-| Mount the orphaned 8-tab reports UI at a gym-level `/reports` route (rename Store report to `/store/reports` or a tab) | Delivers item #53 with already-written code | M |
-| Wire `WebhooksService.dispatch()` into member.created / payment.received / checkin.completed / invoice events | Turns the dead integration story real (item #69) | S–M |
-| Fix push endpoint to actually call `PushService`; add segment broadcast shape | Item #39 | S |
-| Invoice UI: add tax-rate + discount selectors; add "Collect payment" action passing `invoice_id`; add Cancel action calling `POST /invoices/:id/cancel` (and remove the ledger-bypassing status-PATCH path) | Items #7, #9, #13 | M |
-| Refunds screen (hooks already exist) | Item #12 | S |
-| Root landing: serve `/landing` at `/`, sync pricing with `plan-configs.ts`, show Free tier | Items #64, #75 | S |
+| 1 | `analytics` module never registered | ✅ **FIXED** `rbac-seed.service.ts:17` |
+| 2 | Aggregation filters `status:'completed'` | ✅ **FIXED** `:68-70,187-188` (remaining `'completed'` filters are on PosSale/ClassSession, where correct) |
+| 3 | Assign-membership 404 | ✅ **FIXED** `features/memberships/api.ts:50,54` |
+| 4 | Outbound webhooks never dispatch | 🟡 **PARTIAL** — `dispatchEvent` live, but only 5 of 17 events emit; `dispatch()` now dead code |
+| 5 | `/push-notifications` lies about sending | ✅ **FIXED** `automation.service.ts:461,476` |
+| 6 | Staff analytics wrong route | ✅ **FIXED** `staff/analytics/page.tsx:34` |
+| 7 | PT rate hardcoded ₹500 | ❌ **OPEN** `trainer.service.ts:247` |
+| 8 | Custom roles unassignable | ✅ **FIXED** `staff-invite.service.ts:56-63` |
+| 9 | `@Roles('manager')` on roles API | ✅ **FIXED** `roles.controller.ts:21,27,33` |
+| 10 | Manual invoices ₹0 GST | ✅ **FIXED** `invoices/new/page.tsx:117` |
+| 11 | Kiosk PIN in localStorage | ❌ **OPEN** (hardened w/ salt + lockout; still client-side) |
+| 12 | iclock bypasses policy engine | ✅ **FIXED** `iclock.service.ts:144-151` |
+| 13 | `OCCUPANCY_UPDATED` never emitted | ✅ **FIXED** `check-in.orchestrator.ts:732` |
+| 14 | Invoice-template picker localStorage-only | ❌ **OPEN** — success toast is a lie; no persist route, no column |
+| 15 | Dead layers, zero consumers | 🟡 **MOSTLY FIXED** — 8 tabs + payroll/shifts/PT/refunds now mounted. Residual: `useMonthlyReport`, 6 member-app hooks |
 
-### Milestone 1 — "Indian-market parity" (+1 month)
+---
 
-| Item | Scope | Schema | Third-party | Effort |
-|---|---|---|---|---|
-| **Member QR ID + check-in history** (#3, #19, #59) | BFF: `GET /member/v1/qr` (reuse `qr-token.service`), `GET /member/v1/checkins`; app: QR screen (brightness bump), visits list + calendar; admin: printable ID card using signed token + regenerate button | none | none | M |
-| **WhatsApp template layer** (#36) | Template registry synced with Meta, `sendTemplate` wiring in automation dispatcher + campaigns; per-gym template status UI | small [schema] | Meta WABA template approval | M |
-| **Automated receipts + class reminders** (#37, #24) | Emit event on payment paid → receipt via WA/email; hourly cron scanning sessions starting in 24h (respect `class_reminders` pref); fire `member_registered`/`member_renewed` triggers that are already seeded | none | WABA | M |
-| **Campaign scheduler** (#38) | Cron dispatching `scheduled_at <= now` pending campaigns; opt-out field + consent check | small [schema] | — | S–M |
-| **Payment links** (#10) | Admin "Generate & share link" minting a Razorpay order → `/pay/[orderId]` URL → send via existing WA/email delivery; optionally Razorpay Payment Links API for expiry/reminders | none | Razorpay | S–M |
-| **Member data import** (#6) | `POST /members/import` CSV (papaparse or manual parse — new dep needs approval), column-mapping UI, dry-run + error report, duplicate-phone handling | none | — | M |
-| **In-app plan upgrade** (#54) | Plan picker in `membership.tsx` + BFF renew accepting `planId` (backend `createOrder` already takes plans); proration decision needed | none | — | M |
-| **Stripe checkout UI** (#8, #68) | Frontend Elements-free redirect or payment-element flow calling existing `create-stripe-intent` | none | Stripe keys | M |
-| **Membership analytics cards** (#48) + monthly report view (#53) | Consume existing `/memberships/stats`, `/members/lifecycle`, `useMonthlyReport` | none | — | S |
-| **Exercise library seed + CRUD** (#28) | Seed ~50 exercises per gym template; `POST/PATCH/DELETE /exercises` + admin library page | none (data) | — | S–M |
-| **App store publishing** (#62) | EAS production credentials, ASC + Play listings, privacy manifests | none | Apple/Google review | L (elapsed time) |
+## NEW defects found during re-verification
 
-### Milestone 2 — "Growth & retention" (+3 months)
+Severity is mine; none of these are fixed except NEW-6.
 
-| Item | Scope | Schema | Third-party | Effort |
-|---|---|---|---|---|
-| **PT packages + PT UI** (#25–27) | [schema] `PTPackage` + `sessions_remaining` on `TrainerClient` (or package rows); purchase→invoice link; session-rate from package price (kill the ₹500 constant); trainer session-log UI + payroll/commission pages (hooks exist) | **[schema]** | — | L |
-| **Payroll + shifts UI** (#42, #18) | Pages over the complete existing backend | none | — | M |
-| **CRM upgrade** (#32–34) | [schema] `next_follow_up_at` + follow-up cron/notifications; `POST /leads/:id/convert` (create member, carry contact, link `converted_member_id`); phone-based dedupe warning; kanban board; custom stages if demanded (else keep 5 fixed) | **[schema]** | — | L |
-| **Class system unification** (#20–23) | Point member BFF + schedule UI at `ClassSession` stack; migrate/bridge `ClassEnrollment`; decrement class-pack credits on booking; instructor notifications | **[schema/migration — plan first]** | — | L–XL |
-| **Recurring auto-charge** (#11) | Razorpay Subscriptions / UPI Autopay mandate at signup; charge on renewal cron; dunning + retry (`PaymentRetryLog` exists) | small [schema] | Razorpay subscriptions KYC | L |
-| **Waiver e-sign** (#65) | [schema] `signed_at`/`signature_blob`/`consent_version` on MemberDocument or new model; signature-pad in app + onboarding gate; PDF stamping via existing renderer | **[schema]** | — | M |
-| **Custom-role assignment fix** (#40) | Write `role_id` on staff create/invite; allow custom roles in `staff-invite`; role dropdown from `/roles` | none | — | S–M |
-| **Notification inbox (server-backed) + feedback** (#61) | `GET /member/v1/notifications` feed persisting automation/campaign/class events; feedback model + form + admin view | **[schema]** | — | M |
-| **Hindi i18n foundation** (#73) | i18n library (dep approval), extract member-app strings first (highest leverage), then admin | none | translators | XL (phased) |
-| **Data-grounded AI assistant + forecast** (#67) | Tool-use over existing analytics/dashboard services; simple revenue forecast (trailing MRR + seasonality) on the briefing | none | Anthropic | M–L |
-| **iclock hardening / door control** (#17, #70) | Route iclock ingest through `CheckInOrchestrator`; implement `getrequest` command queue (user sync, unlock/deny) for supported ADMS devices | none | device firmware testing | L |
+| # | Sev | Defect | Location |
+|---|---|---|---|
+| **NEW-0** | 🔴 **CRITICAL** | **Offline check-ins destroyed on reconnect** (see top of doc) | `check-in/page.tsx:140-143` |
+| NEW-1 | 🔥 High | Gateway "collect payment" **drops `invoice_id`** (DTO accepts it) → invoice stays `pending` forever; also no branch fallback and `plan_id` is required, so the flow likely 400s | `finance/payments/new/page.tsx:166-192` |
+| NEW-2 | 🔥 High | Offline replay has **no idempotency key** → double-sync creates duplicate check-ins; `onSuccess` clears all rows, discarding partial failures | `features/checkins/types.ts:26-34` |
+| NEW-5 | 🔥 High | **Campaign sender ignores consent entirely** — `ConsentLog` exists, is never read. Bulk WhatsApp/SMS to members who revoked consent | `campaign-sender.service.ts` |
+| NEW-7 | 🔥 High | **Occupancy never decrements on check-out** — count uses a 4h window with no `check_out_at` filter, while "who's inside" *does* filter it. The two disagree; kiosk Check Out has no effect | `check-in.orchestrator.ts:718-724`, `occupancy.service.ts:65-69` |
+| NEW-8 | 🔥 High | `class_reminder` **missing from the frontend trigger union** → the shipped cron is unreachable from the UI and renders as "not wired to an executor yet" | `features/automations/types.ts:4-10,91-125` |
+| NEW-9 | 🔥 High | **2 of 5 seeded starter workflows are dead** — `member_registered` / `member_renewed` seeded `active` with no emitter. Owners believe welcome messages are going out | `automation.service.ts:190-206` |
+| NEW-6 | ✅ Fixed | `trainerAnalytics` upsert passed `branch_id ?? ''` into a nullable-uuid compound key — same trap fixed elsewhere in the file. **Fixed this session** | `metrics-aggregation.job.ts:657` |
+| NEW-3 | Med | Partial-payment prefill uses `total_amount`, not remaining balance → second collection defaults to the full amount | `finance/payments/new/page.tsx:98` |
+| NEW-10 | Med | Lead-source dropdown omits `phone`/`whatsapp`/`other` that the DTO now accepts — commit `7761ac8` is unreachable | `marketing/leads/page.tsx:53-60` |
+| NEW-11 | Med | **72 phantom `@Roles` sites** across 19 controllers (`'manager'` ×58, `'admin'` ×18, `'staff'` ×1). No alias expansion in `RolesGuard` → real `branch_manager`s are owner-gated. **Quantifies DEBT #3** | 19 controllers |
+| NEW-12 | Med | `getSettings` 404s when the settings row is missing (`findUnique` + throw) while `updateSettings` upserts | `branches.service.ts:250-254` |
+| NEW-13 | Med | `memberBehaviorAnalytics.create` runs nightly per member with no upsert → unbounded growth (members × days) | `metrics-aggregation.job.ts:570` |
+| NEW-14 | Med | `campaignAnalyticsRecord.create` weekly with no dedupe key → duplicate rows forever | `:726` |
+| NEW-15 | Med | `backfillDay` sources PT revenue from `created_at`, not session date — **the deploy doc's "historically accurate" claim is wrong for PT** | `:199-206,281` |
+| NEW-16 | Med | Daily `total_revenue` sums only `Payment`; `revenueAnalytics` adds POS on top → the two tables disagree for any POS gym | `:64-73` vs `:208` |
+| NEW-17 | Med | Currency **code** rendered as a symbol prefix → a USD studio shows `USD1999/month` | `settings.service.ts:300` |
+| NEW-18 | Med | Revenue forecast **fails open on branch scope** — empty `branch_ids` ⇒ all branches (tenant isolation still holds) | `revenue-forecast.service.ts:59-63` |
+| NEW-19 | Med | `ApiKeyGuard` is applied to **zero controllers**, yet API keys can be minted — issued keys authenticate nothing | `api-key.guard.ts:17` |
+| NEW-20 | Med | `cancelSession` hard-`deleteMany`s the waitlist with no record and no notification | `scheduling.service.ts:280,285` |
+| NEW-21 | Med | Exercise starter catalog **not seeded on tenant creation** → fresh gym has an empty plan builder until someone clicks the button | `prisma/seed.ts` |
+| NEW-22 | Low | Duplicate check runs only on the lead **detail** page — the create form can still produce the duplicate it was built to prevent | `marketing/leads/page.tsx` |
+| NEW-23 | Low | 11 dead entries in `WEBHOOK_EVENT_MAP`; `CHECK_IN_COMPLETED` written to the event store but never inline-projected | `event-projector.service.ts:13-31` |
+| NEW-24 | Low | Two orphaned backend surfaces with no caller: `GET /dashboard/revenue-forecast` and the entire `/api/v1/compliance/*` consent API | — |
 
-### Quick wins (< 1 day each)
+---
 
-1. `analytics` permission module registration (unblocks 12 endpoints for every non-owner role).
-2. `'completed'` → `'paid'` in `metrics-aggregation.job.ts` (revenue analytics go from permanently-zero to real).
-3. Assign-membership 404 route fix.
-4. Staff-analytics wrong-route fix.
-5. Refunds page (hooks already written).
-6. Invoice **Cancel** action wired to the correct ledger-reversing endpoint.
-7. "Collect payment" passing `invoice_id` from the invoice row.
-8. Wire `WebhooksService.dispatch()` into 3–4 core events.
-9. Fix the lying `/push-notifications` endpoint to call `PushService`.
-10. Root `/` → landing page + pricing sync + show Free tier.
-11. Exercise seed data (unblocks the whole workout-builder feature).
-12. Membership stats cards from existing endpoints.
-13. Kiosk PIN validated against `CheckInDevice.pin_hash` instead of localStorage.
-14. Remove stale "Trainer-assigned plans arrive in a later update" copy in `workout.tsx`.
-15. Delete/merge the duplicate `marketing/automation` vs `marketing/automations` pages.
+## Phase 3 — What actually remains
 
-### Risks & blockers
+Everything buildable **without a schema change or a new dependency is done.** What's left splits three ways.
+
+### A. Not blocked — should be next (no schema, no deps)
+
+| Item | Why it matters | Effort |
+|---|---|---|
+| **NEW-0 + NEW-2** offline check-in data loss | Losing real check-ins; contradicts a marketed win | S |
+| **NEW-1 + NEW-3** gateway invoice collection | Card-collected invoices never close | S |
+| **NEW-7** occupancy vs check-out | Two surfaces show contradicting numbers | S |
+| **NEW-8 + NEW-9** dormant/dead automations | Shipped features silently not running | S |
+| **NEW-5** campaign consent gate | Compliance exposure on bulk messaging | M |
+| **#6** member CSV import | **P0** — gyms cannot switch to us | M |
+| **#27** PT rate from config | Every commission figure is wrong today | S |
+| **NEW-11** phantom `@Roles` sweep | ~72 sites; managers silently owner-gated | M |
+| **#67/#53/#48** wire orphaned backends (forecast tile, monthly report, lifecycle) | Built and paid for, not visible | S |
+| **#20/#23** class-stack unification | Admin sessions invisible to members | L |
+
+### B. Hard-gated — needs your explicit approval (CLAUDE.md)
+
+| Gate | Items |
+|---|---|
+| **#1 Schema/migration** | PT packages (#25) · CRM follow-ups (#33) · waiver e-sign (#65) · notification inbox (#61) · WhatsApp templates (#36) · campaign opt-out (#38) · auto-charge mandates (#11) · per-branch branding (#44) — all specced in `SCHEMA_MIGRATION_PLANS.md` |
+| **#2 Auth/identity** | Kiosk PIN → server-verified `pin_hash` (#15) |
+| **#3 New dependency** | Hindi/regional i18n (#73) |
+| **#6 Deleting code** | `frontend/src/app/[gymSlug]/marketing/automation/page.tsx` (457 lines) — unlinked since QW-C2, still present |
+
+### C. External / not code
+
+- **Deploy-day scripts, written but never run:** `resync-role-permissions.ts` (existing gyms stay 403'd on analytics without it) and `backfill-analytics.ts` (note NEW-15 before trusting PT figures).
+- `QR_SIGNING_SECRET` unset → tokens die on restart. Razorpay test keys return 401.
+- Meta WABA template approval · Razorpay Subscriptions KYC · App Store/Play credentials (EAS project not even linked).
+- On-device QA: wearables (`provider.native.ts` self-flags UNVERIFIED), member-app screens, iclock hardware.
+
+---
+
+## Risks
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| **WABA template approval + Meta business verification** | Blocks automated reminders/receipts at scale (session messages get rejected outside 24h window) | Submit templates early in M1; keep email/push fallback channels |
-| **Razorpay KYC / live keys** (known open item from prod cutover) + Subscriptions/UPI-Autopay product approval | Blocks payment links in prod + recurring auto-charge | Resolve keys first; mandate flow is a separate Razorpay product application |
-| **App Store / Play review** | 1–2+ weeks elapsed; health-data (HealthKit) and payment flows attract extra scrutiny; Apple requires IAP-exemption clarity for physical-services payments | Start listings in M1; keep renewal via external browser (already the design) |
-| **Schema changes are hard-gated** | PT packages, CRM follow-ups, waiver, notification feed, WA templates all need migrations — and the **per-gym-schemas rework (`feat/per-gym-schemas`) is in flight with a large uncommitted diff** | Sequence schema work after the tenant-schema branch lands; every new tenant model MUST be added to `backend/src/prisma/tenant-models.ts` (known leak class) |
-| **Class-system unification is a data migration** | Member bookings live in `ClassEnrollment`; sessions in `ClassSession` — merging risks double-booking or losing waitlist positions | Plan-first doc; bridge reads before writes; migrate branch-by-branch |
-| **Revenue-analytics backfill** | After the `'paid'` fix, historical `DailyGymMetrics`/`RevenueAnalytics` are wrong/empty and need a re-aggregation run | Add an admin backfill job; communicate restated numbers (the dashboard has a restatements surface already) |
-| **Webhook enablement is outward-facing** | Firing 21 event types at customer URLs for the first time can leak data if payloads over-share | Review payload shape per event against `StripSecretsInterceptor` rules before enabling |
-| **i18n scope creep** | Thousands of hardcoded strings across 4 apps | Member app first; admin later; never big-bang |
-| **Wearables + biometric flows are device-QA-only** | `provider.native.ts` self-flags UNVERIFIED; RN behavior not verifiable in CI | Explicit on-device QA pass before marketing these |
+| **Nothing shipped in M0–M3 is runtime-verified** beyond the E2E check-in loop | Typecheck + 528 unit tests pass, but no dev server exercised most endpoints | Manual pass on: Stripe mount, QR data-URI, gateway refunds (need live keys), the 3 new crons |
+| **Class reminders send real WhatsApp messages** once a gym activates the workflow | Member-visible mistakes are expensive | Verify template copy before seeding defaults for a live gym |
+| **Analytics restatement** after backfill | Historical numbers change | Dashboard has a restatements surface; note NEW-15's PT caveat |
+| **Webhooks now fire outward** | Payload over-share to customer URLs | Review each of the 5 live event payloads against `StripSecretsInterceptor` |
+| **Per-gym-schemas branch still in flight** (~128 uncommitted files) | Schema work sequenced behind it | Land that branch before any migration; every new tenant model MUST enter `tenant-models.ts` |
 
 ---
 
-## Bugs found during audit (fix regardless of roadmap)
+## Features WE have that MyGymDesk does NOT (protect & market)
 
-| Severity | Bug | Location |
-|---|---|---|
-| 🔥 High | `analytics` permission module never registered → all analytics 403 for non-owners | `backend/src/auth/rbac-seed.service.ts:15` vs `analytics/controllers/dashboard-analytics.controller.ts` |
-| 🔥 High | Aggregation job filters `Payment.status='completed'` (never written; real value `'paid'`) → revenue analytics permanently 0; also `organization_id: ''` into uuid columns; PT revenue = superset double-count | `backend/src/analytics/jobs/metrics-aggregation.job.ts:63,100,178,190,219,314` |
-| 🔥 High | Assign-membership dialog calls nonexistent `/members/:id/memberships` → 404 | `frontend/src/features/memberships/api.ts:50,54` |
-| High | Outbound webhooks never dispatch (zero callers of `dispatch()`); `testIntegration()` can never fail | `backend/src/platform/services/webhooks.service.ts`, `integrations.service.ts:160` |
-| High | `/push-notifications` marks rows `sent` without sending | `backend/src/marketing/automation.service.ts:430-447` |
-| High | Staff analytics page queries nonexistent route → always empty | `frontend/src/app/[gymSlug]/staff/analytics/page.tsx:32` |
-| Med | PT session rate hardcoded ₹500 → all commission/payroll figures wrong | `backend/src/staff/trainer.service.ts:247` |
-| Med | Custom roles unassignable (`role_id` never written; invite rejects them) | `backend/src/staff/staff-invite.service.ts:53` |
-| Med | `@Roles('owner','manager')` uses non-existent `manager` role → real managers 403 on roles API | `backend/src/roles/roles.controller.ts` |
-| Med | Manual invoices compute ₹0 GST (UI never sends `tax_rate_id`) | `frontend/.../payments/invoices/new/page.tsx` |
-| Med | Kiosk exit PIN is client-side localStorage, ignores `CheckInDevice.pin_hash` | `frontend/src/features/checkins/kiosk/KioskPinLock.tsx:107` |
-| Med | iclock ingest bypasses policy engine (no freeze/cooldown/credits/WS at turnstile) | `backend/src/check-ins/biometric/iclock.service.ts` |
-| Low | `OCCUPANCY_UPDATED` WS event declared, listened, never emitted; `CapacityWidget max={0}` | `check-ins/check-in.events.ts:15`, `check-in/page.tsx:529` |
-| Low | Invoice-template picker persists to localStorage only; templates never used by renderer | `frontend/.../settings/invoices/page.tsx:317` |
-| Low | Dead layers: 8 reports tabs, payroll/shifts/trainer/refunds hooks, `useMonthlyReport`, 3 member-app query hooks — all zero consumers | various (see Phase 2 rows) |
+Unchanged from the original audit and all re-confirmed: public gym-less fitness identity · member AI coach (now data-grounded) · face-recognition check-in + hybrid signed QR · 8-rule access-policy engine with rule traces · wearables/health platform · community layer · trainer↔member chat + WhatsApp shared inbox · enterprise referral engine · expense intelligence · full inventory/POS · **offline-first member app** (admin side needs NEW-0 fixed first) · Indian food catalog nutrition · corporate/family memberships · DPDP/GDPR module · dashboard KPI provenance inspector.

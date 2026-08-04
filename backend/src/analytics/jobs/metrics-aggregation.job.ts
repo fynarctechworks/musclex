@@ -654,31 +654,40 @@ export class MetricsAggregationJob {
       }),
     ]);
 
-    await this.tenant.client.trainerAnalytics.upsert({
+    // Same nullable-compound-key trap as dailyGymMetrics/membershipAnalytics
+    // above: branch_id is `String? @db.Uuid` inside the unique key, so '' is
+    // invalid uuid input and a NULL branch can never match by that key anyway.
+    const trainerData = {
+      sessions_conducted: sessions,
+      members_trained: uniqueMembers.length,
+      revenue_generated: revenue._sum?.revenue_amount ?? 0,
+    };
+    const existingTrainer = await this.tenant.client.trainerAnalytics.findFirst({
       where: {
-        trainer_id_branch_id_period_start_period_end: {
-          trainer_id: trainerId,
-          branch_id: branchId ?? '',
-          period_start: periodStart,
-          period_end: periodEnd,
-        },
-      },
-      create: {
-        gym_id: gymId,
         trainer_id: trainerId,
         branch_id: branchId,
-        sessions_conducted: sessions,
-        members_trained: uniqueMembers.length,
-        revenue_generated: revenue._sum?.revenue_amount ?? 0,
         period_start: periodStart,
         period_end: periodEnd,
       },
-      update: {
-        sessions_conducted: sessions,
-        members_trained: uniqueMembers.length,
-        revenue_generated: revenue._sum?.revenue_amount ?? 0,
-      },
+      select: { id: true },
     });
+    if (existingTrainer) {
+      await this.tenant.client.trainerAnalytics.update({
+        where: { id: existingTrainer.id },
+        data: trainerData,
+      });
+    } else {
+      await this.tenant.client.trainerAnalytics.create({
+        data: {
+          gym_id: gymId,
+          trainer_id: trainerId,
+          branch_id: branchId,
+          period_start: periodStart,
+          period_end: periodEnd,
+          ...trainerData,
+        },
+      });
+    }
   }
 
   // ─── Weekly: Campaign Analytics ──────────────────────────────
