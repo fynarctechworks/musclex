@@ -27,6 +27,7 @@ import { ExpenseExportService } from './expenses/expense-export.service';
 import { BranchDefaultsListener } from './expenses/branch-defaults.listener';
 import { DocumentsModule } from '../documents/documents.module';
 import { PaymentReceiptService } from './payment-receipt.service';
+import { PaymentLinksService } from './payment-links.service';
 
 @Module({
   imports: [PrismaModule, ConfigModule, DocumentsModule],
@@ -42,6 +43,7 @@ import { PaymentReceiptService } from './payment-receipt.service';
   providers: [
     PaymentsService,
     PaymentReceiptService,
+    PaymentLinksService,
     RazorpayService,
     StripeService,
     ExpensesService,
@@ -61,6 +63,7 @@ import { PaymentReceiptService } from './payment-receipt.service';
   exports: [
     PaymentsService,
     PaymentReceiptService,
+    PaymentLinksService,
     RazorpayService,
     StripeService,
     BillingService,

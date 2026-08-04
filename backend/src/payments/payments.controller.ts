@@ -24,6 +24,16 @@ import { UseInterceptors } from '@nestjs/common';
 import { RecordCashDto } from './dto/record-cash.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
+import { StripeService } from './stripe.service';
+import { PaymentLinksService } from './payment-links.service';
+import { CreatePaymentLinkDto } from './dto/create-payment-link.dto';
+import { IsString, MaxLength } from 'class-validator';
+
+export class VerifyStripePaymentDto {
+  @IsString()
+  @MaxLength(120)
+  payment_intent_id: string;
+}
 
 @Controller('api/v1/payments')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -34,6 +44,8 @@ export class PaymentsController {
   constructor(
     private readonly paymentsService: PaymentsService,
     private readonly configService: ConfigService,
+    private readonly stripeService: StripeService,
+    private readonly paymentLinks: PaymentLinksService,
   ) {}
 
   @Post('cash')
@@ -44,6 +56,17 @@ export class PaymentsController {
     @Body() body: RecordCashDto,
   ) {
     return this.paymentsService.recordCash(user.studio_id, body);
+  }
+
+  /**
+   * Mint a shareable payment link (hosted checkout at /pay/:orderId) for a
+   * member, optionally delivering it over WhatsApp/email in the same call.
+   */
+  @Post('links')
+  @Idempotent()
+  @Permissions({ module: 'payments', action: 'create' })
+  createPaymentLink(@Body() body: CreatePaymentLinkDto) {
+    return this.paymentLinks.create(body);
   }
 
   @Post('create-order')
@@ -62,6 +85,24 @@ export class PaymentsController {
     @Body() body: VerifyPaymentDto,
   ) {
     return this.paymentsService.verifyPayment(body);
+  }
+
+  /** Stripe: create a PaymentIntent for a member's plan purchase. */
+  @Post('create-stripe-intent')
+  @Idempotent()
+  @Permissions({ module: 'payments', action: 'create' })
+  createStripeIntent(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: CreateOrderDto,
+  ) {
+    return this.paymentsService.createStripeIntent(user.studio_id, body);
+  }
+
+  /** Stripe: server-side confirmation (intent status re-read from Stripe). */
+  @Post('verify-stripe')
+  @Permissions({ module: 'payments', action: 'create' })
+  verifyStripePayment(@Body() body: VerifyStripePaymentDto) {
+    return this.paymentsService.verifyStripePayment(body);
   }
 
   @Get()
@@ -179,4 +220,35 @@ export class PaymentsController {
     return { received: true };
   }
 
+  /**
+   * Stripe webhook intake — no JWT auth (called by Stripe servers).
+   * Verifies the Stripe-Signature (t/v1 HMAC over the raw body, with replay
+   * tolerance) before processing.
+   */
+  @Post('webhooks/stripe')
+  @UseGuards() // Override class-level guards — no JWT required
+  async stripeWebhook(
+    @Headers('stripe-signature') signature: string,
+    @Req() req: Request,
+  ) {
+    const rawBody = (req as any).rawBody as Buffer | undefined;
+    const bodyStr = rawBody ? rawBody.toString('utf8') : JSON.stringify(req.body);
+
+    if (!this.stripeService.verifyWebhookSignature(bodyStr, signature ?? '')) {
+      this.logger.warn('Invalid Stripe webhook signature');
+      throw new ForbiddenException('Invalid webhook signature');
+    }
+
+    const event = req.body as { type: string; data?: { object?: any } };
+    this.logger.log(`Stripe webhook received: ${event.type}`);
+
+    if (event.type === 'payment_intent.succeeded') {
+      const intent = event.data?.object;
+      if (intent?.id) {
+        await this.paymentsService.handleStripeWebhook(intent);
+      }
+    }
+
+    return { received: true };
+  }
 }

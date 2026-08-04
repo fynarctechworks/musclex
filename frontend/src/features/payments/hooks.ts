@@ -274,6 +274,24 @@ export function useUpdateInvoiceStatus() {
   });
 }
 
+export function useCreatePaymentLink() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: invoicesApi.paymentLink,
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: queryKeys.finance.all });
+      const sent = res.delivery?.filter((d) => d.status === 'sent').map((d) => d.channel) ?? [];
+      const failed = res.delivery?.filter((d) => d.status !== 'sent') ?? [];
+      if (sent.length) toast.success(`Payment link sent via ${sent.join(', ')}`);
+      else toast.success('Payment link created');
+      for (const f of failed) {
+        toast.error(`${f.channel}: ${f.error ?? f.status}`);
+      }
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 export function useCancelInvoice() {
   const qc = useQueryClient();
   return useMutation({

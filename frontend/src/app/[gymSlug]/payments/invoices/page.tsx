@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, FileText, ArrowLeft, Download, Mail, MessageCircle, Loader2, Banknote, XCircle } from "lucide-react";
+import { Plus, FileText, ArrowLeft, Download, Mail, MessageCircle, Loader2, Banknote, XCircle, Link2 as LinkIcon } from "lucide-react";
 import { AppLayout } from "@/components/layout/app-layout";
 import {
   AccessDenied,
@@ -16,7 +16,8 @@ import { useRequirePermission } from "@/hooks/use-require-permission";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import { useCurrency } from "@/lib/hooks/use-currency";
 import { useAuthStore } from "@/stores/auth-store";
-import { useInvoices, useInvoicePdfLink, useSendInvoice, useCancelInvoice } from "@/features/payments";
+import { useInvoices, useInvoicePdfLink, useSendInvoice, useCancelInvoice, useCreatePaymentLink } from "@/features/payments";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
 
@@ -25,8 +26,11 @@ interface InvoiceRow {
   invoice_number?: string;
   member_name?: string;
   member_code?: string;
+  member?: { id: string; full_name: string; member_code: string } | null;
+  member_id?: string;
   status?: string;
   total?: number;
+  total_amount?: number;
   amount?: number;
   due_date?: string;
   created_at?: string;
@@ -48,8 +52,23 @@ export default function InvoicesListPage() {
   const pdfMut = useInvoicePdfLink();
   const sendMut = useSendInvoice();
   const cancelMut = useCancelInvoice();
+  const linkMut = useCreatePaymentLink();
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
+
+  /** Mint a hosted-checkout link and send it to the member over WhatsApp. */
+  const sendPaymentLink = (inv: InvoiceRow) => {
+    const memberId = inv.member?.id ?? inv.member_id;
+    if (!memberId) {
+      toast.error("This invoice has no linked member.");
+      return;
+    }
+    setPendingId(`${inv.id}:link`);
+    linkMut.mutate(
+      { member_id: memberId, invoice_id: inv.id, send_via: ["whatsapp"] },
+      { onSettled: () => setPendingId(null) },
+    );
+  };
 
   const cancelInvoice = (inv: InvoiceRow) => {
     const label = inv.invoice_number ?? inv.id.slice(0, 8);
@@ -175,10 +194,12 @@ export default function InvoicesListPage() {
                     {inv.invoice_number ?? inv.id.slice(0, 8)}
                   </td>
                   <td className="px-4 py-3 text-foreground">
-                    {inv.member_name ?? "—"}
-                    {inv.member_code && (
+                    {/* API returns a nested `member`; keep the flat fields as
+                        a fallback for any older shape. */}
+                    {inv.member?.full_name ?? inv.member_name ?? "—"}
+                    {(inv.member?.member_code ?? inv.member_code) && (
                       <span className="text-muted-foreground ml-1.5">
-                        ({inv.member_code})
+                        ({inv.member?.member_code ?? inv.member_code})
                       </span>
                     )}
                   </td>
@@ -187,7 +208,9 @@ export default function InvoicesListPage() {
                   </td>
                   <td className="px-4 py-3 text-foreground font-medium">
                     {CURRENCY_SYMBOL}
-                    {Number(inv.total ?? inv.amount ?? 0).toLocaleString()}
+                    {Number(
+                      inv.total_amount ?? inv.total ?? inv.amount ?? 0,
+                    ).toLocaleString()}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {inv.due_date
@@ -238,13 +261,27 @@ export default function InvoicesListPage() {
                         )}
                       </button>
                       {(inv.status === "pending" || inv.status === "partial") && (
-                        <button
-                          onClick={() => router.push(gymPath(`/finance/payments/new?invoice_id=${inv.id}`))}
-                          title="Collect payment"
-                          className="p-1.5 rounded hover:bg-canvas-soft-2 text-primary transition-colors"
-                        >
-                          <Banknote className="h-3.5 w-3.5" />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => sendPaymentLink(inv)}
+                            disabled={pendingId === `${inv.id}:link`}
+                            title="Send payment link via WhatsApp"
+                            className="p-1.5 rounded hover:bg-canvas-soft-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                          >
+                            {pendingId === `${inv.id}:link` ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <LinkIcon className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => router.push(gymPath(`/finance/payments/new?invoice_id=${inv.id}`))}
+                            title="Collect payment"
+                            className="p-1.5 rounded hover:bg-canvas-soft-2 text-primary transition-colors"
+                          >
+                            <Banknote className="h-3.5 w-3.5" />
+                          </button>
+                        </>
                       )}
                       {inv.status !== "paid" && inv.status !== "cancelled" && inv.status !== "refunded" && (
                         <button

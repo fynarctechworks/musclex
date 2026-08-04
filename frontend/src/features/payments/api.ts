@@ -201,6 +201,28 @@ export const invoicesApi = {
   cancel: (id: string) =>
     apiClient.post(`/invoices/${id}/cancel`),
 
+  /**
+   * Mint a shareable hosted-checkout link for this invoice, optionally
+   * delivering it over WhatsApp/email in the same call.
+   */
+  paymentLink: (body: {
+    member_id: string;
+    invoice_id?: string;
+    plan_id?: string;
+    amount?: number;
+    send_via?: Array<'whatsapp' | 'email'>;
+    note?: string;
+  }) =>
+    apiClient.post<{
+      url: string;
+      order_id: string;
+      amount: number;
+      currency: string;
+      delivery: Array<{ channel: string; status: string; error?: string }>;
+    }>('/payments/links', body, {
+      headers: { 'Idempotency-Key': crypto.randomUUID() },
+    }),
+
   /** Returns { document_id, signed_url, storage_path } pointing at the rendered PDF. */
   pdfLink: (id: string) =>
     apiClient.get(`/invoices/${id}/pdf`, { params: { inline: 'false' } }),
@@ -304,7 +326,7 @@ export const gatewaysApi = {
     apiClient.get('/payment-gateways'),
 
   create: (data: {
-    gateway_name: 'razorpay';
+    gateway_name: 'razorpay' | 'stripe';
     api_key: string;
     secret_key: string;
     webhook_secret?: string;
