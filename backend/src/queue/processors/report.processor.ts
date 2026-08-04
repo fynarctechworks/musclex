@@ -3,7 +3,8 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { QUEUE_NAMES } from '../queue.module';
 import { ReportJobData } from '../queue.service';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
+import { TenantTaskRunner } from '../../prisma/tenant-task-runner';
 import { reportJobFailure } from '../../common/sentry/report-job-failure';
 
 @Processor(QUEUE_NAMES.REPORT)
@@ -15,23 +16,40 @@ export class ReportProcessor extends WorkerHost {
     reportJobFailure(QUEUE_NAMES.REPORT, job, err);
   }
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly tenant: TenantPrisma,
+    private readonly tasks: TenantTaskRunner,
+  ) {
     super();
   }
 
   async process(job: Job<ReportJobData>): Promise<{ url?: string }> {
-    const { type, organizationId, branchId, dateFrom, dateTo, format, requestedBy } = job.data;
+    const { type, gymId, organizationId, branchId, dateFrom, dateTo, format } = job.data;
     this.logger.log(`Processing report job ${job.id}: type=${type}, format=${format}`);
+
+    // Fail closed. This processor reads member/payment/check-in data, which
+    // lives in per-gym schemas; without a gym it would query whatever the base
+    // client points at and scope only by branch_id — a cross-tenant read
+    // waiting to happen. Nothing enqueues these jobs today, so refusing is
+    // strictly safer than guessing.
+    if (!gymId) {
+      this.logger.error(
+        `Report job ${job.id} has no gymId — cannot establish tenant context; dropping`,
+      );
+      return {};
+    }
 
     try {
       await job.updateProgress(10);
 
-      // Fetch data based on report type
-      const data = await this.fetchReportData(type, organizationId, branchId, dateFrom, dateTo);
+      // Fetch data based on report type, inside that gym's tenant context.
+      const data = await this.tasks.runForGym(gymId, () =>
+        this.fetchReportData(type, organizationId, branchId, dateFrom, dateTo),
+      );
       await job.updateProgress(50);
 
       // Generate report file (in production, upload to Supabase Storage)
-      const reportResult = await this.generateReport(type, data, format);
+      const reportResult = await this.generateReport(type, data ?? {}, format);
       await job.updateProgress(90);
 
       // Store report metadata
@@ -59,7 +77,7 @@ export class ReportProcessor extends WorkerHost {
 
     switch (type) {
       case 'revenue': {
-        const payments = await this.prisma.payment.findMany({
+        const payments = await this.tenant.client.payment.findMany({
           where: { ...branchFilter, paid_at: { gte: from, lte: to } },
           orderBy: { paid_at: 'desc' },
           take: 10000,
@@ -67,14 +85,14 @@ export class ReportProcessor extends WorkerHost {
         return { type, payments, count: payments.length };
       }
       case 'members': {
-        const members = await this.prisma.member.findMany({
+        const members = await this.tenant.client.member.findMany({
           where: { ...branchFilter, created_at: { gte: from, lte: to } },
           take: 10000,
         });
         return { type, members, count: members.length };
       }
       case 'attendance': {
-        const checkIns = await this.prisma.checkIn.findMany({
+        const checkIns = await this.tenant.client.checkIn.findMany({
           where: { ...branchFilter, checked_in_at: { gte: from, lte: to } },
           take: 10000,
         });

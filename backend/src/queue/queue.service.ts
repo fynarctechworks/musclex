@@ -24,10 +24,22 @@ export interface NotificationJobData {
   templateId?: string;
   variables?: Record<string, unknown>;
   organizationId?: string;
+  /** Tenant to send on behalf of — required for per-gym WhatsApp credentials + audit log. */
+  gymId?: string;
+  /** Optional member the message targets (NotificationLog audit). */
+  memberId?: string;
+  /** e.g. 'campaign', 'automation:birthday' — recorded in NotificationLog. */
+  triggerType?: string;
 }
 
 export interface ReportJobData {
   type: 'revenue' | 'members' | 'attendance' | 'classes' | 'staff' | 'custom';
+  /**
+   * REQUIRED to establish tenant context — reports read member/payment/check-in
+   * data, which lives in per-gym schemas. Without it the processor cannot scope
+   * the query and refuses to run (see ReportProcessor).
+   */
+  gymId: string;
   organizationId: string;
   branchId?: string;
   dateFrom: string;
@@ -39,9 +51,11 @@ export interface ReportJobData {
 export interface CampaignJobData {
   campaignId: string;
   organizationId: string;
-  channel: 'email' | 'sms' | 'whatsapp' | 'push';
-  recipients: Array<{ id: string; contact: string; name?: string }>;
-  templateId: string;
+  /** Tenant the campaign belongs to — the processor re-establishes this gym's context. */
+  gymId?: string;
+  channel?: 'email' | 'sms' | 'whatsapp' | 'push';
+  recipients?: Array<{ id: string; contact: string; name?: string }>;
+  templateId?: string;
   variables?: Record<string, unknown>;
 }
 
