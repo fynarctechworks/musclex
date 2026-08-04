@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowLeft, CreditCard, Smartphone, Banknote, Building2, Zap } from "lucide-react";
+import { ArrowLeft, CreditCard, Smartphone, Banknote, Building2, Zap, Globe } from "lucide-react";
 import Link from "next/link";
 import { AppLayout } from "@/components/layout/app-layout";
 import { AccessDenied } from "@/components/shared/access-denied";
@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import type { Member, MembershipPlan, PaginatedResponse } from "@/lib/types";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import { useCurrency } from "@/lib/hooks/use-currency";
+import { StripeCheckoutDialog } from "@/features/payments/components/StripeCheckoutDialog";
 
 interface PaymentForm {
   member_id: string;
@@ -25,7 +26,7 @@ interface PaymentForm {
   notes: string;
 }
 
-type PaymentMethod = "cash" | "card" | "upi" | "bank_transfer" | "razorpay";
+type PaymentMethod = "cash" | "card" | "upi" | "bank_transfer" | "razorpay" | "stripe";
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: React.ElementType; description: string }[] = [
   { value: "cash", label: "Cash", icon: Banknote, description: "Record cash payment" },
@@ -33,6 +34,7 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: React.Elemen
   { value: "upi", label: "UPI", icon: Smartphone, description: "UPI / QR transfer" },
   { value: "bank_transfer", label: "Bank Transfer", icon: Building2, description: "NEFT / IMPS" },
   { value: "razorpay", label: "Razorpay", icon: Zap, description: "Card / UPI / netbanking / wallet" },
+  { value: "stripe", label: "Stripe", icon: Globe, description: "International cards" },
 ];
 
 declare global {
@@ -214,12 +216,35 @@ export default function RecordPaymentPage() {
     }
   };
 
+  // Stripe: create intent → mount Elements in a dialog → server verifies.
+  const [stripeOpen, setStripeOpen] = useState(false);
+  const [stripeOrder, setStripeOrder] = useState<{
+    member_id: string;
+    plan_id: string;
+    branch_id: string;
+  } | null>(null);
+
+  const handleStripePayment = (data: PaymentForm) => {
+    const branchId = selectedMember?.branch_id;
+    if (!selectedMember || !data.plan_id || !branchId) {
+      toast.error("Please select a member and plan");
+      return;
+    }
+    setStripeOrder({
+      member_id: selectedMember.id,
+      plan_id: data.plan_id,
+      branch_id: branchId,
+    });
+    setStripeOpen(true);
+  };
+
   const onSubmit = (data: PaymentForm) => {
     if (selectedMethod === "razorpay") return handleRazorpayPayment(data);
+    if (selectedMethod === "stripe") return handleStripePayment(data);
     manualMutation.mutate({ ...data, payment_method: selectedMethod });
   };
 
-  const isGateway = selectedMethod === "razorpay";
+  const isGateway = selectedMethod === "razorpay" || selectedMethod === "stripe";
   const isLoading = manualMutation.isPending || gatewayLoading;
 
   if (checked && !allowed) {
@@ -358,6 +383,12 @@ export default function RecordPaymentPage() {
               Razorpay checkout will open. The member can pay via card, UPI, netbanking, or wallet.
             </p>
           )}
+          {selectedMethod === "stripe" && (
+            <p className="mt-2 text-[12px] text-muted-foreground bg-muted rounded-md px-3 py-2">
+              A secure Stripe card form will open. Requires a Stripe key under
+              Settings → Payment gateways. Amount comes from the selected plan.
+            </p>
+          )}
         </div>
 
         {/* Notes (manual methods only) */}
@@ -380,11 +411,20 @@ export default function RecordPaymentPage() {
         >
           {isLoading
             ? "Processing…"
-            : isGateway
+            : selectedMethod === "razorpay"
               ? "Pay via Razorpay"
-              : "Record Payment"}
+              : selectedMethod === "stripe"
+                ? "Pay by card"
+                : "Record Payment"}
         </Button>
       </form>
+
+      <StripeCheckoutDialog
+        open={stripeOpen}
+        onOpenChange={setStripeOpen}
+        order={stripeOrder}
+        onSuccess={() => router.push(gymPath("/finance/payments"))}
+      />
     </AppLayout>
   );
 }
