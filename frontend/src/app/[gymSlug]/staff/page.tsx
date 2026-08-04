@@ -8,7 +8,7 @@ import { useDebounce } from "@/lib/hooks/use-debounce";
 import { Staff, Branch, PaginatedResponse } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth-store";
-import { Plus, BarChart3, ChevronLeft, ChevronRight, Building2, CalendarOff, Clock, CalendarDays, Wallet } from "lucide-react";
+import { Plus, BarChart3, ChevronLeft, ChevronRight, Building2, CalendarOff, Clock, CalendarDays, Wallet, Dumbbell } from "lucide-react";
 import Link from "next/link";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import { useRequirePermission } from "@/hooks/use-require-permission";
@@ -84,6 +84,12 @@ export default function StaffPage() {
               className="border border-border text-muted-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
             >
               <CalendarDays className="w-4 h-4" /> Shifts
+            </Link>
+            <Link
+              href={gymPath("/staff/pt-sessions")}
+              className="border border-border text-muted-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors flex items-center gap-2"
+            >
+              <Dumbbell className="w-4 h-4" /> PT Sessions
             </Link>
             <Link
               href={gymPath("/staff/payroll")}

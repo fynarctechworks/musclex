@@ -37,6 +37,7 @@ export {
   useTrainerPerformance,
   useAssignClient,
   useCreateTrainerSession,
+  useUpdateTrainerSession,
   usePayrollConfig,
   usePayrollSummary,
   usePayrollRecords,

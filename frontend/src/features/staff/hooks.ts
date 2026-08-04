@@ -392,6 +392,23 @@ export function useCreateTrainerSession() {
   });
 }
 
+export function useUpdateTrainerSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { status?: string; notes?: string } }) =>
+      trainersApi.updateSession(id, data),
+    onSuccess: (_res, vars) => {
+      qc.invalidateQueries({ queryKey: queryKeys.staff.all });
+      // Completing a session books TrainerRevenue → payroll/finance move too.
+      if (vars.data.status === 'completed') {
+        qc.invalidateQueries({ queryKey: queryKeys.finance.all });
+      }
+      toast.success('Session updated');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 // ── Payroll ───────────────────────────────────────────────
 
 export function usePayrollConfig(staffId: string) {
