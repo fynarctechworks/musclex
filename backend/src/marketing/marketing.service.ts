@@ -1,14 +1,23 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
 import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
+import { QueueService } from '../queue/queue.service';
+import { CampaignSenderService } from './campaign-sender.service';
 
 @Injectable()
 export class MarketingService {
-  constructor(private readonly tenant: TenantPrisma) {}
+  private readonly logger = new Logger(MarketingService.name);
+
+  constructor(
+    private readonly tenant: TenantPrisma,
+    private readonly queue: QueueService,
+    private readonly sender: CampaignSenderService,
+  ) {}
 
   async findAll(query: {
     status?: string;
@@ -62,7 +71,9 @@ export class MarketingService {
         message_template: data.message_template,
         scheduled_at: data.scheduled_at ? new Date(data.scheduled_at) : null,
         created_by_staff_id: data.created_by_staff_id,
-        status: 'draft',
+        // A campaign with a send time is 'scheduled' — the scheduler cron only
+        // picks up that status, so a plain draft is never auto-sent.
+        status: data.scheduled_at ? 'scheduled' : 'draft',
       },
     });
   }
@@ -70,7 +81,45 @@ export class MarketingService {
   async update(id: string, data: any) {
     const existing = await this.findOne(id);
     if (existing.status === 'sent') throw new BadRequestException('Cannot update a sent campaign');
-    return this.tenant.client.campaign.update({ where: { id }, data });
+
+    // Keep status in step with scheduling when the caller changes the send
+    // time (and didn't set an explicit status): adding one schedules the
+    // campaign, clearing it puts it back to draft.
+    const patch = { ...data };
+    if (patch.scheduled_at !== undefined && patch.status === undefined) {
+      patch.status = patch.scheduled_at ? 'scheduled' : 'draft';
+    }
+    return this.tenant.client.campaign.update({ where: { id }, data: patch });
+  }
+
+  /**
+   * Send every campaign whose scheduled time has arrived. Called by the
+   * scheduler cron inside a per-tenant context.
+   *
+   * `sendCampaign` flips status to 'sending' inside its transaction, so a
+   * campaign can't be picked up twice even if two runs overlap; failures are
+   * isolated per campaign so one bad segment can't stall the rest.
+   */
+  async dispatchDueCampaigns(): Promise<{ due: number; sent: number; failed: number }> {
+    const due = await this.tenant.client.campaign.findMany({
+      where: { status: 'scheduled', scheduled_at: { not: null, lte: new Date() } },
+      select: { id: true, name: true },
+    });
+
+    let sent = 0;
+    let failed = 0;
+    for (const campaign of due) {
+      try {
+        await this.sendCampaign(campaign.id);
+        sent++;
+      } catch (e) {
+        failed++;
+        this.logger.error(
+          `Scheduled campaign "${campaign.name}" (${campaign.id}) failed: ${(e as Error).message}`,
+        );
+      }
+    }
+    return { due: due.length, sent, failed };
   }
 
   async remove(id: string) {
@@ -90,15 +139,15 @@ export class MarketingService {
     const memberIds = await this.getSegmentMemberIds(campaign.segment, campaign.segment_filters as any);
     if (memberIds.length === 0) throw new BadRequestException('No members match the campaign segment');
 
-    return this.tenant.client.$transaction(async (tx) => {
-      // Create audience records
+    const updated = await this.tenant.client.$transaction(async (tx) => {
+      // Create audience records as PENDING — CampaignSenderService flips them
+      // to sent/bounced as it actually delivers.
       await tx.campaignAudience.createMany({
         data: memberIds.map((member_id) => ({
           gym_id: getTenantGymId()!,
           campaign_id: id,
           member_id,
-          status: 'sent',
-          sent_at: new Date(),
+          status: 'pending',
         })),
         skipDuplicates: true,
       });
@@ -108,6 +157,19 @@ export class MarketingService {
         data: { status: 'sending', sent_count: memberIds.length },
       });
     });
+
+    // Dispatch: through BullMQ when Redis is on; inline (fire-and-forget,
+    // still inside this request's tenant context) otherwise.
+    const gymId = getTenantGymId()!;
+    if (this.queue.isRedisEnabled) {
+      await this.queue.enqueueCampaign({ campaignId: id, gymId, organizationId: '' });
+    } else {
+      void this.sender.dispatch(id).catch((e) => {
+        this.logger.error(`Inline campaign dispatch failed for ${id}: ${(e as Error).message}`);
+      });
+    }
+
+    return updated;
   }
 
   async getCampaignAudience(campaignId: string, filters: {

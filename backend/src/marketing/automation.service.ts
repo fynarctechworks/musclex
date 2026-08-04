@@ -109,6 +109,15 @@ export class AutomationService {
       variables: ['name', 'plan_name', 'expiry_date', 'invoice_number'],
     },
     {
+      key: 'class_reminder',
+      template_name: 'Class Reminder',
+      channel: 'whatsapp',
+      subject: undefined,
+      content:
+        'Hi {{name}}, reminder: *{{class_name}}* at {{gym_name}} starts {{starts_at}}. See you there! Reply here if you need to cancel.',
+      variables: ['name', 'class_name', 'gym_name', 'starts_at'],
+    },
+    {
       key: 'birthday',
       template_name: 'Happy Birthday',
       channel: 'whatsapp',
@@ -194,6 +203,18 @@ export class AutomationService {
       workflow_name: 'Thank members for renewing',
       trigger_event: 'member_renewed',
       template_key: 'membership_renewed',
+      action_type: 'send_whatsapp',
+    },
+    {
+      workflow_name: 'Class reminder (24h before)',
+      trigger_event: 'class_reminder',
+      template_key: 'class_reminder',
+      action_type: 'send_whatsapp',
+    },
+    {
+      workflow_name: 'Birthday wishes',
+      trigger_event: 'birthday',
+      template_key: 'birthday',
       action_type: 'send_whatsapp',
     },
   ];

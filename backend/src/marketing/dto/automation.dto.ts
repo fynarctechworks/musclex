@@ -45,6 +45,7 @@ export class CreateAutomationWorkflowDto {
     'member_inactive',
     'lead_created',
     'class_missed',
+    'class_reminder',
     'birthday',
     'payment_failed',
   ])
