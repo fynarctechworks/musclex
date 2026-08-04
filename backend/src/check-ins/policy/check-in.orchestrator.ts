@@ -28,6 +28,14 @@ export interface OrchestratorInput {
   checkin_method: string;
   source?: string;
   client_event_id?: string;
+  /**
+   * When the entry actually happened, if not now. Hardware turnstiles batch
+   * their ATTLOG after a network outage, so the delivered timestamp can be
+   * hours old — recording those as "now" would corrupt attendance history.
+   * Policy rules still evaluate against the current time (a lapsed membership
+   * shouldn't retroactively pass); only the stored timestamps use this.
+   */
+  occurred_at?: Date;
   override_authorized?: boolean;
   override_reason?: string | null;
   override_by_user_id?: string | null;
@@ -458,6 +466,8 @@ export class CheckInOrchestrator {
             class_id: ctx.request.class_id ?? null,
             checkin_method: ctx.request.method,
             status: 'success',
+            // Device-supplied time when present, else the column default (now).
+            ...(input.occurred_at ? { checked_in_at: input.occurred_at } : {}),
           },
           include: { member: { select: { full_name: true, member_code: true } } },
         });
