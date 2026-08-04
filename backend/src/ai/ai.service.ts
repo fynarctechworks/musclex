@@ -7,6 +7,8 @@ import { ConfigService } from '@nestjs/config';
 import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { randomUUID } from 'crypto';
 import Anthropic from '@anthropic-ai/sdk';
+import { AI_TOOLS } from './ai-tools';
+import { AiToolRunnerService } from './ai-tool-runner.service';
 import { getTenantGymId } from '../common/tenant-context';
 
 const SYSTEM_PROMPT = `You are MuscleX AI Advisor — an expert gym management consultant embedded in a fitness studio SaaS platform. Your role is to help gym owners and managers optimize operations, increase revenue, improve member retention, and manage staff effectively.
@@ -17,7 +19,14 @@ Guidelines:
 - Suggest specific, implementable actions — not generic advice.
 - Format responses with clear structure (bullet points, sections) when appropriate.
 - If you don't have enough context, ask clarifying questions.
-- Never fabricate specific numbers — only provide ranges or benchmarks.
+- You have READ-ONLY tools for this gym's live data. When a question is about
+  this gym's actual numbers (revenue, members, attendance, dues, retention,
+  trainers), CALL THE TOOLS and answer from what they return.
+- Never invent a figure. If a tool returns an error or no rows, say so plainly
+  rather than guessing; benchmarks and ranges are fine when clearly labelled as
+  industry context rather than this gym's data.
+- Today's date is provided in context — resolve relative periods ("last month",
+  "this week") against it before calling a tool.
 - Focus on: revenue growth, member retention, class optimization, staff performance, and operational efficiency.`;
 
 @Injectable()
@@ -28,6 +37,7 @@ export class AiService {
   constructor(
     private readonly tenant: TenantPrisma,
     private configService: ConfigService,
+    private readonly toolRunner: AiToolRunnerService,
   ) {
     const apiKey = this.configService.get<string>('ANTHROPIC_API_KEY');
     if (apiKey) {
@@ -155,20 +165,53 @@ export class AiService {
         'Answer in that scope. Do not ask "which branch / role / period" — assume the one in view_context unless they explicitly broaden.',
       );
     }
-    const systemPrompt =
-      ctxParts.length > 0
-        ? `${SYSTEM_PROMPT}\n\n${ctxParts.join(' ')}`
-        : SYSTEM_PROMPT;
+    ctxParts.push(`Today's date is ${new Date().toISOString().slice(0, 10)}.`);
+    const systemPrompt = `${SYSTEM_PROMPT}\n\n${ctxParts.join(' ')}`;
 
-    const response = await this.anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: claudeMessages,
-    });
+    // Tool-use loop. The model may chain a few calls (e.g. revenue, then
+    // membership stats) before answering; the cap stops a pathological loop
+    // without truncating realistic multi-metric questions.
+    const MAX_TURNS = 5;
+    const messages: Anthropic.MessageParam[] = [...claudeMessages];
 
-    const textBlock = response.content.find((block) => block.type === 'text');
-    return textBlock ? textBlock.text : 'I was unable to generate a response. Please try again.';
+    for (let turn = 0; turn < MAX_TURNS; turn++) {
+      const response = await this.anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: systemPrompt,
+        tools: AI_TOOLS,
+        messages,
+      });
+
+      if (response.stop_reason !== 'tool_use') {
+        const textBlock = response.content.find((b) => b.type === 'text');
+        return textBlock && textBlock.type === 'text'
+          ? textBlock.text
+          : 'I was unable to generate a response. Please try again.';
+      }
+
+      const toolUses = response.content.filter(
+        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
+      );
+      messages.push({ role: 'assistant', content: response.content });
+
+      const results: Anthropic.ToolResultBlockParam[] = [];
+      for (const use of toolUses) {
+        const data = await this.toolRunner.run(
+          use.name,
+          (use.input ?? {}) as Record<string, unknown>,
+        );
+        results.push({
+          type: 'tool_result',
+          tool_use_id: use.id,
+          content: JSON.stringify(data),
+        });
+      }
+      messages.push({ role: 'user', content: results });
+    }
+
+    this.logger.warn('AI advisor hit the tool-use turn cap without answering');
+    return 'I gathered the data but ran out of steps before answering. Please ask again, or narrow the question to one metric.';
   }
 
   /**
