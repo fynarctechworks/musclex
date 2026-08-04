@@ -10,7 +10,7 @@ describe('CampaignSenderService', () => {
     { id: 'm-3', full_name: 'No Contact', phone: null, email: null, member_code: 'MB-003' },
   ];
 
-  function makeService(campaign: any) {
+  function makeService(campaign: any, consents: any[] = []) {
     const audience = members.map((m, i) => ({ id: `aud-${i}`, member: m }));
     const client = {
       campaign: {
@@ -21,6 +21,9 @@ describe('CampaignSenderService', () => {
         findMany: jest.fn().mockResolvedValue(audience),
         update: jest.fn().mockResolvedValue({}),
       },
+      // Marketing-consent gate. Rows are returned newest-first, matching the
+      // service's orderBy — the first row per (member, type) is current.
+      consentLog: { findMany: jest.fn().mockResolvedValue(consents) },
     };
     const whatsapp = { sendText: jest.fn().mockResolvedValue({ id: 'wamid.x', delivered: true }) } as any;
     const email = { sendRaw: jest.fn().mockResolvedValue({ id: 'em.x', delivered: true }) } as any;
@@ -72,5 +75,104 @@ describe('CampaignSenderService', () => {
     const { service } = makeService(null);
     const result = await run(() => service.dispatch('missing'));
     expect(result).toEqual({ sent: 0, failed: 0, skipped: 0 });
+  });
+
+  // ── Marketing consent ────────────────────────────────────────────────
+  // ConsentLog was written by the compliance module and read by nobody, so a
+  // member who revoked marketing WhatsApp kept receiving bulk campaigns.
+
+  it('does not message a member who revoked that channel', async () => {
+    const { service, whatsapp } = makeService(
+      {
+        id: 'c-1',
+        name: 'Diwali Offer',
+        channels: ['whatsapp'],
+        message_template: 'Hi {{first_name}}!',
+      },
+      [{ member_id: 'm-1', consent_type: 'marketing_whatsapp', granted: false }],
+    );
+
+    await run(() => service.dispatch('c-1'));
+
+    // m-1 revoked; m-2/m-3 have no phone, so nothing should go out at all.
+    expect(whatsapp.sendText).not.toHaveBeenCalled();
+  });
+
+  it('records an opted-out member distinctly from a delivery failure', async () => {
+    const { service, client } = makeService(
+      {
+        id: 'c-1',
+        name: 'Diwali Offer',
+        channels: ['whatsapp'],
+        message_template: 'Hi!',
+      },
+      [{ member_id: 'm-1', consent_type: 'marketing_whatsapp', granted: false }],
+    );
+
+    await run(() => service.dispatch('c-1'));
+
+    const byId = (client.campaignAudience.update as jest.Mock).mock.calls.reduce<
+      Record<string, string>
+    >((acc, c) => {
+      acc[c[0].where.id] = c[0].data.status;
+      return acc;
+    }, {});
+    expect(byId['aud-0']).toBe('opted_out');
+    // m-2 has no phone — that's a delivery problem, not a consent one.
+    expect(byId['aud-1']).toBe('bounced');
+  });
+
+  it('honours the newest consent row, so a re-grant restores delivery', async () => {
+    const { service, whatsapp } = makeService(
+      {
+        id: 'c-1',
+        name: 'Diwali Offer',
+        channels: ['whatsapp'],
+        message_template: 'Hi {{first_name}}!',
+      },
+      // Newest first, as the service's orderBy returns them.
+      [
+        { member_id: 'm-1', consent_type: 'marketing_whatsapp', granted: true },
+        { member_id: 'm-1', consent_type: 'marketing_whatsapp', granted: false },
+      ],
+    );
+
+    await run(() => service.dispatch('c-1'));
+
+    expect(whatsapp.sendText).toHaveBeenCalledTimes(1);
+  });
+
+  it('still sends on a channel the member did NOT revoke', async () => {
+    const { service, whatsapp, email } = makeService(
+      {
+        id: 'c-1',
+        name: 'Diwali Offer',
+        channels: ['whatsapp', 'email'],
+        message_template: 'Hi!',
+      },
+      [{ member_id: 'm-1', consent_type: 'marketing_whatsapp', granted: false }],
+    );
+
+    await run(() => service.dispatch('c-1'));
+
+    expect(whatsapp.sendText).not.toHaveBeenCalled();
+    // m-1 (email still consented) + m-2 (no consent record at all)
+    expect(email.sendRaw).toHaveBeenCalledTimes(2);
+  });
+
+  it('sends when no consent record exists (opt-out model, not opt-in)', async () => {
+    const { service, whatsapp } = makeService(
+      {
+        id: 'c-1',
+        name: 'Diwali Offer',
+        channels: ['whatsapp'],
+        message_template: 'Hi!',
+      },
+      [],
+    );
+
+    await run(() => service.dispatch('c-1'));
+
+    expect(whatsapp.sendText).toHaveBeenCalledTimes(1);
   });
 });
