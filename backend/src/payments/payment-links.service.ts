@@ -137,22 +137,40 @@ export class PaymentLinksService {
     });
 
     const creds = await this.gatewayCreds();
-    // notes are SERVER-set and are what the hosted page + webhook trust to
-    // resolve the gym/payment — never accept these from the client.
-    const order = await this.razorpay.createOrder(
-      {
-        amount,
-        currency: payment.currency,
-        receipt,
-        notes: {
-          gym_id: gymId,
-          payment_id: payment.id,
-          member_id: member.id,
-          ...(planId ? { plan_id: planId } : {}),
+    // The pending Payment row must exist first because the gateway `notes`
+    // carry its id (that is what the hosted page and webhook resolve against).
+    // But if the gateway then rejects us, that row can never be paid and would
+    // sit forever in "pending payments" and outstanding-dues totals — so a
+    // failure here removes it before rethrowing.
+    let order: { id: string };
+    try {
+      order = await this.razorpay.createOrder(
+        {
+          amount,
+          currency: payment.currency,
+          receipt,
+          // notes are SERVER-set and are what the hosted page + webhook trust
+          // to resolve the gym/payment — never accept these from the client.
+          notes: {
+            gym_id: gymId,
+            payment_id: payment.id,
+            member_id: member.id,
+            ...(planId ? { plan_id: planId } : {}),
+          },
         },
-      },
-      creds,
-    );
+        creds,
+      );
+    } catch (err) {
+      await this.tenant.client.payment
+        .delete({ where: { id: payment.id } })
+        .catch((cleanupErr) =>
+          this.logger.error(
+            `Orphaned pending payment ${payment.id} after gateway failure — ` +
+              `cleanup also failed: ${(cleanupErr as Error).message}`,
+          ),
+        );
+      throw err;
+    }
 
     await this.tenant.client.payment.update({
       where: { id: payment.id },

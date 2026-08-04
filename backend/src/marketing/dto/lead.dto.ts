@@ -19,7 +19,20 @@ export class CreateLeadDto {
   phone?: string;
 
   @IsString()
-  @IsIn(['website', 'instagram', 'facebook_ads', 'walk_in', 'referral', 'google_ads'])
+  // `phone` is the most common inbound channel for gyms in this market and had
+  // no value at all, so staff had to mislabel call enquiries as walk-ins.
+  // Column is a free String — this is validation only, no migration.
+  @IsIn([
+    'website',
+    'instagram',
+    'facebook_ads',
+    'walk_in',
+    'referral',
+    'google_ads',
+    'phone',
+    'whatsapp',
+    'other',
+  ])
   lead_source: string;
 
   @IsUUID()
