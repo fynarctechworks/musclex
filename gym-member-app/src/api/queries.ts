@@ -47,6 +47,7 @@ export const qk = {
   digitalId: ['digital-id'] as const,
   visits: ['visits'] as const,
   visitSummary: ['visits', 'summary'] as const,
+  memberPlans: ['membership', 'plans'] as const,
 };
 
 // ── Public (gym-less) personal tracking ───────────────────────────
@@ -623,5 +624,19 @@ export function useVisitSummary(months?: number) {
     queryKey: [...qk.visitSummary, months ?? 6],
     queryFn: () => api.visitSummary(months),
     staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * Plans the member can switch to. Used by the plan picker on the membership
+ * screen — renewal already accepted any planId server-side, the app just
+ * never offered a choice.
+ */
+export function useAvailablePlans(enabled = true) {
+  return useQuery({
+    queryKey: qk.memberPlans,
+    queryFn: api.availablePlans,
+    staleTime: 5 * 60_000,
+    enabled,
   });
 }

@@ -36,6 +36,67 @@ export class MemberBillingService {
     private readonly audit: AuditService,
   ) {}
 
+  /**
+   * Plans the member can buy or switch to, scoped to their own gym and branch.
+   *
+   * Renewal already accepted an arbitrary planId, but the app hardcoded the
+   * CURRENT plan — so upgrades/downgrades were impossible from the member side
+   * and every upsell had to go through the front desk. This is the picker's
+   * data source. Only active, publicly-purchasable plans are returned; a
+   * `current` flag lets the app mark the member's existing plan.
+   */
+  async availablePlans(member: CurrentMemberContext) {
+    const [m, activeMembership] = await Promise.all([
+      this.tenant.client.member.findFirst({
+        where: { id: member.memberId },
+        select: { branch_id: true },
+      }),
+      this.tenant.client.memberMembership.findFirst({
+        where: { member_id: member.memberId, status: { in: ['active', 'frozen'] } },
+        select: { plan_id: true },
+        orderBy: { created_at: 'desc' },
+      }),
+    ]);
+
+    const plans = await this.tenant.client.membershipPlan.findMany({
+      where: {
+        gym_id: member.tenantId,
+        is_active: true,
+        // Gym-wide plans (null branch) plus this member's own branch.
+        OR: [{ branch_id: null }, { branch_id: m?.branch_id ?? undefined }],
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        plan_type: true,
+        price: true,
+        yearly_price: true,
+        duration_days: true,
+        total_classes: true,
+        access_type: true,
+        feature_flags: true,
+      },
+      orderBy: { price: 'asc' },
+    });
+
+    return {
+      currentPlanId: activeMembership?.plan_id ?? null,
+      plans: plans.map((p) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description ?? null,
+        planType: p.plan_type,
+        price: Number(p.price),
+        yearlyPrice: p.yearly_price != null ? Number(p.yearly_price) : null,
+        durationDays: p.duration_days ?? null,
+        totalClasses: p.total_classes ?? null,
+        accessType: p.access_type ?? null,
+        isCurrent: p.id === activeMembership?.plan_id,
+      })),
+    };
+  }
+
   async renew(
     member: CurrentMemberContext,
     planId: string,

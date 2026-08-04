@@ -72,6 +72,7 @@ import type {
   CoachConversation,
   CoachChatResult,
   DigitalId,
+  MemberPlanList,
   VisitList,
   VisitSummary,
 } from './types';
@@ -172,6 +173,7 @@ export const api = {
     const qs = q.toString();
     return request<VisitList>(`/visits${qs ? `?${qs}` : ''}`);
   },
+  availablePlans: () => request<MemberPlanList>('/membership/plans'),
   visitSummary: (months?: number) =>
     request<VisitSummary>(`/visits/summary${months ? `?months=${months}` : ''}`),
 

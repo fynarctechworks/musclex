@@ -89,6 +89,12 @@ export class MemberCoreController {
     return this.data.getMembership(member);
   }
 
+  /** Plans this member can renew into, upgrade to, or downgrade to. */
+  @Get('membership/plans')
+  availablePlans(@CurrentMember() member: CurrentMemberContext) {
+    return this.billing.availablePlans(member);
+  }
+
   /** Start a renewal — returns a Razorpay order; payment is confirmed by webhook. */
   @Post('membership/renew')
   @HttpCode(200)

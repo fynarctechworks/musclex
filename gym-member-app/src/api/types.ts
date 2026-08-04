@@ -987,3 +987,21 @@ export interface VisitSummary {
   months: Array<{ month: string; count: number }>;
   days: Array<{ date: string; count: number }>;
 }
+
+// ── Plan picker (upgrade / downgrade / renew) ─────────────────────
+export interface MemberPlanOption {
+  id: string;
+  name: string;
+  description: string | null;
+  planType: string;
+  price: number;
+  yearlyPrice: number | null;
+  durationDays: number | null;
+  totalClasses: number | null;
+  accessType: string | null;
+  isCurrent: boolean;
+}
+export interface MemberPlanList {
+  currentPlanId: string | null;
+  plans: MemberPlanOption[];
+}

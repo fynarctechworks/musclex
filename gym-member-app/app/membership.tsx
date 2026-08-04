@@ -1,6 +1,9 @@
-import { Alert, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View } from 'react-native';
+import * as Linking from 'expo-linking';
 import {
   Badge,
+  BottomSheet,
   Button,
   Card,
   ErrorState,
@@ -11,7 +14,9 @@ import {
   useThemeColors,
 } from '../src/design-system';
 import { ScreenHeader } from '../src/navigation/ScreenHeader';
-import { useMembership, useRenew } from '../src/api/queries';
+import { useMembership, useRenew, useAvailablePlans } from '../src/api/queries';
+import { config } from '../src/config';
+import { notify } from '../src/lib/confirm';
 import { formatDate, formatMoney } from '../src/lib/format';
 import type { MembershipStatus } from '../src/api/types';
 
@@ -24,31 +29,165 @@ const STATUS_TONE: Record<MembershipStatus, 'success' | 'warning' | 'error'> = {
 
 const DAY = 86_400_000;
 
+/** Poll /membership every 5 s while waiting for the hosted-checkout payment. */
+const PAYMENT_POLL_MS = 5_000;
+/** Give up waiting after 5 min — the member can still "Check payment status". */
+const PAYMENT_WAIT_TIMEOUT_MS = 5 * 60_000;
+
+/**
+ * Plan picker — lists every plan the member's gym offers for their branch and
+ * starts checkout for the chosen one. Their current plan is marked and not
+ * selectable (use "Renew" for that).
+ */
+function PlanPickerSheet({
+  visible,
+  onClose,
+  onSelect,
+  busy,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSelect: (planId: string) => void;
+  busy: boolean;
+}) {
+  // Only fetch once the sheet is actually opened.
+  const { data, isLoading, isError, refetch, isRefetching } = useAvailablePlans(visible);
+  const plans = data?.plans ?? [];
+
+  return (
+    <BottomSheet visible={visible} onClose={onClose} title="Choose a plan">
+      {isLoading ? (
+        <SkeletonCard />
+      ) : isError ? (
+        <ErrorState compact onRetry={refetch} retrying={isRefetching} />
+      ) : plans.length === 0 ? (
+        <Txt variant="body-sm" className="text-body">
+          No other plans are available right now. Talk to the front desk for
+          options.
+        </Txt>
+      ) : (
+        <View className="gap-sm">
+          {plans.map((p) => (
+            <Card key={p.id} soft>
+              <View className="flex-row items-center justify-between gap-md">
+                <View className="flex-1">
+                  <View className="flex-row items-center gap-xs">
+                    <Txt variant="body-md" weight="600" className="text-ink">
+                      {p.name}
+                    </Txt>
+                    {p.isCurrent && <Badge tone="accent" label="Current" />}
+                  </View>
+                  <Txt variant="caption" className="mt-xxs text-mute">
+                    {[
+                      formatMoney(p.price),
+                      p.durationDays ? `${p.durationDays} days` : null,
+                      p.totalClasses ? `${p.totalClasses} classes` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </Txt>
+                </View>
+                <Button
+                  title={p.isCurrent ? 'Current' : 'Choose'}
+                  size="sm"
+                  variant={p.isCurrent ? 'ghost' : 'primary'}
+                  disabled={p.isCurrent || busy}
+                  onPress={() => onSelect(p.id)}
+                />
+              </View>
+            </Card>
+          ))}
+        </View>
+      )}
+    </BottomSheet>
+  );
+}
+
 export default function MembershipScreen() {
   const theme = useThemeColors();
-  const { data, isLoading, isError, refetch, isRefetching } = useMembership();
+  // "Waiting for payment" — set after the hosted checkout opens in the browser;
+  // while true the membership query polls so the webhook-confirmed renewal
+  // shows up here automatically (we never trust a client payment result).
+  const [awaitingPayment, setAwaitingPayment] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  // Snapshot of status/expiry when the checkout opened — a change means the
+  // server confirmed the payment and extended the membership.
+  const baselineRef = useRef<{
+    status: MembershipStatus | undefined;
+    expiresOn: string | null | undefined;
+  } | null>(null);
+  const { data, isLoading, isError, refetch, isRefetching } = useMembership(
+    awaitingPayment ? PAYMENT_POLL_MS : false,
+  );
   const renew = useRenew();
 
-  async function onRenew() {
-    const planId = data?.plan?.id;
+  /**
+   * Start checkout for a specific plan. Passing the CURRENT plan is a renewal;
+   * passing a different one is an upgrade/downgrade — the BFF has always
+   * accepted any plan in the member's gym, the app just never offered a choice.
+   */
+  async function startCheckout(planId: string) {
     if (!planId) return;
+    setPickerOpen(false);
     try {
       const order = await renew.mutateAsync(planId);
-      // NEXT STEP: open Razorpay checkout with `order` (react-native-razorpay).
+      if (!order?.orderId) {
+        notify('Could not start renewal', 'Please try again.');
+        return;
+      }
+      // Hand off to the hosted Razorpay checkout in the device browser.
       // Payment is confirmed by the BFF webhook — never trust the client result
-      // (TRD §9 / Checklist §4.1). We refresh membership after the user returns.
-      Alert.alert(
-        'Razorpay order created',
-        `Order ${order.orderId ?? ''} for ${formatMoney(
-          (order.amount ?? 0) / 100,
-          order.currency,
-        )}.\n\nCheckout SDK integration is the next step; the server confirms payment via webhook.`,
-        [{ text: 'OK', onPress: () => refetch() }],
-      );
+      // (TRD §9 / Checklist §4.1). We poll /membership until it reflects it.
+      baselineRef.current = {
+        status: data?.status,
+        expiresOn: data?.expiresOn ?? null,
+      };
+      await Linking.openURL(`${config.payBaseUrl}/pay/${order.orderId}`);
+      setAwaitingPayment(true);
     } catch {
-      Alert.alert('Could not start renewal', 'Please try again.');
+      notify('Could not start renewal', 'Please try again.');
     }
   }
+
+  /** Renew on the current plan — the one-tap path. */
+  function onRenew() {
+    const planId = data?.plan?.id;
+    if (!planId) {
+      setPickerOpen(true);
+      return;
+    }
+    void startCheckout(planId);
+  }
+
+  // While waiting: detect the server-confirmed renewal (status/expiry changed).
+  useEffect(() => {
+    if (!awaitingPayment || !data) return;
+    const base = baselineRef.current;
+    if (!base) return;
+    const confirmed =
+      (data.expiresOn ?? null) !== (base.expiresOn ?? null) ||
+      (data.status !== base.status && data.status === 'active');
+    if (confirmed) {
+      setAwaitingPayment(false);
+      baselineRef.current = null;
+      notify('Payment confirmed', 'Your membership has been updated.');
+    }
+  }, [awaitingPayment, data]);
+
+  // Safety timeout: stop polling after 5 minutes (webhook may lag; the member
+  // can keep checking manually or pull to refresh).
+  useEffect(() => {
+    if (!awaitingPayment) return;
+    const timer = setTimeout(() => {
+      setAwaitingPayment(false);
+      baselineRef.current = null;
+      notify(
+        'Still waiting for payment',
+        'We could not confirm the payment yet. If you paid, pull to refresh in a moment — it can take a minute to reflect.',
+      );
+    }, PAYMENT_WAIT_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [awaitingPayment]);
 
   const status = data?.status;
 
@@ -80,6 +219,27 @@ export default function MembershipScreen() {
           </Card>
         ) : (
           <>
+            {awaitingPayment ? (
+              <Card soft className="mt-md">
+                <Txt variant="body-md" weight="600" className="text-ink">
+                  Waiting for payment
+                </Txt>
+                <Txt variant="body-sm" className="mt-xs text-body">
+                  Complete the payment in your browser — this screen will update
+                  automatically.
+                </Txt>
+                <View className="mt-md">
+                  <Button
+                    title="Check payment status"
+                    variant="secondary"
+                    fullWidth
+                    loading={isRefetching}
+                    onPress={() => refetch()}
+                  />
+                </View>
+              </Card>
+            ) : null}
+
             <Card elevated className="mt-md">
               <View className="flex-row items-center justify-between">
                 <View className="flex-1 pr-md">
@@ -118,13 +278,21 @@ export default function MembershipScreen() {
                 </View>
               ) : null}
 
-              <View className="mt-lg">
+              <View className="mt-lg gap-sm">
                 <Button
                   title={status === 'expired' ? 'Renew membership' : 'Renew early'}
                   variant={status === 'expired' || status === 'expiring' ? 'primary' : 'secondary'}
                   fullWidth
                   loading={renew.isPending}
+                  disabled={awaitingPayment}
                   onPress={onRenew}
+                />
+                <Button
+                  title="Change plan"
+                  variant="ghost"
+                  fullWidth
+                  disabled={awaitingPayment || renew.isPending}
+                  onPress={() => setPickerOpen(true)}
                 />
               </View>
             </Card>
@@ -142,6 +310,13 @@ export default function MembershipScreen() {
                 last
               />
             </Card>
+
+            <PlanPickerSheet
+              visible={pickerOpen}
+              onClose={() => setPickerOpen(false)}
+              onSelect={startCheckout}
+              busy={renew.isPending}
+            />
 
             <Txt variant="caption" className="mb-sm mt-lg text-mute">
               INVOICES
