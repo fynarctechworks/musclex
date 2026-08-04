@@ -28,20 +28,15 @@ re-verification, including one **critical data-loss** bug (see below).
 
 ---
 
-## 🔴 Critical — fix before the next deploy
+## ✅ Critical issue — FIXED 2026-08-04 (`90b6cdb`)
 
-**Admin offline check-ins are silently destroyed on reconnect.**
-`frontend/src/app/[gymSlug]/check-in/page.tsx:140-143` — the auto-sync effect calls
-`syncMutation.mutate([], { onSuccess: () => offlineQueue.clear() })`. It posts an **empty array**
-(the comment says `// Will be populated by sync handler`; nothing ever populates it) and then wipes
-the IndexedDB queue. Every check-in recorded during an outage is lost the instant the browser
-comes back online. The manual "Sync Now" path at `:149-166` is correct — but the effect fires
-first. Offline mode is listed as a competitive **win** (#71); on the admin side it currently
-loses data. Verified by direct code read, not agent report.
-
-Related: the admin replay carries **no idempotency key** (`features/checkins/types.ts:26-34` has no
-`client_event_id`) even though the backend dedupes on it (`check-ins.service.ts:139,152`), and
-`onSuccess` clears the whole store rather than per-row, so partial failures are discarded too.
+**Admin offline check-ins were silently destroyed on reconnect.** The auto-sync effect posted an
+**empty array** and then wiped the IndexedDB queue, so every check-in taken during an outage was
+lost the instant the browser came back online. Both sync paths now share one implementation that
+sends the real rows. Two further defects in the same path were fixed with it: no idempotency key
+(double-sync created duplicate visits) and a discarded offline timestamp (a 6am check-in was
+recorded at sync time, corrupting attendance history and peak-hour analytics). Covered by
+`test/check-ins/sync-offline.spec.ts`.
 
 ---
 
@@ -236,15 +231,15 @@ Severity is mine; none of these are fixed except NEW-6.
 
 | # | Sev | Defect | Location |
 |---|---|---|---|
-| **NEW-0** | 🔴 **CRITICAL** | **Offline check-ins destroyed on reconnect** (see top of doc) | `check-in/page.tsx:140-143` |
-| NEW-1 | 🔥 High | Gateway "collect payment" **drops `invoice_id`** (DTO accepts it) → invoice stays `pending` forever; also no branch fallback and `plan_id` is required, so the flow likely 400s | `finance/payments/new/page.tsx:166-192` |
-| NEW-2 | 🔥 High | Offline replay has **no idempotency key** → double-sync creates duplicate check-ins; `onSuccess` clears all rows, discarding partial failures | `features/checkins/types.ts:26-34` |
-| NEW-5 | 🔥 High | **Campaign sender ignores consent entirely** — `ConsentLog` exists, is never read. Bulk WhatsApp/SMS to members who revoked consent | `campaign-sender.service.ts` |
-| NEW-7 | 🔥 High | **Occupancy never decrements on check-out** — count uses a 4h window with no `check_out_at` filter, while "who's inside" *does* filter it. The two disagree; kiosk Check Out has no effect | `check-in.orchestrator.ts:718-724`, `occupancy.service.ts:65-69` |
-| NEW-8 | 🔥 High | `class_reminder` **missing from the frontend trigger union** → the shipped cron is unreachable from the UI and renders as "not wired to an executor yet" | `features/automations/types.ts:4-10,91-125` |
-| NEW-9 | 🔥 High | **2 of 5 seeded starter workflows are dead** — `member_registered` / `member_renewed` seeded `active` with no emitter. Owners believe welcome messages are going out | `automation.service.ts:190-206` |
-| NEW-6 | ✅ Fixed | `trainerAnalytics` upsert passed `branch_id ?? ''` into a nullable-uuid compound key — same trap fixed elsewhere in the file. **Fixed this session** | `metrics-aggregation.job.ts:657` |
-| NEW-3 | Med | Partial-payment prefill uses `total_amount`, not remaining balance → second collection defaults to the full amount | `finance/payments/new/page.tsx:98` |
+| **NEW-0** | ✅ **FIXED** `90b6cdb` | Offline check-ins destroyed on reconnect | `check-in/page.tsx` |
+| NEW-1 | ✅ **FIXED** `a6a880a` | Gateway "collect payment" dropped `invoice_id`. **Worse than reported**: the live `CreateOrderDto` had no `invoice_id` at all (the audit cited a dead DTO class), so `forbidNonWhitelisted` would have *rejected* it. Both verify paths would also have thrown *after* the card was charged | `payments.service.ts`, `create-order.dto.ts` |
+| NEW-2 | ✅ **FIXED** `90b6cdb` | Offline replay had no idempotency key; queue cleared wholesale | `check-ins.service.ts` |
+| NEW-5 | ✅ **FIXED** `54dff93` | Campaign sender ignored consent. Now opt-out-aware per channel — **see the policy note below** | `campaign-sender.service.ts` |
+| NEW-7 | ✅ **FIXED** `189920b` | Occupancy never decremented on check-out | `check-in.orchestrator.ts`, `occupancy.service.ts` |
+| NEW-8 | 🟡 **Partly fixed** | Backend enum drift fixed (`class_reminder` was creatable but **not editable** — Update DTO rejected it). Frontend trigger metadata is edited but **uncommitted** — `features/automations/types.ts` is an untracked in-flight file | `automation.dto.ts` ✅ / `features/automations/types.ts` ⏳ |
+| NEW-9 | ✅ **FIXED** `3cca55a` | `member_registered` / `member_renewed` seeded `active` with no executor anywhere. Both executors + emit sites added | `automation-dispatcher.service.ts` |
+| NEW-6 | ✅ **FIXED** `7a3c583` | `trainerAnalytics` upsert passed `branch_id ?? ''` into a nullable-uuid compound key | `metrics-aggregation.job.ts:657` |
+| NEW-3 | ✅ **FIXED** `a6a880a` | Partial-payment prefill used `total_amount`, not remaining balance | `finance/payments/new/page.tsx` |
 | NEW-10 | Med | Lead-source dropdown omits `phone`/`whatsapp`/`other` that the DTO now accepts — commit `7761ac8` is unreachable | `marketing/leads/page.tsx:53-60` |
 | NEW-11 | Med | **72 phantom `@Roles` sites** across 19 controllers (`'manager'` ×58, `'admin'` ×18, `'staff'` ×1). No alias expansion in `RolesGuard` → real `branch_manager`s are owner-gated. **Quantifies DEBT #3** | 19 controllers |
 | NEW-12 | Med | `getSettings` 404s when the settings row is missing (`findUnique` + throw) while `updateSettings` upserts | `branches.service.ts:250-254` |
@@ -267,20 +262,34 @@ Severity is mine; none of these are fixed except NEW-6.
 
 Everything buildable **without a schema change or a new dependency is done.** What's left splits three ways.
 
-### A. Not blocked — should be next (no schema, no deps)
+### A. Not blocked — no schema, no deps
+
+**Done 2026-08-04** (6 of 10, all with regression tests; backend suite 528 → **554 passing, 0 failing**):
+
+| Item | Commit | Note |
+|---|---|---|
+| NEW-0 + NEW-2 offline check-in data loss | `90b6cdb` | Plus a third defect found in the same path: the offline timestamp was discarded |
+| NEW-1 + NEW-3 gateway invoice collection | `a6a880a` | Both verify paths would have thrown *after* charging the card |
+| NEW-7 occupancy vs check-out | `189920b` | |
+| NEW-9 dead seeded automations | `3cca55a` | Plus a create/update DTO enum drift found alongside |
+| NEW-5 campaign consent gate | `54dff93` | **Opt-out, not opt-in — policy decision below** |
+| #27 PT rate from config | `f789047` | Historical `TrainerRevenue` rows NOT restated |
+
+**Policy decision needed (NEW-5).** The consent gate is deliberately *opt-out*: no gym has any
+consent rows today, so treating "no record" as "no consent" would have silently stopped every
+campaign for every existing customer. It now blocks anyone who explicitly revoked. Strict
+DPDP-style opt-in is a one-line flip, but must ship with a consent-collection flow.
+
+**Still open in this tier:**
 
 | Item | Why it matters | Effort |
 |---|---|---|
-| **NEW-0 + NEW-2** offline check-in data loss | Losing real check-ins; contradicts a marketed win | S |
-| **NEW-1 + NEW-3** gateway invoice collection | Card-collected invoices never close | S |
-| **NEW-7** occupancy vs check-out | Two surfaces show contradicting numbers | S |
-| **NEW-8 + NEW-9** dormant/dead automations | Shipped features silently not running | S |
-| **NEW-5** campaign consent gate | Compliance exposure on bulk messaging | M |
 | **#6** member CSV import | **P0** — gyms cannot switch to us | M |
-| **#27** PT rate from config | Every commission figure is wrong today | S |
-| **NEW-11** phantom `@Roles` sweep | ~72 sites; managers silently owner-gated | M |
+| **NEW-11** phantom `@Roles` sweep | 72 sites / 19 controllers; managers silently owner-gated | M |
 | **#67/#53/#48** wire orphaned backends (forecast tile, monthly report, lifecycle) | Built and paid for, not visible | S |
+| **NEW-8** frontend trigger metadata | Edited but uncommitted (untracked in-flight file) | S |
 | **#20/#23** class-stack unification | Admin sessions invisible to members | L |
+| NEW-12…NEW-24 | Medium/low defects listed above, untouched | varies |
 
 ### B. Hard-gated — needs your explicit approval (CLAUDE.md)
 
