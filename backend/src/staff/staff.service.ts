@@ -175,12 +175,19 @@ export class StaffService {
     // If branch_id not provided but branch_ids has entries, use the first as primary
     const primaryBranchId = data.branch_id ?? data.branch_ids?.[0];
 
+    // Link the normalized Role row. `Staff.role_id` was never written, so
+    // custom roles could be created and granted permissions but never actually
+    // assigned to anyone — Role._count.staff was permanently 0 and a custom
+    // role's RolePermission set never reached a real user.
+    const roleId = await this.resolveRoleId(data.role);
+
     const staff = await this.tenant.client.staff.create({
       data: {
         gym_id: getTenantGymId()!,
         full_name: data.full_name,
         phone: data.phone,
         role: data.role,
+        role_id: roleId,
         email: data.email,
         user_id: data.user_id,
         organization_id: organizationId,
@@ -269,9 +276,30 @@ export class StaffService {
     if (data.joined_at) {
       updateData.joined_at = new Date(data.joined_at);
     }
+    // Keep the normalized Role link in step with the role name.
+    if (data.role && data.role !== existing.role) {
+      updateData.role_id = await this.resolveRoleId(data.role);
+    }
 
     await this.tenant.client.staff.update({ where: { id }, data: updateData });
     return this.findOne(studioId, id, 'owner');
+  }
+
+  /**
+   * Resolve a role NAME to its tenant `Role.id`. Covers both seeded enterprise
+   * roles and gym-defined custom roles — the lookup is by name against the
+   * tenant's own roles table, so a custom role resolves exactly like a system
+   * one. Returns null when no row matches (the legacy `role` string still
+   * carries the value, so behaviour degrades to the old shape rather than
+   * failing the write).
+   */
+  private async resolveRoleId(roleName?: string): Promise<string | null> {
+    if (!roleName) return null;
+    const role = await this.tenant.client.role.findFirst({
+      where: { name: roleName },
+      select: { id: true },
+    });
+    return role?.id ?? null;
   }
 
   /**

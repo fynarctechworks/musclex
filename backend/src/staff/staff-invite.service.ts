@@ -49,9 +49,18 @@ export class StaffInviteService {
     permission_overrides?: { grants?: string[]; denials?: string[] };
     invited_by: string;
   }) {
-    // Validate the role exists
+    // Validate the role exists — either a seeded enterprise role OR a custom
+    // role this gym defined. Previously only ENTERPRISE_ROLES was accepted, so
+    // a custom role could be created and granted permissions but no one could
+    // ever be invited onto it.
     if (!ENTERPRISE_ROLES[params.role_name]) {
-      throw new BadRequestException(`Unknown role: ${params.role_name}`);
+      const custom = await this.tenant.client.role.findFirst({
+        where: { name: params.role_name },
+        select: { id: true },
+      });
+      if (!custom) {
+        throw new BadRequestException(`Unknown role: ${params.role_name}`);
+      }
     }
 
     // Check if there's already a pending invite for this staff

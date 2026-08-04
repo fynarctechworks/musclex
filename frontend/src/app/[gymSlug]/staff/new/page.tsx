@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/app-layout";
 import { FormInput, FormSelect , AccessDenied } from "@/components/shared";
 import { apiClient } from "@/lib/api";
@@ -27,10 +27,17 @@ const PERMISSION_MODULES: Record<string, string[]> = {
   settings: ["view", "edit"],
   branches: ["view", "create", "edit", "delete"],
   organizations: ["view", "create", "edit", "delete"],
+  analytics: ["view", "export"],
+  inventory: ["view", "create", "edit", "delete", "export"],
   reports: ["view", "export"],
   roles: ["view", "create", "edit", "delete"],
 };
 
+/**
+ * Seeded enterprise roles. Custom roles the gym defined under Settings → Roles
+ * are fetched at runtime and appended — previously this list was the only
+ * source, so a custom role could be created but never assigned to anyone.
+ */
 const ROLE_OPTIONS = [
   { label: "Regional Manager", value: "regional_manager" },
   { label: "Branch Manager", value: "branch_manager" },
@@ -39,6 +46,18 @@ const ROLE_OPTIONS = [
   { label: "Accountant", value: "accountant" },
   { label: "Marketing Manager", value: "marketing_manager" },
 ];
+
+interface RoleRow {
+  id: string;
+  name: string;
+  description?: string | null;
+  is_system?: boolean;
+}
+
+/** Prettify a role slug for display: `front_desk` → `Front Desk`. */
+function roleLabel(name: string) {
+  return name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 const EMPLOYMENT_OPTIONS = [
   { label: "Full Time", value: "full_time" },
@@ -81,6 +100,23 @@ export default function NewStaffPage() {
     queryKey: ["branches"],
     queryFn: () => apiClient.get("/branches"),
   });
+
+  // Custom roles defined by this gym. Failures are non-fatal — the form falls
+  // back to the seeded enterprise roles.
+  const { data: rolesData } = useQuery<RoleRow[] | { data?: RoleRow[] }>({
+    queryKey: ["roles"],
+    queryFn: () => apiClient.get("/roles"),
+    retry: false,
+  });
+
+  const roleOptions = useMemo(() => {
+    const rows = Array.isArray(rolesData) ? rolesData : rolesData?.data ?? [];
+    const seeded = new Set(ROLE_OPTIONS.map((r) => r.value));
+    const custom = rows
+      .filter((r) => !r.is_system && !seeded.has(r.name))
+      .map((r) => ({ label: `${roleLabel(r.name)} (custom)`, value: r.name }));
+    return [...ROLE_OPTIONS, ...custom];
+  }, [rolesData]);
 
   const mutation = useMutation({
     mutationFn: (data: CreateStaffForm) =>
@@ -214,7 +250,7 @@ export default function NewStaffPage() {
                     label="Role"
                     value={field.value}
                     onValueChange={field.onChange}
-                    options={ROLE_OPTIONS}
+                    options={roleOptions}
                   />
                 )}
               />
