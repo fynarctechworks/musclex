@@ -2,14 +2,81 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { ProcessRefundDto } from './dto';
 import { getTenantGymId } from '../common/tenant-context';
+import { RazorpayService } from './razorpay.service';
+import { StripeService } from './stripe.service';
 
 @Injectable()
 export class RefundsService {
-  constructor(private tenant: TenantPrisma) {}
+  private readonly logger = new Logger(RefundsService.name);
+
+  constructor(
+    private tenant: TenantPrisma,
+    private razorpay: RazorpayService,
+    private stripe: StripeService,
+  ) {}
+
+  /** Per-gym gateway keys, falling back to platform env keys. */
+  private async gatewayCreds(gatewayName: 'razorpay' | 'stripe') {
+    const cfg = await this.tenant.client.paymentGatewayConfig.findFirst({
+      where: { gateway_name: gatewayName, is_active: true },
+      select: { api_key: true, secret_key: true },
+    });
+    if (!cfg?.api_key || !cfg?.secret_key) return undefined;
+    return { keyId: cfg.api_key, keySecret: cfg.secret_key };
+  }
+
+  /**
+   * Issue the refund at the gateway when the original payment went through one.
+   *
+   * Returns the gateway refund id, or null for cash/card/UPI/bank payments
+   * that were collected off-gateway (those are ledger-only by nature — the
+   * front desk hands the money back).
+   *
+   * Deliberately runs BEFORE the DB transaction: if the gateway rejects, we
+   * must not have written a refund row claiming money moved. The reverse order
+   * (DB first) would leave the ledger lying when the gateway fails.
+   */
+  private async refundAtGateway(
+    payment: {
+      payment_method: string;
+      gateway_payment_id: string | null;
+      receipt_number: string;
+    },
+    amount: number,
+    reason?: string,
+  ): Promise<string | null> {
+    if (!payment.gateway_payment_id) return null;
+
+    if (payment.payment_method === 'razorpay') {
+      const res = await this.razorpay.refundPayment(
+        {
+          gatewayPaymentId: payment.gateway_payment_id,
+          amount,
+          notes: { receipt: payment.receipt_number, ...(reason ? { reason } : {}) },
+        },
+        await this.gatewayCreds('razorpay'),
+      );
+      this.logger.log(`Razorpay refund ${res.id} for ${payment.receipt_number} (${res.status})`);
+      return res.id;
+    }
+
+    if (payment.payment_method === 'stripe') {
+      const creds = await this.gatewayCreds('stripe');
+      const res = await this.stripe.refundPayment(
+        { paymentIntentId: payment.gateway_payment_id, amount, reason },
+        creds?.keySecret,
+      );
+      this.logger.log(`Stripe refund ${res.id} for ${payment.receipt_number} (${res.status})`);
+      return res.id;
+    }
+
+    return null;
+  }
 
   async processRefund(dto: ProcessRefundDto) {
     const payment = await this.tenant.client.payment.findUnique({
@@ -32,6 +99,14 @@ export class RefundsService {
       );
     }
 
+    // Move the money FIRST. A gateway rejection throws here, before any row
+    // is written — so we never record a refund that didn't happen.
+    const gatewayRefundId = await this.refundAtGateway(
+      payment,
+      dto.refund_amount,
+      dto.reason,
+    );
+
     return this.tenant.client.$transaction(async (tx) => {
       const refund = await tx.refund.create({
         data: {
@@ -40,6 +115,7 @@ export class RefundsService {
           member_id: payment.member_id,
           refund_amount: dto.refund_amount,
           reason: dto.reason,
+          gateway_refund_id: gatewayRefundId,
           status: 'processed',
           processed_at: new Date(),
           processed_by: dto.processed_by,

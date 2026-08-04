@@ -27,6 +27,8 @@ interface RefundRow {
   refund_amount: string | number;
   reason: string | null;
   status: string;
+  /** Set when the money was returned through Razorpay/Stripe, not by hand. */
+  gateway_refund_id?: string | null;
   created_at: string;
   payment?: {
     id: string;
@@ -136,7 +138,17 @@ export default function RefundsPage() {
                 <td className="px-4 py-3 text-sm text-muted-foreground">
                   {r.payment ? `${CURRENCY_SYMBOL}${Number(r.payment.amount).toLocaleString()}` : "-"}
                 </td>
-                <td className="px-4 py-3 text-sm text-muted-foreground max-w-48 truncate">{r.reason ?? "-"}</td>
+                <td className="px-4 py-3 text-sm text-muted-foreground max-w-48 truncate">
+                  {r.reason ?? "-"}
+                  {r.gateway_refund_id && (
+                    <span
+                      className="ml-1.5 text-[10px] text-success"
+                      title={`Returned via gateway (${r.gateway_refund_id})`}
+                    >
+                      ↩ gateway
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-sm text-muted-foreground">{r.processed_by_staff?.full_name ?? "-"}</td>
                 <td className="px-4 py-3">
                   <StatusBadge status={r.status === "completed" ? "active" : r.status === "failed" ? "expired" : "pending"} />
