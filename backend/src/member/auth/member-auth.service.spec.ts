@@ -54,8 +54,8 @@ describe('MemberAuthService', () => {
       hashRefreshToken: jest.fn((t: string) => `hash:${t}`),
       accessTokenTtlSeconds: 900,
     };
-    // Default: non-prod (NODE_ENV='test'), no MEMBER_DEV_OTP → dev bypass ON and
-    // accepts any well-formed code. Individual tests override the config as needed.
+    // Default: non-prod (NODE_ENV='test') with NO MEMBER_DEV_OTP → the dev
+    // bypass is OFF (safe by default). Tests that need it call enable().
     config = configOf({ NODE_ENV: 'test' });
     service = new MemberAuthService(
       prisma,
@@ -190,15 +190,27 @@ describe('MemberAuthService', () => {
         configOf({ NODE_ENV: 'development', MEMBER_DEV_OTP: '000000' }),
       ));
 
-    it('is ON by default in non-prod and accepts any well-formed (generated) code', async () => {
+    // The bypass used to be ON in any non-prod env and accept ANY well-formed
+    // code — i.e. a known 6-digit guess logged you in as any member. It is now
+    // SAFE BY DEFAULT: off entirely unless MEMBER_DEV_OTP is explicitly set,
+    // and then only that exact code works. These assert the tightened contract.
+    it('is OFF by default (no MEMBER_DEV_OTP) and 404s like a missing route', async () => {
       directory.resolveByPhone.mockResolvedValue([{ memberId: 'm1', tenantId: 't1' }]);
-      const res = await service.devSession('+919876543210', '481922');
-      expect(res.tokens).toMatchObject({ accessToken: 'access.jwt' });
-      expect(directory.resolveByPhone).toHaveBeenCalled();
+      await expect(service.devSession('+919876543210', '481922')).rejects.toMatchObject({
+        code: 'RESOURCE_NOT_FOUND',
+      });
+      // No account lookup should happen when the bypass is disabled.
+      expect(directory.resolveByPhone).not.toHaveBeenCalled();
     });
 
-    it('rejects a malformed code under the default (non-prod) bypass', async () => {
-      await expect(service.devSession('+919876543210', 'abc')).rejects.toMatchObject({
+    it('accepts ONLY the configured code once MEMBER_DEV_OTP is set', async () => {
+      enable();
+      directory.resolveByPhone.mockResolvedValue([{ memberId: 'm1', tenantId: 't1' }]);
+
+      const res = await service.devSession('+919876543210', '000000');
+      expect(res.tokens).toMatchObject({ accessToken: 'access.jwt' });
+
+      await expect(service.devSession('+919876543210', '481922')).rejects.toMatchObject({
         code: 'INVALID_TOKEN',
       });
     });

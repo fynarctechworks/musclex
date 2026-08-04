@@ -37,7 +37,7 @@ interface MockPrisma {
 
 describe('DashboardPulseService', () => {
   it('returns all 6 KPIs in the response shape', async () => {
-    const svc = new DashboardPulseService(makePrismaMock() as any);
+    const svc = new DashboardPulseService({ client: makePrismaMock() } as any);
     const result = await svc.getPulse({ role: 'owner' } as any);
     const keys = Object.keys(result).sort();
     [
@@ -66,7 +66,7 @@ describe('DashboardPulseService', () => {
           .mockResolvedValueOnce(0), // 30d ago
       },
     });
-    const svc = new DashboardPulseService(prisma as any);
+    const svc = new DashboardPulseService({ client: prisma } as any);
     const result = await svc.getPulse(undefined);
     expect(result.active_members.value).toBe(5);
     expect(result.active_members.delta_pct).toBeNull();
@@ -82,7 +82,7 @@ describe('DashboardPulseService', () => {
           .mockResolvedValueOnce({ _sum: { amount: 1000 } }), // yesterday
       },
     });
-    const svc = new DashboardPulseService(prisma as any);
+    const svc = new DashboardPulseService({ client: prisma } as any);
     // Bypass cache between calls
     svc.invalidate();
     const result = await svc.getPulse({ role: 'owner' } as any);
@@ -101,7 +101,7 @@ describe('DashboardPulseService', () => {
         count: jest.fn().mockResolvedValue(42),
       },
     });
-    const svc = new DashboardPulseService(prisma as any);
+    const svc = new DashboardPulseService({ client: prisma } as any);
     svc.invalidate();
     const result = await svc.getPulse(undefined);
     expect(result.check_ins_today.value).toBe(0);
@@ -110,7 +110,7 @@ describe('DashboardPulseService', () => {
 
   it('caches subsequent calls within TTL', async () => {
     const prisma = makePrismaMock();
-    const svc = new DashboardPulseService(prisma as any);
+    const svc = new DashboardPulseService({ client: prisma } as any);
     await svc.getPulse(undefined);
     const callsAfterFirst = prisma.member.count.mock.calls.length;
     await svc.getPulse(undefined);
@@ -119,7 +119,7 @@ describe('DashboardPulseService', () => {
 
   it('invalidate(studioId) only clears matching keys', async () => {
     const prisma = makePrismaMock();
-    const svc = new DashboardPulseService(prisma as any);
+    const svc = new DashboardPulseService({ client: prisma } as any);
     const userA = { studio_id: 'studio-a', branch_ids: [] } as any;
     const userB = { studio_id: 'studio-b', branch_ids: [] } as any;
     await svc.getPulse(userA);

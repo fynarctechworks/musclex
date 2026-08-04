@@ -125,7 +125,7 @@ describe('ExpenseMetricsService', () => {
 
   beforeEach(() => {
     prisma = buildPrismaMock();
-    service = new ExpenseMetricsService(prisma);
+    service = new ExpenseMetricsService({ client: prisma } as any);
   });
 
   // ──────────────────────────────────────────────────────────────
@@ -232,7 +232,7 @@ describe('ExpenseMetricsService', () => {
   describe('recompute()', () => {
     it('rebuilds metrics from raw expenses, skipping frozen pre-reversal originals', async () => {
       const fresh = buildPrismaMock();
-      const svc = new ExpenseMetricsService(fresh);
+      const svc = new ExpenseMetricsService({ client: fresh } as any);
       fresh.expense.findMany.mockResolvedValueOnce([
         // Original — skipped (status=reversed but no reference_id)
         {

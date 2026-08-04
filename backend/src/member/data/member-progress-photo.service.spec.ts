@@ -41,7 +41,7 @@ describe('MemberProgressPhotoService', () => {
     prisma = { memberProgressPhoto: { create: jest.fn() } };
     audit = { log: jest.fn().mockResolvedValue(undefined) };
     const config = { get: jest.fn().mockReturnValue('') } as any;
-    service = new MemberProgressPhotoService(config, prisma, audit);
+    service = new MemberProgressPhotoService(config, { client: prisma } as any, audit);
   });
 
   it('createUploadUrl returns a uuid photoId + signed URL scoped to the member', async () => {

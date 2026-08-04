@@ -64,7 +64,7 @@ describe('MembershipAccessService', () => {
         }),
       ),
     };
-    return { prisma, service: new MembershipAccessService(prisma) };
+    return { prisma, service: new MembershipAccessService({ client: prisma } as any) };
   }
 
   // ── transferMember ────────────────────────────────────────────────────

@@ -124,7 +124,15 @@ d('Razorpay LIVE test-API integration', () => {
     };
     const billing = { recalculateInvoiceStatus: jest.fn() };
 
-    const payments = new PaymentsService(prisma as any, billing as any, razorpay);
+    const payments = new PaymentsService(
+      prisma as any,
+      { client: prisma } as any,
+      { runForGym: (_g: string, fn: () => unknown) => fn() } as any,
+      billing as any,
+      razorpay,
+      { configured: false } as any,
+      { emit: jest.fn() } as any,
+    );
 
     // 3) Replay the exact Checkout callback through the real verify path.
     const result = await payments.verifyPayment({
@@ -161,7 +169,15 @@ d('Razorpay LIVE test-API integration', () => {
       membershipPlan: { findUnique: jest.fn() },
       $transaction: jest.fn(async (cb: any) => cb(tx)),
     };
-    const payments = new PaymentsService(prisma as any, { recalculateInvoiceStatus: jest.fn() } as any, razorpay);
+    const payments = new PaymentsService(
+      prisma as any,
+      { client: prisma } as any,
+      { runForGym: (_g: string, fn: () => unknown) => fn() } as any,
+      { recalculateInvoiceStatus: jest.fn() } as any,
+      razorpay,
+      { configured: false } as any,
+      { emit: jest.fn() } as any,
+    );
 
     await expect(
       payments.verifyPayment({

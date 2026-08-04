@@ -14,7 +14,7 @@ function mockPrisma() {
 describe('ReportsService — branch-scope enforcement', () => {
   it('OWNER may request any branch', async () => {
     const prisma = mockPrisma();
-    const svc = new ReportsService(prisma);
+    const svc = new ReportsService({ client: prisma } as any);
     const user: ReportUserScope = { role: 'owner', branch_ids: [] };
 
     await expect(
@@ -33,7 +33,7 @@ describe('ReportsService — branch-scope enforcement', () => {
 
   it('NON-OWNER requesting an out-of-scope branch_id throws ForbiddenException', async () => {
     const prisma = mockPrisma();
-    const svc = new ReportsService(prisma);
+    const svc = new ReportsService({ client: prisma } as any);
     const user: ReportUserScope = { role: 'receptionist', branch_ids: ['branch-A'] };
 
     await expect(
@@ -46,7 +46,7 @@ describe('ReportsService — branch-scope enforcement', () => {
 
   it('NON-OWNER without branch_id is clamped to their assigned branches', async () => {
     const prisma = mockPrisma();
-    const svc = new ReportsService(prisma);
+    const svc = new ReportsService({ client: prisma } as any);
     const user: ReportUserScope = {
       role: 'manager',
       branch_ids: ['branch-A', 'branch-B'],
@@ -68,7 +68,7 @@ describe('ReportsService — branch-scope enforcement', () => {
 
   it('NON-OWNER with EMPTY branch_ids gets a no-match sentinel (fail-closed)', async () => {
     const prisma = mockPrisma();
-    const svc = new ReportsService(prisma);
+    const svc = new ReportsService({ client: prisma } as any);
     const user: ReportUserScope = { role: 'trainer', branch_ids: [] };
 
     await svc.generateReport(
@@ -85,7 +85,7 @@ describe('ReportsService — branch-scope enforcement', () => {
 
   it('NON-OWNER requesting their OWN branch_id is allowed', async () => {
     const prisma = mockPrisma();
-    const svc = new ReportsService(prisma);
+    const svc = new ReportsService({ client: prisma } as any);
     const user: ReportUserScope = { role: 'manager', branch_ids: ['branch-A'] };
 
     await svc.generateReport(
@@ -102,7 +102,7 @@ describe('ReportsService — branch-scope enforcement', () => {
 
   it('OWNER without branch_id gets no branch filter (all branches)', async () => {
     const prisma = mockPrisma();
-    const svc = new ReportsService(prisma);
+    const svc = new ReportsService({ client: prisma } as any);
     const user: ReportUserScope = { role: 'owner' };
 
     await svc.generateReport(

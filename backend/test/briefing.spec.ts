@@ -21,7 +21,7 @@ const config = {
 
 describe('BriefingService', () => {
   it('returns an empty briefing when no studio_id is in JWT', async () => {
-    const svc = new BriefingService(makePrisma() as any, config as any);
+    const svc = new BriefingService(makePrisma() as any, { client: makePrisma() } as any, config as any);
     const result = await svc.getOrGenerate(undefined);
     expect(result.summary).toMatch(/not available/i);
     expect(result.recommendations).toEqual([]);
@@ -52,6 +52,7 @@ describe('BriefingService', () => {
     const prisma = makePrisma();
     const svc = new BriefingService(
       prisma as any,
+      { client: prisma } as any,
       config as any,
       pulse as any,
       queue as any,
@@ -79,6 +80,7 @@ describe('BriefingService', () => {
     const prisma = makePrisma();
     const svc = new BriefingService(
       prisma as any,
+      { client: prisma } as any,
       config as any,
       pulse as any,
       queue as any,
@@ -104,7 +106,7 @@ describe('BriefingService', () => {
         },
       ]),
     });
-    const svc = new BriefingService(prisma as any, config as any);
+    const svc = new BriefingService(prisma as any, { client: prisma } as any, config as any);
     const result = await svc.getOrGenerate({ studio_id: 's1' } as any);
     expect(result.summary).toBe('cached summary');
     expect(result.headline).toBe('Renewals are stacking up');
@@ -138,6 +140,7 @@ describe('BriefingService', () => {
     const queue = { getActions: jest.fn().mockResolvedValue([]) };
     const svc = new BriefingService(
       prisma as any,
+      { client: prisma } as any,
       config as any,
       pulse as any,
       queue as any,

@@ -38,7 +38,7 @@ describe('PlansService — multi-gym access scope', () => {
         findMany: jest.fn(),
       },
     };
-    return { prisma, created, service: new PlansService(prisma) };
+    return { prisma, created, service: new PlansService({ client: prisma } as any) };
   }
 
   // ── single_branch: scope validation is a no-op, fields default safely ──

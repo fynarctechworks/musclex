@@ -25,7 +25,7 @@ function makePrismaMock(overrides: Partial<MockPrisma> = {}): MockPrisma {
 
 describe('PortfolioService', () => {
   it('returns empty rollup when there are no branches', async () => {
-    const svc = new PortfolioService(makePrismaMock() as any);
+    const svc = new PortfolioService({ client: makePrismaMock() } as any);
     const result = await svc.getPortfolio({ studio_id: 's1' } as any);
     expect(result.branches).toEqual([]);
     expect(result.rollup.branch_count).toBe(0);
@@ -92,7 +92,7 @@ describe('PortfolioService', () => {
         ]),
       },
     });
-    const svc = new PortfolioService(prisma as any);
+    const svc = new PortfolioService({ client: prisma } as any);
     const result = await svc.getPortfolio({ studio_id: 's1' } as any);
 
     expect(result.branches).toHaveLength(2);
@@ -146,7 +146,7 @@ describe('PortfolioService', () => {
           ]),
       },
     });
-    const svc = new PortfolioService(prisma as any);
+    const svc = new PortfolioService({ client: prisma } as any);
     const result = await svc.getPortfolio({ studio_id: 's1' } as any);
     const b3 = result.branches.find((b) => b.branch_id === 'b3')!;
     expect(b3.outliers.length).toBeGreaterThan(0);
@@ -163,7 +163,7 @@ describe('PortfolioService', () => {
     const prisma = makePrismaMock({
       branch: { findMany: jest.fn().mockResolvedValue(many) },
     });
-    const svc = new PortfolioService(prisma as any);
+    const svc = new PortfolioService({ client: prisma } as any);
     const result = await svc.getPortfolio({ studio_id: 's1' } as any);
     expect(result.rollup.use_map_view).toBe(true);
     expect(result.rollup.branch_count).toBe(9);
@@ -177,14 +177,14 @@ describe('PortfolioService', () => {
     const prisma = makePrismaMock({
       branch: { findMany: jest.fn().mockResolvedValue(few) },
     });
-    const svc = new PortfolioService(prisma as any);
+    const svc = new PortfolioService({ client: prisma } as any);
     const result = await svc.getPortfolio({ studio_id: 's1' } as any);
     expect(result.rollup.use_map_view).toBe(false);
   });
 
   it('caches subsequent calls within TTL', async () => {
     const prisma = makePrismaMock();
-    const svc = new PortfolioService(prisma as any);
+    const svc = new PortfolioService({ client: prisma } as any);
     await svc.getPortfolio({ studio_id: 's1' } as any);
     await svc.getPortfolio({ studio_id: 's1' } as any);
     expect(prisma.branch.findMany.mock.calls.length).toBe(1);
@@ -192,7 +192,7 @@ describe('PortfolioService', () => {
 
   it('invalidate(studioId) only clears matching keys', async () => {
     const prisma = makePrismaMock();
-    const svc = new PortfolioService(prisma as any);
+    const svc = new PortfolioService({ client: prisma } as any);
     await svc.getPortfolio({ studio_id: 's1' } as any);
     await svc.getPortfolio({ studio_id: 's2' } as any);
     expect(prisma.branch.findMany.mock.calls.length).toBe(2);

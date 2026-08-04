@@ -54,7 +54,7 @@ describe('ActionQueueService', () => {
         ]),
       },
     });
-    const svc = new ActionQueueService(prisma as any);
+    const svc = new ActionQueueService({ client: prisma } as any);
     const items = await svc.getActions({ role: 'owner' } as any, undefined);
     const m = items.find((i) => i.id.startsWith('renewal_imminent:'));
     expect(m).toBeDefined();
@@ -78,7 +78,7 @@ describe('ActionQueueService', () => {
         ]),
       },
     });
-    const svc = new ActionQueueService(prisma as any);
+    const svc = new ActionQueueService({ client: prisma } as any);
     const items = await svc.getActions({ role: 'owner' } as any, undefined);
     const m = items.find((i) => i.id.startsWith('renewal_at_risk:'));
     expect(m).toBeDefined();
@@ -122,7 +122,7 @@ describe('ActionQueueService', () => {
         ]),
       },
     });
-    const svc = new ActionQueueService(prisma as any);
+    const svc = new ActionQueueService({ client: prisma } as any);
     const items = await svc.getActions({ role: 'owner' } as any, undefined);
     const fresh = items.find((i) => i.id === 'dues_overdue:i-fresh');
     const mid = items.find((i) => i.id === 'dues_overdue:i-mid');
@@ -169,7 +169,7 @@ describe('ActionQueueService', () => {
         ]),
       },
     });
-    const svc = new ActionQueueService(prisma as any);
+    const svc = new ActionQueueService({ client: prisma } as any);
     const items = await svc.getActions({ role: 'owner' } as any, undefined);
     // Expect: i3 (high, 5000), i1 (high, 100), then i2 (medium, 9999)
     const order = items.filter((i) => i.kind === 'dues_overdue').map((i) => i.id);
@@ -205,7 +205,7 @@ describe('ActionQueueService', () => {
         return Promise.resolve([]);
       }),
     });
-    const svc = new ActionQueueService(prisma as any);
+    const svc = new ActionQueueService({ client: prisma } as any);
     const items = await svc.getActions(
       { studio_id: 's1', user_id: 'u1', role: 'owner', branch_ids: [] } as any,
       undefined,
@@ -235,7 +235,7 @@ describe('ActionQueueService', () => {
         return Promise.resolve([]);
       }),
     });
-    const svc = new ActionQueueService(prisma as any);
+    const svc = new ActionQueueService({ client: prisma } as any);
     const items = await svc.getActions(
       { studio_id: 's1', user_id: 'u1', role: 'owner', branch_ids: [] } as any,
       undefined,
@@ -263,14 +263,14 @@ describe('ActionQueueService', () => {
         ]),
       },
     });
-    const svc = new ActionQueueService(prisma as any);
+    const svc = new ActionQueueService({ client: prisma } as any);
     const items = await svc.getActions({ role: 'owner' } as any, undefined);
     expect(items.find((i) => i.id === 'dues_overdue:i1')).toBeDefined();
   });
 
   it('dismiss() upserts action state and writes a receipt', async () => {
     const prisma = makePrismaMock();
-    const svc = new ActionQueueService(prisma as any);
+    const svc = new ActionQueueService({ client: prisma } as any);
     await svc.dismiss(
       { studio_id: 's1', user_id: 'u1', role: 'owner', branch_ids: [] } as any,
       'renewal_at_risk:mZ:2026-05-13',
@@ -285,7 +285,7 @@ describe('ActionQueueService', () => {
 
   it('snooze() computes snoozed_until from hours when no `until` provided', async () => {
     const prisma = makePrismaMock();
-    const svc = new ActionQueueService(prisma as any);
+    const svc = new ActionQueueService({ client: prisma } as any);
     const before = Date.now();
     const result = await svc.snooze(
       { studio_id: 's1', user_id: 'u1', role: 'owner', branch_ids: [] } as any,

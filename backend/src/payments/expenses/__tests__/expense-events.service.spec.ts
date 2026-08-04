@@ -105,7 +105,7 @@ describe('ExpenseEventsService', () => {
     prisma = buildPrismaMock();
     categories = buildCategoriesMock();
     events = new EventEmitter2();
-    service = new ExpenseEventsService(prisma, categories, events);
+    service = new ExpenseEventsService({ client: prisma } as any, categories, events);
   });
 
   // ──────────────────────────────────────────────────────────────

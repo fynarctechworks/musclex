@@ -74,7 +74,7 @@ describe('role-view utility', () => {
 describe('DashboardPulseService — role filtering', () => {
   it('strips today_revenue / mrr / outstanding_dues for front_desk', async () => {
     const prisma = makePrismaMock();
-    const svc = new DashboardPulseService(prisma as any);
+    const svc = new DashboardPulseService({ client: prisma } as any);
     const result = await svc.getPulse({ role: 'receptionist' } as any);
     expect(result.view).toBe('front_desk');
     expect(result.today_revenue.value).toBe(0);
@@ -88,7 +88,7 @@ describe('DashboardPulseService — role filtering', () => {
 
   it('strips renewals_at_risk for front_desk (no churn signals)', async () => {
     const prisma = makePrismaMock();
-    const svc = new DashboardPulseService(prisma as any);
+    const svc = new DashboardPulseService({ client: prisma } as any);
     const result = await svc.getPulse({ role: 'receptionist' } as any);
     expect(result.renewals_at_risk_7d.value).toBe(0);
     expect(result.renewals_at_risk_7d.value_at_stake).toBe(0);
@@ -96,7 +96,7 @@ describe('DashboardPulseService — role filtering', () => {
 
   it('strips financials for trainer but keeps check-in metric', async () => {
     const prisma = makePrismaMock();
-    const svc = new DashboardPulseService(prisma as any);
+    const svc = new DashboardPulseService({ client: prisma } as any);
     const result = await svc.getPulse({ role: 'trainer' } as any);
     expect(result.view).toBe('trainer');
     expect(result.today_revenue.value).toBe(0);
@@ -107,7 +107,7 @@ describe('DashboardPulseService — role filtering', () => {
 
   it('owner sees full financials', async () => {
     const prisma = makePrismaMock();
-    const svc = new DashboardPulseService(prisma as any);
+    const svc = new DashboardPulseService({ client: prisma } as any);
     const result = await svc.getPulse({ role: 'owner' } as any);
     expect(result.view).toBe('owner');
     expect(result.today_revenue.value).toBe(1500);
@@ -115,7 +115,7 @@ describe('DashboardPulseService — role filtering', () => {
 
   it('caches per-view (owner and front_desk get distinct entries)', async () => {
     const prisma = makePrismaMock();
-    const svc = new DashboardPulseService(prisma as any);
+    const svc = new DashboardPulseService({ client: prisma } as any);
     await svc.getPulse({ role: 'owner', studio_id: 's1' } as any);
     await svc.getPulse({ role: 'receptionist', studio_id: 's1' } as any);
     // The two calls should NOT collide — different keys → both compute.
@@ -126,7 +126,7 @@ describe('DashboardPulseService — role filtering', () => {
 describe('ActionQueueService — role filtering', () => {
   it('front_desk only runs dues/class/lead rules (no renewals, no failed payments, no inactive)', async () => {
     const prisma = makePrismaMock();
-    const svc = new ActionQueueService(prisma as any);
+    const svc = new ActionQueueService({ client: prisma } as any);
     await svc.getActions({ role: 'receptionist' } as any, undefined);
     // memberMembership.findMany feeds renewal_at_risk → should NOT be called
     expect(prisma.memberMembership.findMany).not.toHaveBeenCalled();
@@ -142,7 +142,7 @@ describe('ActionQueueService — role filtering', () => {
     const prisma = makePrismaMock({
       staff: { findFirst: jest.fn().mockResolvedValue({ id: 'staff-1' }) },
     });
-    const svc = new ActionQueueService(prisma as any);
+    const svc = new ActionQueueService({ client: prisma } as any);
     await svc.getActions(
       { role: 'trainer', user_id: 'u1', studio_id: 's1' } as any,
       undefined,
@@ -155,7 +155,7 @@ describe('ActionQueueService — role filtering', () => {
 
   it('owner runs all rules', async () => {
     const prisma = makePrismaMock();
-    const svc = new ActionQueueService(prisma as any);
+    const svc = new ActionQueueService({ client: prisma } as any);
     await svc.getActions({ role: 'owner' } as any, undefined);
     expect(prisma.memberMembership.findMany).toHaveBeenCalled();
     expect(prisma.memberInvoice.findMany).toHaveBeenCalled();

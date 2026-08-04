@@ -1,4 +1,7 @@
-import { Prisma } from '@prisma/client';
+// Must come from the SAME generated client the service checks instanceof
+// against (public schema) — @prisma/client is a different class, so the
+// P2002 catch would never match and the replay path went untested.
+import { Prisma } from '../../../node_modules/.prisma/client-public';
 import { IdempotencyService, IdempotencyKeyRef } from './idempotency.service';
 
 /** Unit tests for the idempotency store's claim/replay/conflict logic. */
