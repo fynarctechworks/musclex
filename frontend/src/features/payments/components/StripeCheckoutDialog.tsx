@@ -82,7 +82,13 @@ interface StripeCheckoutDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Payload for POST /payments/create-stripe-intent. */
-  order: { member_id: string; plan_id: string; branch_id: string } | null;
+  /** Exactly one of plan_id (membership purchase) or invoice_id (collect a bill). */
+  order: {
+    member_id: string;
+    plan_id?: string;
+    invoice_id?: string;
+    branch_id: string;
+  } | null;
   onSuccess: () => void;
 }
 

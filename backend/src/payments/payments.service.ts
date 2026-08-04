@@ -140,9 +140,65 @@ export class PaymentsService {
     });
   }
 
+  /**
+   * Price a gateway order from one of two sources:
+   *   plan_id    → a membership purchase, priced from the plan.
+   *   invoice_id → collecting an existing bill, priced from what is still
+   *                OWED, not the invoice total — a partial cash payment may
+   *                already have landed against it.
+   *
+   * Collecting an invoice by card previously wasn't possible at all: both
+   * gateway paths demanded a plan and the live CreateOrderDto had no
+   * invoice_id, so `forbidNonWhitelisted` rejected any attempt to send one.
+   */
+  private async resolveOrderPricing(data: {
+    plan_id?: string;
+    invoice_id?: string;
+  }): Promise<{
+    plan: { id: string; name: string; price: unknown; currency: string | null; duration_days: number | null; total_classes: number | null } | null;
+    amount: number;
+    currency: string;
+    description: string;
+  }> {
+    if (data.plan_id) {
+      const plan = await this.tenant.client.membershipPlan.findUnique({
+        where: { id: data.plan_id },
+      });
+      if (!plan) throw new BadRequestException('Invalid plan');
+      return {
+        plan: plan as never,
+        amount: Number(plan.price),
+        currency: plan.currency ?? 'INR',
+        description: plan.name,
+      };
+    }
+
+    if (data.invoice_id) {
+      const { invoice, balance } = await this.billingService.getInvoiceBalance(
+        data.invoice_id,
+      );
+      if (invoice.status === 'cancelled') {
+        throw new BadRequestException('Invoice is cancelled');
+      }
+      if (balance <= 0) {
+        throw new BadRequestException('Invoice is already paid in full');
+      }
+      return {
+        plan: null,
+        amount: balance,
+        currency: invoice.currency ?? 'INR',
+        description: `Invoice ${invoice.invoice_number}`,
+      };
+    }
+
+    throw new BadRequestException(
+      'Either plan_id or invoice_id is required to create an order',
+    );
+  }
+
   async createOrder(studioId: string, data: {
     member_id: string;
-    plan_id: string;
+    plan_id?: string;
     branch_id: string;
     invoice_id?: string;
     gateway?: 'razorpay';
@@ -152,10 +208,7 @@ export class PaymentsService {
     });
     if (!member) throw new NotFoundException('Member not found');
 
-    const plan = await this.tenant.client.membershipPlan.findUnique({
-      where: { id: data.plan_id },
-    });
-    if (!plan) throw new BadRequestException('Invalid plan');
+    const { amount, description } = await this.resolveOrderPricing(data);
 
     const receiptNumber = this.generateReceiptNumber();
 
@@ -166,7 +219,7 @@ export class PaymentsService {
         member_id: data.member_id,
         branch_id: data.branch_id,
         invoice_id: data.invoice_id,
-        amount: plan.price,
+        amount,
         payment_method: 'razorpay',
         status: 'pending',
         receipt_number: receiptNumber,
@@ -180,14 +233,15 @@ export class PaymentsService {
     const creds = (await this.gatewayCreds('razorpay')) ?? undefined;
     const order = await this.razorpay.createOrder(
       {
-        amount: Number(plan.price),
+        amount,
         currency: payment.currency,
         receipt: receiptNumber,
         notes: {
           gym_id: studioId,
           payment_id: payment.id,
           member_id: data.member_id,
-          plan_id: data.plan_id,
+          ...(data.plan_id ? { plan_id: data.plan_id } : {}),
+          ...(data.invoice_id ? { invoice_id: data.invoice_id } : {}),
         },
       },
       creds,
@@ -201,10 +255,11 @@ export class PaymentsService {
       payment_id: payment.id,
       key_id: this.razorpay.getKeyId(creds),
       receipt_number: receiptNumber,
-      amount: Number(plan.price),
+      amount,
       currency: payment.currency,
       gateway: 'razorpay',
-      plan_name: plan.name,
+      // Checkout description — the plan name, or the invoice being settled.
+      plan_name: description,
     };
   }
 
@@ -251,8 +306,19 @@ export class PaymentsService {
     const planId = notes.plan_id;
     const memberId = payment.member_id;
     const branchId = payment.branch_id;
-    if (!planId || !memberId || !branchId) {
+    if (!memberId || !branchId) {
       throw new BadRequestException('Order is missing required metadata');
+    }
+
+    // An invoice collection grants no membership — it just settles an existing
+    // bill. Falling through to the plan path here would throw AFTER the
+    // customer's card was already charged, taking the money and recording
+    // nothing.
+    if (!planId) {
+      if (!payment.invoice_id) {
+        throw new BadRequestException('Order is missing required metadata');
+      }
+      return this.settleInvoiceOrder(payment, data);
     }
 
     // Plan must belong to THIS gym (findFirst is gym-scoped; guards against a
@@ -348,6 +414,60 @@ export class PaymentsService {
 
       return { payment: updatedPayment, membership };
     });
+  }
+
+  /**
+   * Settle a gateway order that was raised against an INVOICE rather than a
+   * plan: mark the pending payment paid, post the ledger credit, and let the
+   * invoice recalculate to partial/paid. No membership is granted.
+   *
+   * Uses the same guarded updateMany claim as the plan path so a double
+   * verify (or verify racing the webhook) cannot double-credit the ledger.
+   */
+  private async settleInvoiceOrder(
+    payment: { id: string; branch_id: string | null; invoice_id: string | null; payment_method: string; receipt_number: string | null },
+    data: { gateway_payment_id: string; gateway_order_id: string },
+  ) {
+    const settled = await this.tenant.client.$transaction(async (tx) => {
+      const claim = await tx.payment.updateMany({
+        where: { id: payment.id, status: 'pending' },
+        data: {
+          gateway_payment_id: data.gateway_payment_id,
+          gateway_order_id: data.gateway_order_id,
+          status: 'paid',
+          paid_at: new Date(),
+        },
+      });
+      if (claim.count !== 1) {
+        throw new BadRequestException('Payment already processed or not found');
+      }
+
+      const updatedPayment = await tx.payment.findUniqueOrThrow({
+        where: { id: payment.id },
+      });
+
+      await tx.financialTransaction.create({
+        data: {
+          gym_id: getTenantGymId()!,
+          branch_id: updatedPayment.branch_id,
+          reference_type: 'payment',
+          reference_id: updatedPayment.id,
+          transaction_type: 'credit',
+          amount: updatedPayment.amount,
+          description: `Invoice payment ${updatedPayment.receipt_number} via ${updatedPayment.payment_method}`,
+        },
+      });
+
+      return updatedPayment;
+    });
+
+    // Outside the transaction: recalculation reads the payments it just wrote.
+    if (settled.invoice_id) {
+      await this.billingService.recalculateInvoiceStatus(settled.invoice_id);
+    }
+    this.queueReceipt(settled.id);
+
+    return { payment: settled, membership: null };
   }
 
   async findAll(studioId: string, query: {
@@ -522,7 +642,7 @@ export class PaymentsService {
 
   async createStripeIntent(studioId: string, data: {
     member_id: string;
-    plan_id: string;
+    plan_id?: string;
     branch_id: string;
     invoice_id?: string;
   }) {
@@ -536,10 +656,7 @@ export class PaymentsService {
     });
     if (!member) throw new NotFoundException('Member not found');
 
-    const plan = await this.tenant.client.membershipPlan.findUnique({
-      where: { id: data.plan_id },
-    });
-    if (!plan) throw new BadRequestException('Invalid plan');
+    const { amount, currency, description } = await this.resolveOrderPricing(data);
 
     const receiptNumber = this.generateReceiptNumber();
     const payment = await this.tenant.client.payment.create({
@@ -548,7 +665,7 @@ export class PaymentsService {
         member_id: data.member_id,
         branch_id: data.branch_id,
         invoice_id: data.invoice_id,
-        amount: plan.price,
+        amount,
         payment_method: 'stripe',
         status: 'pending',
         receipt_number: receiptNumber,
@@ -557,13 +674,14 @@ export class PaymentsService {
 
     const intent = await this.stripe.createPaymentIntent(
       {
-        amount: Number(plan.price),
-        currency: plan.currency ?? 'INR',
+        amount,
+        currency,
         metadata: {
           gym_id: studioId,
           payment_id: payment.id,
           member_id: data.member_id,
-          plan_id: data.plan_id,
+          ...(data.plan_id ? { plan_id: data.plan_id } : {}),
+          ...(data.invoice_id ? { invoice_id: data.invoice_id } : {}),
           branch_id: data.branch_id,
         },
       },
@@ -580,10 +698,10 @@ export class PaymentsService {
       publishable_key: gymStripeCreds?.keyId || this.stripe.getPublishableKey(),
       payment_id: payment.id,
       receipt_number: receiptNumber,
-      amount: Number(plan.price),
-      currency: plan.currency ?? 'INR',
+      amount,
+      currency,
       gateway: 'stripe',
-      plan_name: plan.name,
+      plan_name: description,
     };
   }
 
@@ -601,7 +719,7 @@ export class PaymentsService {
     }
     const meta = intent.metadata ?? {};
     const { member_id, plan_id, branch_id } = meta;
-    if (!member_id || !plan_id || !branch_id) {
+    if (!member_id || !branch_id) {
       throw new BadRequestException('Payment intent is missing metadata');
     }
 
@@ -609,6 +727,18 @@ export class PaymentsService {
       where: { gateway_order_id: intent.id, status: 'pending' },
     });
     if (!payment) throw new NotFoundException('Pending payment not found');
+
+    // Invoice collection grants no membership. Must be handled before the plan
+    // lookup below, which would otherwise throw AFTER Stripe already captured.
+    if (!plan_id) {
+      if (!payment.invoice_id) {
+        throw new BadRequestException('Payment intent is missing metadata');
+      }
+      return this.settleInvoiceOrder(payment, {
+        gateway_payment_id: intent.id,
+        gateway_order_id: intent.id,
+      });
+    }
 
     // Plan gym-scoped (guards a metadata-injected cross-gym plan id).
     const plan = await this.tenant.client.membershipPlan.findFirst({

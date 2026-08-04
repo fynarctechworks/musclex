@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -81,6 +81,8 @@ export default function RecordPaymentPage() {
     branch_id?: string;
     branch?: { id: string } | null;
     member?: { id: string; full_name: string; member_code: string } | null;
+    /** Paid rows on this invoice — used to prefill the REMAINING balance. */
+    payments?: Array<{ amount?: string | number; status?: string }>;
   }
   const { data: collectInvoice } = useQuery({
     queryKey: ["invoice-collect", invoiceId],
@@ -88,16 +90,27 @@ export default function RecordPaymentPage() {
     enabled: !!invoiceId,
   });
 
+  // What's still owed on the invoice being collected — total minus everything
+  // already paid against it. Prefilling the TOTAL made a second collection
+  // default to the full amount again after a partial payment.
+  const invoiceBalance = useMemo(() => {
+    if (!collectInvoice?.total_amount) return null;
+    const paid = (collectInvoice.payments ?? [])
+      .filter((p) => p.status === "paid")
+      .reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+    return Math.max(0, Number((Number(collectInvoice.total_amount) - paid).toFixed(2)));
+  }, [collectInvoice]);
+
   useEffect(() => {
     if (!collectInvoice) return;
     if (collectInvoice.member) {
       setSelectedMember(collectInvoice.member as unknown as Member);
       setValue("member_id", collectInvoice.member.id);
     }
-    if (collectInvoice.total_amount != null) {
-      setValue("amount", String(Number(collectInvoice.total_amount)));
+    if (invoiceBalance != null) {
+      setValue("amount", String(invoiceBalance));
     }
-  }, [collectInvoice, setValue]);
+  }, [collectInvoice, invoiceBalance, setValue]);
 
   const selectedPlan = (Array.isArray(plans) ? plans : []).find((p) => p.id === selectedPlanId);
 
@@ -136,10 +149,19 @@ export default function RecordPaymentPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  // When collecting an existing invoice the amount comes from that invoice's
+  // outstanding balance, so no plan is required (and none applies).
+  const collectBranchId =
+    selectedMember?.branch_id ?? collectInvoice?.branch_id ?? collectInvoice?.branch?.id;
+
   // Razorpay: create order → open checkout → verify
   const handleRazorpayPayment = async (data: PaymentForm) => {
-    if (!selectedMember || !data.plan_id) {
+    if (!selectedMember || (!data.plan_id && !invoiceId)) {
       toast.error("Please select a member and plan");
+      return;
+    }
+    if (!collectBranchId) {
+      toast.error("No branch on this member or invoice");
       return;
     }
     setGatewayLoading(true);
@@ -165,8 +187,9 @@ export default function RecordPaymentPage() {
         "/payments/create-order",
         {
           member_id: selectedMember.id,
-          plan_id: data.plan_id,
-          branch_id: selectedMember.branch_id,
+          ...(data.plan_id ? { plan_id: data.plan_id } : {}),
+          ...(invoiceId ? { invoice_id: invoiceId } : {}),
+          branch_id: collectBranchId,
           gateway: "razorpay",
         },
         { headers: { "Idempotency-Key": crypto.randomUUID() } },
@@ -183,13 +206,12 @@ export default function RecordPaymentPage() {
           order_id: order.order_id,
           handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
             try {
+              // member/plan/branch are ignored server-side (derived from the
+              // pending payment + order notes) — sent only for back-compat.
               await apiClient.post("/payments/verify", {
                 gateway_payment_id: response.razorpay_payment_id,
                 gateway_order_id: response.razorpay_order_id,
                 signature: response.razorpay_signature,
-                member_id: selectedMember.id,
-                plan_id: data.plan_id,
-                branch_id: selectedMember.branch_id,
               });
               toast.success("Payment successful!");
               router.push(gymPath("/finance/payments"));
@@ -220,20 +242,25 @@ export default function RecordPaymentPage() {
   const [stripeOpen, setStripeOpen] = useState(false);
   const [stripeOrder, setStripeOrder] = useState<{
     member_id: string;
-    plan_id: string;
+    plan_id?: string;
+    invoice_id?: string;
     branch_id: string;
   } | null>(null);
 
   const handleStripePayment = (data: PaymentForm) => {
-    const branchId = selectedMember?.branch_id;
-    if (!selectedMember || !data.plan_id || !branchId) {
+    if (!selectedMember || (!data.plan_id && !invoiceId)) {
       toast.error("Please select a member and plan");
+      return;
+    }
+    if (!collectBranchId) {
+      toast.error("No branch on this member or invoice");
       return;
     }
     setStripeOrder({
       member_id: selectedMember.id,
-      plan_id: data.plan_id,
-      branch_id: branchId,
+      ...(data.plan_id ? { plan_id: data.plan_id } : {}),
+      ...(invoiceId ? { invoice_id: invoiceId } : {}),
+      branch_id: collectBranchId,
     });
     setStripeOpen(true);
   };
@@ -302,19 +329,37 @@ export default function RecordPaymentPage() {
           <input type="hidden" {...register("member_id", { required: true })} />
         </div>
 
-        {/* Plan */}
-        <div>
-          <label className="text-sm font-medium text-foreground block mb-1">Membership Plan</label>
-          <select
-            {...register("plan_id")}
-            className="w-full rounded-md border border-border bg-background text-foreground p-2 text-sm"
-          >
-            <option value="">Select plan</option>
-            {(Array.isArray(plans) ? plans : []).map((p) => (
-              <option key={p.id} value={p.id}>{p.name} — {CURRENCY_SYMBOL}{Number(p.price)}</option>
-            ))}
-          </select>
-        </div>
+        {/* Plan — hidden when collecting an invoice. The amount then comes from
+            the invoice balance, and selecting a plan would overwrite it. */}
+        {invoiceId ? (
+          <div className="rounded-md border border-border bg-muted/40 p-3">
+            <p className="text-sm font-medium text-foreground">
+              Collecting invoice {collectInvoice?.invoice_number ?? ""}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Outstanding balance{" "}
+              {invoiceBalance != null ? `${CURRENCY_SYMBOL}${invoiceBalance}` : "—"}
+              {collectInvoice?.total_amount != null &&
+              invoiceBalance != null &&
+              invoiceBalance < Number(collectInvoice.total_amount)
+                ? ` of ${CURRENCY_SYMBOL}${Number(collectInvoice.total_amount)} total`
+                : ""}
+            </p>
+          </div>
+        ) : (
+          <div>
+            <label className="text-sm font-medium text-foreground block mb-1">Membership Plan</label>
+            <select
+              {...register("plan_id")}
+              className="w-full rounded-md border border-border bg-background text-foreground p-2 text-sm"
+            >
+              <option value="">Select plan</option>
+              {(Array.isArray(plans) ? plans : []).map((p) => (
+                <option key={p.id} value={p.id}>{p.name} — {CURRENCY_SYMBOL}{Number(p.price)}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Billing Cycle Toggle */}
         {selectedPlan && (

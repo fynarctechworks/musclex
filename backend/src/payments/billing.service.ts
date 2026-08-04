@@ -305,6 +305,33 @@ export class BillingService {
   }
 
   // Check if invoice is fully paid by summing payments
+  /**
+   * What is still owed on an invoice = total minus everything already paid
+   * against it. Single source for both the "collect payment" prefill and the
+   * gateway order amount, so a card collection can never charge the full
+   * invoice again after a partial cash payment.
+   */
+  async getInvoiceBalance(invoiceId: string) {
+    const invoice = await this.tenant.client.memberInvoice.findUnique({
+      where: { id: invoiceId },
+      include: { payments: { where: { status: 'paid' } } },
+    });
+    if (!invoice) throw new NotFoundException('Invoice not found');
+
+    const totalPaid = invoice.payments.reduce(
+      (sum, p) => sum + Number(p.amount),
+      0,
+    );
+    const total = Number(invoice.total_amount);
+    return {
+      invoice,
+      total,
+      total_paid: totalPaid,
+      // Never negative — an over-payment shouldn't present as a credit here.
+      balance: Math.max(0, Number((total - totalPaid).toFixed(2))),
+    };
+  }
+
   async recalculateInvoiceStatus(invoiceId: string) {
     const invoice = await this.tenant.client.memberInvoice.findUnique({
       where: { id: invoiceId },
