@@ -17,8 +17,13 @@ function makeController(prismaMember: any) {
     signStatic: jest.fn().mockReturnValue('tok'),
     signDynamic: jest.fn().mockReturnValue({ token: 'tok', jti: 'j', iat: 1, exp: 2 }),
   };
-  const prisma: any = { member: prismaMember };
-  return new QrController(qrTokens, prisma);
+  // QrController now takes the TenantPrisma ACCESSOR (`.client` resolves the
+  // caller's gym schema) rather than the base PrismaService, which pointed at
+  // studio_template and could not see members in per-gym schemas. Only the
+  // injection shape changed here — every gym_id assertion below is unchanged,
+  // because scoping by gym_id is still required on top of schema separation.
+  const tenant: any = { client: { member: prismaMember } };
+  return new QrController(qrTokens, tenant);
 }
 
 describe('SAFETY-NET / QrController tenant scoping', () => {

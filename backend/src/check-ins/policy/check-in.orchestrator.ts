@@ -1,7 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { createHash, randomUUID } from 'crypto';
-import { PrismaService } from '../../prisma/prisma.service';
+import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { EventStoreService } from '../../events/event-store.service';
 import { getTenantGymId } from '../../common/tenant-context';
 import { getCorrelationId } from '../../common/correlation-context';
@@ -98,7 +98,7 @@ export class CheckInOrchestrator {
   private readonly logger = new Logger(CheckInOrchestrator.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly tenant: TenantPrisma,
     private readonly engine: AccessPolicyEngine,
     private readonly eventStore: EventStoreService,
     private readonly eventBus: EventEmitter2,
@@ -126,7 +126,7 @@ export class CheckInOrchestrator {
       // gym-scoped by the tenant $use middleware (R3 fails-open). Using findFirst
       // with gym_id means a cross-tenant id resolves to null → "Member not found"
       // instead of leaking another gym's member in the denial payload.
-      this.prisma.member.findFirst({
+      this.tenant.client.member.findFirst({
         where: { id: memberId, gym_id: gymId },
         include: {
           branch: {
@@ -142,7 +142,7 @@ export class CheckInOrchestrator {
           },
         },
       }),
-      this.prisma.memberMembership.findFirst({
+      this.tenant.client.memberMembership.findFirst({
         where: { member_id: memberId, status: 'active' },
         include: {
           plan: {
@@ -164,7 +164,7 @@ export class CheckInOrchestrator {
         orderBy: { created_at: 'desc' },
       }),
       input.branch_id
-        ? this.prisma.branch.findFirst({
+        ? this.tenant.client.branch.findFirst({
             where: { id: input.branch_id, gym_id: gymId },
             select: {
               id: true,
@@ -249,7 +249,10 @@ export class CheckInOrchestrator {
         override_authorized: input.override_authorized === true,
         override_reason: input.override_reason ?? null,
       },
-      prisma: this.prisma as any,
+      // The policy rules (duplicate, freeze, parallel-session) query through
+      // this handle — it must be the TENANT client or they silently evaluate
+      // against the wrong schema and pass everything.
+      prisma: this.tenant.client as any,
       derived: {},
     };
 
@@ -320,7 +323,7 @@ export class CheckInOrchestrator {
     // Legacy path — raw UUID stored in members.qr_code. Kept for
     // backward compatibility until every member's QR is rotated to
     // the signed format.
-    const member = await this.prisma.member.findFirst({
+    const member = await this.tenant.client.member.findFirst({
       where: {
         qr_code: input.qr_code,
         ...(input.branch_id ? { branch_id: input.branch_id } : {}),
@@ -345,7 +348,7 @@ export class CheckInOrchestrator {
 
     if (verified.kind === 'static' && verified.payload.typ === 'static') {
       const stc = verified.payload;
-      const member = await this.prisma.member.findUnique({
+      const member = await this.tenant.client.member.findUnique({
         where: { id: stc.mid },
         select: { id: true, qr_version: true },
       });
@@ -408,7 +411,7 @@ export class CheckInOrchestrator {
   }) {
     if (!input.branchId) return; // can only persist with a valid branch tied to the audit row
     const jti = input.jti ?? createHash('sha256').update(input.token).digest('hex').slice(0, 24);
-    await this.prisma.qrTokenAudit.create({
+    await this.tenant.client.qrTokenAudit.create({
       data: {
         gym_id: input.gymId,
         jti,
@@ -440,7 +443,7 @@ export class CheckInOrchestrator {
     };
 
     try {
-      const result = await this.prisma.$transaction(async (tx) => {
+      const result = await this.tenant.client.$transaction(async (tx) => {
         const { todayStart, todayEnd } = dayBoundsInTz(ctx.now, ctx.branch.timezone);
         const atomicDup = await tx.checkIn.findFirst({
           where: {
@@ -565,7 +568,7 @@ export class CheckInOrchestrator {
       // it means a previous identical request already persisted — treat as
       // idempotent success by replaying the prior event.
       if (err?.code === 'P2002' && input.client_event_id) {
-        const prior = await this.prisma.checkInEvent.findFirst({
+        const prior = await this.tenant.client.checkInEvent.findFirst({
           where: { gym_id: ctx.gym_id, client_event_id: input.client_event_id },
           select: { id: true, outcome: true },
         });
@@ -607,7 +610,7 @@ export class CheckInOrchestrator {
     const branchId = ctx.request.branch_id ?? ctx.member.branch_id;
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      return await this.tenant.client.$transaction(async (tx) => {
         const denyEvent = await tx.checkInEvent.create({
           data: {
             gym_id: ctx.gym_id,
@@ -713,7 +716,7 @@ export class CheckInOrchestrator {
   private async emitOccupancy(gymId: string, branchId: string, now: Date) {
     try {
       const cutoff = new Date(now.getTime() - 4 * 60 * 60 * 1000);
-      const current = await this.prisma.checkIn.count({
+      const current = await this.tenant.client.checkIn.count({
         where: {
           branch_id: branchId,
           status: 'success',
@@ -761,12 +764,12 @@ export class CheckInOrchestrator {
   }
 
   private async flipExpiredStatuses(membershipId: string, memberId: string) {
-    await this.prisma.$transaction([
-      this.prisma.memberMembership.update({
+    await this.tenant.client.$transaction([
+      this.tenant.client.memberMembership.update({
         where: { id: membershipId },
         data: { status: 'expired' },
       }),
-      this.prisma.member.update({
+      this.tenant.client.member.update({
         where: { id: memberId },
         data: { status: 'expired' },
       }),
