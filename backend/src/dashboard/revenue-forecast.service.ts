@@ -63,8 +63,17 @@ export class RevenueForecastService {
     return {};
   }
 
+  /**
+   * `YYYY-MM` in LOCAL time.
+   *
+   * Deliberately NOT `toISOString().slice(0,7)`: for any timezone ahead of UTC
+   * (India is +5:30) the 1st of a month at 00:00 local converts back into the
+   * PREVIOUS month in UTC, so the next-month label came out equal to the
+   * current one and payments made just after midnight fell into the wrong
+   * bucket. Local components match how an owner reads "this month".
+   */
   private monthKey(d: Date): string {
-    return d.toISOString().slice(0, 7);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }
 
   async getForecast(user?: JwtPayload, branchId?: string): Promise<RevenueForecast> {
