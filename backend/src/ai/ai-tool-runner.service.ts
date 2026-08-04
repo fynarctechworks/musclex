@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
+import { RevenueForecastService } from '../dashboard/revenue-forecast.service';
 
 /**
  * Executes the advisor's read-only analytics tools against the tenant client.
@@ -13,7 +14,10 @@ import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 export class AiToolRunnerService {
   private readonly logger = new Logger(AiToolRunnerService.name);
 
-  constructor(private readonly tenant: TenantPrisma) {}
+  constructor(
+    private readonly tenant: TenantPrisma,
+    private readonly forecast: RevenueForecastService,
+  ) {}
 
   /** Parse a model-supplied date, falling back to a sane default. */
   private day(value: unknown, fallback: Date): Date {
@@ -37,6 +41,10 @@ export class AiToolRunnerService {
           return await this.churnRisk();
         case 'get_outstanding_dues':
           return await this.outstandingDues();
+        case 'get_revenue_forecast':
+          // No user/branch args — the advisor answers in the caller's own
+          // gym scope, and the service falls back to gym-wide when no user.
+          return await this.forecast.getForecast();
         case 'get_top_trainers':
           return await this.topTrainers(input);
         default:

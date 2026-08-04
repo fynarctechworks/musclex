@@ -77,6 +77,16 @@ export const AI_TOOLS: Anthropic.Tool[] = [
     input_schema: { type: 'object', properties: {} },
   },
   {
+    name: 'get_revenue_forecast',
+    description:
+      'Forward-looking revenue projection: this month extrapolated by days ' +
+      'elapsed, next month from a trailing average plus trend, plus how many ' +
+      'memberships expire next month and their value. Use for "what will we ' +
+      'make", "are we on track", or renewal-risk questions. State that this is ' +
+      'a run-rate estimate, not a guarantee.',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
     name: 'get_top_trainers',
     description:
       'Trainers ranked by sessions delivered in a period, with members trained ' +

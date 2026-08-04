@@ -26,6 +26,7 @@ import { OccupancyService } from './occupancy.service';
 import { TodaysClassesService } from './todays-classes.service';
 // Wave 11
 import { BusinessMetricsService } from './business-metrics.service';
+import { RevenueForecastService } from './revenue-forecast.service';
 import { CohortService } from './cohort.service';
 import { SegmentService } from './segment.service';
 // Wave 12
@@ -74,6 +75,7 @@ import { ResourceLimitService } from '../common/services/resource-limit.service'
     RevenueIntelligenceService,
     // Wave 11
     BusinessMetricsService,
+    RevenueForecastService,
     CohortService,
     SegmentService,
     // Wave 12
@@ -102,6 +104,7 @@ import { ResourceLimitService } from '../common/services/resource-limit.service'
     TodaysClassesService,
     RevenueIntelligenceService,
     BusinessMetricsService,
+    RevenueForecastService,
     CohortService,
     SegmentService,
     ConflictDetectorService,

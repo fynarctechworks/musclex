@@ -3,6 +3,7 @@ import { RevenueIntelligenceService } from './revenue-intelligence.service';
 import { CohortService } from './cohort.service';
 import { SegmentService } from './segment.service';
 import { BusinessMetricsService } from './business-metrics.service';
+import { RevenueForecastService } from './revenue-forecast.service';
 import {
   JwtAuthGuard,
   PermissionsGuard,
@@ -25,6 +26,7 @@ export class DashboardIntelligenceController {
     private readonly cohorts: CohortService,
     private readonly segments: SegmentService,
     private readonly businessMetrics: BusinessMetricsService,
+    private readonly revenueForecast: RevenueForecastService,
   ) {}
 
   @Get('revenue-mix')
@@ -93,5 +95,15 @@ export class DashboardIntelligenceController {
     @Query('branch_id') branch_id?: string,
   ) {
     return this.businessMetrics.getBusinessMetrics(user, branch_id);
+  }
+
+  /** Forward-looking revenue projection (run-rate; see service docs). */
+  @Get('revenue-forecast')
+  @Permissions({ module: 'dashboard', action: 'view' })
+  getRevenueForecast(
+    @CurrentUser() user: JwtPayload,
+    @Query('branch_id') branch_id?: string,
+  ) {
+    return this.revenueForecast.getForecast(user, branch_id);
   }
 }
