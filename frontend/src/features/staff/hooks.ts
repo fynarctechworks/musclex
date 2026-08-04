@@ -430,6 +430,18 @@ export function useProcessPayroll() {
   });
 }
 
+export function useUpsertPayrollConfig() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: payrollApi.upsertConfig,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.staff.all });
+      toast.success('Salary configuration saved');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 export function useTrainerRevenue(filters?: { trainer_id?: string; branch_id?: string; start_date?: string; end_date?: string }) {
   return useQuery({
     queryKey: queryKeys.staff.payrollRevenue(filters),

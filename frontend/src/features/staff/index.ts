@@ -41,6 +41,7 @@ export {
   usePayrollSummary,
   usePayrollRecords,
   useProcessPayroll,
+  useUpsertPayrollConfig,
   useTrainerRevenue,
   useStaffInvites,
   useSendInvite,
