@@ -1,0 +1,46 @@
+# MuscleX production stack — isolated from all other apps on this VPS.
+# Backends bind to 127.0.0.1 only; nginx is the sole public entry. Dedicated
+# redis on an internal network (NOT host-published). Connects to remote Supabase.
+name: musclex
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: musclex_redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "no"]
+    volumes:
+      - musclex_redis_data:/data
+    networks: [musclex_net]
+
+  api:
+    container_name: musclex_api
+    build:
+      context: ../repo/backend
+      dockerfile: Dockerfile        # placed by deploy.sh from ../deploy/backend.Dockerfile
+    env_file: ./.env.api
+    ports:
+      - "127.0.0.1:4100:4000"
+    depends_on: [redis]
+    restart: unless-stopped
+    networks: [musclex_net]
+
+  scc_api:
+    container_name: musclex_scc_api
+    build:
+      context: ../repo/saas-control-center
+      dockerfile: Dockerfile        # placed by deploy.sh from ../deploy/scc.Dockerfile
+    env_file: ./.env.scc
+    ports:
+      - "127.0.0.1:4101:4001"
+    depends_on: [redis]
+    restart: unless-stopped
+    networks: [musclex_net]
+
+networks:
+  musclex_net:
+    name: musclex_net
+
+volumes:
+  musclex_redis_data:
+    name: musclex_redis_data
