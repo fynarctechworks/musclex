@@ -8,6 +8,7 @@ const extra = (Constants.expoConfig?.extra ?? {}) as {
   apiBaseUrl?: string;
   supabaseUrl?: string;
   supabaseAnonKey?: string;
+  payBaseUrl?: string;
 };
 
 export const config = {
@@ -18,6 +19,14 @@ export const config = {
   supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? extra.supabaseUrl ?? '',
   supabaseAnonKey:
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? extra.supabaseAnonKey ?? '',
+
+  // Hosted Razorpay checkout (the admin frontend's public /pay/[orderId] page).
+  // The renewal flow opens `${payBaseUrl}/pay/<orderId>` in the device browser;
+  // payment truth stays server-side (webhook + verify).
+  payBaseUrl:
+    process.env.EXPO_PUBLIC_PAY_BASE_URL ??
+    extra.payBaseUrl ??
+    'https://app.musclex.infynarc.com',
 
   // Analytics/monitoring (PostHog). Empty key → analytics is a no-op (dev console).
   posthogKey: process.env.EXPO_PUBLIC_POSTHOG_KEY ?? '',

@@ -10,6 +10,7 @@ import {
   Screen,
   Txt,
   health as healthAccents,
+  ramp,
   useThemeColors,
   useIsDark,
 } from '../../design-system';
@@ -45,7 +46,11 @@ export function PublicHome() {
   const fullName = useAuth((s) => s.context?.fullName);
   const hour = new Date().getHours();
   const timeGreeting = hour < 12 ? 'Good morning!' : hour < 17 ? 'Good afternoon!' : 'Good evening!';
-  const heroBg = isDark ? '#22300C' : '#E2F2C2';
+  // Soft clay hero — same mapping as GymHome (was hardcoded lime).
+  const heroBg = theme.primarySoft;
+  const heroInk = isDark ? theme.ink : ramp.clay[950];
+  const heroSub = isDark ? theme.inkAccent : ramp.clay[900];
+  const heroRing = isDark ? ramp.clay[500] : ramp.clay[800];
 
   const water = useWaterDay();
   const logWater = useLogPublicWater();
@@ -131,7 +136,7 @@ export function PublicHome() {
                     This week
                   </Txt>
                 </View>
-                <Txt variant="display-md" weight="600" style={{ color: '#1B2A07' }}>
+                <Txt variant="display-md" weight="600" style={{ color: heroInk }}>
                   Your Weekly{'\n'}Progress
                 </Txt>
               </View>
@@ -139,14 +144,14 @@ export function PublicHome() {
                 progress={Math.min(daysActive, 7) / 7}
                 size={92}
                 strokeWidth={9}
-                color="#4F7012"
-                trackColor={isDark ? '#3A4D18' : '#FFFFFF'}
+                color={heroRing}
+                trackColor={isDark ? theme.hairlineStrong : '#FFFFFF'}
               >
                 <View className="items-center">
-                  <Txt variant="display-sm" weight="600" style={{ color: '#1B2A07' }}>
+                  <Txt variant="display-sm" weight="600" style={{ color: heroInk }}>
                     {daysActive}
                   </Txt>
-                  <Txt variant="caption" style={{ color: '#3E5410' }}>
+                  <Txt variant="caption" style={{ color: heroSub }}>
                     {daysActive === 1 ? 'day' : 'days'}
                   </Txt>
                 </View>

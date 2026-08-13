@@ -51,9 +51,11 @@ export function FitTabBar({ state, navigation }: TabBarProps) {
     const route = state.routes[routeIndex];
     if (!route) return null;
     const focused = state.index === routeIndex;
-    // Active = brand green (vibrant lime icon + AA-readable green label); muted otherwise.
+    // Active = brand clay (vibrant icon + AA-readable label); muted otherwise.
+    // Label uses primaryStrong, not primary (raw clay is 3.4:1 — fails AA at
+    // 10.5px) and not accent (indigo — clashed with the clay icon post-rebrand).
     const iconTint = focused ? theme.primary : theme.mute;
-    const labelTint = focused ? theme.accent : theme.mute;
+    const labelTint = focused ? theme.primaryStrong : theme.mute;
 
     const onPress = () => {
       Haptics.selectionAsync();

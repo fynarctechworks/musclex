@@ -39,7 +39,9 @@ const LABEL_CLASS: Record<Variant, string> = {
   primary: 'text-on-primary',
   secondary: 'text-ink',
   ghost: 'text-body',
-  danger: 'text-ink',
+  // Cream, not ink: the clay-orange rebrand darkened `error` to #B81514, on which
+  // `ink` measures 2.4:1 (unreadable). `ink-inverse` gives 6.3:1.
+  danger: 'text-ink-inverse',
 };
 
 export function Button({
@@ -81,7 +83,14 @@ export function Button({
     >
       {loading ? (
         <ActivityIndicator
-          color={variant === 'primary' ? theme.onPrimary : theme.ink}
+          color={
+            variant === 'primary'
+              ? theme.onPrimary
+              : // `danger` is a dark-red fill — a dark spinner disappears on it.
+                variant === 'danger'
+                ? theme.inkInverse
+                : theme.ink
+          }
           size="small"
         />
       ) : (

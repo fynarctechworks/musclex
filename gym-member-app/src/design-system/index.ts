@@ -32,6 +32,8 @@ export {
   lightColors,
   darkColors,
   type ThemeColors,
+  ramp,
+  gradient,
   health,
   radius,
   space,

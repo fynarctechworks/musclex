@@ -2,33 +2,224 @@
 @tailwind components;
 @tailwind utilities;
 
-/*
- * Light (daylight) defaults for the theme CSS variables — the DEFAULT theme.
- * theme-vars.ts re-injects these (and the dark set) at runtime on the root <View>;
- * these :root values just guarantee color utilities resolve on first paint before
- * the runtime vars attach. Keep in sync with lightVars in theme-vars.ts.
- */
+/* ============================================================================
+ * MuscleX Member App — Design System
+ * ----------------------------------------------------------------------------
+ * Source: `memberapp-design system.md` (@layer theme, lines 87–419). That file is
+ * a compiled Tailwind v4 dump; only its theme layer carries design meaning — the
+ * other ~6,200 lines are generated utilities and are NOT a source for anything.
+ *
+ * Brand: warm cream canvas + CLAY ORANGE brand + indigo accent. This replaces the
+ * previous lime (#9DD12A) Kraken system — a deliberate rebrand, not a regression.
+ *
+ * HOW THIS FILE IS USED
+ *   • Web  — these `:root` / `.dark` blocks are the live source of the variables.
+ *   • Native — RN does not parse CSS. `src/design-system/theme-vars.ts` re-injects
+ *     the SAME values at runtime onto the root <View> in app/_layout.tsx. These
+ *     blocks still matter on native for first paint, before the runtime vars attach.
+ *   THREE FILES MUST STAY IN SYNC: this file, `theme-vars.ts`, and `tokens.ts`.
+ *
+ * WHY RGB CHANNELS, NOT HEX
+ *   tailwind.config.js maps each token to `rgb(var(--color-x) / <alpha-value>)`, so
+ *   opacity utilities (`bg-canvas/80`) work. That needs bare space-separated
+ *   channels. The static ramps at the bottom are plain hex — they take no alpha slot.
+ *
+ * CONTRAST — measured, not assumed. Every ratio below was computed against the
+ * token's intended background. Anything failing WCAG AA is called out explicitly
+ * rather than quietly shipped.
+ * ========================================================================== */
+
 @layer base {
+  /* ── LIGHT (default) ───────────────────────────────────────────────────── */
   :root {
-    --color-canvas: 255 255 255;
-    --color-canvas-soft: 246 246 250;
-    --color-surface: 255 255 255;
-    --color-surface-2: 241 241 245;
-    --color-hairline: 222 222 229;
-    --color-hairline-strong: 203 203 214;
-    --color-ink: 16 17 20;
-    --color-body: 104 107 130;
-    --color-mute: 148 151 169;
-    --color-primary: 157 209 42;
-    --color-on-primary: 16 17 20;
-    --color-accent: 91 128 17;
-    --color-accent-soft: 232 247 221;
-    --color-success: 20 158 97;
-    --color-success-fg: 2 107 63;
-    --color-warning: 245 166 35;
-    --color-warning-soft: 254 243 225;
-    --color-error: 225 75 75;
-    --color-error-soft: 252 234 234;
+    /* Surfaces — cream page, white cards lifting off it.
+     * Canvas is the reference's warm #FAF8F5; the raised steps are its neutral
+     * sf ramp (#F5F5F5 / #F0F0F0 / #E6E6E6), so raised surfaces read very slightly
+     * cooler than the canvas. That is the reference's own combination, kept as-is. */
+    --color-canvas: 250 248 245; /* #FAF8F5 warm cream — page body */
+    --color-canvas-soft: 245 245 245; /* #F5F5F5 — raised section band */
+    --color-surface: 255 255 255; /* #FFFFFF — card (lifts off the cream) */
+    --color-surface-2: 240 240 240; /* #F0F0F0 — inset / pressed */
+    --color-surface-3: 230 230 230; /* #E6E6E6 — deepest inset */
+    --color-hairline: 230 230 230; /* #E6E6E6 — 1px dividers */
+    --color-hairline-strong: 204 204 204; /* #CCCCCC — emphasised border */
+
+    /* Text — five tiers. Ratios are against the cream canvas. */
+    --color-ink: 31 31 31; /* #1F1F1F — primary text       15.4:1 AAA  */
+    --color-ink-2: 61 61 61; /* #3D3D3D — strong secondary   10.0:1 AAA  */
+    --color-body: 102 102 102; /* #666666 — secondary text      5.2:1 AA   */
+    --color-mute: 153 153 153; /* #999999 — see WARNING         2.7:1 FAIL */
+    --color-faint: 179 179 179; /* #B3B3B3 — decorative only     2.0:1 FAIL */
+    /* WARNING: `mute` and `faint` do NOT meet WCAG AA for text. They are the
+     * reference's own ct-tertiary / ct-quaternary values, kept for fidelity. Use
+     * them for disabled states, placeholder glyphs and decorative rules ONLY —
+     * never for content the member has to read. Use `body` for that. */
+
+    --color-ink-inverse: 250 248 245; /* #FAF8F5 — text on dark / brand fills */
+    --color-ink-brand: 41 33 29; /* #29211D — warm near-black for brand headings */
+    --color-ink-accent: 196 115 61; /* #C4733D — muted clay for accent text */
+
+    /* Brand — clay orange. */
+    --color-primary: 213 101 15; /* #D5650F — brand / CTA fill */
+    --color-on-primary: 20 20 20; /* #141414 — text ON primary     5.1:1 AA   */
+    /* on-primary is the reference's own near-black, NOT white: white on #D5650F
+     * is only 3.7:1 and fails AA for button labels. Dark ink also suits the clay. */
+    --color-primary-strong: 165 70 15; /* #A5460F — pressed / white-text fill 6.0:1 */
+    --color-primary-soft: 254 237 230; /* #FEEDE6 — tinted brand background */
+
+    /* Accent — indigo, for links and interactive text. */
+    --color-accent: 51 51 204; /* #3333CC — links               8.0:1 AA   */
+    --color-accent-soft: 232 239 252; /* #E8EFFC */
+
+    /* Secondary — the GRAPHICS accent (rings, charts, progress, active icons).
+     * Warm brand-family, so data viz reads as MuscleX yet stays distinct from the
+     * CTA fill. 3.2:1 on canvas — clears the 3:1 non-text minimum. NOT for text. */
+    --color-secondary: 230 101 27; /* #E6651B */
+
+    /* Semantic. `success` stays green — the reference's own green ramp is lime-
+     * leaning, so the app's green heritage survives as the positive colour. */
+    --color-success: 110 163 53; /* #6EA335 */
+    --color-success-fg: 73 109 33; /* #496D21 — on success-soft     6.3:1 AA   */
+    --color-success-soft: 227 241 216; /* #E3F1D8 */
+    --color-warning: 254 177 43; /* #FEB12B */
+    --color-warning-fg: 162 114 36; /* #A27224 — on warning-soft     4.6:1 AA   */
+    --color-warning-soft: 255 240 207; /* #FFF0CF */
+    --color-error: 184 21 20; /* #B81514 */
+    --color-error-fg: 162 25 19; /* #A21913 — on error-soft       8.0:1 AA   */
+    --color-error-soft: 253 231 226; /* #FDE7E2 */
+    --color-info: 51 51 204; /* #3333CC */
+    --color-info-soft: 232 239 252; /* #E8EFFC */
+  }
+
+  /* ── DARK ──────────────────────────────────────────────────────────────────
+   * DERIVED, NOT COPIED. The reference design system is light-only — it ships no
+   * dark palette at all. These values are hand-derived to hold the clay/cream
+   * character on a warm near-black canvas: hues kept, lightness lifted until each
+   * token clears its contrast target. Ratios are measured against `canvas`.
+   * UNVERIFIED on a real device — needs an on-screen check.
+   * ------------------------------------------------------------------------ */
+  .dark:root,
+  .dark {
+    --color-canvas: 23 19 16; /* #171310 warm near-black */
+    --color-canvas-soft: 28 24 21; /* #1C1815 */
+    --color-surface: 34 29 25; /* #221D19 */
+    --color-surface-2: 42 36 31; /* #2A241F */
+    --color-surface-3: 51 43 37; /* #332B25 */
+    --color-hairline: 56 47 40; /* #382F28 */
+    --color-hairline-strong: 74 63 54; /* #4A3F36 */
+
+    --color-ink: 250 248 245; /* #FAF8F5 — the cream becomes the text 17.7:1 AAA  */
+    --color-ink-2: 224 218 211; /* #E0DAD3                             13.9:1 AAA  */
+    --color-body: 176 166 156; /* #B0A69C                              7.8:1 AA   */
+    --color-mute: 141 129 119; /* #8D8177 — lifted to clear AA         4.9:1 AA   */
+    --color-faint: 107 96 88; /* #6B6058 — decorative only            2.8:1 FAIL */
+
+    --color-ink-inverse: 20 20 20; /* #141414 */
+    --color-ink-brand: 250 248 245; /* #FAF8F5 */
+    --color-ink-accent: 249 187 158; /* #F9BB9E */
+
+    --color-primary: 233 108 47; /* #E96C2F — clay lifted for dark       5.9:1 AA   */
+    --color-on-primary: 23 19 16; /* #171310 — dark ink stays on the fill */
+    --color-primary-strong: 243 136 88; /* #F38858 */
+    --color-primary-soft: 53 33 20; /* #352114 — deep clay tint */
+
+    --color-accent: 129 160 233; /* #81A0E9 — indigo lifted              7.3:1 AA   */
+    --color-accent-soft: 27 33 54; /* #1B2136 */
+    --color-secondary: 245 153 112; /* #F59970 */
+
+    --color-success: 144 200 91; /* #90C85B */
+    --color-success-fg: 172 213 135; /* #ACD587 */
+    --color-success-soft: 31 42 20; /* #1F2A14 */
+    --color-warning: 255 203 121; /* #FFCB79 */
+    --color-warning-fg: 255 232 183; /* #FFE8B7 */
+    --color-warning-soft: 46 36 17; /* #2E2411 */
+    --color-error: 219 113 92; /* #DB715C */
+    --color-error-fg: 235 161 143; /* #EBA18F */
+    --color-error-soft: 46 23 19; /* #2E1713 */
+    --color-info: 129 160 233; /* #81A0E9 */
+    --color-info-soft: 27 33 54; /* #1B2136 */
+  }
+
+  /* ── STATIC RAMPS ──────────────────────────────────────────────────────────
+   * Theme-INDEPENDENT (identical in light and dark) — reach for these when you
+   * need a specific step rather than a semantic role: illustrations, category
+   * tags, multi-series charts, gradients. Verbatim from the reference's sr-* set.
+   * Plain hex, because they take no `<alpha-value>` slot.
+   * ------------------------------------------------------------------------ */
+  :root {
+    /* Clay — the brand ramp (reference sr-orange) */
+    --clay-50: #fffbfa;
+    --clay-100: #feede6;
+    --clay-200: #fddcce;
+    --clay-300: #f9bb9e;
+    --clay-400: #f59970;
+    --clay-500: #f38858;
+    --clay-600: #ee7944;
+    --clay-700: #e96c2f;
+    --clay-800: #e6651b;
+    --clay-900: #a5460f;
+    --clay-950: #682906;
+
+    /* Indigo — accent ramp (reference sr-indigo) */
+    --indigo-50: #fafcff;
+    --indigo-100: #e8effc;
+    --indigo-200: #d2dff9;
+    --indigo-300: #a7c0f1;
+    --indigo-400: #81a0e9;
+    --indigo-500: #6a88e2;
+    --indigo-600: #556adc;
+    --indigo-700: #4250d5;
+    --indigo-800: #3333cc;
+    --indigo-900: #212191;
+    --indigo-950: #11115b;
+
+    /* Sage — positive ramp (reference sr-green; note it is lime-leaning, which is
+     * why the app's green heritage survives here). The source defines no 900; its
+     * `1000` step is mapped to 950 for Tailwind-conventional naming. */
+    --sage-50: #f2f8eb;
+    --sage-100: #e3f1d8;
+    --sage-200: #c8e4b0;
+    --sage-300: #acd587;
+    --sage-400: #90c85b;
+    --sage-500: #83c040;
+    --sage-600: #6ea335;
+    --sage-700: #496d21;
+    --sage-800: #385418;
+    --sage-950: #152605;
+
+    /* Red — danger ramp (reference sr-red). The source defines 700 and 800 as the
+     * SAME value (#781A11); the duplicate 800 is dropped rather than invented. */
+    --red-50: #fde7e2;
+    --red-100: #f8d1c6;
+    --red-200: #eba18f;
+    --red-300: #db715c;
+    --red-400: #c43d2b;
+    --red-500: #b81514;
+    --red-600: #a21913;
+    --red-700: #781a11;
+
+    /* Amber — caution ramp (reference sr-yellow). Source defines no 400 or 900. */
+    --amber-50: #fff8e6;
+    --amber-100: #fff0cf;
+    --amber-200: #ffe8b7;
+    --amber-300: #ffcb79;
+    --amber-500: #feb12b;
+    --amber-600: #df9c2a;
+    --amber-700: #c08827;
+    --amber-800: #a27224;
+    --amber-950: #362813;
+
+    /* Sand — the neutral ramp (reference sr-grey) */
+    --sand-50: #f9f9f9;
+    --sand-100: #f5f5f5;
+    --sand-200: #f0f0f0;
+    --sand-300: #e6e6e6;
+    --sand-400: #cccccc;
+    --sand-500: #b3b3b3;
+    --sand-600: #999999;
+    --sand-700: #666666;
+    --sand-800: #525252;
+    --sand-950: #292929;
   }
 
   /*

@@ -13,6 +13,7 @@ import {
   SkeletonCard,
   Txt,
   health,
+  ramp,
   useThemeColors,
   useIsDark,
 } from '../../src/design-system';
@@ -91,10 +92,14 @@ function GymHome({
   const glasses = Math.round(waterMl / ML_PER_GLASS);
   const goalGlasses = waterGoalMl ? Math.round(waterGoalMl / ML_PER_GLASS) : 0;
 
-  // Soft lime hero (reference "Weekly Progress" card) — saturated enough to read
-  // as the brand accent, calm enough for a large fill. Dark theme gets a deep
-  // green-tinted surface so the lime doesn't glare on the near-black canvas.
-  const heroBg = isDark ? '#22300C' : '#E2F2C2';
+  // Soft clay hero (reference "Weekly Progress" card) — the brand tint, calm
+  // enough for a large fill. `primary-soft` is theme-aware (deep clay in dark),
+  // and the ink/ring/caption shades come from the clay ramp so the card reads
+  // as one warm family. (Was hardcoded lime — the last green holdout.)
+  const heroBg = theme.primarySoft;
+  const heroInk = isDark ? theme.ink : ramp.clay[950];
+  const heroSub = isDark ? theme.inkAccent : ramp.clay[900];
+  const heroRing = isDark ? ramp.clay[500] : ramp.clay[800];
 
   return (
     <Screen scroll padded={false} onRefresh={refetch} refreshing={isRefetching}>
@@ -152,7 +157,7 @@ function GymHome({
                         Daily intake
                       </Txt>
                     </View>
-                    <Txt variant="display-md" weight="600" style={{ color: '#1B2A07' }}>
+                    <Txt variant="display-md" weight="600" style={{ color: heroInk }}>
                       Your Weekly{'\n'}Progress
                     </Txt>
                   </View>
@@ -160,14 +165,14 @@ function GymHome({
                     progress={Math.min(streak, 7) / 7}
                     size={92}
                     strokeWidth={9}
-                    color="#4F7012"
-                    trackColor={isDark ? '#3A4D18' : '#FFFFFF'}
+                    color={heroRing}
+                    trackColor={isDark ? theme.hairlineStrong : '#FFFFFF'}
                   >
                     <View className="items-center">
-                      <Txt variant="display-sm" weight="600" style={{ color: '#1B2A07' }}>
+                      <Txt variant="display-sm" weight="600" style={{ color: heroInk }}>
                         {streak}
                       </Txt>
-                      <Txt variant="caption" style={{ color: '#3E5410' }}>
+                      <Txt variant="caption" style={{ color: heroSub }}>
                         {streak === 1 ? 'day' : 'days'}
                       </Txt>
                     </View>

@@ -146,6 +146,8 @@ export default function RootLayout() {
               <Stack.Screen name="exercise/[id]" options={{ presentation: 'card' }} />
               <Stack.Screen name="messages" options={{ presentation: 'card' }} />
               <Stack.Screen name="chat/[trainerId]" options={{ presentation: 'card' }} />
+              <Stack.Screen name="plan" options={{ presentation: 'card' }} />
+              <Stack.Screen name="coach" options={{ presentation: 'card' }} />
               <Stack.Screen name="locations" options={{ presentation: 'card' }} />
               <Stack.Screen name="gyms" options={{ presentation: 'card' }} />
               <Stack.Screen name="gym/[tenantId]" options={{ presentation: 'card' }} />
