@@ -151,15 +151,40 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
       if (action === 'findUnique' || action === 'findUniqueOrThrow') {
         // findUnique/ByUniqueInput can't accept gym_id in where; post-check the result.
+        // FAIL CLOSED: a `select` that omits gym_id would leave result.gym_id undefined,
+        // silently skipping the cross-tenant guard (R3 fails-open leak class). Force
+        // gym_id into the projection so the check always runs, then strip it back out.
+        const selectArg = (args as any)?.select;
+        let injectedGymId = false;
+        if (
+          selectArg &&
+          typeof selectArg === 'object' &&
+          !Array.isArray(selectArg) &&
+          !selectArg.gym_id
+        ) {
+          params.args = { ...args, select: { ...selectArg, gym_id: true } };
+          injectedGymId = true;
+        }
+
         const result = await next(params);
-        if (result && (result as any).gym_id && (result as any).gym_id !== gymId) {
-          this.logger.error(
-            `TENANT VIOLATION: ${params.model}.${action} returned cross-tenant record`,
-          );
-          if (action === 'findUniqueOrThrow') {
-            throw new Error('Record not found');
+        if (result) {
+          const rowGymId = (result as any).gym_id;
+          if (rowGymId !== gymId) {
+            // rowGymId !== gymId covers both a real cross-tenant row AND the
+            // can't-determine case (undefined) — both must fail closed.
+            if (rowGymId !== undefined) {
+              this.logger.error(
+                `TENANT VIOLATION: ${params.model}.${action} returned cross-tenant record`,
+              );
+            }
+            if (action === 'findUniqueOrThrow') {
+              throw new Error('Record not found');
+            }
+            return null;
           }
-          return null;
+          if (injectedGymId) {
+            delete (result as any).gym_id;
+          }
         }
         return result;
       }

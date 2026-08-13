@@ -101,15 +101,28 @@ export function createTenantExtension(prisma: PrismaClient) {
         async findUnique({ model, args, query }) {
           // findUnique uses unique fields in where — we can't inject gym_id there.
           // Instead, we verify post-fetch that the record belongs to this tenant.
+          // FAIL CLOSED: force gym_id into a projecting `select` so the guard can't be
+          // skipped by a select that omits gym_id (R3 fails-open leak class).
           const gymId = getTenantGymId();
+          let injectedGymId = false;
+          if (gymId && isTenantModel(model)) {
+            const selectArg = (args as any)?.select;
+            if (selectArg && typeof selectArg === 'object' && !Array.isArray(selectArg) && !selectArg.gym_id) {
+              (args as any).select = { ...selectArg, gym_id: true };
+              injectedGymId = true;
+            }
+          }
           const result = await query(args);
           if (gymId && isTenantModel(model) && result) {
-            if ((result as any).gym_id && (result as any).gym_id !== gymId) {
-              logger.error(
-                `TENANT VIOLATION: ${model}.findUnique returned record with gym_id=${(result as any).gym_id}, expected=${gymId}`,
-              );
-              return null; // Silently hide — do not expose cross-tenant data
+            if ((result as any).gym_id !== gymId) {
+              if ((result as any).gym_id !== undefined) {
+                logger.error(
+                  `TENANT VIOLATION: ${model}.findUnique returned record with gym_id=${(result as any).gym_id}, expected=${gymId}`,
+                );
+              }
+              return null; // cross-tenant OR indeterminate → hide
             }
+            if (injectedGymId) delete (result as any).gym_id;
           }
           return result;
         },
@@ -124,14 +137,25 @@ export function createTenantExtension(prisma: PrismaClient) {
 
         async findUniqueOrThrow({ model, args, query }) {
           const gymId = getTenantGymId();
+          let injectedGymId = false;
+          if (gymId && isTenantModel(model)) {
+            const selectArg = (args as any)?.select;
+            if (selectArg && typeof selectArg === 'object' && !Array.isArray(selectArg) && !selectArg.gym_id) {
+              (args as any).select = { ...selectArg, gym_id: true };
+              injectedGymId = true;
+            }
+          }
           const result = await query(args);
           if (gymId && isTenantModel(model) && result) {
-            if ((result as any).gym_id && (result as any).gym_id !== gymId) {
-              logger.error(
-                `TENANT VIOLATION: ${model}.findUniqueOrThrow returned cross-tenant record`,
-              );
-              throw new Error('Record not found'); // Mimic not-found to prevent data leak
+            if ((result as any).gym_id !== gymId) {
+              if ((result as any).gym_id !== undefined) {
+                logger.error(
+                  `TENANT VIOLATION: ${model}.findUniqueOrThrow returned cross-tenant record`,
+                );
+              }
+              throw new Error('Record not found'); // cross-tenant OR indeterminate → hide
             }
+            if (injectedGymId) delete (result as any).gym_id;
           }
           return result;
         },

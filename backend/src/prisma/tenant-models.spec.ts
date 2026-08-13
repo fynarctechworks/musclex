@@ -30,9 +30,24 @@ describe('TENANT_MODELS drift guard', () => {
   // an entry that is actually registered or non-existent fails the staleness test below.
   const KNOWN_DEFERRED = new Set<string>([]);
 
+  // PUBLIC-schema routing indexes (NOT tenant tables): they carry a gym_id
+  // column as routing DATA, are read/written exclusively through
+  // PublicPrismaService, and by design are resolved BEFORE any tenant context
+  // exists (device auth, iclock SN routing). Registering them in TENANT_MODELS
+  // would be wrong — the $use tenant middleware never sees the public client,
+  // and these lookups must work cross-gym pre-context.
+  const PUBLIC_REGISTRY_MODELS = new Set<string>([
+    'DeviceIndex',
+    'BiometricDeviceIndex',
+    'WhatsAppNumberIndex',
+  ]);
+
   it('every Prisma model with a gym_id field is registered in TENANT_MODELS (or explicitly deferred)', () => {
     const missing = modelsWithGymId.filter(
-      (name) => !TENANT_MODELS.has(name) && !KNOWN_DEFERRED.has(name),
+      (name) =>
+        !TENANT_MODELS.has(name) &&
+        !KNOWN_DEFERRED.has(name) &&
+        !PUBLIC_REGISTRY_MODELS.has(name),
     );
     expect(missing).toEqual([]);
     // Sanity: we actually found gym_id models (guards against a broken DMMF import

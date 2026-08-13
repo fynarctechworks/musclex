@@ -2,9 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    # `master` is this repo's default branch — it was missing here, so CI had
+    # never actually run on a push. main/develop kept for compatibility.
+    branches: [master, main, develop]
   pull_request:
-    branches: [main]
+    branches: [master, main]
 
 env:
   NODE_VERSION: '20'
@@ -102,3 +104,39 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+
+  # ── Member mobile app ───────────────────────────────────────────────────────
+  # Added in Phase 0.1 of the member-app rebuild (gym-member-app/docs/
+  # MOBILE_IMPLEMENTATION_PLAN.md). Before this the app had no automated gate of
+  # any kind. There is no build step: an Expo app builds via EAS, not in CI.
+  member-app:
+    name: Member App — Typecheck, Lint & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gym-member-app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: gym-member-app/package-lock.json
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # NON-BLOCKING on purpose. `expo lint` currently reports 77 errors across 21
+      # PRE-EXISTING files (mostly react-hooks/purity + set-state-in-effect from the
+      # React Compiler rules) — none in newly added code. Making this a hard gate
+      # would put CI red on its first run, which is how gates get switched off.
+      # Phase 9 of the rebuild plan clears the backlog; flip this to blocking then.
+      - name: Lint (report only — see rebuild plan Phase 9)
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Run tests
+        run: npm test -- --ci --coverage

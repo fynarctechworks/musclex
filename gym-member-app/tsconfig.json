@@ -1,7 +1,12 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    // Explicit global @types. Needed once tests exist: without listing "jest",
+    // `describe`/`it`/`expect` are unresolved in every __tests__ file. "react" and
+    // "node" are named too because specifying `types` at all disables automatic
+    // @types inclusion — dropping them would break JSX and Node globals.
+    "types": ["jest", "react", "node"]
   },
   "include": [
     "**/*.ts",

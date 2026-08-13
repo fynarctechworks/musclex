@@ -30,6 +30,10 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { PlatformModule } from './platform/platform.module';
 import { QueueModule } from './queue/queue.module';
 import { EmailModule } from './email/email.module';
+import { WhatsAppModule } from './whatsapp/whatsapp.module';
+import { PlansModule } from './plans/plans.module';
+import { PublicPortalModule } from './public-portal/public-portal.module';
+import { PushModule } from './push/push.module';
 import { SearchModule } from './search/search.module';
 import { ComplianceModule } from './compliance/compliance.module';
 import { ReferralsModule } from './referrals/referrals.module';
@@ -112,6 +116,10 @@ import { SentryTenantMiddleware } from './common/sentry/sentry-tenant.middleware
     PlatformModule,
     QueueModule.register(),
     EmailModule,
+    WhatsAppModule,
+    PlansModule,
+    PublicPortalModule,
+    PushModule,
     SearchModule,
     ComplianceModule,
     ReferralsModule,

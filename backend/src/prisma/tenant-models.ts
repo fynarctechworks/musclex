@@ -67,4 +67,11 @@ export const TENANT_MODELS: ReadonlySet<string> = new Set<string>([
   // registering here only tightens the $use + tenant-extension isolation.
   // ────────────────────────────────────────────────────────────────
   'MemberHealthSample', 'MemberHealthDaily', 'MemberWearableConnection',
+  // ────────────────────────────────────────────────────────────────
+  // Trainer-assigned diet plans + member AI coach (2026-07-16). All carry
+  // gym_id (explicit on write, injected on read) — registering only tightens.
+  // ────────────────────────────────────────────────────────────────
+  'DietPlan', 'DietPlanMeal', 'AssignedDietPlan', 'MemberAiConversation',
+  // WhatsApp shared inbox (2026-07-17)
+  'WhatsAppMessage',
 ]);
