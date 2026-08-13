@@ -85,7 +85,7 @@ export class SubscriptionGateway
     payload: {
       previous_status: SubscriptionLifecycleStatus;
       subscription: SubscriptionContext;
-      reason: 'cron_recompute' | 'renewal' | 'admin_action' | 'webhook';
+      reason: 'cron_recompute' | 'renewal' | 'admin_action' | 'webhook' | 'plan_change';
     },
   ): void {
     this.server

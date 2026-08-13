@@ -20,7 +20,6 @@ import {
 } from '@/lib/location';
 import { toast } from 'sonner';
 import { OnboardingLayout } from '@/components/onboarding/onboarding-layout';
-import { supabase } from '@/lib/supabase';
 
 const GYM_BUSINESS_TYPES = [
   { value: 'gym', label: 'Gym' },
@@ -237,19 +236,27 @@ export default function StudioInfoPage() {
       if (logoFile) {
         setLogoUploading(true);
         try {
-          // Ensure bucket exists (no-op if already created)
-          await supabase.storage.createBucket('studio-assets', { public: true }).catch(() => {});
-          const ext = logoFile.name.split('.').pop() ?? 'png';
-          const path = `logos/${Date.now()}.${ext}`;
-          const { error: uploadError } = await supabase.storage
-            .from('studio-assets')
-            .upload(path, logoFile, { upsert: true });
-          if (uploadError) {
-            toast.error('Logo upload failed. Continuing without logo.');
+          // Upload via the backend (service role) — the browser can't create
+          // buckets or insert storage objects, so a direct client upload 400s.
+          const formData = new FormData();
+          formData.append('file', logoFile);
+          const token = useAuthStore.getState().accessToken;
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/uploads/logo`,
+            {
+              method: 'POST',
+              headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+              body: formData,
+            },
+          );
+          if (res.ok) {
+            const upload = (await res.json()) as { url?: string };
+            logoUrl = upload.url;
           } else {
-            const { data: urlData } = supabase.storage.from('studio-assets').getPublicUrl(path);
-            logoUrl = urlData.publicUrl;
+            toast.error('Logo upload failed. Continuing without logo.');
           }
+        } catch {
+          toast.error('Logo upload failed. Continuing without logo.');
         } finally {
           setLogoUploading(false);
         }

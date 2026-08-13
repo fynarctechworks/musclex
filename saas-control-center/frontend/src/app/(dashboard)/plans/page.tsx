@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import type { SubscriptionPlan } from '@/types';
 import { PlanFormModal } from './plan-form-modal';
+import { GstSettingsCard } from './gst-settings-card';
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-IN', {
@@ -76,6 +77,8 @@ export default function PlansPage() {
           </Button>
         }
       />
+
+      <GstSettingsCard />
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

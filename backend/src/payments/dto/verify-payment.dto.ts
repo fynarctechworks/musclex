@@ -1,4 +1,4 @@
-import { IsString, IsUUID } from 'class-validator';
+import { IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class VerifyPaymentDto {
   @IsString()
@@ -10,12 +10,18 @@ export class VerifyPaymentDto {
   @IsString()
   signature: string;
 
+  // Accepted for backward-compat but IGNORED by PaymentsService.verifyPayment —
+  // member/branch are derived from the pending Payment row and plan from the
+  // gateway order notes, so a client cannot swap the plan or the beneficiary.
+  @IsOptional()
   @IsUUID()
-  member_id: string;
+  member_id?: string;
 
+  @IsOptional()
   @IsUUID()
-  plan_id: string;
+  plan_id?: string;
 
+  @IsOptional()
   @IsUUID()
-  branch_id: string;
+  branch_id?: string;
 }

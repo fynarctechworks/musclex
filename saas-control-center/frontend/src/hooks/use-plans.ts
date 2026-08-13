@@ -95,6 +95,37 @@ export function useToggleFeatured() {
   });
 }
 
+export interface GstSettings {
+  gst_enabled: boolean;
+  gst_percent: number;
+  gst_label: string;
+}
+
+/** Platform-wide subscription GST rate (applied on top of plan prices). */
+export function useGstSettings() {
+  return useQuery({
+    queryKey: ['plans', 'gst'],
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<GstSettings>>('/plans/billing/gst');
+      return data.data;
+    },
+  });
+}
+
+export function useUpdateGstSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: GstSettings) => {
+      const { data } = await api.put<ApiResponse<GstSettings>>(
+        '/plans/billing/gst',
+        payload,
+      );
+      return data.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['plans', 'gst'] }),
+  });
+}
+
 export function useDeletePlan() {
   const qc = useQueryClient();
   return useMutation({

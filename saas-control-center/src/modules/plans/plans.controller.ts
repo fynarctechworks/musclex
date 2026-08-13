@@ -20,6 +20,7 @@ import { PlansService } from './plans.service';
 import { CurrentAdmin } from '../../common/decorators/current-admin.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CreatePlanDto, UpdatePlanDto } from './dto/plans.dto';
+import { UpdateGstDto } from './dto/gst.dto';
 
 @ApiTags('Plans')
 @ApiBearerAuth()
@@ -41,6 +42,28 @@ export class PlansController {
   })
   findAssignable() {
     return this.plansService.findAssignable();
+  }
+
+  @Get('billing/gst')
+  @Roles(AdminRole.SUPER, AdminRole.BILLING, AdminRole.SUPPORT)
+  @ApiOperation({ summary: 'Get the platform-wide subscription GST setting' })
+  getGst() {
+    return this.plansService.getGstSettings();
+  }
+
+  @Put('billing/gst')
+  @Roles(AdminRole.SUPER, AdminRole.BILLING)
+  @ApiOperation({ summary: 'Update the platform-wide subscription GST setting' })
+  updateGst(
+    @Body() dto: UpdateGstDto,
+    @CurrentAdmin() admin: any,
+    @Req() req: Request,
+  ) {
+    return this.plansService.updateGstSettings(dto, {
+      admin_id: admin.id,
+      ip_address: req.ip,
+      user_agent: req.headers['user-agent'],
+    });
   }
 
   @Get(':id')

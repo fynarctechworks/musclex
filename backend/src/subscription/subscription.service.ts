@@ -12,6 +12,12 @@ import { SubscriptionPolicyService } from '../common/services/subscription-polic
 import { SubscriptionGateway } from './subscription.gateway';
 import { RazorpayService } from '../payments/razorpay.service';
 import { PLAN_CONFIGS } from '../common/plan-configs';
+import {
+  classifyPlanChange,
+  computeProration,
+  cycleDays,
+  PlanChangeMode,
+} from './proration.util';
 import { QueueService } from '../queue/queue.service';
 import {
   REFERRAL_EVENTS,
@@ -63,10 +69,18 @@ export class SubscriptionService {
     });
     if (!studio) throw new NotFoundException('Studio not found');
 
-    const targetPlan = opts.plan ?? studio.subscription_plan;
-    const targetCycle = (opts.billing_cycle ?? studio.billing_cycle) as
-      | 'monthly'
-      | 'annual';
+    // A scheduled downgrade / cycle switch is consumed at renewal: when the
+    // caller doesn't name a plan or cycle explicitly, the pending scheduled
+    // change is the default. An explicit choice supersedes it.
+    const pending =
+      opts.plan || opts.billing_cycle
+        ? null
+        : await this.getRenewalDefaultChange(studioId);
+
+    const targetPlan = opts.plan ?? pending?.target_plan ?? studio.subscription_plan;
+    const targetCycle = (opts.billing_cycle ??
+      pending?.target_cycle ??
+      studio.billing_cycle) as 'monthly' | 'annual';
     if (targetCycle !== 'monthly' && targetCycle !== 'annual') {
       throw new BadRequestException(`Invalid billing_cycle "${targetCycle}".`);
     }
@@ -74,14 +88,21 @@ export class SubscriptionService {
     const planInfo = await this.resolvePlanPricing(targetPlan);
     if (!planInfo) throw new BadRequestException(`Unknown plan "${targetPlan}".`);
 
-    const amount =
+    const subtotal =
       targetCycle === 'annual' ? planInfo.annual_price : planInfo.monthly_price;
-    if (amount <= 0) {
+    if (subtotal <= 0) {
       throw new BadRequestException(`Plan "${targetPlan}" is free — no payment required.`);
     }
 
+    // GST is added on top (exclusive) at the platform rate configured in the SCC.
+    // The Razorpay order is created for the GST-inclusive TOTAL — that's the
+    // authoritative amount every downstream step (verify, onboarding payment,
+    // invoice) reads back, so GST flows through without trusting the client.
+    const gst = await this.computeGst(subtotal);
+    const total = +(subtotal + gst.amount).toFixed(2);
+
     const order = await this.razorpay.createOrder({
-      amount,
+      amount: total,
       currency: 'INR',
       receipt: `SUB-${studioId.slice(0, 8)}-${Date.now()}`,
       notes: {
@@ -95,12 +116,95 @@ export class SubscriptionService {
     return {
       order_id: order.id,
       key_id: this.razorpay.getKeyId(),
-      amount,
+      amount: total,
       currency: 'INR',
       plan: targetPlan,
       billing_cycle: targetCycle,
       plan_display_name: planInfo.display_name,
+      // Breakdown so the client can render a GST summary.
+      subtotal,
+      gst_percent: gst.percent,
+      gst_label: gst.label,
+      gst_amount: gst.amount,
+      total,
     };
+  }
+
+  /**
+   * Read-only GST/total preview for the studio's currently-selected plan. The
+   * onboarding payment page calls this to render the subtotal + GST + total
+   * summary BEFORE creating an order. Amounts are computed server-side from the
+   * plan; no order is created.
+   */
+  async getOrderPreview(studioId: string) {
+    const studio = await this.pub.studio.findUnique({
+      where: { id: studioId },
+      select: { subscription_plan: true, billing_cycle: true, currency: true },
+    });
+    if (!studio) throw new NotFoundException('Studio not found');
+
+    const cycle = (studio.billing_cycle as 'monthly' | 'annual') ?? 'monthly';
+    const planInfo = await this.resolvePlanPricing(studio.subscription_plan);
+    if (!planInfo) {
+      throw new BadRequestException(`Unknown plan "${studio.subscription_plan}".`);
+    }
+
+    const subtotal = cycle === 'annual' ? planInfo.annual_price : planInfo.monthly_price;
+    const gst = await this.computeGst(subtotal);
+    const total = +(subtotal + gst.amount).toFixed(2);
+
+    return {
+      plan: studio.subscription_plan,
+      plan_display_name: planInfo.display_name,
+      billing_cycle: cycle,
+      currency: studio.currency || 'INR',
+      subtotal,
+      gst_percent: gst.percent,
+      gst_label: gst.label,
+      gst_amount: gst.amount,
+      total,
+    };
+  }
+
+  /**
+   * Read the platform-wide subscription GST setting from scc.platform_settings
+   * (configured in the SCC). Fails safe to "disabled / 0%" if the row is
+   * missing or unreadable, so payments never break.
+   */
+  private async readGstSetting(): Promise<{
+    percent: number;
+    label: string;
+    enabled: boolean;
+  }> {
+    try {
+      const rows = await this.pub.$queryRaw<Array<{ value: any }>>`
+        SELECT value FROM scc.platform_settings WHERE key = 'subscription_gst' LIMIT 1
+      `;
+      const v = rows[0]?.value;
+      if (v) {
+        const percent = Number(v.percent ?? 0);
+        return {
+          percent: Number.isFinite(percent) && percent >= 0 ? percent : 0,
+          label: typeof v.label === 'string' && v.label.trim() ? v.label : 'GST',
+          enabled: v.enabled !== false,
+        };
+      }
+    } catch {
+      // scc.platform_settings not present yet — treat as no GST.
+    }
+    return { percent: 0, label: 'GST', enabled: false };
+  }
+
+  /** GST added on top of a subtotal (exclusive), rounded to 2 decimals. */
+  private async computeGst(
+    subtotal: number,
+  ): Promise<{ percent: number; label: string; amount: number }> {
+    const s = await this.readGstSetting();
+    if (!s.enabled || s.percent <= 0) {
+      return { percent: 0, label: s.label, amount: 0 };
+    }
+    const amount = Math.round(subtotal * s.percent) / 100;
+    return { percent: s.percent, label: s.label, amount };
   }
 
   /**
@@ -139,10 +243,18 @@ export class SubscriptionService {
       throw new BadRequestException(`Order not paid (status: ${order.status})`);
     }
 
+    // Prorated mid-cycle upgrade orders carry kind='plan_change' — they apply
+    // the plan immediately WITHOUT moving the billing date, so they must not
+    // flow through renew() (which would grant a whole new period).
+    if (notes.kind === 'plan_change') {
+      return this.applyVerifiedPlanChange(params, notes, order);
+    }
+
     return this.renew({
       studio_id: params.studio_id,
       actor_id: params.actor_id,
       actor_type: 'user',
+      gateway_verified: true,
       plan: notes.plan,
       billing_cycle: notes.billing_cycle as 'monthly' | 'annual' | undefined,
       currency: order.currency || 'INR',
@@ -157,7 +269,7 @@ export class SubscriptionService {
   // ────────────────────────────────────────────────────────────
 
   async getStatus(studioId: string) {
-    const [studio, context, plan] = await Promise.all([
+    const [studio, context, plan, pendingChange] = await Promise.all([
       this.pub.studio.findUnique({
         where: { id: studioId },
         select: {
@@ -175,14 +287,19 @@ export class SubscriptionService {
       }),
       this.policy.getContext(studioId),
       this.resolvePlanInfo(studioId),
+      this.policy.getScheduledPlanChange(studioId),
     ]);
 
     if (!studio) throw new NotFoundException('Studio not found');
 
-    const amountDue =
+    // Amount due is the GST-inclusive total — the figure the customer will
+    // actually be charged (matches renew/create-order).
+    const dueSubtotal =
       studio.billing_cycle === 'annual'
         ? plan.annual_price
         : plan.monthly_price;
+    const dueGst = await this.computeGst(dueSubtotal);
+    const amountDue = +(dueSubtotal + dueGst.amount).toFixed(2);
 
     return {
       subscription: context,
@@ -203,7 +320,20 @@ export class SubscriptionService {
         suspended_at: studio.suspended_at,
       },
       amount_due: amountDue,
+      amount_due_subtotal: dueSubtotal,
+      gst_percent: dueGst.percent,
+      gst_label: dueGst.label,
+      gst_amount: dueGst.amount,
       currency: 'INR',
+      // Scheduled downgrade / cycle switch, if any — applies at effective_at.
+      pending_change: pendingChange
+        ? {
+            target_plan: pendingChange.target_plan,
+            target_cycle: pendingChange.target_cycle,
+            effective_at: pendingChange.effective_at.toISOString(),
+            scheduled_at: pendingChange.scheduled_at.toISOString(),
+          }
+        : null,
     };
   }
 
@@ -259,6 +389,13 @@ export class SubscriptionService {
     actor_id: string;
     actor_type?: 'user' | 'webhook' | 'admin';
     /**
+     * Set ONLY by server-side gateway paths (verifyAndRenew) after the
+     * Razorpay signature + order status have been checked. Never derived
+     * from client input — self-service callers cannot record a renewal
+     * without a verified online payment.
+     */
+    gateway_verified?: boolean;
+    /**
      * Optional plan switch. If omitted, the current plan is renewed as-is.
      * If provided + different, switches plan AND renews in one atomic tx.
      */
@@ -279,6 +416,20 @@ export class SubscriptionService {
       tax_id?: string;
     };
   }) {
+    // Self-service renewals MUST come through the gateway (create-order +
+    // verify). Honor-system manual references let the paying customer renew
+    // themselves for free — only server-verified gateway calls, platform
+    // admins, or verified webhooks may record a renewal.
+    const trusted =
+      params.gateway_verified === true ||
+      params.actor_type === 'admin' ||
+      params.actor_type === 'webhook';
+    if (!trusted) {
+      throw new BadRequestException(
+        'Online payment required — start with POST /subscription/create-order and complete Razorpay Checkout; the renewal is recorded after verification.',
+      );
+    }
+
     const method = params.payment_method?.toLowerCase();
     if (!method || !SubscriptionService.ALLOWED_PAYMENT_METHODS.includes(method as any)) {
       throw new BadRequestException(
@@ -298,10 +449,19 @@ export class SubscriptionService {
     });
     if (!studio) throw new NotFoundException('Studio not found');
 
-    const targetPlan = params.plan ?? studio.subscription_plan;
-    const targetCycle = (params.billing_cycle ?? studio.billing_cycle) as
-      | 'monthly'
-      | 'annual';
+    // Consume a pending scheduled change (downgrade / cycle switch) when the
+    // caller doesn't pick a plan explicitly — the schedule IS the default at
+    // renewal time. An explicit choice supersedes it.
+    const pending =
+      params.plan || params.billing_cycle
+        ? null
+        : await this.getRenewalDefaultChange(params.studio_id);
+
+    const targetPlan =
+      params.plan ?? pending?.target_plan ?? studio.subscription_plan;
+    const targetCycle = (params.billing_cycle ??
+      pending?.target_cycle ??
+      studio.billing_cycle) as 'monthly' | 'annual';
     if (targetCycle !== 'monthly' && targetCycle !== 'annual') {
       throw new BadRequestException(
         `Invalid billing_cycle "${params.billing_cycle}". Allowed: monthly, annual`,
@@ -313,33 +473,26 @@ export class SubscriptionService {
       throw new BadRequestException(`Unknown plan "${targetPlan}".`);
     }
 
-    const amount =
+    const subtotal =
       targetCycle === 'annual'
         ? planInfo.annual_price
         : planInfo.monthly_price;
-    if (amount <= 0) {
+    if (subtotal <= 0) {
       throw new BadRequestException(
         `Plan "${targetPlan}" is free — no payment required.`,
       );
     }
 
+    // The recorded amount is the GST-inclusive TOTAL — the same figure the
+    // Razorpay order charges and the invoice PDF splits back into
+    // subtotal + tax. Manual payments owe the same total.
+    const gst = await this.computeGst(subtotal);
+    const amount = +(subtotal + gst.amount).toFixed(2);
+
     // ── Persist billing info from the checkout form FIRST ──
     // The invoice (and renewal email) read from studio.billing_*. Updating
     // before recordRenewal means the captured snapshot is fresh.
-    if (params.billing_info) {
-      const bi = params.billing_info;
-      const data: Record<string, string> = {};
-      if (bi.billing_name && bi.billing_name.trim()) data.billing_name = bi.billing_name.trim();
-      if (bi.billing_email && bi.billing_email.trim()) data.billing_email = bi.billing_email.trim();
-      if (bi.billing_address && bi.billing_address.trim()) data.billing_address = bi.billing_address.trim();
-      if (bi.tax_id && bi.tax_id.trim()) data.tax_id = bi.tax_id.trim();
-      if (Object.keys(data).length > 0) {
-        await this.pub.studio.update({
-          where: { id: params.studio_id },
-          data,
-        });
-      }
-    }
+    await this.applyBillingInfo(params.studio_id, params.billing_info);
 
     try {
       const result = await this.policy.recordRenewal({
@@ -348,14 +501,19 @@ export class SubscriptionService {
         actor_type: params.actor_type ?? 'user',
         amount,
         currency: params.currency ?? 'INR',
-        new_plan: params.plan ? targetPlan : undefined,
-        new_billing_cycle: params.billing_cycle ? targetCycle : undefined,
+        new_plan: params.plan || pending ? targetPlan : undefined,
+        new_billing_cycle: params.billing_cycle || pending ? targetCycle : undefined,
         // Dedup key — makes recordRenewal idempotent against a replayed payment
         // (double-click / gateway retry) so it can't double-bill the gym.
         payment_reference: params.payment_reference,
         metadata: {
           payment_reference: params.payment_reference,
           payment_method: method,
+          // GST audit trail — the invoice PDF splits the total at the
+          // CURRENT platform rate; this records the rate actually applied.
+          subtotal,
+          gst_percent: gst.percent,
+          gst_amount: gst.amount,
         },
       });
 
@@ -405,6 +563,10 @@ export class SubscriptionService {
         billing_cycle: result.billing_cycle,
         plan_changed: result.plan_changed,
         amount,
+        subtotal,
+        gst_percent: gst.percent,
+        gst_label: gst.label,
+        gst_amount: gst.amount,
         subscription,
       };
     } catch (err) {
@@ -467,20 +629,19 @@ export class SubscriptionService {
   }
 
   /**
-   * Placeholder cancellation flow. Records the cancel REQUEST in the ledger
-   * but does NOT immediately downgrade the plan or revoke access — the
-   * customer keeps service through the end of the paid period (standard SaaS
-   * behavior). Full cancellation logic (final-bill, data retention timer,
-   * reactivation window) will land when you give the call. For now, the API
-   * is wired so the UI button has somewhere real to land.
+   * Cancellation flow. The customer keeps full service through the end of the
+   * paid period (standard SaaS behavior — no mid-cycle refunds), then lands on
+   * the FREE tier instead of drifting into grace → locked.
    *
-   * Behavior today:
+   * Behavior:
    *   - Logs a `cancel_requested` SubscriptionEvent
-   *   - Does NOT change lifecycle_status (the cron will lock them naturally
-   *     at next_billing_date + grace)
+   *   - Schedules a downgrade to `free` at next_billing_date (the same
+   *     scheduled-change machinery as downgrades; the daily cron applies it)
+   *   - Does NOT change lifecycle_status now — access continues until expiry
    *   - Sends an acknowledgement email
-   *   - Returns the next_billing_date so the UI can say "you'll have access
-   *     until DD MMM YYYY"
+   *   - Reactivation = cancelling the scheduled change (DELETE
+   *     change-plan/scheduled, surfaced as "Keep current plan" in the UI),
+   *     or simply renewing/upgrading — either supersedes the schedule.
    */
   async cancelPlan(params: {
     studio_id: string;
@@ -518,6 +679,26 @@ export class SubscriptionService {
       },
     });
 
+    // Schedule the end-of-period landing on the free tier. Only meaningful
+    // when there's a paid period still running and they aren't free already —
+    // an expired/locked studio just lapses naturally.
+    const downgradeScheduled =
+      studio.subscription_plan !== 'free' &&
+      !!studio.next_billing_date &&
+      studio.next_billing_date.getTime() > Date.now();
+    if (downgradeScheduled) {
+      await this.policy.schedulePlanChange({
+        studio_id: studio.id,
+        actor_id: params.actor_id,
+        target_plan: 'free',
+        target_cycle: 'monthly',
+        effective_at: studio.next_billing_date!,
+        previous_plan: studio.subscription_plan,
+        previous_cycle: studio.billing_cycle,
+        metadata: { change_type: 'cancellation', reason: params.reason ?? null },
+      });
+    }
+
     this.sendCancellationAckEmail({
       studio_id: studio.id,
       end_of_service: studio.next_billing_date,
@@ -546,11 +727,544 @@ export class SubscriptionService {
 
     return {
       success: true,
-      message:
-        'Cancellation request recorded. Your account remains active until your current billing period ends.',
+      message: downgradeScheduled
+        ? 'Cancellation recorded. You keep full access until your billing period ends, then your account moves to the Free plan.'
+        : 'Cancellation request recorded. Your account remains active until your current billing period ends.',
       access_until: studio.next_billing_date,
+      downgrade_to_free_scheduled: downgradeScheduled,
       reactivation_available: true,
     };
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // Mid-cycle plan changes (proration engine)
+  // ────────────────────────────────────────────────────────────
+
+  /**
+   * Shared server-side computation behind preview / change / create-order.
+   * Decides the execution mode and the money math — never trusts the client:
+   *
+   *  - immediate_prorated : upgrade mid-period → pay (new − old) × remaining/total
+   *                         now (+GST); plan flips immediately; billing date stays.
+   *  - scheduled          : downgrade or cycle switch → recorded in the ledger,
+   *                         applies at the period boundary. No mid-cycle refunds.
+   *  - renewal_due        : no active paid period → change happens via the normal
+   *                         renew flow at full price.
+   */
+  private async computePlanChange(
+    studioId: string,
+    opts: { plan?: string; billing_cycle?: 'monthly' | 'annual' },
+  ) {
+    if (!opts.plan) {
+      throw new BadRequestException('plan is required.');
+    }
+    const studio = await this.pub.studio.findUnique({
+      where: { id: studioId },
+      select: {
+        subscription_plan: true,
+        billing_cycle: true,
+        next_billing_date: true,
+        lifecycle_status: true,
+      },
+    });
+    if (!studio) throw new NotFoundException('Studio not found');
+
+    const currentCycle = (studio.billing_cycle as 'monthly' | 'annual') ?? 'monthly';
+    const targetPlan = opts.plan;
+    const targetCycle = (opts.billing_cycle ?? currentCycle) as 'monthly' | 'annual';
+    if (targetCycle !== 'monthly' && targetCycle !== 'annual') {
+      throw new BadRequestException(`Invalid billing_cycle "${opts.billing_cycle}".`);
+    }
+    if (targetPlan === studio.subscription_plan && targetCycle === currentCycle) {
+      throw new BadRequestException('You are already on this plan and billing cycle.');
+    }
+
+    const targetInfo = await this.resolvePlanPricing(targetPlan);
+    if (!targetInfo) throw new BadRequestException(`Unknown plan "${targetPlan}".`);
+    // Unknown/legacy current plan → zero credit rather than blocking the change.
+    const currentInfo = (await this.resolvePlanPricing(studio.subscription_plan)) ?? {
+      display_name: studio.subscription_plan,
+      monthly_price: 0,
+      annual_price: 0,
+    };
+
+    const currentPrice =
+      currentCycle === 'annual' ? currentInfo.annual_price : currentInfo.monthly_price;
+    // Same-cycle comparison decides upgrade vs downgrade; the target's own
+    // cycle price is what a scheduled change will bill at renewal.
+    const targetPriceCurrentCycle =
+      currentCycle === 'annual' ? targetInfo.annual_price : targetInfo.monthly_price;
+    const targetPriceTargetCycle =
+      targetCycle === 'annual' ? targetInfo.annual_price : targetInfo.monthly_price;
+
+    const now = new Date();
+    const inActivePaidPeriod =
+      studio.lifecycle_status === 'active' &&
+      !!studio.next_billing_date &&
+      studio.next_billing_date.getTime() > now.getTime();
+
+    const proration = studio.next_billing_date
+      ? computeProration({
+          current_price: currentPrice,
+          target_price: targetPriceCurrentCycle,
+          billing_cycle: currentCycle,
+          period_end: studio.next_billing_date,
+          now,
+        })
+      : {
+          total_days: cycleDays(currentCycle),
+          remaining_days: 0,
+          unused_credit: 0,
+          remaining_cost: 0,
+          subtotal: 0,
+        };
+
+    const cycleChanged = targetCycle !== currentCycle;
+    const mode: PlanChangeMode = classifyPlanChange({
+      current_price: currentPrice,
+      target_price: targetPriceCurrentCycle,
+      cycle_changed: cycleChanged,
+      in_active_paid_period: inActivePaidPeriod,
+      remaining_days: proration.remaining_days,
+    });
+
+    const change_type = cycleChanged
+      ? 'cycle_change'
+      : targetPriceCurrentCycle > currentPrice
+        ? 'upgrade'
+        : targetPriceCurrentCycle < currentPrice
+          ? 'downgrade'
+          : 'lateral';
+
+    const gst =
+      mode === 'immediate_prorated'
+        ? await this.computeGst(proration.subtotal)
+        : { percent: 0, label: 'GST', amount: 0 };
+    const total =
+      mode === 'immediate_prorated' ? +(proration.subtotal + gst.amount).toFixed(2) : 0;
+
+    return {
+      studio,
+      now,
+      currentCycle,
+      targetPlan,
+      targetCycle,
+      cycleChanged,
+      currentInfo,
+      targetInfo,
+      currentPrice,
+      targetPriceCurrentCycle,
+      targetPriceTargetCycle,
+      inActivePaidPeriod,
+      proration,
+      mode,
+      change_type,
+      gst,
+      total,
+    };
+  }
+
+  /**
+   * Pending scheduled change usable as the RENEWAL default. Free-tier targets
+   * (cancellations) are excluded — a renewal payment implies a paid plan, and
+   * paying to renew supersedes the cancellation (that IS reactivation).
+   */
+  private async getRenewalDefaultChange(studioId: string) {
+    const pending = await this.policy.getScheduledPlanChange(studioId);
+    if (!pending) return null;
+    const p = await this.resolvePlanPricing(pending.target_plan);
+    if (!p) return null;
+    const price =
+      pending.target_cycle === 'annual' ? p.annual_price : p.monthly_price;
+    return price > 0 ? pending : null;
+  }
+
+  /**
+   * Read-only plan-change preview: mode + full proration/GST breakdown so the
+   * UI can show "pay ₹X now" or "applies on <date>" before the user commits.
+   */
+  async getPlanChangePreview(
+    studioId: string,
+    opts: { plan?: string; billing_cycle?: 'monthly' | 'annual' },
+  ) {
+    const c = await this.computePlanChange(studioId, opts);
+    const pending = await this.policy.getScheduledPlanChange(studioId);
+
+    return {
+      mode: c.mode,
+      change_type: c.change_type,
+      current: {
+        plan: c.studio.subscription_plan,
+        display_name: c.currentInfo.display_name,
+        billing_cycle: c.currentCycle,
+        price: c.currentPrice,
+        period_end: c.studio.next_billing_date?.toISOString() ?? null,
+      },
+      target: {
+        plan: c.targetPlan,
+        display_name: c.targetInfo.display_name,
+        billing_cycle: c.targetCycle,
+        price: c.targetPriceTargetCycle,
+      },
+      proration:
+        c.mode === 'immediate_prorated'
+          ? {
+              total_days: c.proration.total_days,
+              remaining_days: c.proration.remaining_days,
+              unused_credit: c.proration.unused_credit,
+              remaining_cost: c.proration.remaining_cost,
+            }
+          : null,
+      subtotal: c.mode === 'immediate_prorated' ? c.proration.subtotal : 0,
+      gst_percent: c.gst.percent,
+      gst_label: c.gst.label,
+      gst_amount: c.gst.amount,
+      total: c.total,
+      effective_at:
+        c.mode === 'immediate_prorated'
+          ? c.now.toISOString()
+          : c.mode === 'scheduled'
+            ? c.studio.next_billing_date!.toISOString()
+            : null,
+      currency: 'INR',
+      pending_change: pending
+        ? {
+            target_plan: pending.target_plan,
+            target_cycle: pending.target_cycle,
+            effective_at: pending.effective_at.toISOString(),
+          }
+        : null,
+    };
+  }
+
+  /**
+   * Execute a plan change. The server (not the client) decides how:
+   *  - scheduled changes need no payment — recorded and applied at period end;
+   *  - immediate prorated upgrades need a MANUAL payment reference here
+   *    (Razorpay goes through createPlanChangeOrder + verify instead);
+   *  - a zero prorated difference applies immediately without payment.
+   */
+  async changePlan(params: {
+    studio_id: string;
+    actor_id: string;
+    plan?: string;
+    billing_cycle?: 'monthly' | 'annual';
+    payment_method?: string;
+    payment_reference?: string;
+    billing_info?: {
+      billing_name?: string;
+      billing_email?: string;
+      billing_address?: string;
+      tax_id?: string;
+    };
+  }) {
+    const c = await this.computePlanChange(params.studio_id, {
+      plan: params.plan,
+      billing_cycle: params.billing_cycle,
+    });
+
+    if (c.mode === 'renewal_due') {
+      throw new BadRequestException(
+        'No active paid period — renew and pick the new plan at checkout instead. Proration only applies mid-period.',
+      );
+    }
+
+    // ── Scheduled downgrade / cycle switch — no payment, applies at boundary ──
+    if (c.mode === 'scheduled') {
+      await this.policy.schedulePlanChange({
+        studio_id: params.studio_id,
+        actor_id: params.actor_id,
+        target_plan: c.targetPlan,
+        target_cycle: c.targetCycle,
+        effective_at: c.studio.next_billing_date!,
+        previous_plan: c.studio.subscription_plan,
+        previous_cycle: c.currentCycle,
+        metadata: { change_type: c.change_type },
+      });
+
+      this.logger.log(
+        `Plan change scheduled: studio=${params.studio_id} ` +
+          `${c.studio.subscription_plan}/${c.currentCycle} → ${c.targetPlan}/${c.targetCycle} ` +
+          `effective=${c.studio.next_billing_date!.toISOString()}`,
+      );
+
+      // Confirmation email — non-blocking, the schedule is already recorded.
+      this.sendScheduledChangeEmail({
+        studio_id: params.studio_id,
+        current_plan_display: c.currentInfo.display_name,
+        target_plan_display: c.targetInfo.display_name,
+        target_cycle: c.targetCycle,
+        effective_at: c.studio.next_billing_date!,
+      }).catch((err) =>
+        this.logger.warn(
+          `Scheduled-change email queue failed: ${(err as Error).message}`,
+        ),
+      );
+
+      return {
+        success: true,
+        mode: 'scheduled' as const,
+        change_type: c.change_type,
+        target_plan: c.targetPlan,
+        target_plan_display_name: c.targetInfo.display_name,
+        target_cycle: c.targetCycle,
+        effective_at: c.studio.next_billing_date!.toISOString(),
+        message: `Your ${c.currentInfo.display_name} plan stays active until ${c.studio.next_billing_date!.toDateString()}. The change applies at your next renewal.`,
+      };
+    }
+
+    // ── Immediate prorated upgrade ──
+    if (c.total <= 0) {
+      // Prorated difference rounds to zero — apply without payment.
+      const result = await this.policy.recordPlanChange({
+        studio_id: params.studio_id,
+        actor_id: params.actor_id,
+        actor_type: 'user',
+        new_plan: c.targetPlan,
+        amount: 0,
+        expected_from_plan: c.studio.subscription_plan,
+        metadata: {
+          unused_credit: c.proration.unused_credit,
+          remaining_cost: c.proration.remaining_cost,
+          subtotal: c.proration.subtotal,
+        },
+      });
+      return this.finishPlanChange(params.studio_id, result, 0, 'INR');
+    }
+
+    // Paid prorated upgrades are gateway-only: honor-system manual references
+    // would let the customer upgrade themselves for free. The verified path is
+    // change-plan/create-order → Razorpay Checkout → POST /verify
+    // (kind='plan_change' notes → applyVerifiedPlanChange).
+    throw new BadRequestException(
+      'This upgrade requires online payment — call change-plan/create-order and complete Razorpay Checkout; the upgrade applies after verification.',
+    );
+  }
+
+  /**
+   * Create a Razorpay order for an immediate prorated upgrade. The proration
+   * inputs are frozen into the (server-set) order notes; verify re-checks them
+   * against the studio before applying so a stale order can't misprice.
+   */
+  async createPlanChangeOrder(
+    studioId: string,
+    opts: { plan?: string; billing_cycle?: 'monthly' | 'annual' },
+  ) {
+    const c = await this.computePlanChange(studioId, opts);
+
+    if (c.mode !== 'immediate_prorated') {
+      throw new BadRequestException(
+        c.mode === 'scheduled'
+          ? 'This change applies at the end of your current period — no payment is needed now. Use change-plan to schedule it.'
+          : 'No active paid period — renew and pick the new plan at checkout instead.',
+      );
+    }
+    if (c.total <= 0) {
+      throw new BadRequestException(
+        'Nothing to pay — the prorated difference is zero. Use change-plan to apply it directly.',
+      );
+    }
+
+    const order = await this.razorpay.createOrder({
+      amount: c.total,
+      currency: 'INR',
+      receipt: `CHG-${studioId.slice(0, 8)}-${Date.now()}`,
+      notes: {
+        kind: 'plan_change',
+        studio_id: studioId,
+        plan: c.targetPlan,
+        from_plan: c.studio.subscription_plan,
+        billing_cycle: c.currentCycle,
+        period_end: c.studio.next_billing_date!.toISOString(),
+        subtotal: String(c.proration.subtotal),
+        unused_credit: String(c.proration.unused_credit),
+        remaining_cost: String(c.proration.remaining_cost),
+        gst_amount: String(c.gst.amount),
+        gst_percent: String(c.gst.percent),
+        total: String(c.total),
+      },
+    });
+
+    return {
+      order_id: order.id,
+      key_id: this.razorpay.getKeyId(),
+      amount: c.total,
+      currency: 'INR',
+      plan: c.targetPlan,
+      plan_display_name: c.targetInfo.display_name,
+      billing_cycle: c.currentCycle,
+      remaining_days: c.proration.remaining_days,
+      unused_credit: c.proration.unused_credit,
+      remaining_cost: c.proration.remaining_cost,
+      subtotal: c.proration.subtotal,
+      gst_percent: c.gst.percent,
+      gst_label: c.gst.label,
+      gst_amount: c.gst.amount,
+      total: c.total,
+    };
+  }
+
+  /**
+   * Apply a gateway-verified prorated upgrade. Called from verifyAndRenew when
+   * the order notes carry kind='plan_change'. Amounts/plan come from the
+   * server-set notes; recordPlanChange re-guards against stale orders.
+   */
+  private async applyVerifiedPlanChange(
+    params: {
+      studio_id: string;
+      actor_id: string;
+      gateway_payment_id: string;
+      billing_info?: {
+        billing_name?: string;
+        billing_email?: string;
+        billing_address?: string;
+        tax_id?: string;
+      };
+    },
+    notes: Record<string, unknown>,
+    order: { currency: string },
+  ) {
+    const targetPlan = String(notes.plan ?? '');
+    const total = Number(notes.total);
+    if (!targetPlan || !Number.isFinite(total) || total <= 0) {
+      throw new BadRequestException('Malformed plan-change order notes.');
+    }
+    const expectedEnd = notes.period_end ? new Date(String(notes.period_end)) : undefined;
+
+    await this.applyBillingInfo(params.studio_id, params.billing_info);
+
+    const result = await this.policy.recordPlanChange({
+      studio_id: params.studio_id,
+      actor_id: params.actor_id,
+      actor_type: 'user',
+      new_plan: targetPlan,
+      amount: total,
+      currency: order.currency || 'INR',
+      payment_reference: params.gateway_payment_id,
+      expected_period_end: expectedEnd,
+      expected_from_plan: notes.from_plan ? String(notes.from_plan) : undefined,
+      metadata: {
+        payment_method: 'razorpay',
+        payment_reference: params.gateway_payment_id,
+        unused_credit: Number(notes.unused_credit ?? 0),
+        remaining_cost: Number(notes.remaining_cost ?? 0),
+        subtotal: Number(notes.subtotal ?? 0),
+        gst_amount: Number(notes.gst_amount ?? 0),
+        gst_percent: Number(notes.gst_percent ?? 0),
+      },
+    });
+
+    const planInfo = await this.resolvePlanPricing(targetPlan);
+    return this.finishPlanChange(
+      params.studio_id,
+      result,
+      total,
+      order.currency || 'INR',
+      'razorpay',
+      params.gateway_payment_id,
+      planInfo?.display_name ?? targetPlan,
+    );
+  }
+
+  /** Shared tail of every applied plan change: WS push, email, response. */
+  private async finishPlanChange(
+    studioId: string,
+    result: Awaited<ReturnType<SubscriptionPolicyService['recordPlanChange']>>,
+    amount: number,
+    currency: string,
+    paymentMethod?: string,
+    paymentReference?: string,
+    planDisplayName?: string,
+  ) {
+    const subscription = await this.policy.getContext(studioId);
+    this.gateway.pushStatusChange(studioId, {
+      previous_status: result.previous_status,
+      subscription,
+      reason: 'plan_change',
+    });
+
+    if (!result.replayed && amount > 0 && paymentMethod && paymentReference) {
+      this.sendRenewalSuccessEmail({
+        studio_id: studioId,
+        amount,
+        currency,
+        payment_method: paymentMethod,
+        payment_reference: paymentReference,
+        invoice_id: result.invoice_id,
+        invoice_number: result.invoice_number,
+        period_start: result.period_start,
+        period_end: result.period_end,
+        plan_display_name: planDisplayName,
+        plan_changed: true,
+      }).catch((err) =>
+        this.logger.warn(`Plan-change email queue failed: ${(err as Error).message}`),
+      );
+    }
+
+    this.logger.log(
+      `Prorated upgrade applied: studio=${studioId} ` +
+        `${result.previous_plan} → ${result.plan} amount=${amount} ` +
+        `invoice=${result.invoice_number || '(none)'} replay=${result.replayed}`,
+    );
+
+    return {
+      success: true,
+      mode: 'immediate_prorated' as const,
+      plan: result.plan,
+      previous_plan: result.previous_plan,
+      billing_cycle: result.billing_cycle,
+      period_start: result.period_start,
+      period_end: result.period_end,
+      invoice_number: result.invoice_number,
+      invoice_id: result.invoice_id,
+      amount,
+      plan_changed: true,
+      subscription,
+    };
+  }
+
+  /** Cancel the pending scheduled plan change. 404 when nothing is pending. */
+  async cancelScheduledChange(studioId: string, actorId: string) {
+    const cancelled = await this.policy.cancelScheduledPlanChange(studioId, actorId);
+    if (!cancelled) {
+      throw new NotFoundException('No scheduled plan change to cancel.');
+    }
+    this.logger.log(
+      `Scheduled plan change cancelled: studio=${studioId} target=${cancelled.target_plan}`,
+    );
+    return {
+      success: true,
+      cancelled: {
+        target_plan: cancelled.target_plan,
+        target_cycle: cancelled.target_cycle,
+        effective_at: cancelled.effective_at.toISOString(),
+      },
+    };
+  }
+
+  /**
+   * Persist billing info from a checkout form. Omitted/empty fields leave the
+   * existing values alone. Shared by renew, changePlan and the verify paths so
+   * invoices/receipts always read the freshest values.
+   */
+  private async applyBillingInfo(
+    studioId: string,
+    bi?: {
+      billing_name?: string;
+      billing_email?: string;
+      billing_address?: string;
+      tax_id?: string;
+    },
+  ): Promise<void> {
+    if (!bi) return;
+    const data: Record<string, string> = {};
+    if (bi.billing_name && bi.billing_name.trim()) data.billing_name = bi.billing_name.trim();
+    if (bi.billing_email && bi.billing_email.trim()) data.billing_email = bi.billing_email.trim();
+    if (bi.billing_address && bi.billing_address.trim()) data.billing_address = bi.billing_address.trim();
+    if (bi.tax_id && bi.tax_id.trim()) data.tax_id = bi.tax_id.trim();
+    if (Object.keys(data).length > 0) {
+      await this.pub.studio.update({ where: { id: studioId }, data });
+    }
   }
 
   // ────────────────────────────────────────────────────────────
@@ -745,6 +1459,41 @@ export class SubscriptionService {
     });
   }
 
+  private async sendScheduledChangeEmail(p: {
+    studio_id: string;
+    current_plan_display: string;
+    target_plan_display: string;
+    target_cycle: string;
+    effective_at: Date;
+  }): Promise<void> {
+    const { to, studio_name, studio_slug } = await this.resolveBillingRecipient(
+      p.studio_id,
+    );
+    if (!to) return;
+
+    await this.queue.enqueueEmail({
+      to,
+      subject: `Plan change scheduled — {{ studio_name }}`,
+      template: this.scheduledChangeEmailTemplate(),
+      variables: {
+        studio_name,
+        current_plan: p.current_plan_display,
+        target_plan: p.target_plan_display,
+        target_cycle: p.target_cycle === 'annual' ? 'Annual' : 'Monthly',
+        effective_date: p.effective_at.toLocaleDateString('en-IN', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        }),
+        manage_url: `${this.frontendUrl()}/${studio_slug}/settings/subscription`,
+        support_email:
+          this.config.get<string>('SUPPORT_EMAIL') || 'support@musclex.app',
+        company_name: 'MuscleX',
+        year: new Date().getFullYear(),
+      },
+    });
+  }
+
   // ────────────────────────────────────────────────────────────
   // Email templates (Mustache-style {{ var }} rendered by EmailProcessor)
   // ────────────────────────────────────────────────────────────
@@ -854,6 +1603,36 @@ export class SubscriptionService {
 </body></html>`;
   }
 
+  private scheduledChangeEmailTemplate(): string {
+    return `<!doctype html><html><body style="margin:0;padding:0;background:#f5f6f8;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#1a1a1a;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f6f8;padding:32px 16px;">
+  <tr><td align="center">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);">
+      <tr><td style="padding:26px 32px;background:#eff6ff;border-bottom:1px solid #bfdbfe;">
+        <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#1d4ed8;font-weight:600;">Plan change scheduled</div>
+        <div style="font-size:20px;font-weight:700;margin-top:6px;color:#1e3a8a;">{{ studio_name }}</div>
+      </td></tr>
+      <tr><td style="padding:24px 32px;">
+        <p style="margin:0 0 14px;font-size:14px;line-height:1.55;color:#374151;">
+          Your subscription will switch from <strong>{{ current_plan }}</strong> to
+          <strong>{{ target_plan }} ({{ target_cycle }})</strong> on <strong>{{ effective_date }}</strong>.
+          Until then, nothing changes — you keep your current plan and all its features.
+        </p>
+        <p style="margin:0 0 18px;font-size:13.5px;line-height:1.55;color:#6b7280;">
+          Nothing was charged today. Your next renewal bills the new plan's price.
+          Changed your mind? You can cancel this scheduled change any time before it takes effect.
+        </p>
+        <a href="{{ manage_url }}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;font-weight:600;font-size:13px;padding:11px 18px;border-radius:9px;">Manage subscription</a>
+      </td></tr>
+      <tr><td style="padding:16px 32px 24px;border-top:1px solid #e5e7eb;background:#fafafa;font-size:11.5px;color:#9ca3af;text-align:center;">
+        © {{ year }} {{ company_name }} · Need help? <a href="mailto:{{ support_email }}" style="color:#0ea5e9;">{{ support_email }}</a>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+  }
+
   /**
    * Compute the next period without persisting. Useful for the renewal modal
    * to show the customer exactly what dates they'll get and how many days
@@ -873,10 +1652,15 @@ export class SubscriptionService {
     });
     if (!studio) throw new NotFoundException('Studio not found');
 
-    const targetPlan = opts.plan ?? studio.subscription_plan;
-    const targetCycle = (opts.billing_cycle ?? studio.billing_cycle) as
-      | 'monthly'
-      | 'annual';
+    const pending =
+      opts.plan || opts.billing_cycle
+        ? null
+        : await this.getRenewalDefaultChange(studioId);
+
+    const targetPlan = opts.plan ?? pending?.target_plan ?? studio.subscription_plan;
+    const targetCycle = (opts.billing_cycle ??
+      pending?.target_cycle ??
+      studio.billing_cycle) as 'monthly' | 'annual';
     if (targetCycle !== 'monthly' && targetCycle !== 'annual') {
       throw new BadRequestException(
         `Invalid billing_cycle "${opts.billing_cycle}". Allowed: monthly, annual`,
@@ -901,10 +1685,14 @@ export class SubscriptionService {
           )
         : 0;
 
-    const amount =
+    // Preview the same GST-inclusive total renew() will record, so the
+    // checkout summary matches the charge to the paisa.
+    const subtotal =
       targetCycle === 'annual'
         ? planInfo.annual_price
         : planInfo.monthly_price;
+    const gst = await this.computeGst(subtotal);
+    const amount = +(subtotal + gst.amount).toFixed(2);
 
     return {
       ...period,
@@ -912,9 +1700,16 @@ export class SubscriptionService {
       plan_display_name: planInfo.display_name,
       billing_cycle: targetCycle,
       amount,
+      subtotal,
+      gst_percent: gst.percent,
+      gst_label: gst.label,
+      gst_amount: gst.amount,
       currency: 'INR',
       plan_changed: targetPlan !== studio.subscription_plan,
       cycle_changed: targetCycle !== studio.billing_cycle,
+      // True when the previewed plan/cycle comes from a scheduled change that
+      // this renewal would consume (customer scheduled a downgrade earlier).
+      applies_scheduled_change: !!pending,
       continuity_mode: 'strict' as const,
       days_lost_to_continuity: lostDays,
     };
@@ -1100,11 +1895,12 @@ export class SubscriptionService {
       },
     });
 
-    // Best-effort: find the renewal event linked to this invoice for plan/cycle.
+    // Best-effort: find the renewal / plan-change event linked to this invoice
+    // for plan/cycle (prorated upgrades write 'plan_changed', not 'renewed').
     const event = await this.pub.subscriptionEvent.findFirst({
       where: {
         studio_id: studioId,
-        event_type: 'renewed',
+        event_type: { in: ['renewed', 'plan_changed'] },
         metadata: { path: ['invoice_id'], equals: invoiceId },
       },
       orderBy: { created_at: 'desc' },
@@ -1123,6 +1919,8 @@ export class SubscriptionService {
       string,
       unknown
     >;
+    const num = (v: unknown): number | null =>
+      typeof v === 'number' && Number.isFinite(v) ? v : null;
 
     return {
       id: invoice.id,
@@ -1139,6 +1937,15 @@ export class SubscriptionService {
       payment_method: typeof meta.payment_method === 'string' ? meta.payment_method : null,
       payment_reference:
         typeof meta.payment_reference === 'string' ? meta.payment_reference : null,
+      // Tax + proration breakdown RECORDED at payment time (audit-accurate even
+      // if the platform GST rate changes later). Null on legacy invoices that
+      // predate metadata capture — consumers fall back to a current-rate split.
+      subtotal: num(meta.subtotal),
+      gst_percent: num(meta.gst_percent),
+      gst_amount: num(meta.gst_amount),
+      // Present only on prorated plan-change invoices.
+      unused_credit: num(meta.unused_credit),
+      remaining_cost: num(meta.remaining_cost),
       billed_to: {
         name: studio?.billing_name || studio?.name || '',
         email: studio?.billing_email ?? null,
@@ -1189,6 +1996,29 @@ export class SubscriptionService {
 
     const prettyMethod = (m: string | null) => (m ? this.prettyMethod(m) : '—');
 
+    // The recorded amount is GST-inclusive (the total charged). Prefer the tax
+    // split RECORDED at payment time (event metadata) so a later platform-rate
+    // change never rewrites a historical invoice. Legacy invoices without
+    // metadata fall back to backing GST out at the current platform rate.
+    const gstSetting = await this.readGstSetting();
+    let invSubtotal: number;
+    let invTax: number;
+    let gstPercent: number;
+    if (detail.gst_percent !== null && detail.subtotal !== null) {
+      invSubtotal = detail.subtotal;
+      invTax = detail.gst_amount ?? +(detail.amount - invSubtotal).toFixed(2);
+      gstPercent = detail.gst_percent;
+    } else {
+      const hasGst = gstSetting.enabled && gstSetting.percent > 0;
+      invSubtotal = hasGst
+        ? +(detail.amount / (1 + gstSetting.percent / 100)).toFixed(2)
+        : detail.amount;
+      invTax = hasGst ? +(detail.amount - invSubtotal).toFixed(2) : 0;
+      gstPercent = gstSetting.percent;
+    }
+    const hasTax = invTax > 0;
+    const pctLabel = Number(gstPercent.toFixed(2)).toString();
+
     const { renderInvoicePdfBuffer } = await import('./invoice-pdf.renderer');
 
     const buffer = await renderInvoicePdfBuffer({
@@ -1205,17 +2035,38 @@ export class SubscriptionService {
       billed_to_email: detail.billed_to.email ?? undefined,
       billed_to_address: detail.billed_to.address ?? undefined,
       billed_to_tax_id: detail.billed_to.tax_id ?? undefined,
-      items: [
-        {
-          description: planLabel,
-          period_start: fmtDate(detail.billing_period_start),
-          period_end: fmtDate(detail.billing_period_end),
-          amount: money(detail.amount),
-        },
-      ],
-      subtotal: money(detail.amount),
-      tax_label: 'Tax (0%)',
-      tax_amount: money(0),
+      items:
+        // Prorated upgrade: show the spec-standard breakdown — new-plan charge
+        // for the remaining days minus the unused credit of the old plan.
+        detail.unused_credit !== null &&
+        detail.unused_credit > 0 &&
+        detail.remaining_cost !== null
+          ? [
+              {
+                description: `${planLabel} — prorated upgrade (remaining period)`,
+                period_start: fmtDate(detail.billing_period_start),
+                period_end: fmtDate(detail.billing_period_end),
+                amount: money(detail.remaining_cost),
+              },
+              {
+                description: 'Credit — unused portion of previous plan',
+                period_start: fmtDate(detail.billing_period_start),
+                period_end: fmtDate(detail.billing_period_end),
+                // ASCII hyphen — the PDF font drops U+2212, silently losing the sign.
+                amount: `-${money(detail.unused_credit)}`,
+              },
+            ]
+          : [
+              {
+                description: planLabel,
+                period_start: fmtDate(detail.billing_period_start),
+                period_end: fmtDate(detail.billing_period_end),
+                amount: money(invSubtotal),
+              },
+            ],
+      subtotal: money(invSubtotal),
+      tax_label: hasTax ? `${gstSetting.label} (${pctLabel}%)` : 'Tax (0%)',
+      tax_amount: money(invTax),
       total: money(detail.amount),
       payment_method: detail.payment_method
         ? prettyMethod(detail.payment_method)

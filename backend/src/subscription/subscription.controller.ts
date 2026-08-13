@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -79,21 +80,13 @@ export class SubscriptionController {
   }
 
   /**
-   * Record a renewal payment. Optionally switches plan / billing cycle in
-   * the same atomic transaction.
+   * Record a renewal payment.
    *
-   * Body:
-   *   payment_method       (required) — 'upi'|'card'|'netbanking'|...
-   *   payment_reference    (required) — UTR / transaction ID
-   *   plan                 (optional) — target plan name; defaults to current
-   *   billing_cycle        (optional) — 'monthly'|'annual'; defaults to current
-   *   currency             (optional) — defaults to 'INR'
-   *
-   * Amount is computed server-side from the (target) plan + cycle — clients
-   * cannot pass amounts, preventing price tampering.
-   *
-   * For production this is also called by the Razorpay webhook handler
-   * after verifying the gateway signature server-side.
+   * Self-service calls are REJECTED — renewals are gateway-only
+   * (create-order + verify), so a customer cannot record an unverified
+   * "manual" payment for themselves. The service accepts only
+   * gateway-verified calls (verifyAndRenew) or admin/webhook actors.
+   * Amounts are always computed server-side, never taken from the client.
    */
   @Post('renew')
   @Roles('owner', 'brand_owner')
@@ -131,6 +124,99 @@ export class SubscriptionController {
   }
 
   /**
+   * Preview a mid-cycle plan change. The SERVER decides how it executes:
+   *
+   *   mode=immediate_prorated → upgrade: pay only (new − old) × remaining/total
+   *                             (+GST) now; billing date unchanged.
+   *   mode=scheduled          → downgrade / cycle switch: applies at period end,
+   *                             nothing to pay now.
+   *   mode=renewal_due        → no active paid period: use the renew checkout.
+   *
+   * Returns the full credit/charge/GST breakdown for the UI.
+   *
+   *   GET /subscription/change-plan/preview?plan=pro
+   *   GET /subscription/change-plan/preview?plan=starter&billing_cycle=annual
+   */
+  @Get('change-plan/preview')
+  @Roles('owner', 'brand_owner')
+  changePlanPreview(
+    @CurrentUser() user: JwtPayload,
+    @Query('plan') plan?: string,
+    @Query('billing_cycle') billing_cycle?: 'monthly' | 'annual',
+  ) {
+    return this.subscription.getPlanChangePreview(user.studio_id, {
+      plan,
+      billing_cycle,
+    });
+  }
+
+  /**
+   * Execute a plan change:
+   *   - scheduled changes (downgrade / cycle switch) need no payment fields;
+   *   - zero-cost prorated changes apply directly;
+   *   - PAID prorated upgrades are gateway-only — use
+   *     change-plan/create-order + verify (manual references are rejected).
+   * Amounts are always computed server-side.
+   */
+  @Post('change-plan')
+  @Roles('owner', 'brand_owner')
+  changePlan(
+    @CurrentUser() user: JwtPayload,
+    @Body()
+    body: {
+      plan?: string;
+      billing_cycle?: 'monthly' | 'annual';
+      payment_method?: string;
+      payment_reference?: string;
+      billing_name?: string;
+      billing_email?: string;
+      billing_address?: string;
+      tax_id?: string;
+    },
+  ) {
+    return this.subscription.changePlan({
+      studio_id: user.studio_id,
+      actor_id: user.user_id,
+      plan: body.plan,
+      billing_cycle: body.billing_cycle,
+      payment_method: body.payment_method,
+      payment_reference: body.payment_reference,
+      billing_info: {
+        billing_name: body.billing_name,
+        billing_email: body.billing_email,
+        billing_address: body.billing_address,
+        tax_id: body.tax_id,
+      },
+    });
+  }
+
+  /**
+   * Create a Razorpay order for an immediate prorated upgrade. The proration
+   * breakdown is frozen into the server-set order notes; POST /verify applies
+   * the change after the gateway handshake (kind='plan_change' routing).
+   */
+  @Post('change-plan/create-order')
+  @Roles('owner', 'brand_owner')
+  createChangePlanOrder(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { plan?: string; billing_cycle?: 'monthly' | 'annual' },
+  ) {
+    return this.subscription.createPlanChangeOrder(user.studio_id, {
+      plan: body.plan,
+      billing_cycle: body.billing_cycle,
+    });
+  }
+
+  /**
+   * Cancel the pending scheduled plan change (keep the current plan).
+   */
+  @Delete('change-plan/scheduled')
+  @Roles('owner', 'brand_owner')
+  cancelScheduledChange(@CurrentUser() user: JwtPayload) {
+    return this.subscription.cancelScheduledChange(user.studio_id, user.user_id);
+  }
+
+  /**
    * Create a Razorpay order for an online subscription renewal / plan switch.
    * Amount is computed server-side; the order notes carry plan/cycle/studio so
    * verify can trust them. Returns { order_id, key_id, amount, ... } for Checkout.
@@ -145,6 +231,17 @@ export class SubscriptionController {
       plan: body.plan,
       billing_cycle: body.billing_cycle,
     });
+  }
+
+  /**
+   * Read-only price breakdown (subtotal + GST + total) for the studio's
+   * selected plan. Used by the onboarding payment page to render the summary
+   * before checkout. No order is created.
+   */
+  @Get('order-preview')
+  @Roles('owner', 'brand_owner')
+  orderPreview(@CurrentUser() user: JwtPayload) {
+    return this.subscription.getOrderPreview(user.studio_id);
   }
 
   /**

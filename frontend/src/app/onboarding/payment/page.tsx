@@ -16,13 +16,28 @@ interface PendingPlan {
   currency: string;
 }
 
+interface OrderPreview {
+  plan_display_name: string;
+  currency: string;
+  subtotal: number;
+  gst_percent: number;
+  gst_label: string;
+  gst_amount: number;
+  total: number;
+}
+
 function fmtPrice(amount: number, currency = 'INR') {
   if (amount === 0) return 'Free';
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(amount);
+}
+
+function formatPct(n: number) {
+  return Number(n.toFixed(2)).toString();
 }
 
 export default function OnboardingPaymentPage() {
@@ -34,6 +49,7 @@ export default function OnboardingPaymentPage() {
   // mounted = we're in the browser (avoids SSR sessionStorage access)
   const [mounted, setMounted] = useState(false);
   const [plan, setPlan] = useState<PendingPlan | null>(null);
+  const [preview, setPreview] = useState<OrderPreview | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -61,6 +77,25 @@ export default function OnboardingPaymentPage() {
       router.replace('/onboarding/subscription');
     }
   }, []); // run once on mount — intentionally no deps
+
+  // Fetch the authoritative price breakdown (subtotal + GST + total) so the
+  // summary matches exactly what Razorpay will charge. Falls back silently to
+  // the plan's base amount (no GST line) if the preview can't be loaded.
+  useEffect(() => {
+    if (!plan) return;
+    let cancelled = false;
+    apiClient
+      .get<OrderPreview>('/subscription/order-preview')
+      .then((p) => {
+        if (!cancelled) setPreview(p);
+      })
+      .catch(() => {
+        /* keep fallback */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [plan]);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -195,6 +230,11 @@ export default function OnboardingPaymentPage() {
     );
   }
 
+  // The amount actually charged is the GST-inclusive total from the preview;
+  // before it loads we fall back to the plan's base amount.
+  const payableAmount = preview ? preview.total : plan.amount;
+  const payableCurrency = preview?.currency || plan.currency;
+
   return (
     <OnboardingLayout currentStep={6} maxWidth="480px" hideSidebar>
       <div className="mb-6">
@@ -221,15 +261,35 @@ export default function OnboardingPaymentPage() {
         </div>
       </div>
 
-      {/* Plan summary */}
-      <div className="mb-5 flex items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
-        <div>
-          <p className="text-[13px] font-semibold text-foreground">{plan.plan_display_name}</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Subscription</p>
+      {/* Plan summary with GST breakdown */}
+      <div className="mb-5 rounded-lg border border-border bg-card px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[13px] font-semibold text-foreground">{plan.plan_display_name}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Subscription</p>
+          </div>
+          <p className="text-[14px] font-medium text-foreground">
+            {fmtPrice(preview ? preview.subtotal : plan.amount, payableCurrency)}
+          </p>
         </div>
-        <p className="text-lg font-semibold text-foreground">
-          {fmtPrice(plan.amount, plan.currency)}
-        </p>
+
+        {preview && preview.gst_amount > 0 && (
+          <div className="mt-2.5 flex items-center justify-between border-t border-border pt-2.5">
+            <p className="text-[12px] text-muted-foreground">
+              {preview.gst_label} ({formatPct(preview.gst_percent)}%)
+            </p>
+            <p className="text-[12px] text-foreground">
+              {fmtPrice(preview.gst_amount, payableCurrency)}
+            </p>
+          </div>
+        )}
+
+        <div className="mt-2.5 flex items-center justify-between border-t border-border pt-2.5">
+          <p className="text-[13px] font-semibold text-foreground">Total payable</p>
+          <p className="text-lg font-semibold text-foreground">
+            {fmtPrice(payableAmount, payableCurrency)}
+          </p>
+        </div>
       </div>
 
       <form onSubmit={handlePay} className="space-y-4">
@@ -326,7 +386,7 @@ export default function OnboardingPaymentPage() {
           ) : (
             <>
               <Lock className="h-4 w-4" />
-              Pay {fmtPrice(plan.amount, plan.currency)} — Activate {plan.plan_display_name}
+              Pay {fmtPrice(payableAmount, payableCurrency)} — Activate {plan.plan_display_name}
             </>
           )}
         </button>

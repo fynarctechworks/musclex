@@ -2,13 +2,21 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService, AuditContext } from '../audit-logs/audit-logs.service';
 import { AuditAction } from '@prisma/client';
 import { CreatePlanDto, UpdatePlanDto } from './dto/plans.dto';
+import { UpdateGstDto } from './dto/gst.dto';
 import axios from 'axios';
+
+export interface GstSettings {
+  gst_enabled: boolean;
+  gst_percent: number;
+  gst_label: string;
+}
 
 interface PublicPlan {
   id: string;
@@ -397,5 +405,69 @@ export class PlansService {
 
     await this.invalidateOnboardingCache();
     return { success: true };
+  }
+
+  // ── Platform GST (single global rate) ─────────────────────────────────────
+
+  /**
+   * Read the platform-wide subscription GST setting from scc.platform_settings.
+   * Falls back to a disabled 0% if the row is missing so nothing breaks before
+   * the migration runs.
+   */
+  async getGstSettings(): Promise<GstSettings> {
+    const rows = await this.prisma.$queryRaw<Array<{ value: any }>>`
+      SELECT value FROM scc.platform_settings WHERE key = 'subscription_gst' LIMIT 1
+    `;
+    const v = rows[0]?.value ?? {};
+    const percent = Number(v.percent ?? 0);
+    return {
+      gst_enabled: v.enabled !== false,
+      gst_percent: Number.isFinite(percent) ? percent : 0,
+      gst_label: typeof v.label === 'string' && v.label.trim() ? v.label : 'GST',
+    };
+  }
+
+  /**
+   * Upsert the platform-wide subscription GST setting. Invalidates the
+   * onboarding cache so the public payment page picks up the new rate.
+   */
+  async updateGstSettings(dto: UpdateGstDto, ctx: AuditContext): Promise<GstSettings> {
+    const percent = Number(dto.gst_percent);
+    if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+      throw new BadRequestException('gst_percent must be a number between 0 and 100');
+    }
+    const value = {
+      enabled: dto.gst_enabled ?? true,
+      percent: +percent.toFixed(2),
+      label: (dto.gst_label ?? 'GST').trim() || 'GST',
+    };
+
+    await this.prisma.$executeRaw`
+      INSERT INTO scc.platform_settings (key, value, description, updated_at, updated_by)
+      VALUES (
+        'subscription_gst',
+        ${JSON.stringify(value)}::jsonb,
+        'GST added on top of subscription plan prices (exclusive). percent in [0,100].',
+        NOW(),
+        ${ctx.admin_id}::uuid
+      )
+      ON CONFLICT (key) DO UPDATE
+        SET value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by
+    `;
+
+    await this.audit.log(
+      AuditAction.UPDATE,
+      'platform_setting',
+      'subscription_gst',
+      ctx,
+      { new_value: value },
+    );
+    await this.invalidateOnboardingCache();
+
+    return {
+      gst_enabled: value.enabled,
+      gst_percent: value.percent,
+      gst_label: value.label,
+    };
   }
 }

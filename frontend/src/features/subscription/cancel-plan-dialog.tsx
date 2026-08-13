@@ -28,8 +28,9 @@ import { subscriptionApi } from './api';
  *   - We acknowledge over email + in the UI.
  *
  * Behind the scenes: POST /subscription/cancel writes a `cancel_requested`
- * ledger event. The exact "what happens at period end" behavior is wired in
- * a follow-up — for now the cron will lock them naturally at expiry+grace.
+ * ledger event AND schedules an end-of-period downgrade to the Free plan
+ * (applied by the daily cron). Reactivation = "Keep current plan" on the
+ * pending-change banner, or simply renewing — both supersede the schedule.
  */
 export function CancelPlanDialog({
   open,
@@ -79,9 +80,9 @@ export function CancelPlanDialog({
               <DialogTitle>Cancel your subscription?</DialogTitle>
               <DialogDescription className="mt-2">
                 You'll keep full access until <strong>{accessUntilLabel}</strong>.
-                After that, your account becomes read-only — your data,
-                members, payments, and history remain intact and you can
-                reactivate any time.
+                After that, your account moves to the <strong>Free plan</strong> —
+                your data, members, payments, and history remain intact and you
+                can reactivate any time.
               </DialogDescription>
             </div>
           </div>
@@ -90,8 +91,8 @@ export function CancelPlanDialog({
         <div className="mt-2 rounded-lg border bg-warning-soft border-warning/30 p-3 text-xs text-warning-deep leading-relaxed">
           <strong className="block mb-1">What stays the same:</strong>
           You keep all features until {accessUntilLabel}. No refunds for the
-          remaining days. After expiry, mutations are blocked but reads still
-          work so you can export data or reactivate.
+          remaining days. From then on, Free-plan limits apply — your data is
+          never deleted, and you can renew or upgrade to get everything back.
         </div>
 
         <div className="mt-4">
@@ -119,7 +120,7 @@ export function CancelPlanDialog({
             className="mt-0.5"
           />
           <label htmlFor="confirm-cancel" className="text-muted-foreground leading-snug cursor-pointer">
-            I understand my account becomes read-only after {accessUntilLabel}
+            I understand my account moves to the Free plan after {accessUntilLabel}
             and that there are no refunds for unused days.
           </label>
         </div>

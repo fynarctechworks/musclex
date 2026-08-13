@@ -1,5 +1,6 @@
 import { apiClient } from '@/services/api-client';
 import type {
+  PlanChangePreview,
   SubscriptionRenewalPreview,
   SubscriptionStatusResponse,
 } from './types';
@@ -117,8 +118,88 @@ export const subscriptionApi = {
       success: boolean;
       message: string;
       access_until: string | null;
+      /** True when the end-of-period downgrade to the Free plan was scheduled. */
+      downgrade_to_free_scheduled?: boolean;
       reactivation_available: boolean;
     }>('/subscription/cancel', body),
+
+  // ── Mid-cycle plan changes (proration engine) ──────────────────
+
+  /** Server-side preview: is this an immediate prorated upgrade, a scheduled change, or renewal-due? */
+  getChangePlanPreview: (opts: {
+    plan: string;
+    billing_cycle?: 'monthly' | 'annual';
+  }) =>
+    apiClient.get<PlanChangePreview>('/subscription/change-plan/preview', {
+      params: opts,
+    }),
+
+  /**
+   * Execute a plan change. Scheduled changes need no payment fields; manual
+   * prorated upgrades need payment_method + payment_reference. Razorpay
+   * upgrades use createChangePlanOrder + verifyPayment instead.
+   */
+  changePlan: (body: {
+    plan: string;
+    billing_cycle?: 'monthly' | 'annual';
+    payment_method?: PaymentMethod;
+    payment_reference?: string;
+    billing_name?: string;
+    billing_email?: string;
+    billing_address?: string;
+    tax_id?: string;
+  }) =>
+    apiClient.post<{
+      success: boolean;
+      mode: 'immediate_prorated' | 'scheduled';
+      // scheduled:
+      change_type?: string;
+      target_plan?: string;
+      target_plan_display_name?: string;
+      target_cycle?: 'monthly' | 'annual';
+      effective_at?: string;
+      message?: string;
+      // immediate_prorated:
+      plan?: string;
+      previous_plan?: string;
+      invoice_number?: string;
+      invoice_id?: string;
+      amount?: number;
+    }>('/subscription/change-plan', body),
+
+  /** Razorpay order for an immediate prorated upgrade (verify applies it). */
+  createChangePlanOrder: (body: {
+    plan: string;
+    billing_cycle?: 'monthly' | 'annual';
+  }) =>
+    apiClient.post<{
+      order_id: string;
+      key_id: string;
+      amount: number;
+      currency: string;
+      plan: string;
+      plan_display_name: string;
+      billing_cycle: 'monthly' | 'annual';
+      remaining_days: number;
+      unused_credit: number;
+      remaining_cost: number;
+      subtotal: number;
+      gst_percent: number;
+      gst_label: string;
+      gst_amount: number;
+      total: number;
+    }>('/subscription/change-plan/create-order', body),
+
+  /** Cancel the pending scheduled plan change (keep the current plan). */
+  cancelScheduledChange: () =>
+    apiClient.delete<{
+      success: boolean;
+      cancelled: {
+        target_plan: string;
+        target_cycle: 'monthly' | 'annual';
+        effective_at: string;
+      };
+    }>('/subscription/change-plan/scheduled'),
 };
 
 export type PaymentMethod =
@@ -129,16 +210,17 @@ export type PaymentMethod =
   | 'cash'
   | 'razorpay';
 
+/**
+ * Platform-subscription payments are GATEWAY-ONLY. This is a remote SaaS
+ * payment (gym → MuscleX) — honor-system manual modes (cash, "enter your own
+ * UTR") are unverifiable and were removed; the backend rejects them too.
+ * Card / UPI / netbanking / wallet are all available INSIDE Razorpay Checkout.
+ */
 export const PAYMENT_METHODS: Array<{
   value: PaymentMethod;
   label: string;
   description: string;
   comingSoon?: boolean;
 }> = [
-  { value: 'upi',           label: 'UPI',              description: 'Pay via GPay, PhonePe, Paytm, BHIM. Enter UPI reference / UTR.' },
-  { value: 'card',          label: 'Card',             description: 'Visa, Mastercard, RuPay. Enter authorization reference.' },
-  { value: 'netbanking',    label: 'Net Banking',      description: 'IMPS / NEFT direct bank transfer. Enter UTR.' },
-  { value: 'bank_transfer', label: 'Bank Transfer',    description: 'NEFT / RTGS to our settlement account. Enter UTR.' },
-  { value: 'cash',          label: 'Cash / Cheque',    description: 'Manual reconciliation. Enter receipt reference.' },
-  { value: 'razorpay',      label: 'Razorpay Checkout', description: 'Pay instantly by card, UPI, netbanking or wallet — auto-recorded.' },
+  { value: 'razorpay', label: 'Razorpay Checkout', description: 'Pay securely by card, UPI, netbanking or wallet — recorded automatically.' },
 ];

@@ -126,7 +126,9 @@ export class DiscountsService {
   // ── Payment Gateway Configs ───────────────────────────────
 
   async createGatewayConfig(dto: CreateGatewayConfigDto) {
-    const existing = await this.tenant.client.paymentGatewayConfig.findUnique({
+    // Unique key is now (gym_id, gateway_name) — per-gym configs. findFirst
+    // is auto-scoped to the gym by the tenant layer.
+    const existing = await this.tenant.client.paymentGatewayConfig.findFirst({
       where: { gateway_name: dto.gateway_name },
     });
     if (existing) throw new ConflictException(`Gateway "${dto.gateway_name}" already configured`);

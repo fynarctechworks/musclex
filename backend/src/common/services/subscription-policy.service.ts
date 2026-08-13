@@ -632,6 +632,349 @@ export class SubscriptionPolicyService {
     return result;
   }
 
+  // ────────────────────────────────────────────────────────────
+  // MID-CYCLE PLAN CHANGES (prorated upgrade + scheduled change)
+  // ────────────────────────────────────────────────────────────
+
+  /**
+   * Apply a mid-cycle PLAN change (prorated upgrade). Unlike recordRenewal,
+   * this does NOT move next_billing_date — the customer keeps their period
+   * and pays only the prorated difference; the next renewal bills the full
+   * new-plan price.
+   *
+   * Wrapped in one transaction: studio row, invoice, and ledger move together.
+   * Idempotent on payment_reference (same guard as recordRenewal — a replayed
+   * gateway payment can't double-apply or double-invoice).
+   */
+  async recordPlanChange(params: {
+    studio_id: string;
+    actor_id?: string;
+    actor_type?: 'user' | 'webhook' | 'admin' | 'system';
+    new_plan: string;
+    /** GST-inclusive total actually paid. 0 = free application (no invoice). */
+    amount: number;
+    currency?: string;
+    payment_reference?: string;
+    /**
+     * Stale-order guards: the order was priced against a specific period end
+     * and source plan. If either moved between order creation and payment
+     * (a renewal or another change landed in between), the prorated amount no
+     * longer matches — refuse instead of applying a mispriced change.
+     */
+    expected_period_end?: Date;
+    expected_from_plan?: string;
+    metadata?: Record<string, unknown>;
+    now?: Date;
+  }): Promise<{
+    previous_plan: string;
+    plan: string;
+    billing_cycle: string;
+    period_start: Date;
+    period_end: Date;
+    previous_status: SubscriptionLifecycleStatus;
+    invoice_number: string;
+    invoice_id: string;
+    slug: string;
+    replayed: boolean;
+  }> {
+    const now = params.now ?? new Date();
+    let replayed = false;
+
+    const result = await this.pub.$transaction(async (tx) => {
+      const studio = await tx.studio.findUnique({
+        where: { id: params.studio_id },
+        select: {
+          id: true,
+          slug: true,
+          subscription_plan: true,
+          billing_cycle: true,
+          next_billing_date: true,
+          lifecycle_status: true,
+        },
+      });
+      if (!studio) throw new Error(`Studio ${params.studio_id} not found`);
+
+      // ── Idempotency guard (same pattern as recordRenewal) ──
+      if (params.payment_reference) {
+        const prior = await tx.subscriptionEvent.findFirst({
+          where: {
+            studio_id: params.studio_id,
+            event_type: 'payment_recorded',
+            metadata: { path: ['payment_reference'], equals: params.payment_reference },
+          },
+          orderBy: { created_at: 'desc' },
+          select: { plan_name: true, period_start: true, period_end: true, metadata: true },
+        });
+        if (prior) {
+          replayed = true;
+          const meta = (prior.metadata ?? {}) as Record<string, unknown>;
+          this.logger.warn(
+            `recordPlanChange idempotent replay for studio ${studio.id} ` +
+              `(payment_reference=${params.payment_reference}) — returning prior result`,
+          );
+          return {
+            previous_plan: (meta.previous_plan as string) ?? studio.subscription_plan,
+            plan: prior.plan_name ?? studio.subscription_plan,
+            billing_cycle: studio.billing_cycle,
+            period_start: prior.period_start ?? now,
+            period_end: prior.period_end ?? studio.next_billing_date ?? now,
+            previous_status: studio.lifecycle_status as SubscriptionLifecycleStatus,
+            invoice_number: (meta.invoice_number as string) ?? '',
+            invoice_id: (meta.invoice_id as string) ?? '',
+            slug: studio.slug,
+            replayed: true,
+          };
+        }
+      }
+
+      // ── Guards ──
+      if (!studio.next_billing_date || studio.next_billing_date.getTime() <= now.getTime()) {
+        throw new Error(
+          'No active paid period — plan changes outside a paid period go through renewal.',
+        );
+      }
+      if (
+        params.expected_period_end &&
+        Math.abs(studio.next_billing_date.getTime() - params.expected_period_end.getTime()) > 1000
+      ) {
+        throw new Error(
+          'Billing period changed since this order was created — the prorated amount is stale. Contact support to reconcile the payment.',
+        );
+      }
+      if (params.expected_from_plan && params.expected_from_plan !== studio.subscription_plan) {
+        throw new Error(
+          'Plan changed since this order was created — the prorated amount is stale. Contact support to reconcile the payment.',
+        );
+      }
+      if (params.new_plan === studio.subscription_plan) {
+        throw new Error('Studio is already on this plan.');
+      }
+
+      const previous = studio.lifecycle_status as SubscriptionLifecycleStatus;
+      const period_start = now;
+      const period_end = studio.next_billing_date;
+
+      // Plan flips immediately; period boundary does NOT move.
+      await tx.studio.update({
+        where: { id: studio.id },
+        data: { subscription_plan: params.new_plan },
+      });
+
+      // Invoice only when money actually moved.
+      let invoice_id = '';
+      let invoice_number = '';
+      if (params.amount > 0) {
+        invoice_number = await this.generateInvoiceNumber(tx, now);
+        const invoice = await tx.invoice.create({
+          data: {
+            studio_id: studio.id,
+            invoice_number,
+            amount: params.amount as unknown as any,
+            currency: params.currency ?? 'INR',
+            status: 'paid',
+            billing_period_start: period_start,
+            billing_period_end: period_end,
+            paid_at: now,
+          },
+          select: { id: true },
+        });
+        invoice_id = invoice.id;
+      }
+
+      await tx.subscriptionEvent.create({
+        data: {
+          studio_id: studio.id,
+          event_type: 'plan_changed',
+          from_status: previous,
+          to_status: previous,
+          plan_name: params.new_plan,
+          billing_cycle: studio.billing_cycle,
+          period_start,
+          period_end,
+          actor_id: params.actor_id,
+          actor_type: params.actor_type ?? 'user',
+          metadata: {
+            ...(params.metadata ?? {}),
+            change_type: 'prorated_upgrade',
+            previous_plan: studio.subscription_plan,
+            new_plan: params.new_plan,
+            ...(invoice_id ? { invoice_id, invoice_number } : {}),
+          },
+        },
+      });
+
+      if (params.amount > 0) {
+        await tx.subscriptionEvent.create({
+          data: {
+            studio_id: studio.id,
+            event_type: 'payment_recorded',
+            plan_name: params.new_plan,
+            billing_cycle: studio.billing_cycle,
+            amount: params.amount as unknown as any,
+            currency: params.currency ?? 'INR',
+            period_start,
+            period_end,
+            actor_id: params.actor_id,
+            actor_type: params.actor_type ?? 'user',
+            metadata: {
+              ...(params.metadata ?? {}),
+              change_type: 'prorated_upgrade',
+              previous_plan: studio.subscription_plan,
+              ...(params.payment_reference
+                ? { payment_reference: params.payment_reference }
+                : {}),
+              invoice_id,
+              invoice_number,
+            },
+          },
+        });
+      }
+
+      this.invalidateCache(studio.id);
+      return {
+        previous_plan: studio.subscription_plan,
+        plan: params.new_plan,
+        billing_cycle: studio.billing_cycle,
+        period_start,
+        period_end,
+        previous_status: previous,
+        invoice_number,
+        invoice_id,
+        slug: studio.slug,
+        replayed: false,
+      };
+    });
+
+    // Mirror the paid upgrade into SCC billing — same chokepoint pattern as
+    // recordRenewal. Skipped on replay (no new invoice) and on free changes.
+    if (!replayed && params.amount > 0 && result.invoice_id) {
+      await this.sccSync.upsertPayment({
+        id: result.invoice_id,
+        studio_slug: result.slug,
+        amount: params.amount,
+        currency: params.currency ?? 'INR',
+        status: 'paid',
+        invoice_number: result.invoice_number,
+        paid_at: now,
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * The pending scheduled plan change for a studio, or null.
+   *
+   * Ledger-derived (no schema column): the LATEST event among the four types
+   * below decides. A newer renewal or applied plan change supersedes any
+   * earlier schedule automatically — the customer's most recent decision wins.
+   */
+  async getScheduledPlanChange(studioId: string): Promise<{
+    target_plan: string;
+    target_cycle: string;
+    effective_at: Date;
+    scheduled_at: Date;
+    previous_plan: string | null;
+  } | null> {
+    const latest = await this.pub.subscriptionEvent.findFirst({
+      where: {
+        studio_id: studioId,
+        event_type: {
+          in: ['plan_change_scheduled', 'plan_change_unscheduled', 'renewed', 'plan_changed'],
+        },
+      },
+      orderBy: { created_at: 'desc' },
+      select: {
+        event_type: true,
+        plan_name: true,
+        billing_cycle: true,
+        period_end: true,
+        created_at: true,
+        metadata: true,
+      },
+    });
+    if (!latest || latest.event_type !== 'plan_change_scheduled' || !latest.period_end) {
+      return null;
+    }
+    const meta = (latest.metadata ?? {}) as Record<string, unknown>;
+    return {
+      target_plan: latest.plan_name ?? String(meta.target_plan ?? ''),
+      target_cycle: latest.billing_cycle ?? String(meta.target_cycle ?? 'monthly'),
+      effective_at: latest.period_end,
+      scheduled_at: latest.created_at,
+      previous_plan: typeof meta.previous_plan === 'string' ? meta.previous_plan : null,
+    };
+  }
+
+  /**
+   * Schedule a downgrade / cycle switch for the period boundary. Stored as a
+   * ledger event with period_end = effective_at so the cron can range-query
+   * due changes. Re-scheduling simply appends a newer event (latest wins).
+   */
+  async schedulePlanChange(params: {
+    studio_id: string;
+    actor_id?: string;
+    target_plan: string;
+    target_cycle: string;
+    effective_at: Date;
+    previous_plan: string;
+    previous_cycle: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
+    await this.pub.subscriptionEvent.create({
+      data: {
+        studio_id: params.studio_id,
+        event_type: 'plan_change_scheduled',
+        plan_name: params.target_plan,
+        billing_cycle: params.target_cycle,
+        period_end: params.effective_at,
+        actor_id: params.actor_id,
+        actor_type: 'user',
+        metadata: {
+          ...(params.metadata ?? {}),
+          target_plan: params.target_plan,
+          target_cycle: params.target_cycle,
+          previous_plan: params.previous_plan,
+          previous_cycle: params.previous_cycle,
+          effective_at: params.effective_at.toISOString(),
+        },
+      },
+    });
+  }
+
+  /**
+   * Cancel the pending scheduled change (if any). Returns the change that was
+   * cancelled, or null when nothing was pending.
+   */
+  async cancelScheduledPlanChange(
+    studioId: string,
+    actorId?: string,
+  ): Promise<{ target_plan: string; target_cycle: string; effective_at: Date } | null> {
+    const pending = await this.getScheduledPlanChange(studioId);
+    if (!pending) return null;
+
+    await this.pub.subscriptionEvent.create({
+      data: {
+        studio_id: studioId,
+        event_type: 'plan_change_unscheduled',
+        plan_name: pending.target_plan,
+        billing_cycle: pending.target_cycle,
+        actor_id: actorId,
+        actor_type: 'user',
+        metadata: {
+          target_plan: pending.target_plan,
+          target_cycle: pending.target_cycle,
+          effective_at: pending.effective_at.toISOString(),
+        },
+      },
+    });
+    return {
+      target_plan: pending.target_plan,
+      target_cycle: pending.target_cycle,
+      effective_at: pending.effective_at,
+    };
+  }
+
   /**
    * Generate INV-YYYYMMDD-XXXX, where XXXX is the next sequence for this day.
    * Uses a count + retry loop to handle the unique constraint on invoice_number

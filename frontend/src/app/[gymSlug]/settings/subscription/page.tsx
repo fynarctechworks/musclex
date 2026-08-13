@@ -44,6 +44,8 @@ import { format } from "date-fns";
 import { useGymSlug } from "@/lib/hooks/use-gym-slug";
 import { useRequirePermission } from "@/hooks/use-require-permission";
 import { CancelPlanDialog } from "@/features/subscription";
+import { subscriptionApi } from "@/features/subscription/api";
+import type { SubscriptionStatusResponse } from "@/features/subscription/types";
 
 // ── Types ──────────────────────────────────────────────────────
 interface AccountOverview {
@@ -292,12 +294,42 @@ export default function SubscriptionPage() {
     queryFn: () => apiClient.get("/settings/account"),
   });
 
+  // Pending scheduled change (downgrade / cycle switch) — surfaced as a banner
+  // with the option to keep the current plan instead.
+  const { data: subStatus } = useQuery<SubscriptionStatusResponse>({
+    queryKey: ["subscription", "status"],
+    queryFn: () => subscriptionApi.getStatus(),
+  });
+  const pendingChange = subStatus?.pending_change ?? null;
+
+  const cancelScheduledMutation = useMutation({
+    mutationFn: () => subscriptionApi.cancelScheduledChange(),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["subscription"] }),
+        queryClient.invalidateQueries({ queryKey: ["account-overview"] }),
+      ]);
+      toast.success("Scheduled plan change cancelled — you keep your current plan.");
+    },
+    onError: (err: Error) =>
+      toast.error(err.message || "Could not cancel the scheduled change."),
+  });
+
   // Renew (same plan) and Switch (different plan) both navigate to the
   // dedicated checkout page so there's exactly ONE payment path — no
   // modal trap, no parallel "instant-upgrade" shortcut that drifts.
-  function openPaymentFor(planKey: string, _planName: string, cycle: "monthly" | "annual") {
+  // Mid-cycle changes carry intent=change: the checkout page then previews the
+  // server-decided mode (prorated upgrade now vs scheduled at period end).
+  function openPaymentFor(
+    planKey: string,
+    _planName: string,
+    cycle: "monthly" | "annual",
+    intent?: "change",
+  ) {
     router.push(
-      gymPath(`/settings/subscription/checkout?plan=${encodeURIComponent(planKey)}&cycle=${cycle}`),
+      gymPath(
+        `/settings/subscription/checkout?plan=${encodeURIComponent(planKey)}&cycle=${cycle}${intent ? `&intent=${intent}` : ""}`,
+      ),
     );
   }
 
@@ -403,18 +435,16 @@ export default function SubscriptionPage() {
                       </p>
                     )}
                   </div>
-                  {showRenewalUI && (
-                    <button
-                      onClick={() => {
-                        const grid = document.getElementById('plans-grid');
-                        grid?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition-all hover:shadow-level-4 hover:shadow-primary/20"
-                    >
-                      <TrendingUp className="w-4 h-4" />
-                      Renew or change plan
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      const grid = document.getElementById('plans-grid');
+                      grid?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition-all hover:shadow-level-4 hover:shadow-primary/20"
+                  >
+                    <TrendingUp className="w-4 h-4" />
+                    {showRenewalUI ? "Renew or change plan" : "Change plan"}
+                  </button>
                   <button
                     onClick={() => setCancelOpen(true)}
                     className="inline-flex items-center gap-2 px-4 py-2.5 border border-border bg-background text-muted-foreground rounded-lg text-sm font-medium hover:bg-error-soft hover:text-error hover:border-error/30 transition-all"
@@ -432,8 +462,40 @@ export default function SubscriptionPage() {
             </div>
           </div>
 
-          {/* ── Plans Grid — only when a renewal decision is due ──── */}
-          {showRenewalUI && (
+          {/* ── Pending scheduled change banner ───────────── */}
+          {pendingChange && (
+            <div className="bg-card border border-warning/40 rounded-lg p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-lg bg-warning-soft flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5 text-warning" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    Plan change scheduled
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Your subscription switches to{" "}
+                    <span className="font-semibold capitalize text-foreground">
+                      {pendingChange.target_plan} ({pendingChange.target_cycle})
+                    </span>{" "}
+                    on {fmtDate(pendingChange.effective_at)}. Until then you keep
+                    your current plan and all its features.
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                disabled={cancelScheduledMutation.isPending}
+                onClick={() => cancelScheduledMutation.mutate()}
+              >
+                Keep current plan
+              </Button>
+            </div>
+          )}
+
+          {/* ── Plans Grid — renew when due, prorated change any time ──── */}
           <div
             id="plans-grid"
             className="bg-card border border-border rounded-lg shadow-level-2 shadow-black/5 overflow-hidden scroll-mt-20"
@@ -445,10 +507,12 @@ export default function SubscriptionPage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
-                    Renew or change plan
+                    {showRenewalUI ? "Renew or change plan" : "Change plan"}
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Pick the plan you want — same one to renew, or switch to a different tier
+                    {showRenewalUI
+                      ? "Pick the plan you want — same one to renew, or switch to a different tier"
+                      : "Upgrades apply instantly — you pay only the prorated difference. Downgrades and cycle switches apply at your next renewal."}
                   </p>
                 </div>
               </div>
@@ -495,13 +559,22 @@ export default function SubscriptionPage() {
                 const direction =
                   tierIdx > currentIdx ? "upgrade" : tierIdx < currentIdx ? "downgrade" : "same";
 
+                // In the renewal window every pick is a full renewal at the new
+                // plan. Mid-cycle, upgrades are prorated-immediate and
+                // downgrades / cycle switches are scheduled for period end.
                 const cta = isCurrent
                   ? "Renew this plan"
                   : direction === "upgrade"
-                    ? `Switch to ${tier.name}`
+                    ? showRenewalUI
+                      ? `Switch to ${tier.name}`
+                      : "Upgrade now — prorated"
                     : direction === "downgrade"
-                      ? `Downgrade to ${tier.name}`
-                      : `Switch to ${billingCycle === "annual" ? "Annual" : "Monthly"}`;
+                      ? showRenewalUI
+                        ? `Downgrade to ${tier.name}`
+                        : "Switch at period end"
+                      : showRenewalUI
+                        ? `Switch to ${billingCycle === "annual" ? "Annual" : "Monthly"}`
+                        : "Switch cycle at renewal";
 
                 const free = price === 0;
 
@@ -562,12 +635,24 @@ export default function SubscriptionPage() {
                         <p className="text-[11px] text-center text-muted-foreground py-2 italic">
                           Free tier — no renewal needed
                         </p>
+                      ) : isCurrent && !showRenewalUI ? (
+                        <p className="text-[11px] text-center text-muted-foreground py-2">
+                          Current plan — renews{" "}
+                          {fmtDate(account.subscription.next_billing_date)}
+                        </p>
                       ) : (
                         <Button
                           size="sm"
                           variant={isCurrent ? "default" : direction === "downgrade" ? "outline" : "default"}
                           className="w-full text-xs"
-                          onClick={() => openPaymentFor(tier.key, tier.name, billingCycle)}
+                          onClick={() =>
+                            openPaymentFor(
+                              tier.key,
+                              tier.name,
+                              billingCycle,
+                              !showRenewalUI && !isCurrent ? "change" : undefined,
+                            )
+                          }
                         >
                           {cta}
                         </Button>
@@ -587,7 +672,6 @@ export default function SubscriptionPage() {
               Pay online via Razorpay Checkout, or record a manual payment with a transaction reference (UPI / Card / Bank / Cash).
             </div>
           </div>
-          )}
 
           {/* ── Two-Column: Subscription Details + Usage ──── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

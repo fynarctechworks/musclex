@@ -6,6 +6,7 @@ import { SubscriptionPolicyService } from '../common/services/subscription-polic
 import { SubscriptionGateway } from './subscription.gateway';
 import { CronLockService } from '../common/services/cron-lock.service';
 import { QueueService } from '../queue/queue.service';
+import { PLAN_CONFIGS } from '../common/plan-configs';
 import {
   REFERRAL_EVENTS,
   TrialCompletedPayload,
@@ -56,6 +57,11 @@ export class SubscriptionCron {
         `Subscription reconciliation starting at ${now.toISOString()}`,
       );
 
+      // Apply due scheduled downgrades to zero-price plans FIRST — a gym that
+      // deliberately downgraded to free must land on the free tier, not drift
+      // into grace/locked because its paid period lapsed.
+      const applied = await this.applyDueScheduledChanges(now);
+
       const studios = await this.pub.studio.findMany({
         select: { id: true, email: true, billing_email: true, name: true },
       });
@@ -104,9 +110,130 @@ export class SubscriptionCron {
 
       this.logger.log(
         `Subscription reconciliation done. studios=${studios.length} ` +
-          `transitioned=${transitioned} reminders=${reminded}`,
+          `transitioned=${transitioned} reminders=${reminded} ` +
+          `scheduled_changes_applied=${applied}`,
       );
     });
+  }
+
+  /**
+   * Apply scheduled plan changes whose effective date has passed and whose
+   * TARGET plan costs nothing (free tier). Paid targets are consumed by the
+   * next renewal payment instead — there is no auto-charge in this system,
+   * so applying a paid plan without payment would grant it for free.
+   *
+   * Idempotent: once applied, the resulting `plan_changed` ledger event
+   * supersedes the schedule, so getScheduledPlanChange returns null on the
+   * next pass.
+   */
+  private async applyDueScheduledChanges(now: Date): Promise<number> {
+    // period_end on the scheduled event = effective_at, so it's range-
+    // queryable. The 90-day floor keeps the scan bounded; consumed schedules
+    // are filtered out by the per-studio re-validation below.
+    const floor = new Date(now.getTime() - 90 * DAY_MS);
+    const due = await this.pub.subscriptionEvent.findMany({
+      where: {
+        event_type: 'plan_change_scheduled',
+        period_end: { lte: now, gte: floor },
+      },
+      select: { studio_id: true },
+      distinct: ['studio_id'],
+    });
+
+    let applied = 0;
+    for (const { studio_id } of due) {
+      try {
+        const pending = await this.policy.getScheduledPlanChange(studio_id);
+        if (!pending || pending.effective_at.getTime() > now.getTime()) continue;
+
+        const price = await this.resolvePlanPrice(
+          pending.target_plan,
+          pending.target_cycle,
+        );
+        if (price === null || price > 0) continue; // paid target → applies at next renewal
+
+        const studio = await this.pub.studio.findUnique({
+          where: { id: studio_id },
+          select: {
+            subscription_plan: true,
+            billing_cycle: true,
+            lifecycle_status: true,
+          },
+        });
+        if (!studio) continue;
+
+        await this.pub.$transaction([
+          this.pub.studio.update({
+            where: { id: studio_id },
+            data: {
+              subscription_plan: pending.target_plan,
+              billing_cycle: pending.target_cycle,
+              next_billing_date: null, // free tier has no billing period
+              subscription_status: 'active',
+              lifecycle_status: 'active',
+              grace_until: null,
+              locked_at: null,
+              last_status_computed_at: now,
+            },
+          }),
+          this.pub.subscriptionEvent.create({
+            data: {
+              studio_id,
+              event_type: 'plan_changed',
+              from_status: studio.lifecycle_status,
+              to_status: 'active',
+              plan_name: pending.target_plan,
+              billing_cycle: pending.target_cycle,
+              actor_type: 'system',
+              metadata: {
+                change_type: 'scheduled_downgrade_applied',
+                previous_plan: studio.subscription_plan,
+                previous_billing_cycle: studio.billing_cycle,
+                effective_at: pending.effective_at.toISOString(),
+              },
+            },
+          }),
+        ]);
+
+        this.policy.invalidateCache(studio_id);
+        const context = await this.policy.getContext(studio_id);
+        this.gateway.pushStatusChange(studio_id, {
+          previous_status: studio.lifecycle_status as any,
+          subscription: context,
+          reason: 'plan_change',
+        });
+
+        applied++;
+        this.logger.log(
+          `Scheduled downgrade applied: studio=${studio_id} ` +
+            `${studio.subscription_plan} → ${pending.target_plan}`,
+        );
+      } catch (err) {
+        this.logger.error(
+          `Scheduled change apply failed for studio ${studio_id}: ${(err as Error).message}`,
+        );
+      }
+    }
+    return applied;
+  }
+
+  /** Plan price for a cycle — DB row wins, PLAN_CONFIGS fallback, null if unknown. */
+  private async resolvePlanPrice(
+    planName: string,
+    cycle: string,
+  ): Promise<number | null> {
+    const dbPlan = await this.pub.subscriptionPlan
+      .findUnique({
+        where: { name: planName },
+        select: { monthly_price: true, annual_price: true },
+      })
+      .catch(() => null);
+    if (dbPlan) {
+      return Number(cycle === 'annual' ? dbPlan.annual_price : dbPlan.monthly_price);
+    }
+    const fallback = PLAN_CONFIGS[planName];
+    if (!fallback) return null;
+    return cycle === 'annual' ? fallback.annual_price : fallback.monthly_price;
   }
 
   /**
