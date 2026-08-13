@@ -26,6 +26,52 @@ export default function AdviceScreen() {
       </Txt>
 
       <View className="gap-md">
+        {/* AI Coach — chat with the gym's AI assistant (gym members). */}
+        {isMember ? (
+          <Card onPress={() => router.push('/coach')}>
+            <View className="flex-row items-center">
+              <View
+                className="h-[44px] w-[44px] items-center justify-center rounded-full"
+                style={{ backgroundColor: theme.primary + '22' }}
+              >
+                <Icon name="flash" color={theme.accent} size={22} filled />
+              </View>
+              <View className="ml-md flex-1">
+                <Txt variant="body-lg" weight="600" className="text-ink">
+                  AI Coach
+                </Txt>
+                <Txt variant="body-sm" className="text-body">
+                  Instant answers on training & diet
+                </Txt>
+              </View>
+              <Icon name="chevron-right" color={theme.mute} size={20} />
+            </View>
+          </Card>
+        ) : null}
+
+        {/* My Plan — trainer-assigned diet + upcoming workouts (gym members). */}
+        {isMember ? (
+          <Card onPress={() => router.push('/plan')}>
+            <View className="flex-row items-center">
+              <View
+                className="h-[44px] w-[44px] items-center justify-center rounded-full"
+                style={{ backgroundColor: theme.primary + '22' }}
+              >
+                <Icon name="calendar" color={theme.accent} size={22} />
+              </View>
+              <View className="ml-md flex-1">
+                <Txt variant="body-lg" weight="600" className="text-ink">
+                  My Plan
+                </Txt>
+                <Txt variant="body-sm" className="text-body">
+                  Your diet plan & upcoming workouts
+                </Txt>
+              </View>
+              <Icon name="chevron-right" color={theme.mute} size={20} />
+            </View>
+          </Card>
+        ) : null}
+
         {/* Trainer chat — message your assigned coach (gym members). */}
         {isMember ? (
           <Card onPress={() => router.push('/messages')}>
