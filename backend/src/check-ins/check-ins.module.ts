@@ -14,6 +14,9 @@ import { FaceApiPgVectorProvider } from './biometric/providers/face-api-pgvector
 import { ZkTecoFingerprintProvider } from './biometric/providers/zkteco.provider';
 import { DevicesService } from './devices/devices.service';
 import { DevicesController } from './devices/devices.controller';
+import { IclockController } from './biometric/iclock.controller';
+import { IclockService } from './biometric/iclock.service';
+import { BiometricDevicesController } from './biometric/biometric-devices.controller';
 import { DeviceCheckInController } from './devices/device-checkin.controller';
 import { DeviceAuthMiddleware } from './devices/device-auth.middleware';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -38,6 +41,8 @@ const BIOMETRIC_PROVIDER_CLASSES = [FaceApiPgVectorProvider, ZkTecoFingerprintPr
     BiometricController,
     DevicesController,
     DeviceCheckInController,
+    IclockController,
+    BiometricDevicesController,
   ],
   providers: [
     CheckInsService,
@@ -51,6 +56,7 @@ const BIOMETRIC_PROVIDER_CLASSES = [FaceApiPgVectorProvider, ZkTecoFingerprintPr
     BiometricRegistry,
     BiometricEnrollmentService,
     DevicesService,
+    IclockService,
     DeviceAuthMiddleware,
     ...BIOMETRIC_PROVIDER_CLASSES,
     {

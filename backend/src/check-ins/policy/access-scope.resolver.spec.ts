@@ -10,7 +10,7 @@ import type { CheckInContext } from './rule.interface';
  */
 describe('AccessScopeResolver', () => {
   let resolver: AccessScopeResolver;
-  let prisma: { branch: { findUnique: jest.Mock } };
+  let prisma: { branch: { findFirst: jest.Mock } };
 
   const HOME = '00000000-0000-0000-0000-000000000001';
   const SISTER = '00000000-0000-0000-0000-000000000002';
@@ -21,7 +21,7 @@ describe('AccessScopeResolver', () => {
   const MEMBERSHIP = '00000000-0000-0000-0000-0000000000dd';
 
   beforeEach(async () => {
-    prisma = { branch: { findUnique: jest.fn() } };
+    prisma = { branch: { findFirst: jest.fn() } };
 
     const module = await Test.createTestingModule({
       providers: [
@@ -211,11 +211,11 @@ describe('AccessScopeResolver', () => {
         }),
       );
       expect(r.allowed).toBe(true);
-      expect(prisma.branch.findUnique).not.toHaveBeenCalled();
+      expect(prisma.branch.findFirst).not.toHaveBeenCalled();
     });
 
     it('falls back to a DB lookup when branch.organization_id is missing', async () => {
-      prisma.branch.findUnique.mockResolvedValueOnce({ organization_id: ORG });
+      prisma.branch.findFirst.mockResolvedValueOnce({ organization_id: ORG });
       const r = await resolver.resolve(
         ctx({
           accessType: 'all_access',
@@ -225,14 +225,14 @@ describe('AccessScopeResolver', () => {
         }),
       );
       expect(r.allowed).toBe(true);
-      expect(prisma.branch.findUnique).toHaveBeenCalledWith({
-        where: { id: STRANGER },
+      expect(prisma.branch.findFirst).toHaveBeenCalledWith({
+        where: { id: STRANGER, gym_id: 'gym-1' },
         select: { organization_id: true },
       });
     });
 
     it('falls back to home-branch org comparison when plan has no org', async () => {
-      prisma.branch.findUnique
+      prisma.branch.findFirst
         .mockResolvedValueOnce({ organization_id: ORG }) // target
         .mockResolvedValueOnce({ organization_id: ORG }); // home
       const r = await resolver.resolve(
@@ -247,7 +247,7 @@ describe('AccessScopeResolver', () => {
     });
 
     it('denies when target branch is outside the organization', async () => {
-      prisma.branch.findUnique.mockResolvedValueOnce({ organization_id: OTHER_ORG });
+      prisma.branch.findFirst.mockResolvedValueOnce({ organization_id: OTHER_ORG });
       const r = await resolver.resolve(
         ctx({
           accessType: 'all_access',
@@ -277,7 +277,7 @@ describe('AccessScopeResolver', () => {
     });
 
     it('denies when cities differ', async () => {
-      prisma.branch.findUnique.mockResolvedValueOnce({ city: 'Bangalore' });
+      prisma.branch.findFirst.mockResolvedValueOnce({ city: 'Bangalore' });
       const r = await resolver.resolve(
         ctx({
           accessType: 'city_access',

@@ -141,8 +141,8 @@ export class AccessScopeResolver {
 
     // ctx.branch.organization_id may be missing for legacy branches not yet
     // associated with an organization. Do a narrow lookup to confirm.
-    const target = await ctx.prisma.branch.findUnique({
-      where: { id: targetBranchId },
+    const target = await ctx.prisma.branch.findFirst({
+      where: { id: targetBranchId, gym_id: ctx.gym_id },
       select: { organization_id: true },
     });
 
@@ -156,8 +156,8 @@ export class AccessScopeResolver {
 
     // Fall back: compare against the membership branch's organization.
     if (!planOrg) {
-      const home = await ctx.prisma.branch.findUnique({
-        where: { id: ctx.membership!.branch_id },
+      const home = await ctx.prisma.branch.findFirst({
+        where: { id: ctx.membership!.branch_id, gym_id: ctx.gym_id },
         select: { organization_id: true },
       });
       if (
@@ -198,8 +198,8 @@ export class AccessScopeResolver {
     }
 
     // Lookup if city not preloaded.
-    const target = await ctx.prisma.branch.findUnique({
-      where: { id: targetBranchId },
+    const target = await ctx.prisma.branch.findFirst({
+      where: { id: targetBranchId, gym_id: ctx.gym_id },
       select: { city: true },
     });
 
