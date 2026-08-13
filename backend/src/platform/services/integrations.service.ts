@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
 import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
-import { getTenantGymId } from '../../common/tenant-context';
+import { PublicPrismaService } from '../../prisma/public-prisma.service';
+import { getTenantGymId, getTenantSchema } from '../../common/tenant-context';
 import { Prisma } from '../../../node_modules/.prisma/client-tenant';
 import {
   CreateIntegrationDto,
@@ -9,13 +10,54 @@ import {
 
 @Injectable()
 export class IntegrationsService {
-  constructor(private readonly tenant: TenantPrisma) {}
+  private readonly logger = new Logger(IntegrationsService.name);
+
+  constructor(
+    private readonly tenant: TenantPrisma,
+    private readonly pub: PublicPrismaService,
+  ) {}
+
+  /**
+   * Keep the public inbound-webhook routing index in sync: WhatsApp
+   * integrations map their WABA phone_number_id → this gym, so the Meta
+   * webhook can resolve the tenant before any context exists. Best-effort —
+   * never fails the integration write.
+   */
+  private async syncWhatsAppNumberIndex(provider: string, config: unknown, enabled: boolean): Promise<void> {
+    if (provider !== 'whatsapp') return;
+    try {
+      const gymId = getTenantGymId()!;
+      const schemaName = getTenantSchema();
+      const phoneNumberId =
+        typeof (config as Record<string, unknown>)?.phone_number_id === 'string'
+          ? ((config as Record<string, string>).phone_number_id ?? '').trim()
+          : '';
+      if (!schemaName) return;
+      if (!phoneNumberId || !enabled) {
+        await this.pub.whatsAppNumberIndex.deleteMany({ where: { gym_id: gymId } });
+        return;
+      }
+      await this.pub.whatsAppNumberIndex.deleteMany({
+        where: { gym_id: gymId, phone_number_id: { not: phoneNumberId } },
+      });
+      await this.pub.whatsAppNumberIndex.upsert({
+        where: { phone_number_id: phoneNumberId },
+        create: { phone_number_id: phoneNumberId, gym_id: gymId, schema_name: schemaName },
+        update: { gym_id: gymId, schema_name: schemaName },
+      });
+    } catch (e) {
+      this.logger.warn(`whatsapp_number_index sync failed: ${(e as Error).message}`);
+    }
+  }
 
   // ─── Integrations ─────────────────────────────────────────
 
-  async getIntegrations(organizationId: string) {
+  // NOTE on the organizationId params: callers (IntegrationsController) pass
+  // user.studio_id, which is NOT organizations.id. Every query here is already
+  // tenant-scoped by the isolation layer, so reads ignore the param; create
+  // resolves the gym's real Organization row for the FK.
+  async getIntegrations(_organizationId: string) {
     const integrations = await this.tenant.client.integration.findMany({
-      where: { organization_id: organizationId },
       orderBy: { provider: 'asc' },
     });
     // Mask sensitive config fields
@@ -25,37 +67,36 @@ export class IntegrationsService {
     }));
   }
 
-  async getIntegration(organizationId: string, id: string) {
+  async getIntegration(_organizationId: string, id: string) {
     const integration = await this.tenant.client.integration.findFirst({
-      where: { id, organization_id: organizationId },
+      where: { id },
     });
     if (!integration) throw new NotFoundException('Integration not found');
     return { ...integration, config: this.maskConfig(integration.config) };
   }
 
-  async getIntegrationByProvider(organizationId: string, provider: string) {
-    const integration = await this.tenant.client.integration.findUnique({
-      where: { organization_id_provider: { organization_id: organizationId, provider } },
+  async getIntegrationByProvider(_organizationId: string, provider: string) {
+    const integration = await this.tenant.client.integration.findFirst({
+      where: { provider },
     });
     if (!integration) throw new NotFoundException(`Integration "${provider}" not found`);
     return integration; // Return full config for internal use
   }
 
-  async createIntegration(organizationId: string, dto: CreateIntegrationDto, createdBy: string) {
-    const existing = await this.tenant.client.integration.findUnique({
-      where: {
-        organization_id_provider: {
-          organization_id: organizationId,
-          provider: dto.provider,
-        },
-      },
+  async createIntegration(_organizationId: string, dto: CreateIntegrationDto, createdBy: string) {
+    const existing = await this.tenant.client.integration.findFirst({
+      where: { provider: dto.provider },
     });
     if (existing) throw new ConflictException(`Integration "${dto.provider}" already exists`);
 
-    return this.tenant.client.integration.create({
+    // The FK targets the gym's Organization row — resolve it, never trust the param.
+    const org = await this.tenant.client.organization.findFirst({ select: { id: true } });
+    if (!org) throw new NotFoundException('Studio setup incomplete (no organization)');
+
+    const created = await this.tenant.client.integration.create({
       data: {
         gym_id: getTenantGymId()!,
-        organization_id: organizationId,
+        organization_id: org.id,
         provider: dto.provider,
         display_name: dto.display_name,
         config: (dto.config ?? {}) as Prisma.InputJsonValue,
@@ -63,15 +104,17 @@ export class IntegrationsService {
         created_by: createdBy,
       },
     });
+    await this.syncWhatsAppNumberIndex(created.provider, created.config, created.is_enabled);
+    return created;
   }
 
-  async updateIntegration(organizationId: string, id: string, dto: UpdateIntegrationDto) {
+  async updateIntegration(_organizationId: string, id: string, dto: UpdateIntegrationDto) {
     const integration = await this.tenant.client.integration.findFirst({
-      where: { id, organization_id: organizationId },
+      where: { id },
     });
     if (!integration) throw new NotFoundException('Integration not found');
 
-    return this.tenant.client.integration.update({
+    const updated = await this.tenant.client.integration.update({
       where: { id },
       data: {
         display_name: dto.display_name,
@@ -83,34 +126,40 @@ export class IntegrationsService {
           : undefined,
       },
     });
+    await this.syncWhatsAppNumberIndex(updated.provider, updated.config, updated.is_enabled);
+    return updated;
   }
 
-  async toggleIntegration(organizationId: string, id: string, enabled: boolean) {
+  async toggleIntegration(_organizationId: string, id: string, enabled: boolean) {
     const integration = await this.tenant.client.integration.findFirst({
-      where: { id, organization_id: organizationId },
+      where: { id },
     });
     if (!integration) throw new NotFoundException('Integration not found');
 
-    return this.tenant.client.integration.update({
+    const toggled = await this.tenant.client.integration.update({
       where: { id },
       data: {
         is_enabled: enabled,
         status: enabled ? 'active' : 'inactive',
       },
     });
+    await this.syncWhatsAppNumberIndex(toggled.provider, toggled.config, toggled.is_enabled);
+    return toggled;
   }
 
-  async deleteIntegration(organizationId: string, id: string) {
+  async deleteIntegration(_organizationId: string, id: string) {
     const integration = await this.tenant.client.integration.findFirst({
-      where: { id, organization_id: organizationId },
+      where: { id },
     });
     if (!integration) throw new NotFoundException('Integration not found');
-    return this.tenant.client.integration.delete({ where: { id } });
+    const deleted = await this.tenant.client.integration.delete({ where: { id } });
+    await this.syncWhatsAppNumberIndex(integration.provider, integration.config, false);
+    return deleted;
   }
 
-  async testIntegration(organizationId: string, id: string) {
+  async testIntegration(_organizationId: string, id: string) {
     const integration = await this.tenant.client.integration.findFirst({
-      where: { id, organization_id: organizationId },
+      where: { id },
     });
     if (!integration) throw new NotFoundException('Integration not found');
 
@@ -169,7 +218,7 @@ export class IntegrationsService {
         name: 'WhatsApp Cloud API',
         category: 'messaging',
         description: 'Send WhatsApp messages via Meta Business API',
-        config_fields: ['phone_number_id', 'access_token', 'business_account_id'],
+        config_fields: ['phone_number_id', 'access_token', 'business_account_id', 'auto_reply_message'],
       },
       {
         provider: 'resend',
