@@ -1,0 +1,451 @@
+# MUSCLEX UX BIBLE
+
+# Volume 17 — UX Architecture
+
+## Document 17.02
+
+# UX Flow Bible
+
+---
+
+Document ID: MUSCLEX-UXFLOW-001
+
+Version: 1.0
+
+Status: Approved
+
+Priority: CRITICAL
+
+Owner: Chief Product Officer
+
+Contributors:
+- UX Design
+- Product Design
+- Engineering
+- QA
+- AI Team
+
+---
+
+# Purpose
+
+This document defines every user journey, interaction flow, navigation path,
+decision tree, and state transition within MuscleX.
+
+Every screen must belong to one or more user flows.
+
+Every feature must support at least one complete user journey.
+
+No screen may exist in isolation.
+
+---
+
+# UX Philosophy
+
+Users should never ask:
+
+"Where do I go next?"
+
+Every screen must naturally guide users toward the next meaningful action.
+
+The system should minimize thinking and maximize momentum.
+
+---
+
+# Global UX Rules
+
+Every flow must:
+
+✓ Start with a clear entry point
+
+✓ Have a logical progression
+
+✓ Handle loading
+
+✓ Handle offline
+
+✓ Handle errors
+
+✓ Handle cancellations
+
+✓ Handle interruptions
+
+✓ Preserve user progress
+
+✓ End with success feedback
+
+✓ Offer a next recommended action
+
+---
+
+# Global Entry Points
+
+Users can enter the app from:
+
+• Splash Screen
+
+• Push Notification
+
+• Widget
+
+• Deep Link
+
+• QR Code
+
+• AI Assistant
+
+• Search
+
+• Home Dashboard
+
+• External Link
+
+• Gym ERP
+
+• Smart Watch
+
+• Voice Command (Future)
+
+---
+
+# Global Exit Points
+
+Users may leave by:
+
+• Completing a task
+
+• Closing the app
+
+• Backgrounding the app
+
+• Navigating elsewhere
+
+• Sharing content
+
+• Logging out
+
+• Session timeout
+
+• Network interruption
+
+---
+
+# UX Flow Categories
+
+01 Authentication
+
+02 Onboarding
+
+03 Home
+
+04 Workouts
+
+05 Exercise Library
+
+06 Nutrition
+
+07 Water
+
+08 Recovery
+
+09 Sleep
+
+10 Progress
+
+11 Health
+
+12 Gym Membership
+
+13 QR Check-In
+
+14 Trainer
+
+15 Community
+
+16 Challenges
+
+17 AI Coach
+
+18 Notifications
+
+19 Search
+
+20 Calendar
+
+21 Marketplace
+
+22 Settings
+
+23 Profile
+
+24 Payments
+
+25 Offline
+
+26 Integrations
+
+27 Admin
+
+---
+
+# Universal Flow Pattern
+
+Every flow follows this structure.
+
+Entry
+
+↓
+
+Validation
+
+↓
+
+Loading
+
+↓
+
+Primary Action
+
+↓
+
+Confirmation
+
+↓
+
+Success
+
+↓
+
+Suggested Next Step
+
+---
+
+# Flow States
+
+Every flow supports:
+
+Idle
+
+Loading
+
+Refreshing
+
+Empty
+
+Partial Data
+
+Success
+
+Validation Error
+
+API Error
+
+Offline
+
+Retry
+
+Cancelled
+
+Expired
+
+Completed
+
+---
+
+# Decision Points
+
+Every branching path must define:
+
+Condition
+
+Destination
+
+Fallback
+
+Recovery
+
+Analytics Event
+
+Example:
+
+User has active gym membership?
+
+YES
+
+↓
+
+Show Membership Dashboard
+
+NO
+
+↓
+
+Show Join Gym Flow
+
+---
+
+# Data Persistence
+
+During every flow:
+
+Drafts are auto-saved.
+
+User progress is preserved.
+
+Interrupted flows resume automatically.
+
+No data is lost unexpectedly.
+
+---
+
+# AI Integration Rules
+
+The AI Coach may enter any flow when appropriate.
+
+Examples:
+
+Workout
+
+↓
+
+Suggest better exercises
+
+Nutrition
+
+↓
+
+Suggest healthier meal
+
+Recovery
+
+↓
+
+Recommend rest day
+
+Progress
+
+↓
+
+Explain trends
+
+---
+
+# Accessibility Requirements
+
+Every flow supports:
+
+Screen Reader
+
+Voice Input
+
+Keyboard Navigation
+
+Large Fonts
+
+High Contrast
+
+Reduced Motion
+
+Accessible Focus Order
+
+---
+
+# Performance Standards
+
+Screen transition:
+
+<200 ms
+
+API feedback:
+
+<2 s
+
+Skeleton loading:
+
+Immediately
+
+Animations:
+
+60 FPS
+
+---
+
+# Flow Completion Rules
+
+Every completed flow should:
+
+Celebrate success.
+
+Save progress.
+
+Sync analytics.
+
+Update dashboard.
+
+Refresh widgets.
+
+Generate recommendations.
+
+Offer the next best action.
+
+---
+
+# Error Recovery
+
+No dead ends.
+
+Every error must provide:
+
+What happened
+
+Why it happened (when appropriate)
+
+Recovery action
+
+Retry option
+
+Support option
+
+---
+
+# UX Metrics
+
+Track:
+
+Flow Completion Rate
+
+Abandonment Rate
+
+Average Completion Time
+
+Tap Count
+
+Back Navigation Count
+
+Error Frequency
+
+Retry Frequency
+
+Success Rate
+
+---
+
+# Product Principles
+
+Users should never feel lost.
+
+Users should never repeat unnecessary work.
+
+Every interaction should build confidence.
+
+Every completed task should encourage the next healthy action.
+
+---
+
+# End of Document
+
+Document ID: MUSCLEX-UXFLOW-001
+
+Next Document:
+
+17.03_User_Journeys.md
