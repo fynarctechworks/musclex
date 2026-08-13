@@ -14,3 +14,4 @@ export { AcceptInviteDto } from './accept-invite.dto';
 export { UpdatePermissionOverridesDto } from './update-permission-overrides.dto';
 export { ResetStaffPasswordDto } from './reset-password.dto';
 export { UpdateBranchAccessDto } from './update-branch-access.dto';
+export { SendInviteDto } from './send-invite.dto';

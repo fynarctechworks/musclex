@@ -17,7 +17,7 @@ class ReportErrorsDto {
  * Keeps the SCC ingest key server-side. No auth guard (errors can happen before
  * login); the global SubscriptionLockGuard is a no-op here (no request.user).
  */
-@Controller('observability')
+@Controller('api/v1/observability')
 export class ObservabilityController {
   constructor(private readonly reporter: SccReporterService) {}
 

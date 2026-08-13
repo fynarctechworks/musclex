@@ -57,6 +57,10 @@ async function bootstrap() {
     require('express').urlencoded({ limit: '1mb', extended: true }),
   );
 
+  // eSSL/ZKTeco (iclock/ADMS) devices POST attendance as plain text with
+  // arbitrary content-types — parse /iclock/* bodies as raw text.
+  app.use('/iclock', require('express').text({ limit: '1mb', type: '*/*' }));
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

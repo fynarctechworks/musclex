@@ -1723,22 +1723,47 @@ export class AuthService {
     }
 
     const createdStaff: string[] = [];
+    const seenEmails = new Set<string>();
 
     await this.runInTenantContext(schemaName, async () => {
       for (const s of dto.staff) {
-        const staff = await this.prisma.staff.create({
-          data: {
-            gym_id: studioId,
-            full_name: s.full_name,
-            role: s.role,
-            email: s.email || undefined,
-            phone: s.phone || '',
-            branch_id: branchIds[0] || undefined,
-            organization_id: organizationId || undefined,
-            status: 'active',
-          },
-        });
-        createdStaff.push(staff.id);
+        const email = s.email?.trim() || undefined;
+
+        // Dedupe within the submitted list (case-insensitive). The partial
+        // unique index uq_staff_gym_email is (gym_id, email) WHERE email NOT NULL,
+        // so two rows with the same email would collide.
+        if (email) {
+          const key = email.toLowerCase();
+          if (seenEmails.has(key)) continue;
+          seenEmails.add(key);
+        }
+
+        try {
+          const staff = await this.prisma.staff.create({
+            data: {
+              gym_id: studioId,
+              full_name: s.full_name,
+              role: s.role,
+              email,
+              phone: s.phone || '',
+              branch_id: branchIds[0] || undefined,
+              organization_id: organizationId || undefined,
+              status: 'active',
+            },
+          });
+          createdStaff.push(staff.id);
+        } catch (err: any) {
+          // Idempotent / retry-safe: a staff member with this email already
+          // exists for this gym (P2002 on uq_staff_gym_email). Skip it instead
+          // of 500-ing the whole onboarding step on a re-submit.
+          if (err?.code === 'P2002') {
+            this.logger.warn(
+              `Skipping duplicate staff email during onboarding for gym ${studioId}`,
+            );
+            continue;
+          }
+          throw err;
+        }
       }
     }, studioId);
 

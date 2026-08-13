@@ -2,6 +2,8 @@ import { Body, Controller, Get, Param, Patch, Post, Query, Res } from '@nestjs/c
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 import type { Response } from 'express';
+import { AdminRole } from '@prisma/client';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { MemberAppAnalyticsService } from './member-app-analytics.service';
 import { MemberAppCampaignsService } from './member-app-campaigns.service';
 
@@ -59,6 +61,9 @@ class UpdateAutomationDto {
 @ApiTags('Member App Analytics')
 @ApiBearerAuth()
 @Controller('member-app')
+// All routes expose all-app-user PII and push-campaign controls → SUPER only.
+// (RolesGuard treats an un-annotated route as "any authenticated admin".)
+@Roles(AdminRole.SUPER)
 export class MemberAppAnalyticsController {
   constructor(
     private readonly svc: MemberAppAnalyticsService,

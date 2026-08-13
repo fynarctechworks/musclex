@@ -7,6 +7,7 @@ import {
   MinLength,
   IsInt,
   Min,
+  Max,
 } from 'class-validator';
 
 export class FraudQueueFilterDto {
@@ -63,8 +64,11 @@ export class ManualAdjustmentDto {
   @IsUUID()
   studio_id: string;
 
-  /** signed: positive = credit, negative = debit */
-  @IsNumber()
+  /** signed: positive = credit, negative = debit. Bounded to a sane range so a
+   *  single manual adjustment can never move an unbounded amount of money. */
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(-1_000_000)
+  @Max(1_000_000)
   amount: number;
 
   @IsOptional()

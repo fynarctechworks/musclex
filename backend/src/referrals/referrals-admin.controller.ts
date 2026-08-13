@@ -13,6 +13,7 @@ import {
   ParseUUIDPipe,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
@@ -47,6 +48,24 @@ export class ReferralsAdminController {
     private readonly wallet: ReferralWalletService,
     private readonly lifecycle: ReferralLifecycleService,
   ) {}
+
+  /** True only for genuine platform admins (RolesGuard grants owner/brand_owner a
+   *  blanket bypass, so role-decorators alone cannot exclude a gym owner here). */
+  private isSuperAdmin(user: JwtPayload): boolean {
+    return (
+      user.role === 'super_admin' ||
+      (Array.isArray((user as any).roles) &&
+        (user as any).roles.some((r: { role_name: string }) => r.role_name === 'super_admin'))
+    );
+  }
+
+  /** A gym owner may only ever touch their OWN studio's wallet; platform admins any. */
+  private assertOwnStudio(user: JwtPayload, studioId: string): void {
+    if (this.isSuperAdmin(user)) return;
+    if (!user.studio_id || studioId !== user.studio_id) {
+      throw new ForbiddenException('You can only access your own studio.');
+    }
+  }
 
   // ── Campaigns ─────────────────────────────────────────────────────
 
@@ -347,7 +366,11 @@ export class ReferralsAdminController {
   // ── Wallet operations ───────────────────────────────────────────
 
   @Get('wallets/:studio_id')
-  async getWallet(@Param('studio_id', ParseUUIDPipe) studioId: string) {
+  async getWallet(
+    @Param('studio_id', ParseUUIDPipe) studioId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    this.assertOwnStudio(user, studioId);
     const [balance, entries] = await Promise.all([
       this.wallet.getBalance(studioId),
       this.wallet.listEntries(studioId, { limit: 50 }),
@@ -362,6 +385,7 @@ export class ReferralsAdminController {
     @Body() dto: FreezeWalletDto,
     @CurrentUser() user: JwtPayload,
   ) {
+    this.assertOwnStudio(user, studioId);
     return this.admin.freezeWallet({
       studioId,
       adminId: user.user_id,
@@ -375,6 +399,7 @@ export class ReferralsAdminController {
     @Param('studio_id', ParseUUIDPipe) studioId: string,
     @CurrentUser() user: JwtPayload,
   ) {
+    this.assertOwnStudio(user, studioId);
     return this.admin.unfreezeWallet({
       studioId,
       adminId: user.user_id,
@@ -387,6 +412,12 @@ export class ReferralsAdminController {
     @Body() dto: ManualAdjustmentDto,
     @CurrentUser() user: JwtPayload,
   ) {
+    // Crediting/debiting a wallet by an arbitrary signed amount is a platform-admin
+    // action only — never a per-gym owner capability (prevents cross-tenant credit
+    // and self-credit fraud). RolesGuard's owner bypass forces an explicit check here.
+    if (!this.isSuperAdmin(user)) {
+      throw new ForbiddenException('Manual wallet adjustment is a platform-admin action.');
+    }
     return this.admin.manualWalletAdjustment({
       studioId: dto.studio_id,
       amount:   dto.amount,

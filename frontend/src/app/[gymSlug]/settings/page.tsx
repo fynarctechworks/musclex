@@ -456,6 +456,22 @@ export default function SettingsPage() {
               </Link>
 
               <Link
+                href={gymPath("/settings/payment-gateways")}
+                className="group bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-level-3 hover:shadow-primary/5 transition-all duration-fast"
+              >
+                <div className="w-10 h-10 rounded-lg bg-canvas-soft-2 flex items-center justify-center mb-3 group-hover:bg-canvas-soft-2 transition-colors">
+                  <CreditCard className="w-5 h-5 text-primary" />
+                </div>
+                <h4 className="text-sm font-semibold text-foreground mb-1">
+                  Payment Gateways
+                </h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Connect your own Razorpay or Stripe account for member payments
+                </p>
+                <ArrowRight className="w-4 h-4 text-muted-foreground mt-3 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+              </Link>
+
+              <Link
                 href={gymPath("/settings/roles")}
                 className="group bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-level-3 hover:shadow-primary/5 transition-all duration-fast"
               >

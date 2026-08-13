@@ -20,6 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { apiClient } from "@/lib/api";
 import { queryKeys } from "@/services/query-client";
+import { useUiStore } from "@/stores/ui-store";
 import type { SystemStatus, HealthState } from "@/lib/types";
 
 type Lane = "api" | "database" | "redis" | "websocket" | "scanner" | "sync" | "webhooks";
@@ -121,6 +122,7 @@ export function StatusBar() {
 
   const [activeLane, setActiveLane] = useState<Lane | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
 
   // Close popover when clicking outside.
   useEffect(() => {
@@ -144,7 +146,9 @@ export function StatusBar() {
   return (
     <div
       ref={containerRef}
-      className="hidden md:flex fixed bottom-0 left-0 right-0 z-30 border-t bg-card text-[12px] items-center justify-between px-4 transition-all"
+      className={`hidden md:flex fixed bottom-0 right-0 z-30 border-t bg-card text-[12px] items-center justify-between px-4 transition-all left-0 ${
+        sidebarCollapsed ? "lg:left-[64px]" : "lg:left-[232px]"
+      }`}
       style={{
         height: `${heightPx}px`,
         borderTopColor: hasDanger

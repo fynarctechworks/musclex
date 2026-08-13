@@ -43,11 +43,18 @@ export class MemberAuthService {
   ) {}
 
   /**
-   * Whether the dev OTP bypass is active. Hard-gated: OFF whenever
-   * NODE_ENV === 'production' (the route then 404s), ON in any other env.
+   * Whether the dev OTP bypass is active. Hard-gated by TWO independent conditions:
+   *   1. NODE_ENV !== 'production' (the route 404s in prod), AND
+   *   2. a FIXED code is configured via MEMBER_DEV_OTP.
+   * Requiring (2) removes the previous "accept any well-formed 4–8 digit code" path,
+   * which allowed full member-account takeover in any non-prod env against the shared
+   * DB. With no MEMBER_DEV_OTP set, the bypass is entirely off (safe by default).
    */
   private get devBypassEnabled(): boolean {
-    return this.config.get<string>('NODE_ENV') !== 'production';
+    return (
+      this.config.get<string>('NODE_ENV') !== 'production' &&
+      this.fixedDevOtp !== null
+    );
   }
 
   /**
@@ -95,10 +102,9 @@ export class MemberAuthService {
   /**
    * ⚠️ DEV-ONLY login bypass — issues real member tokens for a phone WITHOUT any
    * SMS/Supabase OTP. Hard-disabled in production (see `devBypassEnabled`). Used
-   * so the app can be exercised on machines with no SMS provider configured. The
-   * code is generated and shown on the client, so when no FIXED code is set the
-   * server only checks the code is well-formed (4–8 digits); set MEMBER_DEV_OTP
-   * to require an exact code instead. Still requires the phone to be a real,
+   * so the app can be exercised on machines with no SMS provider configured.
+   * Requires an EXACT match against the configured MEMBER_DEV_OTP (the bypass is
+   * inert unless that env var is set). Still requires the phone to be a real,
    * active member — it does not fabricate identities or bypass tenant resolution.
    */
   async devSession(
@@ -106,13 +112,13 @@ export class MemberAuthService {
     code: string,
     tenantId?: string,
   ): Promise<SessionResultData> {
-    // Bypass off (production) → behave as if the route does not exist.
+    // Bypass off (production, or no MEMBER_DEV_OTP) → behave as if the route 404s.
     if (!this.devBypassEnabled) throw MemberException.notFound();
 
+    // devBypassEnabled guarantees a configured fixed code; require an exact match.
     const fixed = this.fixedDevOtp;
     const entered = (code ?? '').trim();
-    const ok = fixed ? entered === fixed : /^\d{4,8}$/.test(entered);
-    if (!ok) throw MemberException.invalidToken('Invalid dev code.');
+    if (!fixed || entered !== fixed) throw MemberException.invalidToken('Invalid dev code.');
 
     const normalized = this.directory.normalizePhone(phone);
     if (!normalized) throw MemberException.notAMember();

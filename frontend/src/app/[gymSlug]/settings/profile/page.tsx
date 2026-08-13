@@ -36,7 +36,6 @@ import {
 } from "@/lib/location";
 import { useRequirePermission } from "@/hooks/use-require-permission";
 import { AccessDenied } from "@/components/shared";
-import { supabase } from "@/lib/supabase";
 
 // ── Types ──────────────────────────────────────────────────────
 interface StudioResponse {
@@ -311,21 +310,30 @@ export default function StudioProfilePage() {
     reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
     reader.readAsDataURL(file);
 
-    // Upload to Supabase Storage so we save a real URL (not a base64 blob).
+    // Upload via the backend (service role) so we save a real public URL. A
+    // direct client upload 400s — the browser can't create buckets or insert
+    // storage objects.
     try {
-      await supabase.storage.createBucket("studio-assets", { public: true }).catch(() => {});
-      const ext = file.name.split(".").pop() ?? "png";
-      const path = `logos/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("studio-assets")
-        .upload(path, file, { upsert: true });
-      if (uploadError) {
+      const formData = new FormData();
+      formData.append("file", file);
+      const token = useAuthStore.getState().accessToken;
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1"}/uploads/logo`,
+        {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          body: formData,
+        },
+      );
+      if (!res.ok) {
         toast.error("Logo upload failed");
         return;
       }
-      const { data } = supabase.storage.from("studio-assets").getPublicUrl(path);
-      setLogoUrl(data.publicUrl);
-      setLogoPreview(data.publicUrl);
+      const data = (await res.json()) as { url?: string };
+      if (data.url) {
+        setLogoUrl(data.url);
+        setLogoPreview(data.url);
+      }
     } catch {
       toast.error("Logo upload failed");
     }

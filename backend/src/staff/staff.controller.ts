@@ -36,6 +36,7 @@ import {
   UpdatePermissionOverridesDto,
   ResetStaffPasswordDto,
   UpdateBranchAccessDto,
+  SendInviteDto,
 } from './dto';
 
 @Controller('api/v1/staff')
@@ -320,7 +321,7 @@ export class StaffController {
   async sendInvite(
     @Param('id') staffId: string,
     @CurrentUser() user: JwtPayload,
-    @Body() body: { role_name: string; branch_id?: string; permission_overrides?: { grants?: string[]; denials?: string[] } },
+    @Body() body: SendInviteDto,
   ) {
     const staff = await this.staffService.findOne(user.studio_id, staffId, user.role);
     if (!staff.email) {

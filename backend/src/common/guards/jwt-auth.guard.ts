@@ -133,9 +133,17 @@ export class JwtAuthGuard implements CanActivate {
         }
       }
 
-      // ── Fallback: legacy resolution from metadata/defaults ──
+      // ── Fallback: legacy resolution from role defaults ──
+      // SECURITY: never trust `metadata.permissions` for authorization. Supabase
+      // `user_metadata` is writable by the user themselves (auth.updateUser), so a
+      // client-supplied permission map must never be honored. Derive permissions
+      // only from the (server-controlled) role's default set.
+      // NOTE: `role`/`studio_id` still originate from user_metadata here — that is the
+      // known Phase-B keystone gap (trusting a user-writable claim). Closing it fully
+      // requires migrating those claims to app_metadata + populating user_roles; see
+      // docs/audit-2026-07-11/AUDIT_REPORT.md before changing the fail-open default.
       if (Object.keys(permissions).length === 0) {
-        permissions = metadata.permissions || DEFAULT_ROLE_PERMISSIONS[role] || {};
+        permissions = DEFAULT_ROLE_PERMISSIONS[role] || {};
         // Convert to codes for backward compat
         for (const [mod, actions] of Object.entries(permissions)) {
           for (const action of actions as string[]) {

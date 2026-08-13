@@ -3,6 +3,7 @@ import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { DocumentsService } from './documents.service';
 import { getTenantGymId } from '../common/tenant-context';
 import { EmailService } from '../email/email.service';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 
 export type DeliveryChannel = 'email' | 'whatsapp';
 
@@ -20,6 +21,7 @@ export class DocumentDeliveryService {
     private readonly tenant: TenantPrisma,
     private documents: DocumentsService,
     private readonly emailService: EmailService,
+    private readonly whatsapp: WhatsAppService,
   ) {}
 
   async sendPosReceipt(saleId: string, opts: SendOptions & { format?: 'a4' | 'thermal_80mm' }): Promise<{
@@ -160,32 +162,20 @@ export class DocumentDeliveryService {
     invoice: { invoice_number: string; total_amount: any; currency: string },
     doc: { signed_url: string },
   ): Promise<string | undefined> {
-    const token = process.env.WHATSAPP_ACCESS_TOKEN;
-    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-    if (!token || !phoneNumberId) {
+    // Central seam (per-gym Integration credentials with env fallback). Runs on
+    // the request path, so the tenant context is already set.
+    const result = await this.whatsapp.sendDocument({
+      to,
+      documentUrl: doc.signed_url,
+      filename: `${invoice.invoice_number}.pdf`,
+      caption: `Invoice ${invoice.invoice_number} — ${invoice.currency} ${Number(invoice.total_amount).toFixed(2)}`,
+      triggerType: 'document_delivery',
+    });
+    if (!result.delivered) {
       this.logger.warn('WhatsApp not configured — message skipped (logged only)');
       return undefined;
     }
-    const response = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to,
-        type: 'document',
-        document: {
-          link: doc.signed_url,
-          filename: `${invoice.invoice_number}.pdf`,
-          caption: `Invoice ${invoice.invoice_number} — ${invoice.currency} ${Number(invoice.total_amount).toFixed(2)}`,
-        },
-      }),
-    });
-    if (!response.ok) {
-      const error = await response.text().catch(() => 'unknown');
-      throw new Error(`WhatsApp API ${response.status}: ${error}`);
-    }
-    const json = (await response.json().catch(() => ({}))) as { messages?: Array<{ id?: string }> };
-    return json.messages?.[0]?.id;
+    return result.id;
   }
 
   private async logDelivery(
