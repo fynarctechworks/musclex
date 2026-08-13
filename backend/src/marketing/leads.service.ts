@@ -44,14 +44,22 @@ export class LeadsService {
     const email = input.email?.trim().toLowerCase() || null;
     if (!key && !email) return { leads: [], members: [] };
 
+    // Phones are stored RAW and inconsistently ("+91 98765 43210",
+    // "09876543210", "9876543210"), so a `contains` on the normalized key
+    // misses anything with separators. Prefilter on the last 4 digits — those
+    // are contiguous in essentially every format — then compare properly
+    // normalized keys in JS. Wider `take` because the prefilter is coarse.
+    const last4 = key ? key.slice(-4) : null;
+    const phoneWhere = last4 ? [{ phone: { contains: last4 } }] : [];
+    const emailWhere = email
+      ? [{ email: { equals: email, mode: 'insensitive' as const } }]
+      : [];
+
     const [leadRows, memberRows] = await Promise.all([
       this.tenant.client.lead.findMany({
         where: {
           ...(input.excludeLeadId ? { id: { not: input.excludeLeadId } } : {}),
-          OR: [
-            ...(key ? [{ phone: { contains: key } }] : []),
-            ...(email ? [{ email: { equals: email, mode: 'insensitive' as const } }] : []),
-          ],
+          OR: [...phoneWhere, ...emailWhere],
         },
         select: {
           id: true,
@@ -62,15 +70,10 @@ export class LeadsService {
           created_at: true,
         },
         orderBy: { created_at: 'desc' },
-        take: 5,
+        take: 25,
       }),
       this.tenant.client.member.findMany({
-        where: {
-          OR: [
-            ...(key ? [{ phone: { contains: key } }] : []),
-            ...(email ? [{ email: { equals: email, mode: 'insensitive' as const } }] : []),
-          ],
-        },
+        where: { OR: [...phoneWhere, ...emailWhere] },
         select: {
           id: true,
           full_name: true,
@@ -79,11 +82,21 @@ export class LeadsService {
           email: true,
           status: true,
         },
-        take: 5,
+        take: 25,
       }),
     ]);
 
-    return { leads: leadRows, members: memberRows };
+    /** Keep rows whose NORMALIZED phone matches, or whose email matches. */
+    const matches = (row: { phone?: string | null; email?: string | null }) => {
+      if (key && this.phoneKey(row.phone) === key) return true;
+      if (email && row.email && row.email.trim().toLowerCase() === email) return true;
+      return false;
+    };
+
+    return {
+      leads: leadRows.filter(matches).slice(0, 5),
+      members: memberRows.filter(matches).slice(0, 5),
+    };
   }
 
   /**

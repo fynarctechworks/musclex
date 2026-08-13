@@ -39,6 +39,8 @@ export class QueueModule {
     const { NotificationProcessor } = require('./processors/notification.processor');
     const { ReportProcessor } = require('./processors/report.processor');
     const { CampaignProcessor } = require('./processors/campaign.processor');
+    // CampaignProcessor delegates to CampaignSenderService (MarketingModule).
+    const { MarketingModule } = require('../marketing/marketing.module');
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { getQueueToken } = require('@nestjs/bullmq');
@@ -74,6 +76,7 @@ export class QueueModule {
           { name: QUEUE_NAMES.CAMPAIGN },
         ),
         PrismaModule,
+        MarketingModule,
       ],
       providers: [
         {

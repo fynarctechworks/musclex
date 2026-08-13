@@ -4,10 +4,19 @@ import { Job } from 'bullmq';
 import { QUEUE_NAMES } from '../queue.module';
 import { NotificationJobData } from '../queue.service';
 import { reportJobFailure } from '../../common/sentry/report-job-failure';
+import { WhatsAppService } from '../../whatsapp/whatsapp.service';
+import { PushService } from '../../push/push.service';
 
 @Processor(QUEUE_NAMES.NOTIFICATION)
 export class NotificationProcessor extends WorkerHost {
   private readonly logger = new Logger(NotificationProcessor.name);
+
+  constructor(
+    private readonly whatsapp: WhatsAppService,
+    private readonly push: PushService,
+  ) {
+    super();
+  }
 
   @OnWorkerEvent('failed')
   onFailed(job: Job, err: Error) {
@@ -56,41 +65,32 @@ export class NotificationProcessor extends WorkerHost {
   }
 
   private async sendWhatsApp(data: NotificationJobData): Promise<void> {
-    const token = process.env.WHATSAPP_ACCESS_TOKEN;
-    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-
-    if (!token || !phoneNumberId) {
-      this.logger.warn('WhatsApp not configured — message skipped');
-      return;
+    // Central seam: per-gym Integration credentials (env fallback), audit row,
+    // phone normalization. Throws on a configured-but-failed send so BullMQ retries.
+    const result = await this.whatsapp.sendText({
+      to: data.to,
+      text: data.message,
+      gymId: data.gymId,
+      memberId: data.memberId,
+      triggerType: data.triggerType ?? 'notification',
+    });
+    if (result.delivered) {
+      this.logger.log(`WhatsApp message sent to ${data.to}`);
     }
-
-    const response = await fetch(
-      `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          to: data.to,
-          type: 'text',
-          text: { body: data.message },
-        }),
-      },
-    );
-
-    if (!response.ok) {
-      const error = await response.text().catch(() => 'Unknown error');
-      throw new Error(`WhatsApp API error: ${response.status} ${error}`);
-    }
-
-    this.logger.log(`WhatsApp message sent to ${data.to}`);
   }
 
   private async sendPush(data: NotificationJobData): Promise<void> {
-    // Push notification via web push or FCM — stub for Phase 2
-    this.logger.log(`Push notification queued for ${data.to} (delivery TBD)`);
+    // Member pushes ride the Expo Push API via the member's registered device
+    // tokens. `to` is informational here — the member id is the target.
+    if (!data.memberId) {
+      this.logger.warn(`Push job without memberId (to=${data.to}) — dropped`);
+      return;
+    }
+    const delivered = await this.push.sendToMember(
+      data.memberId,
+      { title: 'MuscleX', body: data.message, data: { triggerType: data.triggerType ?? 'notification' } },
+      { gymId: data.gymId },
+    );
+    if (delivered > 0) this.logger.log(`Push sent to member ${data.memberId} (${delivered} devices)`);
   }
 }
