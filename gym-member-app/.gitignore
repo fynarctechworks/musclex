@@ -19,6 +19,9 @@ expo-env.d.ts
 .env
 .env.local
 
+# tests
+coverage/
+
 # misc
 .DS_Store
 npm-debug.*

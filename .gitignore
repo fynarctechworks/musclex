@@ -9,6 +9,14 @@ node_modules/
 backend/.env
 saas-control-center/.env
 
+# Production deploy secrets — real credentials, NEVER commit.
+# (`*.env` above does not match `.env.api` / `.env.scc`.)
+deploy/.env.*
+!deploy/.env.*.example
+
+# Playwright MCP debug artifacts
+.playwright-mcp/
+
 # Build outputs
 dist/
 .next/
