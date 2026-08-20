@@ -127,20 +127,36 @@ export default function SessionScreen() {
   useEffect(() => {
     if (!routine || seeded) return;
     setBlocks(
-      routine.exercises.map((e) => ({
-        id: e.exerciseId,
-        name: e.name,
-        trackingType: e.trackingType ?? 'reps',
-        sets: Array.from({ length: e.targetSets ?? 3 }, () => ({
-          kg: '',
-          reps: '',
-          secs: '',
-          done: false,
-        })),
-      })),
+      routine.exercises.map((e) => {
+        // A per-set plan defines the set count; otherwise fall back to the
+        // uniform target, which older routines still use.
+        const perSet = e.targetRepsPerSet ?? e.targetSecondsPerSet;
+        const count = perSet?.length ?? e.targetSets ?? 3;
+        return {
+          id: e.exerciseId,
+          name: e.name,
+          trackingType: e.trackingType ?? 'reps',
+          sets: Array.from({ length: count }, (_, i) => ({
+            kg: '',
+            reps: '',
+            secs: '',
+            done: false,
+            target: {
+              // Per-set value first, then the uniform one repeated.
+              reps: e.targetRepsPerSet?.[i] ?? e.targetReps,
+              secs: e.targetSecondsPerSet?.[i] ?? e.targetDurationSeconds,
+              // Stored kg -> display unit, since this is only rendered.
+              kg:
+                e.targetWeightPerSet?.[i] === undefined
+                  ? undefined
+                  : u.w(e.targetWeightPerSet[i]),
+            },
+          })),
+        };
+      }),
     );
     setSeeded(true);
-  }, [routine, seeded]);
+  }, [routine, seeded, u]);
 
   useEffect(() => {
     if (!usingPlan || seeded) return;

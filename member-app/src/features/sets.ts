@@ -7,6 +7,19 @@ export interface WorkingSet {
   /** Seconds, for interval exercises. Kept as a string like the others. */
   secs: string;
   done: boolean;
+  /**
+   * What the routine prescribes for THIS set, when it came from one.
+   *
+   * Shown as the placeholder in preference to the history prefill: history is
+   * what you did last time, a target is what you planned for today, and on a
+   * pyramid those disagree on purpose. Never auto-filled — it stays a
+   * suggestion the member commits by typing or tapping, so an unread number
+   * cannot be logged as a set that happened.
+   *
+   * Weight is in the member's DISPLAY unit, already converted, because it is
+   * only ever rendered.
+   */
+  target?: { reps?: number; secs?: number; kg?: string };
 }
 
 export interface SessionBlock {

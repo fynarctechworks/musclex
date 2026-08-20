@@ -4904,6 +4904,11 @@ model MemberRoutineExercise {
   target_sets Int?
   target_reps Int?
   target_duration_seconds Int?
+  /// Per-set plan. NULL = uniform target_sets x target_reps. When present the
+  /// array is authoritative and its length IS the set count.
+  target_reps_per_set    Int[]
+  target_seconds_per_set Int[]
+  target_weight_per_set  Decimal[] @db.Decimal(6, 2)
   created_at  DateTime @default(now()) @db.Timestamptz()
 
   routine  MemberRoutine @relation(fields: [routine_id], references: [id], onDelete: Cascade)

@@ -772,6 +772,40 @@ export class RoutineExerciseDto {
   @IsOptional() @IsInt() @Min(1) @Max(50) targetSets?: number;
   @IsOptional() @IsInt() @Min(1) @Max(1000) targetReps?: number;
   @IsOptional() @IsInt() @Min(1) @Max(86400) targetDurationSeconds?: number;
+
+  /**
+   * Per-set plan, e.g. [12, 10, 8] for a pyramid. When supplied the array is
+   * authoritative and its LENGTH is the set count, so `targetSets` is ignored
+   * rather than allowed to disagree with it.
+   *
+   * `{ each: true }` matters: without it the decorators check the ARRAY, not
+   * its elements, and [12, -5, 999999] would validate happily and reach the
+   * database. The DB CHECK only bounds the array's length, not its contents.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  @Max(1000, { each: true })
+  targetRepsPerSet?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  @Max(86400, { each: true })
+  targetSecondsPerSet?: number[];
+
+  /** Canonical KG, matching workout_set_logs.weight — numeric(6,2). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsNumber({ maxDecimalPlaces: 2 }, { each: true })
+  @Min(0, { each: true })
+  @Max(9999.99, { each: true })
+  targetWeightPerSet?: number[];
 }
 
 /** POST /routines body. */

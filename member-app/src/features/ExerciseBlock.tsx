@@ -150,7 +150,15 @@ export function ExerciseBlock({
                 onChangeText={(v) => patch(i, { secs: v })}
                 editable={!s.done}
                 keyboardType="number-pad"
-                placeholder={p?.durationSeconds ? String(p.durationSeconds) : '30'}
+                placeholder={
+                  // Today's plan beats last session's number; on a pyramid the
+                  // two disagree deliberately.
+                  s.target?.secs !== undefined
+                    ? String(s.target.secs)
+                    : p?.durationSeconds
+                      ? String(p.durationSeconds)
+                      : '30'
+                }
                 placeholderTextColor={color.t4}
                 accessibilityLabel={`Set ${i + 1} seconds`}
                 style={[st.input, st.cWide, s.done && st.inputDone]}
@@ -162,7 +170,7 @@ export function ExerciseBlock({
                   onChangeText={(v) => patch(i, { kg: v })}
                   editable={!s.done}
                   keyboardType="decimal-pad"
-                  placeholder={p ? u.w(p.weight) : '0'}
+                  placeholder={s.target?.kg ?? (p ? u.w(p.weight) : '0')}
                   placeholderTextColor={color.t4}
                   accessibilityLabel={`Set ${i + 1} weight`}
                   style={[st.input, st.cIn, s.done && st.inputDone]}
@@ -172,7 +180,7 @@ export function ExerciseBlock({
                   onChangeText={(v) => patch(i, { reps: v })}
                   editable={!s.done}
                   keyboardType="number-pad"
-                  placeholder={p ? String(p.reps) : '0'}
+                  placeholder={s.target?.reps !== undefined ? String(s.target.reps) : p ? String(p.reps) : '0'}
                   placeholderTextColor={color.t4}
                   accessibilityLabel={`Set ${i + 1} reps`}
                   style={[st.input, st.cIn, s.done && st.inputDone]}

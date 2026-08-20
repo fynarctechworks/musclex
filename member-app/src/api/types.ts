@@ -454,6 +454,10 @@ export interface RoutineExercise {
   targetSets?: number;
   targetReps?: number;
   targetDurationSeconds?: number;
+  /** Absent (not []) when the prescription is uniform. */
+  targetRepsPerSet?: number[];
+  targetSecondsPerSet?: number[];
+  targetWeightPerSet?: number[];
 }
 
 /** What the client sends when creating or replacing a routine's exercises. */
@@ -462,6 +466,15 @@ export interface RoutineExerciseInput {
   targetSets?: number;
   targetReps?: number;
   targetDurationSeconds?: number;
+  /**
+   * Per-set plan, e.g. [12, 10, 8] for a pyramid. When present the array is
+   * authoritative and its LENGTH is the set count — the server derives
+   * targetSets from it rather than trusting both and letting them disagree.
+   */
+  targetRepsPerSet?: number[];
+  targetSecondsPerSet?: number[];
+  /** Canonical kg, converted at the edge like every other weight. */
+  targetWeightPerSet?: number[];
 }
 
 export interface Routine {

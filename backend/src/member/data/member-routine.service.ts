@@ -4,6 +4,7 @@ import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { PublicPrismaService } from '../../prisma/public-prisma.service';
 import { MemberException } from '../common/member-exception';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
+import { toNumber } from './mappers';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -31,6 +32,39 @@ export interface RoutineExerciseInput {
   targetSets?: number;
   targetReps?: number;
   targetDurationSeconds?: number;
+  /** Per-set plan, e.g. [12, 10, 8]. Length is the set count when present. */
+  targetRepsPerSet?: number[];
+  targetSecondsPerSet?: number[];
+  /** Canonical kg. */
+  targetWeightPerSet?: number[];
+}
+
+/**
+ * Map one input row to its stored columns.
+ *
+ * `target_sets` is DERIVED from a per-set array when one is given, never taken
+ * from the client alongside it: two sources for the same fact drift, and a
+ * routine claiming "3 sets" while listing four rep targets is unreadable to
+ * every consumer downstream.
+ *
+ * Empty arrays are normalised to null so "no per-set plan" has ONE
+ * representation rather than two that behave differently.
+ */
+function perSetColumns(e: RoutineExerciseInput, index: number) {
+  const reps = e.targetRepsPerSet?.length ? e.targetRepsPerSet : null;
+  const secs = e.targetSecondsPerSet?.length ? e.targetSecondsPerSet : null;
+  const weight = e.targetWeightPerSet?.length ? e.targetWeightPerSet : null;
+  const derivedSets = reps?.length ?? secs?.length ?? null;
+
+  return {
+    position: e.position ?? index,
+    target_sets: derivedSets ?? e.targetSets ?? null,
+    target_reps: e.targetReps ?? null,
+    target_duration_seconds: e.targetDurationSeconds ?? null,
+    target_reps_per_set: reps ?? [],
+    target_seconds_per_set: secs ?? [],
+    target_weight_per_set: weight ?? [],
+  };
 }
 
 @Injectable()
@@ -111,10 +145,7 @@ export class MemberRoutineService {
           create: input.exercises.map((e, i) => ({
             gym_id: member.tenantId,
             exercise_id: e.exerciseId,
-            position: e.position ?? i,
-            target_sets: e.targetSets ?? null,
-            target_reps: e.targetReps ?? null,
-            target_duration_seconds: e.targetDurationSeconds ?? null,
+            ...perSetColumns(e, i),
           })),
         },
       },
@@ -151,10 +182,7 @@ export class MemberRoutineService {
           gym_id: member.tenantId,
           routine_id: id,
           exercise_id: e.exerciseId,
-          position: e.position ?? i,
-          target_sets: e.targetSets ?? null,
-          target_reps: e.targetReps ?? null,
-          target_duration_seconds: e.targetDurationSeconds ?? null,
+          ...perSetColumns(e, i),
         })),
       });
     }
@@ -304,6 +332,9 @@ export class MemberRoutineService {
       target_sets: number | null;
       target_reps: number | null;
       target_duration_seconds: number | null;
+      target_reps_per_set: number[];
+      target_seconds_per_set: number[];
+      target_weight_per_set: unknown[];
       exercise: { id: string; name: string; thumb_url: string | null; tracking_type: string };
     }[];
   }) {
@@ -321,6 +352,15 @@ export class MemberRoutineService {
         targetSets: e.target_sets ?? undefined,
         targetReps: e.target_reps ?? undefined,
         targetDurationSeconds: e.target_duration_seconds ?? undefined,
+        // Omitted entirely when empty rather than sent as [], so a client can
+        // test presence instead of length to decide uniform vs per-set.
+        targetRepsPerSet: e.target_reps_per_set?.length ? e.target_reps_per_set : undefined,
+        targetSecondsPerSet: e.target_seconds_per_set?.length ? e.target_seconds_per_set : undefined,
+        // Decimal -> number at the edge, matching how weights are sent
+        // everywhere else in the member API.
+        targetWeightPerSet: e.target_weight_per_set?.length
+          ? e.target_weight_per_set.map((d) => toNumber(d) ?? 0)
+          : undefined,
       })),
     };
   }

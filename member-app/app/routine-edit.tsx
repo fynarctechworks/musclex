@@ -9,6 +9,7 @@ import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { color, font, radius, space } from '../src/ui/theme';
 import { ExercisePicker } from '../src/features/ExercisePicker';
 import { useCreateRoutine, useRoutine, useUpdateRoutine } from '../src/api/queries';
+import { useUnits } from '../src/lib/use-units';
 import type { ExerciseListItem, RoutineExercise } from '../src/api/types';
 
 /**
@@ -34,18 +35,55 @@ import type { ExerciseListItem, RoutineExercise } from '../src/api/types';
  * seconds, which is the common case.
  */
 
-/** Editor row — a RoutineExercise plus the display fields the picker gives us. */
+/**
+ * Editor row.
+ *
+ * Targets are held as one entry PER SET rather than a single number, because a
+ * pyramid (12/10/8) and ramping loads are ordinary programming that a uniform
+ * "sets x reps" cannot express. Values are strings while editing so a
+ * half-typed field stays exactly as typed instead of snapping to a parsed
+ * number under the cursor.
+ */
+type SetTarget = { reps: string; kg: string; secs: string };
+
 type Row = {
   exerciseId: string;
   name: string;
   thumbUrl?: string | null;
   trackingType?: 'reps' | 'duration';
-  targetSets?: number;
-  targetReps?: number;
-  targetDurationSeconds?: number;
+  sets: SetTarget[];
 };
 
-/** Parse a target field. Empty clears it; anything non-numeric is ignored. */
+const blankSet = (): SetTarget => ({ reps: '', kg: '', secs: '' });
+
+/** Sets a newly added exercise starts with — enough to edit, few enough to trim. */
+const DEFAULT_SETS = 3;
+
+/**
+ * Expand a saved routine back into editor rows.
+ *
+ * Handles BOTH shapes: a per-set array when the member built one, and the
+ * older uniform `targetSets x targetReps` that every existing routine still
+ * uses. Without this, opening an old routine would show zero sets.
+ */
+function toSets(e: RoutineExercise, showKg: (kg: number) => string): SetTarget[] {
+  const perSet = e.targetRepsPerSet ?? e.targetSecondsPerSet;
+  const count = perSet?.length ?? e.targetSets ?? DEFAULT_SETS;
+  const str = (v: number | undefined) => (v === undefined ? '' : String(v));
+  return Array.from({ length: Math.max(1, count) }, (_, i) => ({
+    // Per-set value when there is one, else the uniform value repeated — an
+    // old "3 x 10" routine should open showing 10 on each of its three rows.
+    reps: str(e.targetRepsPerSet?.[i] ?? (e.targetRepsPerSet ? undefined : e.targetReps)),
+    secs: str(
+      e.targetSecondsPerSet?.[i] ?? (e.targetSecondsPerSet ? undefined : e.targetDurationSeconds),
+    ),
+    // Stored canonical kg -> the member's display unit. Skipping this shows
+    // a pounds user their targets in kilos.
+    kg: e.targetWeightPerSet?.[i] === undefined ? '' : showKg(e.targetWeightPerSet[i]),
+  }));
+}
+
+/** Whole-number target (reps, seconds). Empty or junk clears it. */
 function num(text: string): number | undefined {
   const t = text.trim();
   if (!t) return undefined;
@@ -53,9 +91,35 @@ function num(text: string): number | undefined {
   return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
+/** Weight target in kg — two decimals, matching the stored numeric(6,2). */
+function dec(text: string): number | undefined {
+  const t = text.trim().replace(',', '.');
+  if (!t) return undefined;
+  const n = Number.parseFloat(t);
+  if (!Number.isFinite(n) || n < 0) return undefined;
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * Fill blanks in a per-set column so a partly-filled plan still saves.
+ *
+ * Someone who types 12 on set 1 and leaves the rest empty means "12 across",
+ * not "12 then nothing" — and the API rejects a 0 or missing element, so
+ * sending the gaps raw would fail the whole save over an unfilled box.
+ * Blanks inherit the previous value; leading blanks take the first real one.
+ * All-blank returns undefined, which omits the array entirely.
+ */
+function fillGaps(values: (number | undefined)[]): number[] | undefined {
+  if (!values.some((v) => v !== undefined)) return undefined;
+  const first = values.find((v) => v !== undefined)!;
+  let last = first;
+  return values.map((v) => (v === undefined ? last : (last = v)));
+}
+
 export default function RoutineEditScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const u = useUnits();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const editing = typeof id === 'string' && id.length > 0;
 
@@ -79,18 +143,37 @@ export default function RoutineEditScreen() {
         name: e.name,
         thumbUrl: e.thumbUrl,
         trackingType: e.trackingType,
-        targetSets: e.targetSets,
-        targetReps: e.targetReps,
-        targetDurationSeconds: e.targetDurationSeconds,
+        sets: toSets(e, u.w),
       })),
     );
     setHydrated(true);
-  }, [editing, existing, hydrated]);
+  }, [editing, existing, hydrated, u]);
 
   if (editing && isLoading) return <Loading label="Loading routine" />;
 
-  function patch(index: number, next: Partial<Row>) {
-    setRows((rs) => rs.map((r, i) => (i === index ? { ...r, ...next } : r)));
+  function patchSet(rowIndex: number, setIndex: number, next: Partial<SetTarget>) {
+    setRows((rs) =>
+      rs.map((r, i) =>
+        i === rowIndex
+          ? { ...r, sets: r.sets.map((st, n) => (n === setIndex ? { ...st, ...next } : st)) }
+          : r,
+      ),
+    );
+  }
+
+  function addSet(rowIndex: number) {
+    setRows((rs) => rs.map((r, i) => (i === rowIndex ? { ...r, sets: [...r.sets, blankSet()] } : r)));
+  }
+
+  function removeSet(rowIndex: number, setIndex: number) {
+    setRows((rs) =>
+      rs.map((r, i) =>
+        // An exercise with no sets is not a prescription, so the last one stays.
+        i === rowIndex && r.sets.length > 1
+          ? { ...r, sets: r.sets.filter((_, n) => n !== setIndex) }
+          : r,
+      ),
+    );
   }
 
   function move(index: number, delta: number) {
@@ -116,6 +199,7 @@ export default function RoutineEditScreen() {
           // Carried through so a timed exercise asks for seconds, not reps —
           // dropping it here is how a plank ends up prescribed as "3 x 30 reps".
           trackingType: i.trackingType,
+          sets: Array.from({ length: DEFAULT_SETS }, blankSet),
         }));
       return [...rs, ...fresh];
     });
@@ -128,13 +212,26 @@ export default function RoutineEditScreen() {
     if (!clean) return setError('Give the routine a name.');
     if (rows.length === 0) return setError('Add at least one exercise.');
 
-    const exercises = rows.map((r) => ({
-      exerciseId: r.exerciseId,
-      targetSets: r.targetSets,
-      ...(r.trackingType === 'duration'
-        ? { targetDurationSeconds: r.targetDurationSeconds }
-        : { targetReps: r.targetReps }),
-    }));
+    const exercises = rows.map((r) => {
+      const timed = r.trackingType === 'duration';
+      const reps = fillGaps(r.sets.map((x) => num(x.reps)));
+      const secs = fillGaps(r.sets.map((x) => num(x.secs)));
+      // Back to canonical kg for the API, exactly as set logging does.
+      const kg = fillGaps(
+        r.sets.map((x) => {
+          const v = dec(x.kg);
+          return v === undefined ? undefined : Math.round(u.toKg(v) * 100) / 100;
+        }),
+      );
+      return {
+        exerciseId: r.exerciseId,
+        // Sent for the case where NO targets are filled at all: the routine is
+        // then just a running order, and the set count is the only shape it has.
+        targetSets: r.sets.length,
+        ...(timed ? (secs ? { targetSecondsPerSet: secs } : {}) : reps ? { targetRepsPerSet: reps } : {}),
+        ...(kg ? { targetWeightPerSet: kg } : {}),
+      };
+    });
 
     try {
       if (editing) {
@@ -213,25 +310,47 @@ export default function RoutineEditScreen() {
                   </View>
                 </Row>
 
-                <Row style={{ marginTop: space.md, gap: space.sm }}>
-                  <Target
-                    label="Sets"
-                    value={r.targetSets}
-                    onChange={(v) => patch(i, { targetSets: v })}
-                  />
-                  {timed ? (
-                    <Target
-                      label="Seconds"
-                      value={r.targetDurationSeconds}
-                      onChange={(v) => patch(i, { targetDurationSeconds: v })}
+                <Row style={{ marginTop: space.md, marginBottom: 2 }}>
+                  <Txt variant="caption" tone="t3" style={{ width: 44 }}>Set</Txt>
+                  <View style={{ flex: 1 }}>
+                    <Txt variant="caption" tone="t3">{timed ? 'Seconds' : 'Reps'}</Txt>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Txt variant="caption" tone="t3">{u.weightUnit}</Txt>
+                  </View>
+                  <View style={{ width: 34 }} />
+                </Row>
+
+                {r.sets.map((st, si) => (
+                  <Row key={si} style={{ gap: space.sm, marginTop: space.sm }}>
+                    <Txt variant="body" tone="t2" style={{ width: 44 }}>{si + 1}</Txt>
+                    <Field
+                      value={timed ? st.secs : st.reps}
+                      onChange={(t) => patchSet(i, si, timed ? { secs: t } : { reps: t })}
+                      label={`Set ${si + 1} ${timed ? 'seconds' : 'reps'}`}
+                      placeholder={si === 0 ? '' : '—'}
                     />
-                  ) : (
-                    <Target
-                      label="Reps"
-                      value={r.targetReps}
-                      onChange={(v) => patch(i, { targetReps: v })}
+                    <Field
+                      value={st.kg}
+                      onChange={(t) => patchSet(i, si, { kg: t })}
+                      label={`Set ${si + 1} weight`}
+                      placeholder={si === 0 ? '' : '—'}
+                      decimal
                     />
-                  )}
+                    <Small
+                      label="×"
+                      disabled={r.sets.length === 1}
+                      onPress={() => removeSet(i, si)}
+                      hint={`Remove set ${si + 1}`}
+                    />
+                  </Row>
+                ))}
+
+                <Row style={{ marginTop: space.md, justifyContent: 'flex-start' }}>
+                  <Small label="+ Set" onPress={() => addSet(i)} hint={`Add a set to ${r.name}`} />
+                  <Txt variant="caption" tone="t3" style={{ marginLeft: space.md }}>
+                    Leave a box empty to repeat the set above.
+                  </Txt>
                 </Row>
 
                 <Row style={{ marginTop: space.md, gap: space.sm, justifyContent: 'flex-start' }}>
@@ -287,23 +406,30 @@ export default function RoutineEditScreen() {
   );
 }
 
-function Target({
-  label,
+/**
+ * One target box. Holds the raw TEXT rather than a parsed number so a
+ * half-typed "1" on the way to "12" is not swallowed by the parser.
+ */
+function Field({
   value,
   onChange,
+  label,
+  placeholder,
+  decimal,
 }: {
+  value: string;
+  onChange: (t: string) => void;
   label: string;
-  value?: number;
-  onChange: (v: number | undefined) => void;
+  placeholder?: string;
+  decimal?: boolean;
 }) {
   return (
     <View style={{ flex: 1 }}>
-      <Txt variant="caption" tone="t3" style={{ marginBottom: 4 }}>{label}</Txt>
       <TextInput
-        value={value === undefined ? '' : String(value)}
-        onChangeText={(t) => onChange(num(t))}
-        keyboardType="number-pad"
-        placeholder="—"
+        value={value}
+        onChangeText={onChange}
+        keyboardType={decimal ? 'decimal-pad' : 'number-pad'}
+        placeholder={placeholder}
         placeholderTextColor={color.t4}
         accessibilityLabel={label}
         style={{
