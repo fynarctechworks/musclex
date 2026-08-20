@@ -11,7 +11,10 @@
       "bundleIdentifier": "com.infynarc.musclex.member",
       "associatedDomains": [
         "applinks:app.musclex.infynarc.com"
-      ]
+      ],
+      "infoPlist": {
+        "NSMotionUsageDescription": "MuscleX reads your step count so your daily steps and step goal are up to date."
+      }
     },
     "android": {
       "adaptiveIcon": {

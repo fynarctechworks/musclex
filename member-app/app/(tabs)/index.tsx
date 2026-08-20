@@ -8,6 +8,7 @@ import { color, levelColor, levelLabel, space } from '../../src/ui/theme';
 import { whenOf } from '../../src/lib/datetime';
 import { useHome, useLogWater, useOccupancy } from '../../src/api/queries';
 import { PendingBanner } from '../../src/features/PendingBanner';
+import { StepsCard } from '../../src/features/StepsCard';
 import type { Occupancy } from '../../src/api/types';
 
 /**
@@ -259,6 +260,10 @@ export default function TodayScreen() {
           </View>
         </Row>
       </Card>
+
+      {/* Below Fuel, not above it: both are passive daily totals, and the top
+          of this screen is reserved for the things a member can act on. */}
+      <StepsCard />
     </ScrollView>
   );
 }

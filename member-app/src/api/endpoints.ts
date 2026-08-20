@@ -9,6 +9,7 @@ import type {
   ExerciseDetail,
   Food,
   Goal,
+  HealthDay,
   MembershipDetail,
   MembershipPlan,
   MyPlan,
@@ -218,6 +219,17 @@ export const api = {
     request<unknown>('/me', { method: 'PATCH', body }),
   updateProfile: (body: Record<string, unknown>) =>
     request<Profile>('/me/profile', { method: 'PATCH', body }),
+
+  /* ── On-device health (steps) ────────────────────────────── */
+  healthDaily: (days = 30) =>
+    request<{ days: HealthDay[] }>(`/me/health/daily?days=${days}`),
+  /**
+   * Upsert one day. `date` is REQUIRED and must be the member's LOCAL day:
+   * the server falls back to its own UTC date, which for anyone ahead of UTC
+   * files a late-evening or early-morning write under the wrong day.
+   */
+  logHealthDaily: (body: { date: string; steps: number; source: string }) =>
+    request<HealthDay>('/me/health/daily', { method: 'POST', body }),
 
   /* ── Body weight ─────────────────────────────────────────── */
   weight: () => request<WeightLog>('/me/weight'),

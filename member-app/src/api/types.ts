@@ -281,6 +281,19 @@ export interface Goal {
   status: string;
 }
 
+/* ── On-device health (steps) ─────────────────────────────────── */
+/** One day's rollup from the phone or watch. Public/app_user scoped. */
+export interface HealthDay {
+  /** Local calendar day, "YYYY-MM-DD". */
+  date: string;
+  steps: number;
+  activeCalories: number | null;
+  distanceM: number | null;
+  restingHeartRate: number | null;
+  /** 'pedometer' when the phone counted it, 'manual' when the member typed it. */
+  source: string | null;
+}
+
 /* ── Profile ─────────────────────────────────────────────────── */
 export interface Profile {
   id: string;

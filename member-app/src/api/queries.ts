@@ -26,6 +26,7 @@ export const qk = {
   goals: ['me', 'goals'] as const,
   profile: ['me', 'profile'] as const,
   weight: ['me', 'weight'] as const,
+  healthDaily: ['me', 'health', 'daily'] as const,
   locations: ['gym', 'locations'] as const,
   myPlan: ['plans'] as const,
   visits: ['visits'] as const,
@@ -337,10 +338,44 @@ export function useSendChat(trainerId: string) {
   });
 }
 
+/* ── Steps ─────────────────────────────────────────────────── */
+
+export function useHealthDaily(days = 30) {
+  return useQuery({
+    queryKey: qk.healthDaily,
+    queryFn: () => api.healthDaily(days),
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Write one day's step total.
+ *
+ * Deliberately NOT through the offline outbox. The outbox exists for additive
+ * writes that must not be lost or duplicated; this is a latest-wins upsert on
+ * (member, day), so a queued stale count could overwrite a newer one on flush.
+ * Losing a sync costs nothing — the next read re-sends the running total.
+ */
+export function useLogSteps() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { date: string; steps: number; source: string }) =>
+      api.logHealthDaily(body),
+    // Only the day's own rows are invalidated. A `steps` goal is NOT scored
+    // from these — nothing on the server moves goal.currentValue when a day is
+    // written, so the goals screen still reads 0 after a 6,482-step day. The
+    // card uses the goal for its TARGET only.
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.healthDaily }),
+  });
+}
+
 /* ── Goals + profile ───────────────────────────────────────── */
 
 export function useGoals() {
-  return useQuery({ queryKey: qk.goals, queryFn: api.goals });
+  // Goals change rarely and are read on Today as well as the goals screen, so
+  // a short stale window keeps the dashboard off the network. Every mutation
+  // below invalidates this key explicitly, so staleness never outlives an edit.
+  return useQuery({ queryKey: qk.goals, queryFn: api.goals, staleTime: 300_000 });
 }
 
 export function useAddGoal() {
