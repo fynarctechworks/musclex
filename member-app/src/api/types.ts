@@ -281,6 +281,79 @@ export interface Goal {
   status: string;
 }
 
+/* ── Activities ───────────────────────────────────────────────── */
+
+export interface SportType {
+  key: string;
+  label: string;
+  group: string;
+  /** Distance and pace lead; otherwise duration does. */
+  distanceBased: boolean;
+  gps: boolean;
+}
+
+export interface ActivitySummary {
+  id: string;
+  sportType: string;
+  title: string | null;
+  source: string;
+  startedAt: string;
+  endedAt: string | null;
+  elapsedSeconds: number;
+  movingSeconds: number | null;
+  distanceM: number | null;
+  elevationGainM: number | null;
+  avgSpeedMps: number | null;
+  avgHeartRate: number | null;
+  maxHeartRate: number | null;
+  calories: number | null;
+  polyline: string | null;
+  visibility: string;
+  kudosCount: number;
+  commentCount: number;
+}
+
+export interface ActivityDetail extends ActivitySummary {
+  description: string | null;
+  elevationLossM: number | null;
+  maxSpeedMps: number | null;
+  startLatitude: number | null;
+  startLongitude: number | null;
+  privacyZoneM: number | null;
+  streams: Record<string, unknown[]>;
+  laps: {
+    lapIndex: number;
+    elapsedSeconds: number;
+    movingSeconds: number | null;
+    distanceM: number | null;
+    avgHeartRate: number | null;
+    maxHeartRate: number | null;
+  }[];
+  photos: { id: string; path: string; primary: boolean }[];
+}
+
+export interface ActivityInput {
+  sportType: string;
+  startedAt: string;
+  endedAt?: string;
+  title?: string;
+  description?: string;
+  source?: string;
+  elapsedSeconds?: number;
+  movingSeconds?: number;
+  distanceM?: number;
+  elevationGainM?: number;
+  avgSpeedMps?: number;
+  maxSpeedMps?: number;
+  avgHeartRate?: number;
+  maxHeartRate?: number;
+  calories?: number;
+  polyline?: string;
+  startLatitude?: number;
+  startLongitude?: number;
+  visibility?: string;
+}
+
 /* ── On-device health (steps) ─────────────────────────────────── */
 /** One day's rollup from the phone or watch. Public/app_user scoped. */
 export interface HealthDay {

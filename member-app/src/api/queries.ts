@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './endpoints';
 import { write, flush, pendingCount } from '../offline/outbox';
-import type { BodyMetricInput, RoutineExerciseInput, SetLog } from './types';
+import type { ActivityInput, BodyMetricInput, RoutineExerciseInput, SetLog } from './types';
 
 export const qk = {
   home: ['home'] as const,
@@ -27,6 +27,9 @@ export const qk = {
   profile: ['me', 'profile'] as const,
   weight: ['me', 'weight'] as const,
   healthDaily: ['me', 'health', 'daily'] as const,
+  sports: ['activities', 'sports'] as const,
+  activities: (sport?: string) => ['activities', sport ?? 'all'] as const,
+  activity: (id: string) => ['activity', id] as const,
   locations: ['gym', 'locations'] as const,
   myPlan: ['plans'] as const,
   visits: ['visits'] as const,
@@ -335,6 +338,75 @@ export function useSendChat(trainerId: string) {
       qc.invalidateQueries({ queryKey: qk.chatMessages(trainerId) });
       qc.invalidateQueries({ queryKey: qk.chatThreads });
     },
+  });
+}
+
+/* ── Activities ────────────────────────────────────────────── */
+
+/** The sports the server accepts. Effectively static, so cached hard. */
+export function useSports() {
+  return useQuery({ queryKey: qk.sports, queryFn: api.sports, staleTime: 3_600_000 });
+}
+
+export function useActivities(sport?: string) {
+  return useQuery({
+    queryKey: qk.activities(sport),
+    queryFn: () => api.activities(undefined, sport),
+    staleTime: 30_000,
+  });
+}
+
+export function useActivity(id: string | null) {
+  return useQuery({
+    queryKey: qk.activity(id ?? ''),
+    queryFn: () => api.activity(id as string),
+    enabled: !!id,
+  });
+}
+
+/**
+ * Save a finished recording.
+ *
+ * Deliberately NOT through the offline outbox. The outbox replays a whole
+ * payload later, and a recorded ride carries its streams in a second request —
+ * a queued create whose streams never arrive would leave a headless activity.
+ * The record screen keeps the track on the device until the save succeeds.
+ */
+export function useCreateActivity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ActivityInput) => api.createActivity(body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['activities'] });
+      qc.invalidateQueries({ queryKey: qk.home });
+    },
+  });
+}
+
+export function usePutActivityStreams() {
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; streams: Record<string, unknown[]>; laps?: unknown[] }) =>
+      api.putActivityStreams(id, body),
+  });
+}
+
+export function useUpdateActivity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string } & Record<string, unknown>) =>
+      api.updateActivity(id, body),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: qk.activity(v.id) });
+      qc.invalidateQueries({ queryKey: ['activities'] });
+    },
+  });
+}
+
+export function useDeleteActivity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteActivity(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['activities'] }),
   });
 }
 

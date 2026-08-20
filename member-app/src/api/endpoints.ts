@@ -20,8 +20,12 @@ import type {
   ChatThread,
   ExerciseDetail,
   Food,
+  ActivityDetail,
+  ActivityInput,
+  ActivitySummary,
   Goal,
   HealthDay,
+  SportType,
   MembershipDetail,
   MembershipPlan,
   MyPlan,
@@ -236,6 +240,31 @@ export const api = {
     request<unknown>('/me', { method: 'PATCH', body }),
   updateProfile: (body: Record<string, unknown>) =>
     request<Profile>('/me/profile', { method: 'PATCH', body }),
+
+  /* ── Activities ──────────────────────────────────────────── */
+  sports: () => request<{ sports: SportType[] }>('/activities/sports'),
+  activities: (before?: string, sport?: string) => {
+    const q = new URLSearchParams();
+    if (before) q.set('before', before);
+    if (sport) q.set('sport', sport);
+    const s = q.toString();
+    return request<{ activities: ActivitySummary[]; nextBefore: string | null }>(
+      `/activities${s ? `?${s}` : ''}`,
+    );
+  },
+  activity: (id: string) => request<ActivityDetail>(`/activities/${id}`),
+  createActivity: (body: ActivityInput) =>
+    request<ActivitySummary>('/activities', { method: 'POST', body }),
+  updateActivity: (id: string, body: Record<string, unknown>) =>
+    request<ActivityDetail>(`/activities/${id}`, { method: 'PATCH', body }),
+  /** PUT: a retried upload replaces the series rather than storing the ride twice. */
+  putActivityStreams: (id: string, body: { streams: Record<string, unknown[]>; laps?: unknown[] }) =>
+    request<{ streams: string[]; laps: number }>(`/activities/${id}/streams`, {
+      method: 'PUT',
+      body,
+    }),
+  deleteActivity: (id: string) =>
+    request<{ deleted: boolean }>(`/activities/${id}`, { method: 'DELETE' }),
 
   /* ── On-device health (steps) ────────────────────────────── */
   healthDaily: (days = 30) =>
