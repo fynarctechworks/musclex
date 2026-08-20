@@ -157,6 +157,12 @@ model AppUser {
   /// NOTHING until the member turns a category on.
   share_sessions Boolean @default(false)
   activities             AppUserActivity[]
+  follows_given          Follow[]          @relation("FollowsGiven")
+  follows_received       Follow[]          @relation("FollowsReceived")
+  blocks_given           Block[]           @relation("BlocksGiven")
+  blocks_received        Block[]           @relation("BlocksReceived")
+  activity_kudos         ActivityKudos[]
+  activity_comments      ActivityComment[]
   share_prs      Boolean @default(false)
   share_streak   Boolean @default(false)
 
@@ -1070,6 +1076,8 @@ model AppUserActivity {
   streams  AppUserActivityStream[]
   laps     AppUserActivityLap[]
   photos   AppUserActivityPhoto[]
+  kudos    ActivityKudos[]
+  comments ActivityComment[]
 
   @@index([app_user_id, started_at])
   @@index([app_user_id, sport_type, started_at])
@@ -1129,4 +1137,69 @@ model AppUserActivityPhoto {
 
   @@index([activity_id])
   @@map("app_user_activity_photos")
+}
+
+/// One-way "I want to see your activities".
+///
+/// Deliberately NOT `friendships`, which is mutual and consent-based and gates
+/// PR comparison. Merging them would either force consent on watching or hand
+/// comparison rights to anyone who pressed Follow.
+model Follow {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  follower_id String   @db.Uuid
+  followee_id String   @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  follower AppUser @relation("FollowsGiven", fields: [follower_id], references: [id], onDelete: Cascade)
+  followee AppUser @relation("FollowsReceived", fields: [followee_id], references: [id], onDelete: Cascade)
+
+  @@unique([follower_id, followee_id])
+  @@index([follower_id])
+  @@index([followee_id])
+  @@map("follows")
+}
+
+/// Enforced in BOTH directions: neither party sees the other, whoever pressed it.
+model Block {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  blocker_id String   @db.Uuid
+  blocked_id String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  blocker AppUser @relation("BlocksGiven", fields: [blocker_id], references: [id], onDelete: Cascade)
+  blocked AppUser @relation("BlocksReceived", fields: [blocked_id], references: [id], onDelete: Cascade)
+
+  @@unique([blocker_id, blocked_id])
+  @@index([blocker_id])
+  @@index([blocked_id])
+  @@map("blocks")
+}
+
+model ActivityKudos {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  activity_id String   @db.Uuid
+  app_user_id String   @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  activity AppUserActivity @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  app_user AppUser         @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([activity_id, app_user_id])
+  @@map("activity_kudos")
+}
+
+model ActivityComment {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  activity_id String    @db.Uuid
+  app_user_id String    @db.Uuid
+  body        String
+  created_at  DateTime  @default(now()) @db.Timestamptz()
+  /// Soft delete, so removing one comment does not tear a hole in the thread.
+  deleted_at  DateTime? @db.Timestamptz()
+
+  activity AppUserActivity @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  app_user AppUser         @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@index([activity_id, created_at])
+  @@map("activity_comments")
 }

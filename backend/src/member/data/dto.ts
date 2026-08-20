@@ -1095,3 +1095,11 @@ export class ActivityStreamsDto {
   @Type(() => ActivityLapDto)
   laps?: ActivityLapDto[];
 }
+
+/** POST /feed/activities/:id/comments body. */
+export class CommentDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1000)
+  body!: string;
+}
