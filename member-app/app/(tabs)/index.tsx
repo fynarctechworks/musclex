@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Chip, Empty, Label, Loading, Meter, Row, Txt } from '../../src/ui';
+import { InfoBullet, InfoDot, InfoNote } from '../../src/ui/InfoTip';
 import { color, levelColor, levelLabel, space } from '../../src/ui/theme';
 import { whenOf } from '../../src/lib/datetime';
 import { useHome, useLogWater, useOccupancy } from '../../src/api/queries';
@@ -60,6 +62,7 @@ export default function TodayScreen() {
   const { data, isLoading, isError, refetch, isRefetching } = useHome();
   const { data: liveOcc } = useOccupancy(!!data);
   const water = useLogWater();
+  const [streakInfo, setStreakInfo] = useState(false);
 
   if (isLoading) return <Loading label="Loading your day" />;
   if (isError || !data)
@@ -97,7 +100,14 @@ export default function TodayScreen() {
       <Card tone={t.streakAtRisk ? 'accent' : 'default'}>
         <Row style={{ alignItems: 'flex-start' }}>
           <View>
-            <Label>Streak</Label>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Label>Streak</Label>
+              <InfoDot
+                open={streakInfo}
+                onPress={() => setStreakInfo((v) => !v)}
+                label="What counts as a streak day"
+              />
+            </View>
             <View
               style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginTop: space.sm }}
             >
@@ -119,6 +129,25 @@ export default function TodayScreen() {
           <Chip label="Workout" on={t.workoutLogged} />
           <Chip label="Meal" on={t.mealLogged} />
         </View>
+        {/* The rule is the server's (MemberStreakService): any ONE of the three
+            marks above claims the day, and the run may end today OR yesterday,
+            so today is never already lost.
+
+            This copy describes THAT streak only. The one on Progress is a
+            different number — workout logs alone — so do not lift this text
+            over there without changing it. */}
+        {streakInfo ? (
+          <InfoNote>
+            <Txt variant="small" tone="t2">Any one of these marks the day:</Txt>
+            <InfoBullet>Check in at the gym</InfoBullet>
+            <InfoBullet>Log a workout</InfoBullet>
+            <InfoBullet>Log a meal</InfoBullet>
+            <Txt variant="small" tone="t2" style={{ marginTop: space.xs }}>
+              Doing all three still counts as one day. Your streak is how many days in a row you
+              have marked — it only resets after a full day with nothing logged.
+            </Txt>
+          </InfoNote>
+        ) : null}
       </Card>
 
       <OccupancyCard occ={occ} />
