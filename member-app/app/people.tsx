@@ -3,9 +3,10 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
+import QRCode from 'react-native-qrcode-svg';
 import { Notice } from '../src/ui/Notice';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
-import { color, space } from '../src/ui/theme';
+import { color, radius, space } from '../src/ui/theme';
 import { contactsSupported, hashedContacts, requestContactsPermission } from '../src/lib/contacts';
 import {
   useFollowing,
@@ -118,16 +119,32 @@ export default function PeopleScreen() {
         <Card>
           <Label>Your code</Label>
           <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
-            Share this with someone standing next to you and they can add you.
+            Show this to someone standing next to you and they can add you.
           </Txt>
+          {code?.link ? (
+            <View style={{ alignItems: 'center', marginTop: space.lg }}>
+              <View style={{ padding: space.md, backgroundColor: '#FFFFFF', borderRadius: radius.md }}>
+                <QRCode value={code.link} size={168} backgroundColor="#FFFFFF" color={color.t1} />
+              </View>
+            </View>
+          ) : null}
+          {/* The link stays visible under the code: not every phone can scan,
+              and reading it aloud has to remain possible. */}
           <Txt
-            variant="small"
-            tone="t1"
+            variant="caption"
+            tone="t3"
             selectable
-            style={{ marginTop: space.md, fontWeight: '600' }}
+            style={{ marginTop: space.md, textAlign: 'center' }}
           >
             {code?.link ?? '—'}
           </Txt>
+          <View style={{ marginTop: space.md }}>
+            <Button
+              title="Scan someone's code"
+              variant="secondary"
+              onPress={() => router.push('/scan')}
+            />
+          </View>
         </Card>
 
         <Card>
