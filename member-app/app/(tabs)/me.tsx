@@ -85,6 +85,9 @@ export default function MeScreen() {
         <Link icon="messages" label="Messages" hint="Talk to your trainer"
           onPress={() => router.push('/messages')} />
         <View style={{ height: 1, backgroundColor: color.line }} />
+        <Link icon="community" label="Friends" hint="Their workouts, and how your lifts compare"
+          onPress={() => router.push('/friends')} />
+        <View style={{ height: 1, backgroundColor: color.line }} />
         <Link icon="community" label="Community" hint="Leaderboard, challenges and badges"
           onPress={() => router.push('/community')} />
         <View style={{ height: 1, backgroundColor: color.line }} />

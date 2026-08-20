@@ -3,6 +3,7 @@ import { PublicPrismaService } from '../../prisma/public-prisma.service';
 import { MemberException } from '../common/member-exception';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
 import { FriendPublisherService } from './friend-publisher.service';
+import { MemberRoutineService } from './member-routine.service';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -23,6 +24,7 @@ export class MemberFriendService {
   constructor(
     private readonly pub: PublicPrismaService,
     private readonly publisher: FriendPublisherService,
+    private readonly routines: MemberRoutineService,
   ) {}
 
   /** Digits only, so 09876 543210 and +91 9876543210 find the same person. */
@@ -364,6 +366,82 @@ export class MemberFriendService {
     }
 
     return this.prefs(member);
+  }
+
+  /**
+   * Send one of my routines to a friend.
+   *
+   * Mints an ordinary share snapshot and records the delivery. Reusing
+   * shared_routines means the receiver's import is the SAME name-matching path
+   * that link sharing already proved — a second copy mechanism would be a
+   * second thing to keep correct as routines gain fields.
+   *
+   * The receiver gets a COPY. Later edits by the sender never reach them, which
+   * is what "add it to mine" has to mean if a routine is not to change under
+   * someone mid-session.
+   */
+  async sendRoutine(member: CurrentMemberContext, routineId: string, toAppUserId: string) {
+    const meId = this.me(member);
+    await this.assertFriend(meId, toAppUserId);
+
+    // share() resolves the routine through the member's own scope, so a routine
+    // id belonging to someone else simply does not exist here.
+    const snap = await this.routines.share(member, routineId);
+
+    await this.pub.friendRoutineShare.create({
+      data: {
+        from_app_user_id: meId,
+        to_app_user_id: toAppUserId,
+        token: snap.token,
+        routine_name: snap.name,
+      },
+    });
+    return { sent: true, name: snap.name, exerciseCount: snap.exerciseCount };
+  }
+
+  /** Routines friends have sent me, newest first. */
+  async routineInbox(member: CurrentMemberContext) {
+    const meId = this.me(member);
+    const rows = await this.pub.friendRoutineShare.findMany({
+      where: { to_app_user_id: meId },
+      orderBy: { created_at: 'desc' },
+      take: 30,
+      include: { from_app_user: { select: { full_name: true } } },
+    });
+    return {
+      shares: rows.map((r) => ({
+        id: r.id,
+        token: r.token,
+        name: r.routine_name,
+        from: r.from_app_user.full_name ?? 'MuscleX member',
+        sentAt: r.created_at.toISOString(),
+        importedAt: r.imported_at?.toISOString() ?? null,
+      })),
+    };
+  }
+
+  /**
+   * Accept a sent routine into my own list.
+   *
+   * Requires a gym: the import re-matches exercise names against the receiver's
+   * own catalogue, and a gym-less user has no catalogue to match against.
+   */
+  async acceptRoutine(member: CurrentMemberContext, shareId: string) {
+    const meId = this.me(member);
+    if (!member.memberId) {
+      throw MemberException.badRequest('Join a gym to add a routine.');
+    }
+    const share = await this.pub.friendRoutineShare.findUnique({ where: { id: shareId } });
+    if (!share || share.to_app_user_id !== meId) {
+      throw MemberException.notFound('Routine not found.');
+    }
+
+    const result = await this.routines.importShared(member, share.token);
+    await this.pub.friendRoutineShare.update({
+      where: { id: shareId },
+      data: { imported_at: new Date() },
+    });
+    return result;
   }
 
   private async findPair(a: string, b: string) {

@@ -527,3 +527,61 @@ export interface ExploreDetail extends ExploreCard {
     targetDurationSeconds?: number;
   }[];
 }
+
+/* ── Friends ─────────────────────────────────────────────────────────────── */
+
+export interface FriendSummary {
+  appUserId: string;
+  name: string;
+}
+
+export interface IncomingRequest extends FriendSummary {
+  requestId: string;
+}
+
+export interface FriendSearchResult extends FriendSummary {
+  /** Existing relationship, so the UI offers Pending rather than a doomed Add. */
+  status: 'pending' | 'accepted' | 'blocked' | null;
+}
+
+export interface FriendSession {
+  id: string;
+  appUserId: string;
+  name: string;
+  performedAt: string;
+  title?: string | null;
+  exerciseCount: number;
+  setCount: number;
+  /** Canonical kg; convert at the edge for display. */
+  totalVolumeKg: number | null;
+  durationSeconds: number | null;
+  exerciseNames: string[];
+  kudosCount: number;
+  kudosedByMe: boolean;
+}
+
+export interface PrComparison {
+  /** False when the friend has not turned PR sharing on — distinct from "no lifts in common". */
+  sharing: boolean;
+  name: string;
+  lifts: {
+    exercise: string;
+    mine: { weightKg: number; reps: number; achievedAt: string };
+    theirs: { weightKg: number; reps: number; achievedAt: string };
+  }[];
+}
+
+export interface SharePrefs {
+  shareSessions: boolean;
+  sharePrs: boolean;
+  shareStreak: boolean;
+}
+
+export interface RoutineShare {
+  id: string;
+  token: string;
+  name: string;
+  from: string;
+  sentAt: string;
+  importedAt: string | null;
+}

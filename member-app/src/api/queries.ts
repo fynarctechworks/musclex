@@ -589,3 +589,107 @@ export function useFlush() {
     },
   });
 }
+
+/* ── Friends ───────────────────────────────────────────────────────────────
+ * The feed and the friends list share a cache key prefix so accepting a
+ * request, or unfriending, refreshes both without either screen knowing about
+ * the other.
+ */
+
+export function useFriends() {
+  return useQuery({ queryKey: ['friends'], queryFn: api.friends });
+}
+
+export function useFriendFeed() {
+  return useQuery({ queryKey: ['friends', 'feed'], queryFn: api.friendFeed });
+}
+
+export function useFriendSearch(phone: string) {
+  return useQuery({
+    queryKey: ['friends', 'search', phone],
+    queryFn: () => api.friendSearch(phone),
+    // Only once it could plausibly be a number — otherwise every keystroke is
+    // a request that cannot match anything.
+    enabled: phone.replace(/\D/g, '').length >= 6,
+  });
+}
+
+export function useFriendRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (appUserId: string) => api.friendRequest(appUserId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['friends'] }),
+  });
+}
+
+export function useFriendRespond() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ requestId, accept }: { requestId: string; accept: boolean }) =>
+      api.friendRespond(requestId, accept),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['friends'] }),
+  });
+}
+
+export function useFriendRemove() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (appUserId: string) => api.friendRemove(appUserId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['friends'] }),
+  });
+}
+
+export function useFriendKudos() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) => api.friendKudos(sessionId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['friends', 'feed'] }),
+  });
+}
+
+export function useFriendPrs(appUserId: string | null) {
+  return useQuery({
+    queryKey: ['friends', 'prs', appUserId ?? ''],
+    queryFn: () => api.friendPrs(appUserId as string),
+    enabled: !!appUserId,
+  });
+}
+
+export function useSharePrefs() {
+  return useQuery({ queryKey: ['friends', 'sharing'], queryFn: api.sharePrefs });
+}
+
+export function useSetSharePrefs() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.setSharePrefs,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['friends', 'sharing'] });
+      // Turning a category off withdraws published rows, so the feed a friend
+      // sees changes too — refresh rather than show a stale one.
+      qc.invalidateQueries({ queryKey: ['friends', 'feed'] });
+    },
+  });
+}
+
+export function useSendRoutineToFriend() {
+  return useMutation({
+    mutationFn: ({ appUserId, routineId }: { appUserId: string; routineId: string }) =>
+      api.sendRoutineToFriend(appUserId, routineId),
+  });
+}
+
+export function useRoutineInbox() {
+  return useQuery({ queryKey: ['friends', 'routine-inbox'], queryFn: api.routineInbox });
+}
+
+export function useAcceptSentRoutine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.acceptSentRoutine(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['friends', 'routine-inbox'] });
+      qc.invalidateQueries({ queryKey: ['routines'] });
+    },
+  });
+}

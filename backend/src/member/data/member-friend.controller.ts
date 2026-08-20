@@ -79,6 +79,27 @@ export class MemberFriendController {
     return this.friends.comparePrs(member, appUserId);
   }
 
+  /** Send one of my routines to a friend. */
+  @Post('friends/:appUserId/routines/:routineId')
+  sendRoutine(
+    @CurrentMember() member: CurrentMemberContext,
+    @Param('appUserId') appUserId: string,
+    @Param('routineId') routineId: string,
+  ) {
+    return this.friends.sendRoutine(member, routineId, appUserId);
+  }
+
+  /** Routines friends have sent me. */
+  @Get('friends/routines/inbox')
+  routineInbox(@CurrentMember() member: CurrentMemberContext) {
+    return this.friends.routineInbox(member);
+  }
+
+  @Post('friends/routines/inbox/:id/accept')
+  acceptRoutine(@CurrentMember() member: CurrentMemberContext, @Param('id') id: string) {
+    return this.friends.acceptRoutine(member, id);
+  }
+
   @Get('friends/me/sharing')
   prefs(@CurrentMember() member: CurrentMemberContext) {
     return this.friends.prefs(member);

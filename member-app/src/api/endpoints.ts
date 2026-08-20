@@ -18,8 +18,15 @@ import type {
   ReferralResult,
   ExploreCategory,
   ExploreDetail,
+  FriendSearchResult,
+  FriendSession,
+  FriendSummary,
+  IncomingRequest,
+  PrComparison,
   Routine,
   RoutineExerciseInput,
+  RoutineShare,
+  SharePrefs,
   RoutineImportResult,
   SharedRoutinePreview,
   ToolsResult,
@@ -240,6 +247,37 @@ export const api = {
   exploreWorkout: (slug: string) => request<ExploreDetail>(`/explore/${slug}`),
   addExploreWorkout: (slug: string) =>
     request<RoutineImportResult>(`/explore/${slug}/add`, { method: 'POST' }),
+
+  /* ── Friends ─────────────────────────────────────────────── */
+  friends: () => request<{ friends: FriendSummary[]; incoming: IncomingRequest[] }>('/friends'),
+  friendSearch: (phone: string) =>
+    request<{ results: FriendSearchResult[] }>(`/friends/search?phone=${encodeURIComponent(phone)}`),
+  friendRequest: (appUserId: string) =>
+    request<{ status: string }>('/friends/request', { method: 'POST', body: { appUserId } }),
+  friendRespond: (requestId: string, accept: boolean) =>
+    request<{ status: string }>(`/friends/requests/${requestId}/respond`, {
+      method: 'POST',
+      body: { accept },
+    }),
+  friendRemove: (appUserId: string) =>
+    request<{ removed: boolean }>(`/friends/${appUserId}`, { method: 'DELETE' }),
+  friendFeed: () => request<{ sessions: FriendSession[] }>('/friends/feed'),
+  friendKudos: (sessionId: string) =>
+    request<{ kudosed: boolean; kudosCount: number }>(`/friends/sessions/${sessionId}/kudos`, {
+      method: 'POST',
+    }),
+  friendPrs: (appUserId: string) => request<PrComparison>(`/friends/${appUserId}/prs`),
+  sharePrefs: () => request<SharePrefs>('/friends/me/sharing'),
+  setSharePrefs: (body: Partial<SharePrefs>) =>
+    request<SharePrefs>('/friends/me/sharing', { method: 'PATCH', body }),
+  sendRoutineToFriend: (appUserId: string, routineId: string) =>
+    request<{ sent: boolean; name: string; exerciseCount: number }>(
+      `/friends/${appUserId}/routines/${routineId}`,
+      { method: 'POST' },
+    ),
+  routineInbox: () => request<{ shares: RoutineShare[] }>('/friends/routines/inbox'),
+  acceptSentRoutine: (id: string) =>
+    request<RoutineImportResult>(`/friends/routines/inbox/${id}/accept`, { method: 'POST' }),
 
   /* ── Routines (personal, shareable by link) ──────────────── */
   routines: () => request<{ routines: Routine[] }>('/routines'),
