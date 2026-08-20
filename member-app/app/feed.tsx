@@ -1,0 +1,264 @@
+import { useState } from 'react';
+import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button, Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
+import { Notice } from '../src/ui/Notice';
+import { ScreenHeader } from '../src/ui/ScreenHeader';
+import { color, font, radius, space } from '../src/ui/theme';
+import { whenOf } from '../src/lib/datetime';
+import { clock } from '../src/lib/recorder';
+import {
+  useActivityComments,
+  useAddComment,
+  useBlockPerson,
+  useDeleteComment,
+  useFeed,
+  useSports,
+  useToggleKudos,
+} from '../src/api/queries';
+import type { FeedActivity, SportType } from '../src/api/types';
+
+/**
+ * ────────────────────────────────────────────────────────────────
+ * FEED — activities from people you follow
+ * ────────────────────────────────────────────────────────────────
+ *
+ * The server decides what appears here; this screen never filters. That is
+ * deliberate — a client-side visibility check means the hidden activity was
+ * already sent to the device, and the rule then lives in two places.
+ *
+ * Routes arrive already trimmed by the owner's privacy zone, so there is
+ * nothing here that could accidentally reveal where someone lives.
+ */
+export default function FeedScreen() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { data, isLoading, refetch } = useFeed();
+  const { data: sportData } = useSports();
+  const [open, setOpen] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ tone: 'error' | 'success'; title: string } | null>(null);
+
+  if (isLoading) return <Loading label="Loading your feed" />;
+
+  const items = data?.activities ?? [];
+  const sports = new Map((sportData?.sports ?? []).map((s: SportType) => [s.key, s]));
+
+  return (
+    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+      <ScreenHeader title="Feed" />
+      <ScrollView
+        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
+      >
+        {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
+
+        {items.length === 0 ? (
+          <Empty
+            title="Nothing here yet"
+            body="Follow someone, or record an activity of your own — yours show up here too."
+          />
+        ) : (
+          items.map((a) => (
+            <FeedCard
+              key={a.id}
+              activity={a}
+              sportLabel={sports.get(a.sportType)?.label ?? a.sportType}
+              distanceBased={sports.get(a.sportType)?.distanceBased ?? false}
+              commentsOpen={open === a.id}
+              onToggleComments={() => setOpen(open === a.id ? null : a.id)}
+              onBlocked={() => setNotice({ tone: 'success', title: 'Blocked' })}
+              onOpen={() => (a.mine ? router.push(`/activity/${a.id}`) : undefined)}
+            />
+          ))
+        )}
+
+        <Button title="Refresh" variant="secondary" size="sm" onPress={() => refetch()} />
+      </ScrollView>
+    </View>
+  );
+}
+
+function FeedCard({
+  activity: a,
+  sportLabel,
+  distanceBased,
+  commentsOpen,
+  onToggleComments,
+  onBlocked,
+  onOpen,
+}: {
+  activity: FeedActivity;
+  sportLabel: string;
+  distanceBased: boolean;
+  commentsOpen: boolean;
+  onToggleComments: () => void;
+  onBlocked: () => void;
+  onOpen: () => void;
+}) {
+  const kudos = useToggleKudos();
+  const block = useBlockPerson();
+  const km = a.distanceM != null ? a.distanceM / 1000 : null;
+
+  return (
+    <Card>
+      <Pressable onPress={onOpen} accessibilityRole={a.mine ? 'button' : 'none'}>
+        <Row style={{ alignItems: 'flex-start' }}>
+          <View style={{ flex: 1, paddingRight: space.md }}>
+            <Txt variant="bodyStrong">
+              {a.mine ? 'You' : a.athlete?.name || 'Someone'}
+            </Txt>
+            <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>
+              {sportLabel} · {whenOf(a.startedAt)}
+            </Txt>
+          </View>
+          {a.mine ? <Txt variant="caption" tone="t4">yours</Txt> : null}
+        </Row>
+
+        {a.title ? (
+          <Txt variant="heading" style={{ marginTop: space.md }}>{a.title}</Txt>
+        ) : null}
+
+        <Row style={{ marginTop: space.md, justifyContent: 'flex-start', gap: space.xl }}>
+          {distanceBased && km != null ? <Stat value={km.toFixed(2)} unit="km" /> : null}
+          <Stat value={clock(a.elapsedSeconds * 1000)} unit="time" />
+          {a.elevationGainM ? (
+            <Stat value={String(Math.round(a.elevationGainM))} unit="m climb" />
+          ) : null}
+          {a.avgHeartRate ? <Stat value={String(a.avgHeartRate)} unit="bpm" /> : null}
+        </Row>
+      </Pressable>
+
+      <Row style={{ marginTop: space.lg, justifyContent: 'flex-start', gap: space.md }}>
+        <Pressable
+          onPress={() => kudos.mutate({ id: a.id, kudosed: a.kudosedByMe })}
+          accessibilityRole="button"
+          accessibilityLabel={a.kudosedByMe ? 'Take back kudos' : 'Give kudos'}
+          accessibilityState={{ selected: a.kudosedByMe }}
+          hitSlop={8}
+        >
+          <Txt variant="small" tone={a.kudosedByMe ? 'accent' : 't2'} style={{ fontWeight: '600' }}>
+            {a.kudosedByMe ? '👏 ' : ''}Kudos{a.kudosCount > 0 ? ` ${a.kudosCount}` : ''}
+          </Txt>
+        </Pressable>
+
+        <Pressable
+          onPress={onToggleComments}
+          accessibilityRole="button"
+          accessibilityLabel="Comments"
+          hitSlop={8}
+        >
+          <Txt variant="small" tone="t2" style={{ fontWeight: '600' }}>
+            Comments{a.commentCount > 0 ? ` ${a.commentCount}` : ''}
+          </Txt>
+        </Pressable>
+
+        {/* Blocking lives on the card because that is where someone is when
+            they decide they have had enough of a person. */}
+        {!a.mine && a.athlete ? (
+          <Pressable
+            onPress={async () => {
+              await block.mutateAsync(a.athlete!.id);
+              onBlocked();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`Block ${a.athlete.name ?? 'this person'}`}
+            hitSlop={8}
+          >
+            <Txt variant="small" tone="t4">Block</Txt>
+          </Pressable>
+        ) : null}
+      </Row>
+
+      {commentsOpen ? <Comments activityId={a.id} /> : null}
+    </Card>
+  );
+}
+
+function Comments({ activityId }: { activityId: string }) {
+  const { data, isLoading } = useActivityComments(activityId);
+  const add = useAddComment();
+  const del = useDeleteComment();
+  const [draft, setDraft] = useState('');
+
+  const comments = data?.comments ?? [];
+
+  return (
+    <View
+      style={{
+        marginTop: space.lg,
+        paddingTop: space.md,
+        borderTopWidth: 1,
+        borderTopColor: color.line,
+        gap: space.sm,
+      }}
+    >
+      {isLoading ? (
+        <Txt variant="small" tone="t3">Loading…</Txt>
+      ) : comments.length === 0 ? (
+        <Txt variant="small" tone="t3">No comments yet.</Txt>
+      ) : (
+        comments.map((c) => (
+          <Row key={c.id} style={{ alignItems: 'flex-start' }}>
+            <View style={{ flex: 1, paddingRight: space.sm }}>
+              <Txt variant="caption" tone="t3">{c.mine ? 'You' : c.author.name || 'Someone'}</Txt>
+              <Txt variant="small" tone="t2">{c.body}</Txt>
+            </View>
+            {c.mine ? (
+              <Pressable
+                onPress={() => del.mutate({ commentId: c.id, activityId })}
+                accessibilityRole="button"
+                accessibilityLabel="Delete your comment"
+                hitSlop={8}
+              >
+                <Txt variant="caption" tone="t4">Delete</Txt>
+              </Pressable>
+            ) : null}
+          </Row>
+        ))
+      )}
+
+      <Row style={{ marginTop: space.sm, gap: space.sm }}>
+        <TextInput
+          value={draft}
+          onChangeText={setDraft}
+          placeholder="Say something"
+          placeholderTextColor={color.t4}
+          accessibilityLabel="Write a comment"
+          style={{
+            flex: 1,
+            height: 42,
+            borderRadius: radius.md,
+            backgroundColor: color.surface2,
+            borderWidth: 1,
+            borderColor: color.line,
+            color: color.t1,
+            paddingHorizontal: space.md,
+            fontFamily: font,
+            fontSize: 15,
+          }}
+        />
+        <Button
+          title="Post"
+          size="sm"
+          disabled={!draft.trim()}
+          loading={add.isPending}
+          onPress={async () => {
+            const body = draft.trim();
+            if (!body) return;
+            setDraft('');
+            await add.mutateAsync({ id: activityId, body });
+          }}
+        />
+      </Row>
+    </View>
+  );
+}
+
+function Stat({ value, unit }: { value: string; unit: string }) {
+  return (
+    <View>
+      <Txt variant="heading">{value}</Txt>
+      <Txt variant="caption" tone="t3">{unit}</Txt>
+    </View>
+  );
+}

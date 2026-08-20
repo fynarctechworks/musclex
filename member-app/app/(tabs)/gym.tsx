@@ -104,6 +104,19 @@ export default function GymScreen() {
         )}
       </Card>
 
+      <Pressable onPress={() => router.push('/feed')} accessibilityRole="button"
+        accessibilityLabel="Activity feed">
+        <Card>
+          <Row>
+            <Label>Feed</Label>
+            <Txt variant="caption" tone="t3">Open ›</Txt>
+          </Row>
+          <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+            What the people you follow have been doing.
+          </Txt>
+        </Card>
+      </Pressable>
+
       <Pressable onPress={() => router.push('/activities')} accessibilityRole="button"
         accessibilityLabel="Your activities">
         <Card>

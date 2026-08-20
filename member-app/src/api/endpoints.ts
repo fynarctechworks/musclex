@@ -20,11 +20,14 @@ import type {
   ChatThread,
   ExerciseDetail,
   Food,
+  ActivityComment,
   ActivityDetail,
   ActivityInput,
   ActivitySummary,
   Goal,
   HealthDay,
+  FeedActivity,
+  Person,
   SportType,
   MembershipDetail,
   MembershipPlan,
@@ -240,6 +243,31 @@ export const api = {
     request<unknown>('/me', { method: 'PATCH', body }),
   updateProfile: (body: Record<string, unknown>) =>
     request<Profile>('/me/profile', { method: 'PATCH', body }),
+
+  /* ── Feed ────────────────────────────────────────────────── */
+  feed: (before?: string) =>
+    request<{ activities: FeedActivity[]; nextBefore: string | null }>(
+      `/feed${before ? `?before=${encodeURIComponent(before)}` : ''}`,
+    ),
+  feedActivity: (id: string) => request<FeedActivity>(`/feed/activities/${id}`),
+  following: () => request<{ people: Person[] }>('/feed/following'),
+  followers: () => request<{ people: Person[] }>('/feed/followers'),
+  follow: (appUserId: string) =>
+    request<{ following: boolean }>(`/feed/follow/${appUserId}`, { method: 'POST' }),
+  unfollow: (appUserId: string) =>
+    request<{ following: boolean }>(`/feed/follow/${appUserId}`, { method: 'DELETE' }),
+  blockPerson: (appUserId: string) =>
+    request<{ blocked: boolean }>(`/feed/block/${appUserId}`, { method: 'POST' }),
+  giveKudos: (id: string) =>
+    request<{ kudosed: boolean }>(`/feed/activities/${id}/kudos`, { method: 'POST' }),
+  removeKudos: (id: string) =>
+    request<{ kudosed: boolean }>(`/feed/activities/${id}/kudos`, { method: 'DELETE' }),
+  activityComments: (id: string) =>
+    request<{ comments: ActivityComment[] }>(`/feed/activities/${id}/comments`),
+  addActivityComment: (id: string, body: string) =>
+    request<ActivityComment>(`/feed/activities/${id}/comments`, { method: 'POST', body: { body } }),
+  deleteActivityComment: (commentId: string) =>
+    request<{ deleted: boolean }>(`/feed/comments/${commentId}`, { method: 'DELETE' }),
 
   /* ── Activities ──────────────────────────────────────────── */
   sports: () => request<{ sports: SportType[] }>('/activities/sports'),

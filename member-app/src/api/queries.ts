@@ -28,6 +28,9 @@ export const qk = {
   weight: ['me', 'weight'] as const,
   healthDaily: ['me', 'health', 'daily'] as const,
   sports: ['activities', 'sports'] as const,
+  feed: ['feed'] as const,
+  following: ['feed', 'following'] as const,
+  activityComments: (id: string) => ['feed', id, 'comments'] as const,
   activities: (sport?: string) => ['activities', sport ?? 'all'] as const,
   activity: (id: string) => ['activity', id] as const,
   locations: ['gym', 'locations'] as const,
@@ -337,6 +340,106 @@ export function useSendChat(trainerId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.chatMessages(trainerId) });
       qc.invalidateQueries({ queryKey: qk.chatThreads });
+    },
+  });
+}
+
+/* ── Feed ──────────────────────────────────────────────────── */
+
+export function useFeed() {
+  return useQuery({ queryKey: qk.feed, queryFn: () => api.feed(), staleTime: 30_000 });
+}
+
+export function useFollowing() {
+  return useQuery({ queryKey: qk.following, queryFn: api.following });
+}
+
+export function useToggleFollow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, following }: { id: string; following: boolean }) =>
+      following ? api.unfollow(id) : api.follow(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.feed });
+      qc.invalidateQueries({ queryKey: qk.following });
+    },
+  });
+}
+
+export function useBlockPerson() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.blockPerson(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.feed });
+      qc.invalidateQueries({ queryKey: qk.following });
+    },
+  });
+}
+
+/**
+ * Kudos, applied optimistically.
+ *
+ * A heart that waits for a round trip feels broken, and this is the one action
+ * where being wrong for a moment costs nothing — the rollback restores the
+ * exact previous value.
+ */
+export function useToggleKudos() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, kudosed }: { id: string; kudosed: boolean }) =>
+      kudosed ? api.removeKudos(id) : api.giveKudos(id),
+    onMutate: async ({ id, kudosed }) => {
+      await qc.cancelQueries({ queryKey: qk.feed });
+      const prev = qc.getQueryData(qk.feed);
+      qc.setQueryData(qk.feed, (old: any) =>
+        !old ? old : {
+          ...old,
+          activities: old.activities.map((a: any) =>
+            a.id !== id ? a : {
+              ...a,
+              kudosedByMe: !kudosed,
+              kudosCount: a.kudosCount + (kudosed ? -1 : 1),
+            },
+          ),
+        },
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(qk.feed, ctx.prev);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: qk.feed }),
+  });
+}
+
+export function useActivityComments(id: string | null) {
+  return useQuery({
+    queryKey: qk.activityComments(id ?? ''),
+    queryFn: () => api.activityComments(id as string),
+    enabled: !!id,
+  });
+}
+
+export function useAddComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: string }) => api.addActivityComment(id, body),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: qk.activityComments(v.id) });
+      qc.invalidateQueries({ queryKey: qk.feed });
+    },
+  });
+}
+
+export function useDeleteComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ commentId }: { commentId: string; activityId: string }) =>
+      api.deleteActivityComment(commentId),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: qk.activityComments(v.activityId) });
+      qc.invalidateQueries({ queryKey: qk.feed });
     },
   });
 }

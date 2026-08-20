@@ -354,6 +354,44 @@ export interface ActivityInput {
   visibility?: string;
 }
 
+/* ── Feed ─────────────────────────────────────────────────────── */
+
+export interface FeedActivity {
+  id: string;
+  appUserId: string;
+  athlete: { id: string; name: string | null } | null;
+  sportType: string;
+  title: string | null;
+  startedAt: string;
+  elapsedSeconds: number;
+  movingSeconds: number | null;
+  distanceM: number | null;
+  elevationGainM: number | null;
+  avgHeartRate: number | null;
+  /** Already trimmed by the owner's privacy zone when it isn't yours. */
+  polyline: string | null;
+  startLatitude: number | null;
+  startLongitude: number | null;
+  visibility: string;
+  kudosCount: number;
+  commentCount: number;
+  mine: boolean;
+  kudosedByMe: boolean;
+}
+
+export interface ActivityComment {
+  id: string;
+  body: string;
+  createdAt: string;
+  author: { id: string; name: string | null };
+  mine: boolean;
+}
+
+export interface Person {
+  id: string;
+  name: string | null;
+}
+
 /* ── On-device health (steps) ─────────────────────────────────── */
 /** One day's rollup from the phone or watch. Public/app_user scoped. */
 export interface HealthDay {
