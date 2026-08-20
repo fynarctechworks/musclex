@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Label, Loading, Meter, Row, Txt } from '../src/ui';
@@ -6,6 +6,15 @@ import { font, color, radius, space } from '../src/ui/theme';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { Notice } from '../src/ui/Notice';
 import { useFoods, useLogMeal, useLogWater, useNutrition, useSetNutritionGoal } from '../src/api/queries';
+import {
+  applySettings,
+  computeTimes,
+  ensurePermission,
+  INTERVAL_CHOICES,
+  loadSettings,
+  remindersSupported,
+  type WaterReminderSettings,
+} from '../src/lib/water-reminders';
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
@@ -165,6 +174,8 @@ export default function NutritionScreen() {
           <Meter value={data.waterMl} max={goal.waterMl} tint={color.water} />
         </Card>
 
+        <WaterReminders />
+
         <Card>
           <Row>
             <Label>Today's meals</Label>
@@ -279,6 +290,170 @@ export default function NutritionScreen() {
           </View>
         </View>
       </Modal>
+    </View>
+  );
+}
+
+/**
+ * Water reminder scheduling.
+ *
+ * Kept beside the water tracker rather than buried in settings: the moment a
+ * member notices they are behind on water is the moment they will want the
+ * nudge, and a reminder screen nobody finds reminds nobody.
+ */
+function WaterReminders() {
+  const [settings, setSettings] = useState<WaterReminderSettings | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<{ tone: 'error' | 'success'; title: string; body?: string } | null>(null);
+
+  useEffect(() => {
+    loadSettings().then(setSettings);
+  }, []);
+
+  // Offering a toggle that cannot fire is worse than offering nothing: the
+  // member would switch it on, trust it, and never be reminded.
+  if (!remindersSupported() || !settings) return null;
+
+  async function commit(next: WaterReminderSettings) {
+    setBusy(true);
+    setNotice(null);
+    try {
+      if (next.enabled) {
+        const ok = await ensurePermission();
+        if (!ok) {
+          // Persisting `enabled` here would leave a toggle that says ON while
+          // the OS silently drops every notification.
+          setNotice({
+            tone: 'error',
+            title: 'Notifications are turned off',
+            body: 'Allow notifications for MuscleX in your phone settings, then try again.',
+          });
+          return;
+        }
+      }
+      const count = await applySettings(next);
+      setSettings(next);
+      setNotice(
+        next.enabled
+          ? { tone: 'success', title: `${count} reminders a day`, body: describe(next) }
+          : { tone: 'success', title: 'Reminders off' },
+      );
+    } catch (e) {
+      setNotice({
+        tone: 'error',
+        title: 'Could not update reminders',
+        body: e instanceof Error ? e.message : undefined,
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card>
+      <Row>
+        <Label>Drink reminders</Label>
+        <Button
+          title={settings.enabled ? 'Turn off' : 'Turn on'}
+          variant="secondary"
+          size="sm"
+          loading={busy}
+          onPress={() => commit({ ...settings, enabled: !settings.enabled })}
+        />
+      </Row>
+
+      <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+        {settings.enabled ? describe(settings) : 'A quiet nudge through the day so you do not finish at 6pm on one glass.'}
+      </Txt>
+
+      {settings.enabled ? (
+        <>
+          <Row style={{ gap: space.sm, marginTop: space.md, justifyContent: 'flex-start' }}>
+            {INTERVAL_CHOICES.map((c) => (
+              <Pressable
+                key={c.minutes}
+                onPress={() => commit({ ...settings, everyMinutes: c.minutes })}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: settings.everyMinutes === c.minutes }}
+                style={{
+                  paddingHorizontal: space.md,
+                  paddingVertical: space.sm,
+                  borderRadius: radius.pill,
+                  borderWidth: 1,
+                  borderColor: settings.everyMinutes === c.minutes ? color.accent : color.line,
+                  backgroundColor: settings.everyMinutes === c.minutes ? color.accentSoft : 'transparent',
+                }}
+              >
+                <Txt variant="caption" tone={settings.everyMinutes === c.minutes ? 't1' : 't2'}>
+                  {c.label}
+                </Txt>
+              </Pressable>
+            ))}
+          </Row>
+
+          <Row style={{ gap: space.sm, marginTop: space.md }}>
+            <HourField
+              label="From"
+              value={settings.startHour}
+              onChange={(h) => commit({ ...settings, startHour: h })}
+            />
+            <HourField
+              label="Until"
+              value={settings.endHour}
+              onChange={(h) => commit({ ...settings, endHour: h })}
+            />
+          </Row>
+        </>
+      ) : null}
+
+      {notice ? (
+        <View style={{ marginTop: space.md }}>
+          <Notice {...notice} onDismiss={() => setNotice(null)} />
+        </View>
+      ) : null}
+    </Card>
+  );
+}
+
+function describe(s: WaterReminderSettings): string {
+  const n = computeTimes(s).length;
+  const every = INTERVAL_CHOICES.find((c) => c.minutes === s.everyMinutes)?.label ?? `Every ${s.everyMinutes} min`;
+  if (n === 0) return 'No reminders — check the from/until times.';
+  return `${every.toLowerCase()}, ${pad(s.startHour)}:00 to ${pad(s.endHour)}:00.`;
+}
+
+const pad = (h: number) => String(h).padStart(2, '0');
+
+function HourField({ label, value, onChange }: { label: string; value: number; onChange: (h: number) => void }) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => setText(String(value)), [value]);
+  return (
+    <View style={{ flex: 1 }}>
+      <Txt variant="caption" tone="t3" style={{ marginBottom: 4 }}>{label}</Txt>
+      <TextInput
+        value={text}
+        onChangeText={setText}
+        // Commit on blur, not per keystroke: rescheduling on every digit would
+        // cancel and rebuild the whole schedule while the member is still typing.
+        onBlur={() => {
+          const n = Number.parseInt(text, 10);
+          if (Number.isFinite(n) && n >= 0 && n <= 23) onChange(n);
+          else setText(String(value));
+        }}
+        keyboardType="number-pad"
+        accessibilityLabel={`${label} hour`}
+        style={{
+          height: 42,
+          borderRadius: radius.sm,
+          backgroundColor: color.surface2,
+          borderWidth: 1,
+          borderColor: color.line,
+          color: color.t1,
+          paddingHorizontal: space.md,
+          fontFamily: font,
+          fontSize: 15,
+        }}
+      />
     </View>
   );
 }

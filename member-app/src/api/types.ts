@@ -456,6 +456,14 @@ export interface RoutineExercise {
   targetDurationSeconds?: number;
 }
 
+/** What the client sends when creating or replacing a routine's exercises. */
+export interface RoutineExerciseInput {
+  exerciseId: string;
+  targetSets?: number;
+  targetReps?: number;
+  targetDurationSeconds?: number;
+}
+
 export interface Routine {
   id: string;
   name: string;

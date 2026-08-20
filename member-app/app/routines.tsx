@@ -100,8 +100,9 @@ export default function RoutinesScreen() {
           <>
             <Empty
               title="No routines yet"
-              body="Finish a workout and tap Save as routine, and it will be here to repeat next week."
+              body="Build one here, or finish a workout and tap Save as routine."
             />
+            <Button title="Create a routine" onPress={() => router.push('/routine-edit')} />
             <Button
               title="Browse ready-made workouts"
               variant="secondary"
@@ -109,7 +110,9 @@ export default function RoutinesScreen() {
             />
           </>
         ) : (
-          routines.map((r) => (
+          <>
+          <Button title="Create a routine" onPress={() => router.push('/routine-edit')} />
+          {routines.map((r) => (
             <Card key={r.id}>
               <Row style={{ alignItems: 'flex-start' }}>
                 <View style={{ flex: 1, paddingRight: space.md }}>
@@ -148,6 +151,12 @@ export default function RoutinesScreen() {
                   />
                 </View>
                 <Button
+                  title="Edit"
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => router.push(`/routine-edit?id=${r.id}`)}
+                />
+                <Button
                   title="Share"
                   variant="secondary"
                   size="sm"
@@ -177,7 +186,8 @@ export default function RoutinesScreen() {
                 </View>
               ) : null}
             </Card>
-          ))
+          ))}
+          </>
         )}
 
         <Card>

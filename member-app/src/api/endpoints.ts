@@ -19,6 +19,7 @@ import type {
   ExploreCategory,
   ExploreDetail,
   Routine,
+  RoutineExerciseInput,
   RoutineImportResult,
   SharedRoutinePreview,
   ToolsResult,
@@ -246,10 +247,12 @@ export const api = {
   createRoutine: (body: {
     name: string;
     notes?: string;
-    exercises: { exerciseId: string; targetSets?: number; targetReps?: number; targetDurationSeconds?: number }[];
+    exercises: RoutineExerciseInput[];
   }) => request<Routine>('/routines', { method: 'POST', body }),
-  updateRoutine: (id: string, body: Record<string, unknown>) =>
-    request<Routine>(`/routines/${id}`, { method: 'PATCH', body }),
+  updateRoutine: (
+    id: string,
+    body: { name?: string; notes?: string; exercises?: RoutineExerciseInput[] },
+  ) => request<Routine>(`/routines/${id}`, { method: 'PATCH', body }),
   deleteRoutine: (id: string) => request<unknown>(`/routines/${id}`, { method: 'DELETE' }),
   shareRoutine: (id: string) =>
     request<{ token: string; name: string; exerciseCount: number }>(`/routines/${id}/share`, {

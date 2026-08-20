@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './endpoints';
 import { write, flush, pendingCount } from '../offline/outbox';
-import type { BodyMetricInput, SetLog } from './types';
+import type { BodyMetricInput, RoutineExerciseInput, SetLog } from './types';
 
 export const qk = {
   home: ['home'] as const,
@@ -522,6 +522,20 @@ export function useCreateRoutine() {
   return useMutation({
     mutationFn: api.createRoutine,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['routines'] }),
+  });
+}
+
+export function useUpdateRoutine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; name?: string; notes?: string; exercises?: RoutineExerciseInput[] }) =>
+      api.updateRoutine(id, body),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ['routines'] });
+      // The editor reads the single-routine query, so refresh that too or a
+      // re-open shows the pre-edit exercise list.
+      qc.invalidateQueries({ queryKey: ['routine', r.id] });
+    },
   });
 }
 

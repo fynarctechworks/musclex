@@ -201,6 +201,8 @@ export function ExercisePicker({
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState<string | null>(null);
+  /** Selected head within `muscle` (e.g. lower_chest). null = show every head. */
+  const [head, setHead] = useState<string | null>(null);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [picked, setPicked] = useState<Record<string, ExerciseListItem>>({});
   const [infoId, setInfoId] = useState<string | null>(null);
@@ -248,6 +250,20 @@ export function ExercisePicker({
     }
     return out;
   }, [heads, items]);
+
+  /**
+   * Narrow to one head when the member picks a chip. Without this a group like
+   * Chest renders upper -> mid -> lower in order, so reaching a decline press
+   * means scrolling past every incline and flat variation first.
+   *
+   * Filtering the SECTIONS rather than re-querying keeps the head labels and
+   * their "covered" ticks intact, so the coverage summary below still counts
+   * every head rather than only the visible one.
+   */
+  const visibleSections = useMemo(
+    () => (!sections || !head ? sections : sections.filter((s) => s.head.key === head)),
+    [sections, head],
+  );
 
   /** Which heads the current selection already covers — the point of the split. */
   const covered = useMemo(() => {
@@ -340,10 +356,38 @@ export function ExercisePicker({
                   key={m.label}
                   label={m.label}
                   active={muscle === m.value && !(m.value === null && favoritesOnly)}
-                  onPress={() => setMuscle(m.value)}
+                  onPress={() => {
+                    setMuscle(m.value);
+                    // A head belongs to one group; keeping it across a group
+                    // change would filter to a head that no longer exists and
+                    // show an empty list.
+                    setHead(null);
+                  }}
                 />
               ))}
             </ScrollView>
+
+            {sections && sections.length > 1 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: space.sm, paddingRight: space.lg }}
+              >
+                <Filter label="All" active={head === null} onPress={() => setHead(null)} />
+                {sections
+                  .filter((sec) => sec.list.length > 0)
+                  .map((sec) => (
+                    <Filter
+                      key={sec.head.key}
+                      // The tick repeats the section heading so the member can
+                      // see what is already covered without clearing the filter.
+                      label={`${sec.head.label}${covered.has(sec.head.key) ? ' ✓' : ''} ${sec.list.length}`}
+                      active={head === sec.head.key}
+                      onPress={() => setHead(head === sec.head.key ? null : sec.head.key)}
+                    />
+                  ))}
+              </ScrollView>
+            ) : null}
           </View>
 
           <ScrollView
@@ -361,8 +405,8 @@ export function ExercisePicker({
                     : 'Try a different search or muscle group.'
                 }
               />
-            ) : sections ? (
-              sections
+            ) : visibleSections ? (
+              visibleSections
                 .filter((sec) => sec.list.length > 0)
                 .map((sec) => (
                   <View key={sec.head.key} style={{ gap: space.sm, marginBottom: space.md }}>
