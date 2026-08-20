@@ -51,6 +51,9 @@ import { MemberClassController } from './data/member-class.controller';
 import { MemberNutritionController } from './data/member-nutrition.controller';
 import { MemberExerciseController } from './data/member-exercise.controller';
 import { MemberRoutineController } from './data/member-routine.controller';
+import { MemberFriendController } from './data/member-friend.controller';
+import { MemberFriendService } from './data/member-friend.service';
+import { FriendPublisherService } from './data/friend-publisher.service';
 import { MemberExploreController } from './data/member-explore.controller';
 import { MemberExploreService } from './data/member-explore.service';
 import { MemberRoutineService } from './data/member-routine.service';
@@ -97,6 +100,7 @@ import { MemberIdentityController } from './data/member-identity.controller';
     MemberNutritionController,
     MemberExerciseController,
     MemberRoutineController,
+    MemberFriendController,
     MemberExploreController,
     MemberChatController,
     MemberNotificationController,
@@ -125,6 +129,8 @@ import { MemberIdentityController } from './data/member-identity.controller';
     MemberNutritionService,
     MemberExerciseService,
     MemberRoutineService,
+    MemberFriendService,
+    FriendPublisherService,
     MemberExploreService,
     MemberChatService,
     MemberChatGateway,

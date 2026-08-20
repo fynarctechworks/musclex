@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
+import { FriendPublisherService } from './friend-publisher.service';
 import { MemberException } from '../common/member-exception';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
 import { toNumber } from './mappers';
@@ -34,7 +35,10 @@ type SetInput = {
  */
 @Injectable()
 export class MemberWorkoutService {
-  constructor(private readonly tenant: TenantPrisma) {}
+  constructor(
+    private readonly tenant: TenantPrisma,
+    private readonly friendPublisher: FriendPublisherService,
+  ) {}
 
   /** Today's assigned workout (full detail) or null if nothing is assigned. */
   async getTodayWorkout(member: CurrentMemberContext): Promise<WorkoutData | null> {
@@ -195,6 +199,21 @@ export class MemberWorkoutService {
       log.id,
       sets,
     );
+
+    // Copy out to the friends feed, but only if this member turned sharing on
+    // — the publisher checks their own flag, so nothing leaves the gym schema
+    // by default.
+    //
+    // Deliberately AFTER the workout is durable, and best-effort inside the
+    // publisher: a social copy failing must never cost someone the session
+    // they just trained.
+    await this.friendPublisher.publishSession(member, log.id, sets, span);
+    if (newPersonalRecords.length) {
+      await this.friendPublisher.publishPrs(
+        member,
+        newPersonalRecords.map((r) => r.exerciseId).filter((id): id is string => !!id),
+      );
+    }
 
     return { logId: log.id, newPersonalRecords };
   }

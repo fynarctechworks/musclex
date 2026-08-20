@@ -67,6 +67,24 @@ function perSetColumns(e: RoutineExerciseInput, index: number) {
   };
 }
 
+/**
+ * One exercise inside a shared snapshot.
+ *
+ * Carries the PER-SET arrays as well as the uniform fields: a pyramid is the
+ * main reason to share a routine, and dropping the arrays here would silently
+ * flatten 12/10/8 into whatever single number survived.
+ */
+export interface SharedRoutineExercise {
+  name: string;
+  position?: number;
+  targetSets?: number;
+  targetReps?: number;
+  targetDurationSeconds?: number;
+  targetRepsPerSet?: number[];
+  targetSecondsPerSet?: number[];
+  targetWeightPerSet?: number[];
+}
+
 @Injectable()
 export class MemberRoutineService {
   constructor(
@@ -212,6 +230,9 @@ export class MemberRoutineService {
           targetSets: e.targetSets,
           targetReps: e.targetReps,
           targetDurationSeconds: e.targetDurationSeconds,
+          targetRepsPerSet: e.targetRepsPerSet,
+          targetSecondsPerSet: e.targetSecondsPerSet,
+          targetWeightPerSet: e.targetWeightPerSet,
         })),
       },
     });
@@ -245,12 +266,7 @@ export class MemberRoutineService {
    */
   async resolveByName(
     member: CurrentMemberContext,
-    wanted: {
-      name: string;
-      targetSets?: number;
-      targetReps?: number;
-      targetDurationSeconds?: number;
-    }[],
+    wanted: SharedRoutineExercise[],
   ): Promise<{ matched: RoutineExerciseInput[]; missing: string[] }> {
     const found = await this.tenant.client.exercise.findMany({
       where: {
@@ -273,6 +289,9 @@ export class MemberRoutineService {
         targetSets: w.targetSets,
         targetReps: w.targetReps,
         targetDurationSeconds: w.targetDurationSeconds,
+        targetRepsPerSet: w.targetRepsPerSet,
+        targetSecondsPerSet: w.targetSecondsPerSet,
+        targetWeightPerSet: w.targetWeightPerSet,
       });
     });
     return { matched, missing };
@@ -290,12 +309,7 @@ export class MemberRoutineService {
     const snap = await this.preview(token);
     const { matched, missing } = await this.resolveByName(
       member,
-      snap.exercises as {
-        name: string;
-        targetSets?: number;
-        targetReps?: number;
-        targetDurationSeconds?: number;
-      }[],
+      snap.exercises as SharedRoutineExercise[],
     );
 
     if (!matched.length) {

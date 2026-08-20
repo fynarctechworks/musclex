@@ -863,3 +863,33 @@ export class CustomExerciseDto {
   @IsOptional() @IsIn(['reps', 'duration']) trackingType?: 'reps' | 'duration';
   @IsOptional() @IsString() @MaxLength(2000) instructions?: string;
 }
+
+/* ── Friends ─────────────────────────────────────────────────────────────── */
+
+/** GET /friends/search?phone= */
+export class FriendSearchDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(20)
+  phone!: string;
+}
+
+export class FriendRequestDto {
+  @IsUUID()
+  appUserId!: string;
+}
+
+export class FriendRespondDto {
+  @IsBoolean()
+  accept!: boolean;
+}
+
+/**
+ * PATCH /friends/me/sharing — every flag optional so a client can change one
+ * without restating the others and accidentally turning a category back on.
+ */
+export class FriendPrefsDto {
+  @IsOptional() @IsBoolean() shareSessions?: boolean;
+  @IsOptional() @IsBoolean() sharePrs?: boolean;
+  @IsOptional() @IsBoolean() shareStreak?: boolean;
+}

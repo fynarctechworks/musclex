@@ -28,7 +28,13 @@ describe('MemberWorkoutService', () => {
         update: jest.fn().mockResolvedValue({}),
       },
     };
-    service = new MemberWorkoutService( { client: prisma } as any);
+    // Publishing to the friends feed is a no-op here: these tests are about
+    // tenant scoping, and the publisher is covered by its own suite.
+    const friendPublisher = {
+      publishSession: jest.fn().mockResolvedValue(undefined),
+      publishPrs: jest.fn().mockResolvedValue(undefined),
+    } as any;
+    service = new MemberWorkoutService({ client: prisma } as any, friendPublisher);
   });
 
   it('getTodayWorkout filters the assignment by the authenticated member_id', async () => {
