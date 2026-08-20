@@ -179,6 +179,7 @@ model AppUser {
   challenges_owned       GroupChallenge[]   @relation("ChallengesOwned")
   challenge_entries      GroupChallengeParticipant[]
   mentions_received      CommentMention[]
+  routes                 Route[]
   share_prs      Boolean @default(false)
   share_streak   Boolean @default(false)
 
@@ -1425,4 +1426,32 @@ model CommentMention {
   @@unique([comment_id, app_user_id])
   @@index([app_user_id, created_at])
   @@map("comment_mentions")
+}
+
+/// A saved route.
+///
+/// The `path` and `start_point` geography columns are PostGIS and cannot be
+/// expressed here, so writes and spatial reads go through raw SQL. Prisma still
+/// owns the row for the plain reads and deletes, which is most of them.
+model Route {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id      String   @db.Uuid
+  name             String
+  description      String?
+  sport_type       String?
+  /// gpx | drawn | activity
+  source           String   @default("drawn")
+  /// The encoded copy the app draws. The geography column is the one queried.
+  polyline         String?
+  distance_m       Decimal? @db.Decimal(10, 2)
+  elevation_gain_m Decimal? @db.Decimal(8, 2)
+  /// everyone | only_me. Defaults to only_me: a route usually starts at home.
+  visibility       String   @default("only_me")
+  created_at       DateTime @default(now()) @db.Timestamptz()
+  updated_at       DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  app_user AppUser @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@index([app_user_id, created_at])
+  @@map("routes")
 }

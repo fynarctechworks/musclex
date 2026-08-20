@@ -1243,3 +1243,71 @@ export class GroupChallengeDto {
   @IsISO8601()
   endsOn!: string;
 }
+
+/* ── Routes ──────────────────────────────────────────────────── */
+
+export const ROUTE_VISIBILITY = ['everyone', 'only_me'] as const;
+
+export class RoutePointDto {
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  lat!: number;
+
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  lng!: number;
+}
+
+export class RouteCreateDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(120)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  sportType?: string;
+
+  /** Either an encoded polyline or an explicit list of points. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200000)
+  polyline?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50000)
+  @ValidateNested({ each: true })
+  @Type(() => RoutePointDto)
+  points?: RoutePointDto[];
+
+  @IsOptional()
+  @IsIn(ROUTE_VISIBILITY as unknown as string[])
+  visibility?: (typeof ROUTE_VISIBILITY)[number];
+}
+
+/** POST /routes/import — a GPX file from anywhere else. */
+export class RouteImportDto {
+  /** 5 MB of XML is far past any real route. */
+  @IsString()
+  @MaxLength(5_000_000)
+  gpx!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  sportType?: string;
+}

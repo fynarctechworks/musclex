@@ -4,6 +4,7 @@ import {
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { buildMeta } from '../common/envelope';
@@ -11,6 +12,7 @@ import {
   CurrentMemberContext,
   MEMBER_REQUEST_KEY,
 } from '../decorators/current-member.decorator';
+import { RAW_RESPONSE_KEY } from '../decorators/raw-response.decorator';
 
 /**
  * Wraps member data-endpoint responses in the standard { data, meta } envelope
@@ -21,11 +23,21 @@ import {
  * Pass-throughs:
  *   - null/undefined (e.g. 204 responses)
  *   - a value that is already an envelope ({ data, meta }) or an error envelope
+ *   - a handler marked @RawResponse() — file downloads, which must not be
+ *     wrapped in JSON or nothing else can open them
  * A handler may set meta.cacheTtl by returning { data, meta: { cacheTtl } } itself.
  */
 @Injectable()
 export class EnvelopeInterceptor implements NestInterceptor {
+  constructor(private readonly reflector: Reflector) {}
+
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    const raw = this.reflector.getAllAndOverride<boolean>(RAW_RESPONSE_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (raw) return next.handle();
+
     const request = context.switchToHttp().getRequest();
     const member = request[MEMBER_REQUEST_KEY] as CurrentMemberContext | undefined;
 
