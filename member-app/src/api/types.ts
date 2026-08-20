@@ -648,6 +648,8 @@ export interface TrainingStats {
   currentStreak: number;
   longestStreak: number;
   activeDays: { date: string; sets: number }[];
+  /** Sets per muscle over the window — what the body map is drawn from. */
+  byMuscle: { muscle: string; sets: number }[];
   mostPerformed: { exerciseId: string; name: string; sessions: number }[];
   personalRecords: {
     exerciseId: string;

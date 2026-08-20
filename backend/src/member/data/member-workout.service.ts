@@ -252,6 +252,8 @@ export class MemberWorkoutService {
     currentStreak: number;
     longestStreak: number;
     activeDays: { date: string; sets: number }[];
+    /** Sets per muscle group over the window — what the body map is drawn from. */
+    byMuscle: { muscle: string; sets: number }[];
     mostPerformed: { exerciseId: string; name: string; sessions: number }[];
     personalRecords: {
       exerciseId: string;
@@ -285,7 +287,9 @@ export class MemberWorkoutService {
             weight: true,
             duration_seconds: true,
             exercise_id: true,
-            exercise: { select: { name: true } },
+            exercise: {
+              select: { name: true, muscle_group: true, target_muscle: true },
+            },
           },
         },
       },
@@ -299,6 +303,7 @@ export class MemberWorkoutService {
     let timedSessions = 0;
     const exercises = new Set<string>();
     const byDay = new Map<string, number>();
+    const byMuscle = new Map<string, number>();
     const perExercise = new Map<string, { name: string; sessions: number }>();
 
     for (const log of logs) {
@@ -323,6 +328,12 @@ export class MemberWorkoutService {
         totalVolume += (Number(set.weight) || 0) * (set.reps || 0);
         totalSeconds += set.duration_seconds ?? 0;
         exercises.add(set.exercise_id);
+
+        // Counted per SET, not per session: three sets of squats is three
+        // times the work of one, and a body map that cannot show that is
+        // just a list of what you touched.
+        const muscle = set.exercise?.target_muscle || set.exercise?.muscle_group;
+        if (muscle) byMuscle.set(muscle, (byMuscle.get(muscle) ?? 0) + 1);
         if (!seenHere.has(set.exercise_id)) {
           seenHere.add(set.exercise_id);
           const prev = perExercise.get(set.exercise_id);
@@ -395,6 +406,9 @@ export class MemberWorkoutService {
       currentStreak: current,
       longestStreak: longest,
       activeDays: days_.map((d) => ({ date: d, sets: byDay.get(d) ?? 0 })),
+      byMuscle: [...byMuscle.entries()]
+        .map(([muscle, sets]) => ({ muscle, sets }))
+        .sort((a, b) => b.sets - a.sets),
       mostPerformed: [...perExercise.entries()]
         .map(([exerciseId, v]) => ({ exerciseId, name: v.name, sessions: v.sessions }))
         .sort((a, b) => b.sessions - a.sessions)

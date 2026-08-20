@@ -5,6 +5,8 @@ import { Card, Label, Loading, Row, Txt } from '../../src/ui';
 import { color, space } from '../../src/ui/theme';
 import { shortDate } from '../../src/lib/datetime';
 import { BarChart, WeekDots } from '../../src/features/Sparkline';
+import { BodyMap } from '../../src/features/BodyMap';
+import { neglected, regionTotals } from '../../src/lib/body-map';
 import {
   useProgress,
   useTrainingStats,
@@ -107,6 +109,36 @@ export default function ProgressScreen() {
                 </Txt>
               </Row>
             ) : null}
+          </Card>
+
+          <Card>
+            <Label>What you have been training</Label>
+            <View style={{ marginTop: space.md }}>
+              <BodyMap byMuscle={stats.byMuscle ?? []} />
+            </View>
+            {(() => {
+              const totals = regionTotals(stats.byMuscle ?? []);
+              const missed = neglected(totals);
+              if (totals.size === 0) {
+                return (
+                  <Txt variant="small" tone="t2" style={{ marginTop: space.md }}>
+                    Log a workout and this fills in.
+                  </Txt>
+                );
+              }
+              // The point of the map is what is DARK. Saying it in words too
+              // means nobody has to interpret a shape to get the message.
+              return (
+                <Txt variant="small" tone="t2" style={{ marginTop: space.md }}>
+                  {missed.length === 0
+                    ? 'Every muscle group has had work in the last 30 days.'
+                    : `Nothing logged for ${missed
+                        .slice(0, 3)
+                        .map((r) => r.label.toLowerCase())
+                        .join(', ')}${missed.length > 3 ? ` and ${missed.length - 3} more` : ''} in the last 30 days.`}
+                </Txt>
+              );
+            })()}
           </Card>
 
           <Card>

@@ -34,6 +34,18 @@ describe('MemberWorkoutService.stats — day keying', () => {
     })),
   });
 
+  /** A log whose sets carry muscle information. */
+  const muscleLog = (isoUtc: string, muscles: (string | null)[], group: string | null = 'chest') => ({
+    id: `l-${isoUtc}`,
+    logged_at: new Date(isoUtc),
+    started_at: null,
+    ended_at: null,
+    sets: muscles.map((m) => ({
+      reps: 10, weight: 20, duration_seconds: null, exercise_id: 'e1',
+      exercise: { name: 'Bench', muscle_group: group, target_muscle: m },
+    })),
+  });
+
   const build = (logs: any[]) => {
     prisma = {
       workoutLog: { findMany: jest.fn().mockResolvedValue(logs) },
@@ -106,5 +118,63 @@ describe('MemberWorkoutService.stats — day keying', () => {
     // Local midnight in IST is 18:30 UTC the previous day.
     expect(since.getUTCHours()).toBe(18);
     expect(since.getUTCMinutes()).toBe(30);
+  });
+});
+
+describe('MemberWorkoutService.stats — the body map', () => {
+  const member: CurrentMemberContext = {
+    appUserId: 'au1', memberId: 'm1', tenantId: 't1', isGymMember: true,
+  };
+
+  let prisma: any;
+  let service: MemberWorkoutService;
+  const setup = (logs: any[]) => {
+    prisma = {
+      workoutLog: { findMany: jest.fn().mockResolvedValue(logs) },
+      personalRecord: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    service = new MemberWorkoutService({ client: prisma } as any, {} as any);
+  };
+
+  const log = (muscles: (string | null)[], group: string | null = 'chest') => ({
+    id: 'l1', logged_at: new Date(), started_at: null, ended_at: null,
+    sets: muscles.map((m) => ({
+      reps: 10, weight: 20, duration_seconds: null, exercise_id: 'e1',
+      exercise: { name: 'Bench', muscle_group: group, target_muscle: m },
+    })),
+  });
+
+  it('counts per SET, not per session', async () => {
+    // Three sets of squats is three times the work of one, and a map that
+    // cannot show that is just a list of what you touched.
+    setup([log(['upper_chest', 'upper_chest', 'upper_chest'])]);
+    const out = await service.stats(member, 30, 330);
+    expect(out.byMuscle).toEqual([{ muscle: 'upper_chest', sets: 3 }]);
+  });
+
+  it('prefers the specific muscle over the coarse group', async () => {
+    setup([log(['lower_chest'], 'chest')]);
+    const out = await service.stats(member, 30, 330);
+    expect(out.byMuscle[0].muscle).toBe('lower_chest');
+  });
+
+  it('falls back to the group when an exercise has no specific muscle', async () => {
+    // The catalogue genuinely has gaps; dropping those sets would make a
+    // trained muscle look untrained.
+    setup([log([null], 'back')]);
+    const out = await service.stats(member, 30, 330);
+    expect(out.byMuscle).toEqual([{ muscle: 'back', sets: 1 }]);
+  });
+
+  it('skips a set with no muscle information at all', async () => {
+    setup([log([null], null)]);
+    const out = await service.stats(member, 30, 330);
+    expect(out.byMuscle).toEqual([]);
+  });
+
+  it('ranks the most-worked muscle first', async () => {
+    setup([log(['mid_chest', 'mid_chest', 'lats'])]);
+    const out = await service.stats(member, 30, 330);
+    expect(out.byMuscle.map((m) => m.muscle)).toEqual(['mid_chest', 'lats']);
   });
 });
