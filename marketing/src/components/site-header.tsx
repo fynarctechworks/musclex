@@ -43,70 +43,81 @@ export function SiteHeader() {
     href === '/' ? pathname === '/' : pathname.startsWith(href);
 
   return (
-    <header
-      className={cx(
-        'sticky top-0 z-50 transition-all duration-medium ease-out',
-        scrolled || open
-          ? 'border-b border-hairline bg-canvas/80 backdrop-blur-xl'
-          : 'border-b border-transparent',
-      )}
-    >
-      <div className="container-page">
-        <div className="flex h-[72px] items-center justify-between gap-6">
-          <Link href="/" className="flex shrink-0 items-center" aria-label="MuscleX home">
-            <Image
-              src="/brand/logo-wordmark.png"
-              alt="MuscleX"
-              width={140}
-              height={30}
-              priority
-              className="h-[26px] w-auto"
-            />
-          </Link>
+    <>
+      <header
+        className={cx(
+          'sticky top-0 z-50 transition-all duration-medium ease-out',
+          scrolled || open
+            ? 'border-b border-hairline bg-canvas/80 backdrop-blur-xl'
+            : 'border-b border-transparent',
+        )}
+      >
+        <div className="container-page">
+          <div className="flex h-[72px] items-center justify-between gap-6">
+            <Link href="/" className="flex shrink-0 items-center" aria-label="MuscleX home">
+              <Image
+                src="/brand/logo-wordmark.png"
+                alt="MuscleX"
+                width={140}
+                height={30}
+                priority
+                className="h-[26px] w-auto"
+              />
+            </Link>
 
-          <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
-            {primaryNav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cx(
-                  'rounded-pill px-3.5 py-2 text-body-sm transition-colors duration-fast',
-                  isActive(item.href)
-                    ? 'text-text'
-                    : 'text-text-3 hover:bg-glass-1 hover:text-text',
-                )}
+            <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
+              {primaryNav.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cx(
+                    'rounded-pill px-3.5 py-2 text-body-sm transition-colors duration-fast',
+                    isActive(item.href)
+                      ? 'text-text'
+                      : 'text-text-3 hover:bg-glass-1 hover:text-text',
+                  )}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+
+            <div className="hidden items-center gap-2 md:flex">
+              <a
+                href={productLinks.login}
+                className="rounded-pill px-4 py-2 text-body-sm text-text-2 transition-colors duration-fast hover:text-text"
               >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+                Log in
+              </a>
+              <ButtonLink href={productLinks.signup} external variant="accent" size="md">
+                Start free
+                <ArrowNudge />
+              </ButtonLink>
+            </div>
 
-          <div className="hidden items-center gap-2 md:flex">
-            <a
-              href={productLinks.login}
-              className="rounded-pill px-4 py-2 text-body-sm text-text-2 transition-colors duration-fast hover:text-text"
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              aria-expanded={open}
+              aria-controls="mobile-menu"
+              aria-label={open ? 'Close menu' : 'Open menu'}
+              className="-mr-2 rounded-md p-2 text-text-2 transition-colors duration-fast hover:bg-glass-1 hover:text-text md:hidden"
             >
-              Log in
-            </a>
-            <ButtonLink href={productLinks.signup} external variant="accent" size="md">
-              Start free
-              <ArrowNudge />
-            </ButtonLink>
+              {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            aria-controls="mobile-menu"
-            aria-label={open ? 'Close menu' : 'Open menu'}
-            className="-mr-2 rounded-md p-2 text-text-2 transition-colors duration-fast hover:bg-glass-1 hover:text-text md:hidden"
-          >
-            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
         </div>
-      </div>
+      </header>
 
+      {/*
+        The overlay is a SIBLING of <header>, never a child.
+
+        <header> carries `backdrop-blur-xl` while open, and an element with a
+        backdrop-filter becomes the containing block for its fixed-position
+        descendants. Nested inside, this overlay resolved `top-[72px] bottom-0`
+        against the 72px-tall header instead of the viewport and rendered 1px
+        tall — open, focusable, and invisible. Keep it outside the header.
+      */}
       {open ? (
         <div
           id="mobile-menu"
@@ -134,6 +145,6 @@ export function SiteHeader() {
           </div>
         </div>
       ) : null}
-    </header>
+    </>
   );
 }
