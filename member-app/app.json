@@ -13,7 +13,15 @@
         "applinks:app.musclex.infynarc.com"
       ],
       "infoPlist": {
-        "NSMotionUsageDescription": "MuscleX reads your step count so your daily steps and step goal are up to date."
+        "NSMotionUsageDescription": "MuscleX reads your step count so your daily steps and step goal are up to date.",
+        "NSLocationWhenInUseUsageDescription": "MuscleX uses your location to record the route, distance and pace of an activity.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "MuscleX keeps recording your route while the app is in the background, so a run does not stop when your screen locks.",
+        "NSCameraUsageDescription": "MuscleX uses the camera to scan another member's code so you can add them.",
+        "NSPhotoLibraryUsageDescription": "MuscleX lets you add progress photos from your library. They are private to you.",
+        "NSContactsUsageDescription": "MuscleX checks which of your contacts already use MuscleX. Your contacts are never uploaded \u2014 only a scrambled version is checked.",
+        "UIBackgroundModes": [
+          "location"
+        ]
       }
     },
     "android": {
@@ -41,6 +49,16 @@
             "DEFAULT"
           ]
         }
+      ],
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "CAMERA",
+        "READ_CONTACTS",
+        "ACTIVITY_RECOGNITION"
       ]
     },
     "web": {
@@ -50,7 +68,16 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-dev-client",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "MuscleX keeps recording your route while the app is in the background, so a run does not stop when your screen locks.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
     ],
     "scheme": "musclex",
     "backgroundColor": "#F5F5F7"

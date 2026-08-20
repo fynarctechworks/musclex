@@ -21,6 +21,11 @@ import {
   type RecordState,
 } from '../src/lib/recorder';
 import { foregroundGranted, requestForeground, watchPosition, type Watcher } from '../src/lib/geo';
+import {
+  drainBackgroundFixes,
+  startBackgroundUpdates,
+  stopBackgroundUpdates,
+} from '../src/lib/background-location';
 import { useCreateActivity, usePutActivityStreams, useSports } from '../src/api/queries';
 import type { SportType } from '../src/api/types';
 
@@ -56,6 +61,8 @@ export default function RecordScreen() {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'error' | 'success'; title: string; body?: string } | null>(null);
   const [leftApp, setLeftApp] = useState(false);
+  /** Whether the OS agreed to keep tracking with the app in the background. */
+  const [background, setBackground] = useState(false);
 
   const watcher = useRef<Watcher | null>(null);
   // The reducer runs off a ref so a fix arriving between renders is never
@@ -74,12 +81,24 @@ export default function RecordScreen() {
   // time the member leaves while recording.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
-      if (s !== 'active' && live.current && !live.current.paused) setLeftApp(true);
+      const cur = live.current;
+      if (!cur) return;
+      if (s !== 'active' && !cur.paused) setLeftApp(true);
+      if (s === 'active') {
+        // Coming back to the front: fold in whatever was collected while away,
+        // rather than waiting for the next foreground fix to arrive.
+        let next = cur;
+        for (const buffered of drainBackgroundFixes()) next = accept(next, buffered);
+        if (next !== cur) setBoth(next);
+      }
     });
     return () => sub.remove();
   }, []);
 
-  useEffect(() => () => watcher.current?.stop(), []);
+  useEffect(() => () => {
+    watcher.current?.stop();
+    void stopBackgroundUpdates();
+  }, []);
 
   const start = useCallback(async () => {
     let ok = perm;
@@ -96,9 +115,20 @@ export default function RecordScreen() {
       return;
     }
     setBoth(newRecording(Date.now()));
+
+    // Use background tracking only if permission ALREADY exists. Asking here
+    // would send an Android member to the system settings page at the exact
+    // moment they pressed Start expecting a run to begin.
+    setBackground(await startBackgroundUpdates());
+
     watcher.current = await watchPosition((f) => {
       const cur = live.current;
-      if (cur) setBoth(accept(cur, f));
+      if (!cur) return;
+      // Anything the background task collected while we were away is folded in
+      // first, so the track stays in time order.
+      let next = cur;
+      for (const buffered of drainBackgroundFixes()) next = accept(next, buffered);
+      setBoth(accept(next, f));
     });
   }, [perm]);
 
@@ -107,22 +137,27 @@ export default function RecordScreen() {
     if (!s) return;
     watcher.current?.stop();
     watcher.current = null;
-    setSaving(true);
+    // Drain one last time so the final stretch is not lost, then stop.
+    const tail = drainBackgroundFixes();
+    await stopBackgroundUpdates();
+    setBackground(false);
     setNotice(null);
 
-    const track = s.points.map((p) => ({ lat: p.lat, lng: p.lng }));
+    const finished = tail.reduce((st, f) => accept(st, f), s);
+    setSaving(true);
+    const track = finished.points.map((p) => ({ lat: p.lat, lng: p.lng }));
     try {
       const activity = await create.mutateAsync({
         sportType: sport,
         source: 'gps',
-        startedAt: new Date(s.startedAt).toISOString(),
+        startedAt: new Date(finished.startedAt).toISOString(),
         endedAt: new Date().toISOString(),
-        elapsedSeconds: Math.round(s.elapsedMs / 1000),
-        movingSeconds: Math.round(s.movingMs / 1000),
-        distanceM: Math.round(s.distanceM * 100) / 100,
-        elevationGainM: Math.round(s.elevationGainM * 100) / 100,
-        avgSpeedMps: avgSpeedMps(s.distanceM, s.movingMs) ?? undefined,
-        maxSpeedMps: Math.round(s.maxSpeedMps * 1000) / 1000,
+        elapsedSeconds: Math.round(finished.elapsedMs / 1000),
+        movingSeconds: Math.round(finished.movingMs / 1000),
+        distanceM: Math.round(finished.distanceM * 100) / 100,
+        elevationGainM: Math.round(finished.elevationGainM * 100) / 100,
+        avgSpeedMps: avgSpeedMps(finished.distanceM, finished.movingMs) ?? undefined,
+        maxSpeedMps: Math.round(finished.maxSpeedMps * 1000) / 1000,
         polyline: track.length ? encodePolyline(simplify(track)) : undefined,
         startLatitude: track[0]?.lat,
         startLongitude: track[0]?.lng,
@@ -131,13 +166,13 @@ export default function RecordScreen() {
       // Streams are a second request on purpose: the summary is small and must
       // land even on a bad connection. If this half fails the activity still
       // exists with its numbers, and the track can be re-sent.
-      if (s.points.length > 1) {
+      if (finished.points.length > 1) {
         await putStreams.mutateAsync({
           id: activity.id,
           streams: {
-            latlng: s.points.map((p) => [p.lat, p.lng]),
-            time: s.points.map((p) => Math.round((p.at - s.startedAt) / 1000)),
-            altitude: s.points.map((p) => p.altitude ?? null),
+            latlng: finished.points.map((p) => [p.lat, p.lng]),
+            time: finished.points.map((p) => Math.round((p.at - finished.startedAt) / 1000)),
+            altitude: finished.points.map((p) => p.altitude ?? null),
           },
         });
       }
@@ -252,6 +287,8 @@ export default function RecordScreen() {
                   onPress={() => {
                     watcher.current?.stop();
                     watcher.current = null;
+                    void stopBackgroundUpdates();
+                    setBackground(false);
                     live.current = null;
                     setState(null);
                   }}
@@ -267,12 +304,42 @@ export default function RecordScreen() {
         </Card>
 
         {/* Said before it costs anyone a run, not after. */}
-        {leftApp ? (
-          <Card tone="accent">
-            <Label>Keep this screen open</Label>
+        {/* Offered while recording, so the trip to system settings is a
+            choice the member makes rather than something Start did to them. */}
+        {s && !background ? (
+          <Card tone={leftApp ? 'accent' : 'default'}>
+            <Label>{leftApp ? 'Time away was not counted' : 'Screen must stay on'}</Label>
             <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
-              Recording pauses while the app is in the background. Background tracking arrives with
-              the next app update.
+              {leftApp
+                ? 'Recording only runs while this screen is open, so the time you spent in another app was not counted.'
+                : 'Right now the route only records while this screen is open.'}
+            </Txt>
+            <View style={{ marginTop: space.md }}>
+              <Button
+                title="Let it record with the screen off"
+                variant="secondary"
+                size="sm"
+                onPress={async () => {
+                  const ok = await startBackgroundUpdates({ request: true });
+                  setBackground(ok);
+                  if (!ok) {
+                    setNotice({
+                      tone: 'error',
+                      title: 'Not available',
+                      body: 'Allow location "all the time" in system settings, or keep this screen open.',
+                    });
+                  }
+                }}
+              />
+            </View>
+          </Card>
+        ) : null}
+
+        {s && background ? (
+          <Card>
+            <Label>Recording in the background</Label>
+            <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+              You can lock your phone. Your route keeps recording until you press Finish.
             </Txt>
           </Card>
         ) : null}

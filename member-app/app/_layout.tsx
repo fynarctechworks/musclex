@@ -13,6 +13,12 @@ import { SessionProvider, useSession } from '../src/session';
 import { color } from '../src/ui/theme';
 import { Loading } from '../src/ui';
 
+// Imported for its side effect: expo-task-manager requires a background task
+// to be DEFINED before the app finishes registering, so a lazily-defined one
+// is simply never called. Importing it does nothing else — no permission is
+// requested and no tracking starts until a recording asks for it.
+import '../src/lib/background-location';
+
 /**
  * A logged set must never be lost to a slow network, so mutations never retry
  * blindly — writes go through the outbox, which owns retry and carries a
