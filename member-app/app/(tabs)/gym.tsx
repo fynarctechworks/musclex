@@ -104,6 +104,19 @@ export default function GymScreen() {
         )}
       </Card>
 
+      <Pressable onPress={() => router.push('/people')} accessibilityRole="button"
+        accessibilityLabel="Find people">
+        <Card>
+          <Row>
+            <Label>Find people</Label>
+            <Txt variant="caption" tone="t3">Search ›</Txt>
+          </Row>
+          <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+            Suggestions, your own code, and contacts — checked without uploading them.
+          </Txt>
+        </Card>
+      </Pressable>
+
       <Pressable onPress={() => router.push('/dm')} accessibilityRole="button"
         accessibilityLabel="Direct messages">
         <Card>

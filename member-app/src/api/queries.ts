@@ -31,6 +31,9 @@ export const qk = {
   feed: ['feed'] as const,
   myClubs: ['clubs', 'mine'] as const,
   conversations: ['dm'] as const,
+  suggestions: ['people', 'suggestions'] as const,
+  myCode: ['people', 'code'] as const,
+  person: (id: string) => ['people', id] as const,
   conversation: (id: string) => ['dm', id] as const,
   discoverClubs: (sport?: string) => ['clubs', 'discover', sport ?? 'all'] as const,
   club: (id: string) => ['club', id] as const,
@@ -350,6 +353,34 @@ export function useSendChat(trainerId: string) {
       qc.invalidateQueries({ queryKey: qk.chatThreads });
     },
   });
+}
+
+/* ── Finding people ────────────────────────────────────────── */
+
+export function useSuggestions() {
+  return useQuery({ queryKey: qk.suggestions, queryFn: api.suggestions, staleTime: 300_000 });
+}
+
+export function useMyCode() {
+  return useQuery({ queryKey: qk.myCode, queryFn: api.myCode, staleTime: Infinity });
+}
+
+export function usePerson(id: string | null) {
+  return useQuery({
+    queryKey: qk.person(id ?? ''),
+    queryFn: () => api.person(id as string),
+    enabled: !!id,
+  });
+}
+
+/**
+ * Match contacts.
+ *
+ * A mutation rather than a query because it is an action the member takes
+ * deliberately — nothing about it should happen on a screen simply loading.
+ */
+export function useMatchContacts() {
+  return useMutation({ mutationFn: (hashes: string[]) => api.matchContacts(hashes) });
 }
 
 /* ── Direct messages ───────────────────────────────────────── */

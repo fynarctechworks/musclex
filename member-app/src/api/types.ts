@@ -444,6 +444,30 @@ export interface DirectMessage {
   mine: boolean;
 }
 
+/* ── Finding people ───────────────────────────────────────────── */
+
+export interface SuggestedPerson {
+  id: string;
+  name: string | null;
+  /** Why we are suggesting them. A suggestion with no reason is unsettling. */
+  reason: string;
+}
+
+export interface MatchedPerson {
+  id: string;
+  name: string | null;
+  following: boolean;
+}
+
+export interface PersonProfile {
+  id: string;
+  name: string | null;
+  followerCount: number;
+  followingCount: number;
+  youFollow: boolean;
+  isYou: boolean;
+}
+
 /* ── On-device health (steps) ─────────────────────────────────── */
 /** One day's rollup from the phone or watch. Public/app_user scoped. */
 export interface HealthDay {

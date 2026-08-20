@@ -1202,3 +1202,11 @@ export class ReportDto {
   @MaxLength(1000)
   note?: string;
 }
+
+/** POST /people/contacts body — hashed contacts, never phone numbers. */
+export class ContactMatchDto {
+  @IsArray()
+  @ArrayMaxSize(2000)
+  @IsString({ each: true })
+  hashes!: string[];
+}

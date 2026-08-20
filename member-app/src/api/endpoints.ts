@@ -32,7 +32,10 @@ import type {
   ClubEvent,
   ClubFeedItem,
   FeedActivity,
+  MatchedPerson,
   Person,
+  PersonProfile,
+  SuggestedPerson,
   SportType,
   MembershipDetail,
   MembershipPlan,
@@ -248,6 +251,14 @@ export const api = {
     request<unknown>('/me', { method: 'PATCH', body }),
   updateProfile: (body: Record<string, unknown>) =>
     request<Profile>('/me/profile', { method: 'PATCH', body }),
+
+  /* ── Finding people ──────────────────────────────────────── */
+  suggestions: () => request<{ people: SuggestedPerson[] }>('/people/suggestions'),
+  myCode: () => request<{ appUserId: string; link: string }>('/people/me/code'),
+  /** Hashes only — the address book never leaves the device. */
+  matchContacts: (hashes: string[]) =>
+    request<{ people: MatchedPerson[] }>('/people/contacts', { method: 'POST', body: { hashes } }),
+  person: (appUserId: string) => request<PersonProfile>(`/people/${appUserId}`),
 
   /* ── Direct messages (member to member, not trainer chat) ── */
   conversations: () => request<{ conversations: Conversation[] }>('/messages'),

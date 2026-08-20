@@ -56,6 +56,8 @@ import { MemberClubController } from './data/member-club.controller';
 import { MemberClubService } from './data/member-club.service';
 import { MemberFeedController } from './data/member-feed.controller';
 import { MemberMessageController } from './data/member-message.controller';
+import { MemberPeopleController } from './data/member-people.controller';
+import { MemberPeopleService } from './data/member-people.service';
 import { MemberMessageService } from './data/member-message.service';
 import { MemberFeedService } from './data/member-feed.service';
 import { MemberActivityService } from './data/member-activity.service';
@@ -112,6 +114,7 @@ import { MemberIdentityController } from './data/member-identity.controller';
     MemberClubController,
     MemberFeedController,
     MemberMessageController,
+    MemberPeopleController,
     MemberFriendController,
     MemberExploreController,
     MemberChatController,
@@ -145,6 +148,7 @@ import { MemberIdentityController } from './data/member-identity.controller';
     MemberClubService,
     MemberFeedService,
     MemberMessageService,
+    MemberPeopleService,
     MemberFriendService,
     FriendPublisherService,
     MemberExploreService,
