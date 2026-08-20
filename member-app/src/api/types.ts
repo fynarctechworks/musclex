@@ -392,6 +392,42 @@ export interface Person {
   name: string | null;
 }
 
+/* ── Clubs ────────────────────────────────────────────────────── */
+
+export interface Club {
+  id: string;
+  name: string;
+  description: string | null;
+  sportType: string | null;
+  city: string | null;
+  visibility: string;
+  memberCount: number;
+  myRole: string | null;
+  joined: boolean;
+}
+
+export interface ClubEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  startsAt: string;
+  locationName: string | null;
+  attendeeCount: number;
+  myStatus: 'going' | 'interested' | null;
+}
+
+export interface ClubFeedItem {
+  id: string;
+  athlete: { id: string; name: string | null };
+  sportType: string;
+  title: string | null;
+  startedAt: string;
+  elapsedSeconds: number;
+  distanceM: number | null;
+  kudosCount: number;
+  mine: boolean;
+}
+
 /* ── On-device health (steps) ─────────────────────────────────── */
 /** One day's rollup from the phone or watch. Public/app_user scoped. */
 export interface HealthDay {

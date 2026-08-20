@@ -3,6 +3,7 @@ import { PublicPrismaService } from '../../prisma/public-prisma.service';
 import { MemberException } from '../common/member-exception';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
 import { decodePolyline, encodePolyline, trimPrivacyZone } from './polyline';
+import { loadViewerScope, visibleActivityFilter } from './activity-visibility';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -26,46 +27,16 @@ export class MemberFeedService {
 
   /** Everyone this member has blocked, and everyone who has blocked them. */
   private async blockedIds(meId: string): Promise<string[]> {
-    const rows = await this.pub.block.findMany({
-      where: { OR: [{ blocker_id: meId }, { blocked_id: meId }] },
-      select: { blocker_id: true, blocked_id: true },
-    });
-    const out = new Set<string>();
-    for (const r of rows) out.add(r.blocker_id === meId ? r.blocked_id : r.blocker_id);
-    return [...out];
+    return (await loadViewerScope(this.pub, meId)).blocked;
   }
 
   private async followingIds(meId: string): Promise<string[]> {
-    const rows = await this.pub.follow.findMany({
-      where: { follower_id: meId },
-      select: { followee_id: true },
-    });
-    return rows.map((r) => r.followee_id);
+    return (await loadViewerScope(this.pub, meId)).following;
   }
 
-  /**
-   * The single definition of what this member may see.
-   *
-   *   own activities        always
-   *   'everyone'            anyone not blocked
-   *   'followers'           only people they follow
-   *   'only_me'             nobody but the owner
-   *
-   * Blocks win over everything, in both directions.
-   */
+  /** @see visibleActivityFilter — the one definition, shared with clubs. */
   private visibleFilter(meId: string, following: string[], blocked: string[]) {
-    return {
-      AND: [
-        { app_user_id: { notIn: blocked } },
-        {
-          OR: [
-            { app_user_id: meId },
-            { visibility: 'everyone' },
-            { visibility: 'followers', app_user_id: { in: following } },
-          ],
-        },
-      ],
-    };
+    return visibleActivityFilter(meId, { following, blocked });
   }
 
   /**

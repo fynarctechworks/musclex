@@ -1103,3 +1103,60 @@ export class CommentDto {
   @MaxLength(1000)
   body!: string;
 }
+
+/* ── Clubs ───────────────────────────────────────────────────── */
+
+export const CLUB_VISIBILITY = ['public', 'private'] as const;
+
+export class ClubCreateDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(80)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  sportType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  city?: string;
+
+  @IsOptional()
+  @IsIn(CLUB_VISIBILITY as unknown as string[])
+  visibility?: (typeof CLUB_VISIBILITY)[number];
+}
+
+export class ClubEventDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  title!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @IsISO8601()
+  startsAt!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  locationName?: string;
+}
+
+export class RsvpDto {
+  /** null clears the RSVP entirely. */
+  @IsOptional()
+  @IsIn(['going', 'interested'])
+  status?: 'going' | 'interested' | null;
+}

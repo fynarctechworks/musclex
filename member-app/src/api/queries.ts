@@ -29,6 +29,12 @@ export const qk = {
   healthDaily: ['me', 'health', 'daily'] as const,
   sports: ['activities', 'sports'] as const,
   feed: ['feed'] as const,
+  myClubs: ['clubs', 'mine'] as const,
+  discoverClubs: (sport?: string) => ['clubs', 'discover', sport ?? 'all'] as const,
+  club: (id: string) => ['club', id] as const,
+  clubFeed: (id: string) => ['club', id, 'feed'] as const,
+  clubEvents: (id: string) => ['club', id, 'events'] as const,
+  clubMembers: (id: string) => ['club', id, 'members'] as const,
   following: ['feed', 'following'] as const,
   activityComments: (id: string) => ['feed', id, 'comments'] as const,
   activities: (sport?: string) => ['activities', sport ?? 'all'] as const,
@@ -341,6 +347,92 @@ export function useSendChat(trainerId: string) {
       qc.invalidateQueries({ queryKey: qk.chatMessages(trainerId) });
       qc.invalidateQueries({ queryKey: qk.chatThreads });
     },
+  });
+}
+
+/* ── Clubs ─────────────────────────────────────────────────── */
+
+export function useMyClubs() {
+  return useQuery({ queryKey: qk.myClubs, queryFn: api.myClubs });
+}
+
+export function useDiscoverClubs(sport?: string) {
+  return useQuery({
+    queryKey: qk.discoverClubs(sport),
+    queryFn: () => api.discoverClubs(sport),
+    staleTime: 60_000,
+  });
+}
+
+export function useClub(id: string | null) {
+  return useQuery({
+    queryKey: qk.club(id ?? ''),
+    queryFn: () => api.club(id as string),
+    enabled: !!id,
+  });
+}
+
+export function useClubFeed(id: string | null, joined: boolean) {
+  return useQuery({
+    queryKey: qk.clubFeed(id ?? ''),
+    queryFn: () => api.clubFeed(id as string),
+    // The server refuses a non-member; asking anyway would just log a 404.
+    enabled: !!id && joined,
+  });
+}
+
+export function useClubEvents(id: string | null, joined: boolean) {
+  return useQuery({
+    queryKey: qk.clubEvents(id ?? ''),
+    queryFn: () => api.clubEvents(id as string),
+    enabled: !!id && joined,
+  });
+}
+
+export function useClubMembers(id: string | null, joined: boolean) {
+  return useQuery({
+    queryKey: qk.clubMembers(id ?? ''),
+    queryFn: () => api.clubMembers(id as string),
+    enabled: !!id && joined,
+  });
+}
+
+export function useCreateClub() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) => api.createClub(body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clubs'] }),
+  });
+}
+
+export function useToggleClubMembership() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, joined }: { id: string; joined: boolean }) =>
+      joined ? api.leaveClub(id) : api.joinClub(id),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ['clubs'] });
+      qc.invalidateQueries({ queryKey: qk.club(v.id) });
+      qc.invalidateQueries({ queryKey: ['club', v.id] });
+    },
+  });
+}
+
+export function useCreateClubEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string } & Record<string, unknown>) =>
+      api.createClubEvent(id, body),
+    onSuccess: (_d, v) => qc.invalidateQueries({ queryKey: qk.clubEvents(v.id) }),
+  });
+}
+
+export function useRsvp(clubId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ eventId, status }: { eventId: string; status: 'going' | 'interested' | null }) =>
+      api.rsvp(eventId, status),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.clubEvents(clubId) }),
   });
 }
 

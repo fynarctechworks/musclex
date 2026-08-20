@@ -197,6 +197,10 @@ model AppUser {
   blocks_received        Block[]           @relation("BlocksReceived")
   activity_kudos         ActivityKudos[]
   activity_comments      ActivityComment[]
+  clubs_owned            Club[]            @relation("ClubsOwned")
+  club_memberships       ClubMember[]
+  events_created         ClubEvent[]       @relation("EventsCreated")
+  event_rsvps            EventAttendee[]
   share_prs      Boolean @default(false)
   share_streak   Boolean @default(false)
 
@@ -5272,5 +5276,85 @@ model ActivityComment {
 
   @@index([activity_id, created_at])
   @@map("activity_comments")
+  @@schema("public")
+}
+
+/// A group of PEOPLE who train together — often across gyms, sometimes at none.
+/// Not a tenant: no gym_id, never joins into a studio schema.
+model Club {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  owner_id     String   @db.Uuid
+  name         String
+  description  String?
+  /// Null means "any sport".
+  sport_type   String?
+  city         String?
+  /// public | private. Private means UNLISTED — joined by link, not by request.
+  visibility   String   @default("public")
+  member_count Int      @default(0)
+  created_at   DateTime @default(now()) @db.Timestamptz()
+  updated_at   DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  owner   AppUser      @relation("ClubsOwned", fields: [owner_id], references: [id], onDelete: Cascade)
+  members ClubMember[]
+  events  ClubEvent[]
+
+  @@index([visibility, created_at])
+  @@map("clubs")
+  @@schema("public")
+}
+
+model ClubMember {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  club_id     String   @db.Uuid
+  app_user_id String   @db.Uuid
+  /// owner | admin | member
+  role        String   @default("member")
+  joined_at   DateTime @default(now()) @db.Timestamptz()
+
+  club     Club    @relation(fields: [club_id], references: [id], onDelete: Cascade)
+  app_user AppUser @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([club_id, app_user_id])
+  @@index([app_user_id])
+  @@map("club_members")
+  @@schema("public")
+}
+
+model ClubEvent {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  club_id        String   @db.Uuid
+  created_by     String   @db.Uuid
+  title          String
+  description    String?
+  starts_at      DateTime @db.Timestamptz()
+  location_name  String?
+  latitude       Decimal? @db.Decimal(10, 7)
+  longitude      Decimal? @db.Decimal(10, 7)
+  attendee_count Int      @default(0)
+  created_at     DateTime @default(now()) @db.Timestamptz()
+
+  club      Club            @relation(fields: [club_id], references: [id], onDelete: Cascade)
+  author    AppUser         @relation("EventsCreated", fields: [created_by], references: [id], onDelete: Cascade)
+  attendees EventAttendee[]
+
+  @@index([club_id, starts_at])
+  @@map("club_events")
+  @@schema("public")
+}
+
+model EventAttendee {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id    String   @db.Uuid
+  app_user_id String   @db.Uuid
+  /// going | interested. 'going' is a commitment other people plan around.
+  status      String   @default("going")
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  event    ClubEvent @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  app_user AppUser   @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([event_id, app_user_id])
+  @@map("event_attendees")
   @@schema("public")
 }

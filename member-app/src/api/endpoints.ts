@@ -26,6 +26,9 @@ import type {
   ActivitySummary,
   Goal,
   HealthDay,
+  Club,
+  ClubEvent,
+  ClubFeedItem,
   FeedActivity,
   Person,
   SportType,
@@ -243,6 +246,30 @@ export const api = {
     request<unknown>('/me', { method: 'PATCH', body }),
   updateProfile: (body: Record<string, unknown>) =>
     request<Profile>('/me/profile', { method: 'PATCH', body }),
+
+  /* ── Clubs ───────────────────────────────────────────────── */
+  myClubs: () => request<{ clubs: Club[] }>('/clubs'),
+  discoverClubs: (sport?: string) =>
+    request<{ clubs: Club[] }>(`/clubs/discover${sport ? `?sport=${sport}` : ''}`),
+  club: (id: string) => request<Club>(`/clubs/${id}`),
+  createClub: (body: Record<string, unknown>) =>
+    request<Club>('/clubs', { method: 'POST', body }),
+  joinClub: (id: string) =>
+    request<{ joined: boolean }>(`/clubs/${id}/join`, { method: 'POST' }),
+  leaveClub: (id: string) =>
+    request<{ joined: boolean }>(`/clubs/${id}/join`, { method: 'DELETE' }),
+  clubMembers: (id: string) =>
+    request<{ members: { id: string; name: string | null; role: string }[] }>(`/clubs/${id}/members`),
+  clubFeed: (id: string) =>
+    request<{ activities: ClubFeedItem[]; nextBefore: string | null }>(`/clubs/${id}/feed`),
+  clubEvents: (id: string) => request<{ events: ClubEvent[] }>(`/clubs/${id}/events`),
+  createClubEvent: (id: string, body: Record<string, unknown>) =>
+    request<ClubEvent>(`/clubs/${id}/events`, { method: 'POST', body }),
+  rsvp: (eventId: string, status: 'going' | 'interested' | null) =>
+    request<{ status: string | null }>(`/clubs/events/${eventId}/rsvp`, {
+      method: 'POST',
+      body: status ? { status } : {},
+    }),
 
   /* ── Feed ────────────────────────────────────────────────── */
   feed: (before?: string) =>
