@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Icon, Label, Loading, Row, Txt } from '../ui';
 import { Notice } from '../ui/Notice';
+import { Chip } from '../ui/Chip';
 import { color, font, radius, space } from '../ui/theme';
 import {
   useCreateCustomExercise,
@@ -11,7 +12,7 @@ import {
   useExercises,
   useToggleFavorite,
 } from '../api/queries';
-import { groupsFor, targetLabel, type TargetGroup } from '../lib/muscles';
+import { buildHeadSections, groupsFor, MUSCLES, targetLabel, type TargetGroup } from '../lib/muscles';
 import type { ExerciseListItem } from '../api/types';
 
 /**
@@ -34,49 +35,6 @@ import type { ExerciseListItem } from '../api/types';
  * sensible to hold in memory.
  */
 
-const MUSCLES: { label: string; value: string | null }[] = [
-  { label: 'All', value: null },
-  { label: 'Chest', value: 'chest' },
-  { label: 'Back', value: 'back' },
-  { label: 'Legs', value: 'legs' },
-  { label: 'Shoulders', value: 'shoulders' },
-  { label: 'Arms', value: 'arms' },
-  { label: 'Core', value: 'core' },
-  { label: 'Cardio', value: 'cardio' },
-  { label: 'Full body', value: 'full_body' },
-];
-
-function Filter({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="radio"
-      accessibilityState={{ selected: active }}
-      style={{
-        height: 34,
-        paddingHorizontal: space.lg,
-        borderRadius: radius.pill,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: active ? color.accentSoft : color.surface2,
-        borderWidth: 1,
-        borderColor: active ? color.accentEdge : color.line,
-      }}
-    >
-      <Txt variant="caption" tone={active ? 'accent' : 't2'} style={{ fontWeight: '600' }}>
-        {label}
-      </Txt>
-    </Pressable>
-  );
-}
 
 function ExerciseRow({
   item,
@@ -229,27 +187,7 @@ export function ExercisePicker({
   const heads: TargetGroup[] | null =
     !query && !favoritesOnly ? groupsFor(muscle) : null;
 
-  const sections = useMemo(() => {
-    if (!heads) return null;
-    const byTarget = new Map<string, ExerciseListItem[]>();
-    for (const e of items) {
-      const key = e.targetMuscle ?? 'other';
-      const list = byTarget.get(key) ?? [];
-      list.push(e);
-      byTarget.set(key, list);
-    }
-    const out = heads.map((h) => ({ head: h, list: byTarget.get(h.key) ?? [] }));
-    const leftovers = items.filter(
-      (e) => !heads.some((h) => h.key === e.targetMuscle),
-    );
-    if (leftovers.length) {
-      out.push({
-        head: { key: 'other', label: 'Other', hint: 'Not classified yet' },
-        list: leftovers,
-      });
-    }
-    return out;
-  }, [heads, items]);
+  const sections = useMemo(() => buildHeadSections(items, heads), [heads, items]);
 
   /**
    * Narrow to one head when the member picks a chip. Without this a group like
@@ -346,13 +284,13 @@ export function ExercisePicker({
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: space.sm, paddingRight: space.lg }}
             >
-              <Filter
+              <Chip
                 label="★ Favourites"
                 active={favoritesOnly}
                 onPress={() => setFavoritesOnly((v) => !v)}
               />
               {MUSCLES.map((m) => (
-                <Filter
+                <Chip
                   key={m.label}
                   label={m.label}
                   active={muscle === m.value && !(m.value === null && favoritesOnly)}
@@ -373,11 +311,11 @@ export function ExercisePicker({
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ gap: space.sm, paddingRight: space.lg }}
               >
-                <Filter label="All" active={head === null} onPress={() => setHead(null)} />
+                <Chip label="All" active={head === null} onPress={() => setHead(null)} />
                 {sections
                   .filter((sec) => sec.list.length > 0)
                   .map((sec) => (
-                    <Filter
+                    <Chip
                       key={sec.head.key}
                       // The tick repeats the section heading so the member can
                       // see what is already covered without clearing the filter.
