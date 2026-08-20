@@ -316,6 +316,98 @@ describe('MemberFeedService — actions', () => {
   });
 });
 
+describe('MemberFeedService — mentions', () => {
+  const me: CurrentMemberContext = {
+    appUserId: 'me', memberId: 'm', tenantId: 't', isGymMember: true,
+  };
+  const ALICE = '59ab42bb-437a-4569-bc3f-d9795ce68a83';
+  const TROLL = '5b6b21cc-cdd7-41ee-b9f4-b2749ce38ec8';
+
+  let pub: any;
+  let service: MemberFeedService;
+
+  const visibleActivity = {
+    id: 'a1', app_user_id: 'me', app_user: { id: 'me', full_name: 'Me' },
+    sport_type: 'run', title: null, started_at: new Date(),
+    elapsed_seconds: 60, moving_seconds: 60, distance_m: null,
+    elevation_gain_m: null, avg_heart_rate: null, polyline: null,
+    start_latitude: null, start_longitude: null, visibility: 'everyone',
+    privacy_zone_m: null, kudos_count: 0, comment_count: 0, kudos: [],
+  };
+
+  beforeEach(() => {
+    pub = {
+      follow: { findMany: jest.fn().mockResolvedValue([]) },
+      block: { findMany: jest.fn().mockResolvedValue([]) },
+      appUser: { findMany: jest.fn().mockResolvedValue([{ id: ALICE }]) },
+      appUserActivity: {
+        findFirst: jest.fn().mockResolvedValue(visibleActivity),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      activityComment: {
+        findMany: jest.fn().mockResolvedValue([]),
+        create: jest.fn().mockImplementation(({ data }: any) =>
+          Promise.resolve({
+            id: 'c1', body: data.body, created_at: new Date(),
+            app_user_id: data.app_user_id,
+            app_user: { id: 'me', full_name: 'Me' },
+          })),
+      },
+      commentMention: { createMany: jest.fn().mockResolvedValue({}) },
+    };
+    service = new MemberFeedService(pub as any);
+  });
+
+  it('records who was named, so a notification has somewhere to look', async () => {
+    await service.addComment(me, 'a1', `nice one @[Alice](${ALICE})`);
+    expect(pub.commentMention.createMany.mock.calls[0][0].data).toEqual([
+      { comment_id: 'c1', app_user_id: ALICE },
+    ]);
+  });
+
+  it('returns segments so no client has to re-implement the parse', async () => {
+    const out: any = await service.addComment(me, 'a1', `hey @[Alice](${ALICE})`);
+    expect(out.segments).toEqual([
+      { type: 'text', value: 'hey ' },
+      { type: 'mention', id: ALICE, name: 'Alice' },
+    ]);
+    expect(out.body).toBe('hey @Alice');
+  });
+
+  it('keeps the comment when a mention cannot be resolved', async () => {
+    // Losing what somebody wrote over a stale @name is the wrong trade.
+    pub.appUser.findMany.mockResolvedValue([]);
+    const out: any = await service.addComment(me, 'a1', `hey @[Ghost](${ALICE})`);
+    expect(out.segments).toEqual([{ type: 'text', value: 'hey @Ghost' }]);
+    expect(pub.commentMention.createMany).not.toHaveBeenCalled();
+  });
+
+  it('never links a mention of somebody the AUTHOR blocked', async () => {
+    pub.block.findMany.mockResolvedValue([{ blocker_id: 'me', blocked_id: TROLL }]);
+    pub.appUser.findMany.mockResolvedValue([]);
+    const out: any = await service.addComment(me, 'a1', `look @[Troll](${TROLL})`);
+    expect(out.segments.every((s: any) => s.type === 'text')).toBe(true);
+  });
+
+  it('resolves mentions against the READER, not the author', async () => {
+    // The author may name somebody the reader has blocked; that must not
+    // become a tappable route to them.
+    pub.activityComment.findMany.mockResolvedValue([{
+      id: 'c1', body: `see @[Troll](${TROLL})`, created_at: new Date(),
+      app_user_id: 'alice', app_user: { id: 'alice', full_name: 'Alice' },
+    }]);
+    pub.block.findMany.mockResolvedValue([{ blocker_id: 'me', blocked_id: TROLL }]);
+    pub.appUser.findMany.mockResolvedValue([]);
+    const out: any = await service.comments(me, 'a1');
+    expect(out.comments[0].segments).toEqual([{ type: 'text', value: 'see @Troll' }]);
+  });
+
+  it('writes no mention rows for a plain comment', async () => {
+    await service.addComment(me, 'a1', 'just a normal comment');
+    expect(pub.commentMention.createMany).not.toHaveBeenCalled();
+  });
+});
+
 describe('trimPrivacyZone', () => {
   const line = Array.from({ length: 50 }, (_, i) => ({
     lat: 17.7 + (i * 20) / 111_320,

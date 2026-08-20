@@ -379,9 +379,16 @@ export interface FeedActivity {
   kudosedByMe: boolean;
 }
 
+/** Text and mentions, already resolved by the server for THIS reader. */
+export type CommentSegment =
+  | { type: 'text'; value: string }
+  | { type: 'mention'; id: string; name: string };
+
 export interface ActivityComment {
   id: string;
+  /** Flattened to plain @names — for anywhere that cannot render segments. */
   body: string;
+  segments: CommentSegment[];
   createdAt: string;
   author: { id: string; name: string | null };
   mine: boolean;

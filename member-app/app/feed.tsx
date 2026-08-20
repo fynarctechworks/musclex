@@ -6,6 +6,7 @@ import { Button, Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
 import { Notice } from '../src/ui/Notice';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { color, font, radius, space } from '../src/ui/theme';
+import { activeMention, applyMention, matchPeople } from '../src/lib/mention-draft';
 import { whenOf } from '../src/lib/datetime';
 import { clock } from '../src/lib/recorder';
 import {
@@ -14,10 +15,11 @@ import {
   useBlockPerson,
   useDeleteComment,
   useFeed,
+  useFollowing,
   useSports,
   useToggleKudos,
 } from '../src/api/queries';
-import type { FeedActivity, SportType } from '../src/api/types';
+import type { CommentSegment, FeedActivity, SportType } from '../src/api/types';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -174,13 +176,50 @@ function FeedCard({
   );
 }
 
+/**
+ * Comment text with its mentions tappable.
+ *
+ * The server has already decided which mentions this reader may follow, so a
+ * mention that arrives as plain text is not a rendering gap — it is somebody
+ * the reader is not allowed to reach.
+ */
+function CommentBody({ segments }: { segments: CommentSegment[] }) {
+  const router = useRouter();
+  if (!segments?.length) return null;
+  return (
+    <Txt variant="small" tone="t2">
+      {segments.map((seg, i) =>
+        seg.type === 'text' ? (
+          <Txt key={i} variant="small" tone="t2">{seg.value}</Txt>
+        ) : (
+          <Txt
+            key={i}
+            variant="small"
+            tone="accent"
+            style={{ fontWeight: '600' }}
+            onPress={() => router.push(`/person/${seg.id}`)}
+          >
+            @{seg.name}
+          </Txt>
+        ),
+      )}
+    </Txt>
+  );
+}
+
 function Comments({ activityId }: { activityId: string }) {
   const { data, isLoading } = useActivityComments(activityId);
+  const { data: following } = useFollowing();
   const add = useAddComment();
   const del = useDeleteComment();
   const [draft, setDraft] = useState('');
+  const [caret, setCaret] = useState(0);
 
   const comments = data?.comments ?? [];
+  // Only people the member follows — a picker over every member in the product
+  // would be a directory, which is not what an @ is for.
+  const mention = activeMention(draft, caret);
+  const candidates = mention ? matchPeople(following?.people ?? [], mention.query) : [];
 
   return (
     <View
@@ -201,7 +240,7 @@ function Comments({ activityId }: { activityId: string }) {
           <Row key={c.id} style={{ alignItems: 'flex-start' }}>
             <View style={{ flex: 1, paddingRight: space.sm }}>
               <Txt variant="caption" tone="t3">{c.mine ? 'You' : c.author.name || 'Someone'}</Txt>
-              <Txt variant="small" tone="t2">{c.body}</Txt>
+              <CommentBody segments={c.segments} />
             </View>
             {c.mine ? (
               <Pressable
@@ -217,11 +256,45 @@ function Comments({ activityId }: { activityId: string }) {
         ))
       )}
 
+      {candidates.length ? (
+        <View
+          style={{
+            borderWidth: 1,
+            borderColor: color.line,
+            borderRadius: radius.md,
+            backgroundColor: color.surface2,
+            overflow: 'hidden',
+          }}
+        >
+          {candidates.map((p) => (
+            <Pressable
+              key={p.id}
+              onPress={() => {
+                const next = applyMention(draft, mention!.start, caret, p);
+                setDraft(next.text);
+                setCaret(next.caret);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Mention ${p.name}`}
+              style={{ paddingVertical: space.sm, paddingHorizontal: space.md }}
+            >
+              <Txt variant="small" tone="t1">{p.name}</Txt>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
       <Row style={{ marginTop: space.sm, gap: space.sm }}>
         <TextInput
           value={draft}
-          onChangeText={setDraft}
-          placeholder="Say something"
+          onChangeText={(t) => {
+            setDraft(t);
+            // Best effort: onSelectionChange also fires, but typing at the end
+            // is the common case and this keeps the picker responsive.
+            setCaret(t.length);
+          }}
+          onSelectionChange={(e) => setCaret(e.nativeEvent.selection.end)}
+          placeholder="Say something, or @ someone"
           placeholderTextColor={color.t4}
           accessibilityLabel="Write a comment"
           style={{

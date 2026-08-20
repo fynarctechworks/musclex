@@ -4,6 +4,7 @@ import { MemberException } from '../common/member-exception';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
 import { decodePolyline, encodePolyline, trimPrivacyZone } from './polyline';
 import { loadViewerScope, visibleActivityFilter } from './activity-visibility';
+import { mentionedIds, toPlainText, toSegments } from './mentions';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -223,6 +224,23 @@ export class MemberFeedService {
     await this.view(member, activityId);
   }
 
+  /**
+   * Which of the named ids may actually be shown as a mention to `viewerId`.
+   *
+   * Real people only, and never anyone blocked in either direction. Used on
+   * both write and read, because the answer depends on WHO IS LOOKING — the
+   * author may mention someone the reader has blocked.
+   */
+  private async allowedMentions(viewerId: string, ids: string[]): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+    const scope = await loadViewerScope(this.pub, viewerId);
+    const real = await this.pub.appUser.findMany({
+      where: { id: { in: ids.filter((id) => !scope.blocked.includes(id)) } },
+      select: { id: true },
+    });
+    return new Set(real.map((r) => r.id));
+  }
+
   // ── Kudos ───────────────────────────────────────────────────────
   async giveKudos(member: CurrentMemberContext, activityId: string) {
     await this.assertVisible(member, activityId);
@@ -272,10 +290,16 @@ export class MemberFeedService {
       orderBy: { created_at: 'asc' },
       include: { app_user: { select: { id: true, full_name: true } } },
     });
+    // Mentions are resolved against THIS reader: a link to somebody they have
+    // blocked would be a way around the block, so it renders as plain text.
+    const named = [...new Set(rows.flatMap((c) => mentionedIds(c.body)))];
+    const allowed = await this.allowedMentions(member.appUserId, named);
+
     return {
       comments: rows.map((c) => ({
         id: c.id,
-        body: c.body,
+        body: toPlainText(c.body),
+        segments: toSegments(c.body, allowed),
         createdAt: c.created_at.toISOString(),
         author: { id: c.app_user.id, name: c.app_user.full_name },
         mine: c.app_user_id === member.appUserId,
@@ -293,17 +317,33 @@ export class MemberFeedService {
       );
     }
 
+    // A mention grants nothing. It cannot let the author reach somebody who
+    // blocked them, and it cannot name a person who does not exist — anything
+    // that fails here is kept as plain text rather than rejecting the comment,
+    // because losing what someone wrote over a stale @name is the wrong trade.
+    const named = mentionedIds(text);
+    const allowed = await this.allowedMentions(member.appUserId, named);
+
     const row = await this.pub.activityComment.create({
       data: { activity_id: activityId, app_user_id: member.appUserId, body: text },
       include: { app_user: { select: { id: true, full_name: true } } },
     });
+
+    if (allowed.size) {
+      await this.pub.commentMention.createMany({
+        data: [...allowed].map((id) => ({ comment_id: row.id, app_user_id: id })),
+        skipDuplicates: true,
+      });
+    }
+
     await this.pub.appUserActivity.update({
       where: { id: activityId },
       data: { comment_count: { increment: 1 } },
     });
     return {
       id: row.id,
-      body: row.body,
+      body: toPlainText(row.body),
+      segments: toSegments(row.body, allowed),
       createdAt: row.created_at.toISOString(),
       author: { id: row.app_user.id, name: row.app_user.full_name },
       mine: true,

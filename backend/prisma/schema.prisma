@@ -212,6 +212,7 @@ model AppUser {
   reports_against        Report[]           @relation("ReportsAgainst")
   challenges_owned       GroupChallenge[]   @relation("ChallengesOwned")
   challenge_entries      GroupChallengeParticipant[]
+  mentions_received      CommentMention[]
   share_prs      Boolean @default(false)
   share_streak   Boolean @default(false)
 
@@ -5284,6 +5285,7 @@ model ActivityComment {
 
   activity AppUserActivity @relation(fields: [activity_id], references: [id], onDelete: Cascade)
   app_user AppUser         @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+  mentions CommentMention[]
 
   @@index([activity_id, created_at])
   @@map("activity_comments")
@@ -5483,5 +5485,26 @@ model GroupChallengeParticipant {
   @@unique([challenge_id, app_user_id])
   @@index([app_user_id])
   @@map("group_challenge_participants")
+  @@schema("public")
+}
+
+/// Who was named in a comment.
+///
+/// The body already carries the mention inline, so rendering needs no table.
+/// This answers the two questions text cannot: "who was mentioned here" (for a
+/// notification) and "where have I been mentioned" — otherwise a LIKE scan over
+/// every comment ever written.
+model CommentMention {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  comment_id  String   @db.Uuid
+  app_user_id String   @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  comment  ActivityComment @relation(fields: [comment_id], references: [id], onDelete: Cascade)
+  app_user AppUser         @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([comment_id, app_user_id])
+  @@index([app_user_id, created_at])
+  @@map("comment_mentions")
   @@schema("public")
 }
