@@ -468,6 +468,26 @@ export interface PersonProfile {
   isYou: boolean;
 }
 
+/* ── Group challenges ─────────────────────────────────────────── */
+
+export interface GroupChallenge {
+  id: string;
+  title: string;
+  metric: 'distance_m' | 'elapsed_seconds' | 'activity_count' | 'elevation_m';
+  sportType: string | null;
+  /** Null means "most wins" rather than "first to reach". */
+  target: number | null;
+  startsOn: string;
+  endsOn: string;
+  ownerId: string;
+  joined: boolean;
+  participantCount: number;
+}
+
+export interface GroupChallengeDetail extends GroupChallenge {
+  leaderboard: { id: string; name: string | null; value: number; rank: number; mine: boolean }[];
+}
+
 /* ── On-device health (steps) ─────────────────────────────────── */
 /** One day's rollup from the phone or watch. Public/app_user scoped. */
 export interface HealthDay {

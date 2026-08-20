@@ -210,6 +210,8 @@ model AppUser {
   conversation_reads     ConversationRead[]
   reports_made           Report[]           @relation("ReportsMade")
   reports_against        Report[]           @relation("ReportsAgainst")
+  challenges_owned       GroupChallenge[]   @relation("ChallengesOwned")
+  challenge_entries      GroupChallengeParticipant[]
   share_prs      Boolean @default(false)
   share_streak   Boolean @default(false)
 
@@ -5443,5 +5445,43 @@ model Report {
 
   @@index([status, created_at])
   @@map("reports")
+  @@schema("public")
+}
+
+/// A contest a MEMBER creates and invites people to. Distinct from `Challenge`,
+/// which is gym-run and lives in the studio schema.
+model GroupChallenge {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  owner_id   String   @db.Uuid
+  title      String
+  /// distance_m | elapsed_seconds | activity_count | elevation_m
+  metric     String   @default("distance_m")
+  /// Null means any sport counts.
+  sport_type String?
+  /// Null means "most wins" rather than "first to reach".
+  target     Decimal? @db.Decimal(12, 2)
+  starts_on  DateTime @db.Date
+  ends_on    DateTime @db.Date
+  created_at DateTime @default(now()) @db.Timestamptz()
+
+  owner        AppUser                     @relation("ChallengesOwned", fields: [owner_id], references: [id], onDelete: Cascade)
+  participants GroupChallengeParticipant[]
+
+  @@map("group_challenges")
+  @@schema("public")
+}
+
+model GroupChallengeParticipant {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  challenge_id String   @db.Uuid
+  app_user_id  String   @db.Uuid
+  joined_at    DateTime @default(now()) @db.Timestamptz()
+
+  challenge GroupChallenge @relation(fields: [challenge_id], references: [id], onDelete: Cascade)
+  app_user  AppUser        @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([challenge_id, app_user_id])
+  @@index([app_user_id])
+  @@map("group_challenge_participants")
   @@schema("public")
 }

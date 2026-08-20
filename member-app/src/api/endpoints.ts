@@ -32,6 +32,8 @@ import type {
   ClubEvent,
   ClubFeedItem,
   FeedActivity,
+  GroupChallenge,
+  GroupChallengeDetail,
   MatchedPerson,
   Person,
   PersonProfile,
@@ -251,6 +253,16 @@ export const api = {
     request<unknown>('/me', { method: 'PATCH', body }),
   updateProfile: (body: Record<string, unknown>) =>
     request<Profile>('/me/profile', { method: 'PATCH', body }),
+
+  /* ── Group challenges (member-made, not the gym's) ───────── */
+  groupChallenges: () => request<{ challenges: GroupChallenge[] }>('/group-challenges'),
+  groupChallenge: (id: string) => request<GroupChallengeDetail>(`/group-challenges/${id}`),
+  createGroupChallenge: (body: Record<string, unknown>) =>
+    request<GroupChallenge>('/group-challenges', { method: 'POST', body }),
+  inviteToChallenge: (id: string, appUserId: string) =>
+    request<{ invited: boolean }>(`/group-challenges/${id}/invite/${appUserId}`, { method: 'POST' }),
+  leaveChallenge: (id: string) =>
+    request<{ joined: boolean }>(`/group-challenges/${id}/join`, { method: 'DELETE' }),
 
   /* ── Finding people ──────────────────────────────────────── */
   suggestions: () => request<{ people: SuggestedPerson[] }>('/people/suggestions'),

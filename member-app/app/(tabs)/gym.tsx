@@ -104,6 +104,19 @@ export default function GymScreen() {
         )}
       </Card>
 
+      <Pressable onPress={() => router.push('/challenges')} accessibilityRole="button"
+        accessibilityLabel="Group challenges">
+        <Card>
+          <Row>
+            <Label>Challenges</Label>
+            <Txt variant="caption" tone="t3">Race ›</Txt>
+          </Row>
+          <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+            Set your own against friends — distance, time, climbing or workouts.
+          </Txt>
+        </Card>
+      </Pressable>
+
       <Pressable onPress={() => router.push('/people')} accessibilityRole="button"
         accessibilityLabel="Find people">
         <Card>

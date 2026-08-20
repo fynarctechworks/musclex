@@ -32,6 +32,8 @@ export const qk = {
   myClubs: ['clubs', 'mine'] as const,
   conversations: ['dm'] as const,
   suggestions: ['people', 'suggestions'] as const,
+  groupChallenges: ['group-challenges'] as const,
+  groupChallenge: (id: string) => ['group-challenge', id] as const,
   myCode: ['people', 'code'] as const,
   person: (id: string) => ['people', id] as const,
   conversation: (id: string) => ['dm', id] as const,
@@ -352,6 +354,44 @@ export function useSendChat(trainerId: string) {
       qc.invalidateQueries({ queryKey: qk.chatMessages(trainerId) });
       qc.invalidateQueries({ queryKey: qk.chatThreads });
     },
+  });
+}
+
+/* ── Group challenges ──────────────────────────────────────── */
+
+export function useGroupChallenges() {
+  return useQuery({ queryKey: qk.groupChallenges, queryFn: api.groupChallenges });
+}
+
+export function useGroupChallenge(id: string | null) {
+  return useQuery({
+    queryKey: qk.groupChallenge(id ?? ''),
+    queryFn: () => api.groupChallenge(id as string),
+    enabled: !!id,
+  });
+}
+
+export function useCreateGroupChallenge() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) => api.createGroupChallenge(body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.groupChallenges }),
+  });
+}
+
+export function useInviteToChallenge(challengeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (appUserId: string) => api.inviteToChallenge(challengeId, appUserId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.groupChallenge(challengeId) }),
+  });
+}
+
+export function useLeaveChallenge() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.leaveChallenge(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.groupChallenges }),
   });
 }
 

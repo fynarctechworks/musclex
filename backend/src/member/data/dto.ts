@@ -1210,3 +1210,36 @@ export class ContactMatchDto {
   @IsString({ each: true })
   hashes!: string[];
 }
+
+/* ── Group challenges ────────────────────────────────────────── */
+
+export const CHALLENGE_METRICS = [
+  'distance_m', 'elapsed_seconds', 'activity_count', 'elevation_m',
+] as const;
+
+export class GroupChallengeDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(80)
+  title!: string;
+
+  @IsIn(CHALLENGE_METRICS as unknown as string[])
+  metric!: (typeof CHALLENGE_METRICS)[number];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  sportType?: string;
+
+  /** Null means "most wins" rather than "first to reach". */
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  target?: number;
+
+  @IsISO8601()
+  startsOn!: string;
+
+  @IsISO8601()
+  endsOn!: string;
+}
