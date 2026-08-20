@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Card, Empty, Loading, Row, Txt } from '../src/ui';
@@ -69,6 +69,25 @@ export default function ExercisesScreen() {
             >
               <Card>
                 <Row>
+                  {/* The still, not the GIF: forty animating images in a
+                      scrolling list is a lot of decode for no extra meaning —
+                      the animation earns its place on the detail screen. */}
+                  {e.thumbUrl ? (
+                    <Image
+                      source={{ uri: e.thumbUrl }}
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: radius.sm,
+                        backgroundColor: color.surface2,
+                        marginRight: space.md,
+                      }}
+                      // Decorative: the name beside it already says what this is,
+                      // so announcing the image again would just be noise.
+                      accessibilityElementsHidden
+                      importantForAccessibility="no"
+                    />
+                  ) : null}
                   <View style={{ flex: 1, paddingRight: space.md }}>
                     <Txt variant="bodyStrong">{e.name}</Txt>
                     <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>

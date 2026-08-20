@@ -1,8 +1,8 @@
-import { Pressable, ScrollView, View } from 'react-native';
+import { Image, Pressable, ScrollView, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, Label, Loading, Row, Txt } from '../../src/ui';
-import { color, space } from '../../src/ui/theme';
+import { color, radius, space } from '../../src/ui/theme';
 import { ScreenHeader } from '../../src/ui/ScreenHeader';
 import { BarChart } from '../../src/features/Sparkline';
 import { shortDate } from '../../src/lib/datetime';
@@ -73,6 +73,25 @@ export default function ExerciseDetailScreen() {
             </Pressable>
           </Row>
         </Card>
+
+        {/* The animation IS the form cue — a still of a mid-rep position tells
+            you far less than watching the path. It sits above the instructions
+            because most people copy the movement and never read the text. */}
+        {ex.mediaUrl ? (
+          <Card>
+            <Image
+              source={{ uri: ex.mediaUrl }}
+              style={{
+                width: '100%',
+                aspectRatio: 1,
+                borderRadius: radius.md,
+                backgroundColor: color.surface2,
+              }}
+              resizeMode="contain"
+              accessibilityLabel={`Animation showing how to perform ${ex.name}`}
+            />
+          </Card>
+        ) : null}
 
         {chart.length > 1 ? (
           <Card>
