@@ -105,7 +105,7 @@ export default function CheckInPage() {
     queryKey: ["dashboard-occupancy", branchId],
     queryFn: () =>
       apiClient.get<{ current: number; capacity?: number }>(
-        "/dashboard/ops/occupancy",
+        "/dashboard/occupancy",
         { params: branchId ? { branch_id: branchId } : undefined },
       ),
     enabled: Boolean(branchId),
@@ -561,7 +561,7 @@ export default function CheckInPage() {
         {/* ─── Right: Sidebar ─── */}
         <div className="w-full lg:w-80 xl:w-96 space-y-5 shrink-0">
           {/* Capacity — from BranchSettings.checkin_policy.max_occupancy via
-              /dashboard/ops/occupancy; the widget still renders its honest
+              /dashboard/occupancy; the widget still renders its honest
               "set capacity" CTA when the gym hasn't configured one. */}
           <CapacityWidget current={currentInGym} max={occupancy?.capacity ?? 0} />
 

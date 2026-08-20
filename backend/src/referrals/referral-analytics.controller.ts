@@ -12,6 +12,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { IsOptional, IsDateString, IsInt, Min, IsNumber, IsUUID, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ReferralAnalyticsService } from './referral-analytics.service';
 import { WalletRedemptionService } from './wallet-redemption.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -22,7 +23,10 @@ import { CurrentUser, JwtPayload } from '../common';
 class DateRangeDto {
   @IsOptional() @IsDateString() from?: string;
   @IsOptional() @IsDateString() to?: string;
-  @IsOptional() @IsInt() @Min(1) limit?: number;
+  // `transform: true` alone does not coerce query strings, and the global pipe
+  // does not enable implicit conversion — without @Type the string "10" fails
+  // @IsInt() and the request 400s.
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) limit?: number;
 }
 
 class QuoteRedemptionDto {

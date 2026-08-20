@@ -106,5 +106,10 @@ function setSecurityHeaders(response: NextResponse) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // `.well-known` is excluded deliberately: Apple and Google fetch the deep-link
+  // association files anonymously, with no redirects allowed. Left inside the
+  // matcher this middleware would bounce them to /login and universal links
+  // would fail silently — the links simply open the browser instead of the app,
+  // with nothing in any log to say why.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|\\.well-known).*)"],
 };

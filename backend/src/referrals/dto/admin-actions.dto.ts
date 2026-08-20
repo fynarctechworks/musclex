@@ -9,6 +9,7 @@ import {
   Min,
   Max,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class FraudQueueFilterDto {
   @IsOptional()
@@ -19,12 +20,17 @@ export class FraudQueueFilterDto {
   @IsIn(['pending', 'reviewed_ok', 'confirmed_fraud'])
   review_status?: string;
 
+  // @Type is required on query-string numbers: the global ValidationPipe sets
+  // `transform: true` but NOT `enableImplicitConversion`, so without it the
+  // string "100" fails @IsInt() and the whole request 400s.
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   limit?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   offset?: number;

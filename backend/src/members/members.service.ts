@@ -130,7 +130,13 @@ export class MembersService {
     const skip = (page - 1) * safeLimit;
 
     const where: any = {};
+    // `cancelled` is how softDelete() marks a removed member (see softDelete and
+    // checkPhone, which already excludes them). Without this, a deleted member
+    // stayed in the list and DELETE looked like it did nothing. An explicit
+    // `status=cancelled` filter still returns them, so nothing becomes
+    // unreachable.
     if (status) where.status = status;
+    else where.status = { not: 'cancelled' };
     if (organization_id) where.organization_id = organization_id;
     if (churn_risk) where.churn_risk = churn_risk;
 

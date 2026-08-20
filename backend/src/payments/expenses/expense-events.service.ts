@@ -66,8 +66,12 @@ export class ExpenseEventsService {
         categoryId = found.id;
         categorySlug = found.slug;
       } else {
-        // auto-provision defaults if this gym has no categories yet
-        await this.categories.ensureDefaultsForBranch(null);
+        // Auto-provision defaults if this gym has no categories yet.
+        // Must pass the real branch: the upsert keys on the compound unique
+        // (gym_id, branch_id, slug), and Prisma rejects a null inside a
+        // compound-unique `where` — passing null made every first expense for
+        // a gym fail with a 500.
+        await this.categories.ensureDefaultsForBranch(dto.branch_id);
         const retry = await this.categories.findBySlug(dto.category, dto.branch_id);
         if (retry) {
           categoryId = retry.id;
@@ -81,7 +85,19 @@ export class ExpenseEventsService {
       if (cat) categorySlug = cat.slug;
     }
 
-    const staffId = dto.recorded_by_staff_id ?? userContext.staff_id ?? null;
+    // `recorded_by_staff_id` FKs into the tenant's `staff` table, but the
+    // controller hands us the authenticated USER id — and a gym owner has no
+    // staff row at all. Keep the attribution when the id really is a staff row;
+    // otherwise record the expense unattributed (the column is nullable as of
+    // migration 20260818_expense_recorded_by_optional) rather than losing it.
+    let staffId = dto.recorded_by_staff_id ?? userContext.staff_id ?? null;
+    if (staffId) {
+      const staffRow = await this.tenant.client.staff.findUnique({
+        where: { id: staffId },
+        select: { id: true },
+      });
+      if (!staffRow) staffId = null;
+    }
 
     try {
       const expense = await this.tenant.client.$transaction(async (tx) => {

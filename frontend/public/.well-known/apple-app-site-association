@@ -1,0 +1,12 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["REPLACE_TEAM_ID.com.infynarc.musclex.member"],
+        "components": [
+          { "/": "/r/*", "comment": "Shared workout routine links" }
+        ]
+      }
+    ]
+  }
+}

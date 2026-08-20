@@ -3127,6 +3127,13 @@ export interface components {
         BodyMetricInput: {
             weightKg?: number;
             waistCm?: number;
+            bodyFatPct?: number;
+            muscleMassKg?: number;
+            chestCm?: number;
+            hipsCm?: number;
+            armsCm?: number;
+            thighsCm?: number;
+            calvesCm?: number;
             /** Format: date-time */
             recordedAt?: string;
         };
@@ -3135,6 +3142,13 @@ export interface components {
             weightKg?: number | null;
             bmi?: number | null;
             waistCm?: number | null;
+            bodyFatPct?: number | null;
+            muscleMassKg?: number | null;
+            chestCm?: number | null;
+            hipsCm?: number | null;
+            armsCm?: number | null;
+            thighsCm?: number | null;
+            calvesCm?: number | null;
             /** Format: date-time */
             recordedAt?: string;
         };
@@ -3311,6 +3325,12 @@ export interface components {
             id?: string;
             name?: string;
             muscleGroup?: string | null;
+            /** Primary mover at head level, e.g. side_delt. */
+            targetMuscle?: string | null;
+            /** Everything else the movement loads. */
+            secondaryMuscles?: string[];
+            /** Lightweight still for list rows. */
+            thumbUrl?: string | null;
             equipment?: string | null;
             mediaUrl?: string | null;
             hasInstructions?: boolean;

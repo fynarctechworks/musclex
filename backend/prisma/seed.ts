@@ -519,10 +519,14 @@ async function seedGym(gym: GymSeed, gymIdx: number): Promise<{ credentials: { e
   await cloneTenantSchema(schemaName);
   console.log(`    -> Schema "${schemaName}" created`);
 
-  // All tenant data goes into studio_template (Prisma's @@schema target).
-  // Per-tenant schemas exist for direct SQL/backup; Prisma ORM always queries studio_template.
-  // gym_id column provides tenant isolation.
-  const tenantTable = 'studio_template';
+  // Tenant data goes into THIS GYM'S OWN schema.
+  //
+  // This used to target `studio_template` on the assumption that Prisma always
+  // queried that one schema and `gym_id` provided the isolation. That stopped
+  // being true with the per-gym schema rearchitecture: TenantClientFactory now
+  // binds each request to `studios.schema_name`, so anything written to the
+  // template is invisible to the running app — every seeded gym came up empty.
+  const tenantTable = schemaName;
 
   // Create Organization
   const orgId = seedUUID('org', gymIdx);

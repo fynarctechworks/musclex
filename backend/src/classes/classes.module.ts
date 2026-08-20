@@ -14,11 +14,16 @@ import { ResourceLimitService } from '../common/services/resource-limit.service'
 
 @Module({
   imports: [PrismaModule],
+  // ORDER MATTERS. Nest registers routes in this order and Express matches
+  // first-wins, so every controller with a STATIC path under `api/v1/classes`
+  // must come before ClassesController — which owns `api/v1/classes/:id`.
+  // Registered after it, `/classes/sessions` matched `classes/:id` with
+  // id="sessions" and Prisma failed parsing "sessions" as a UUID (500).
   controllers: [
-    ClassesController,
-    ClassTemplateController,
     SessionController,
+    ClassTemplateController,
     BookingController,
+    ClassesController,
   ],
   providers: [
     ClassesService,

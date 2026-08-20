@@ -25,11 +25,16 @@ import {
   Contact,
   Share2,
   Megaphone,
+  Handshake,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/tenants', label: 'Tenants', icon: Building2 },
+  // Enquiries from gym owners on the marketing website — prospective tenants,
+  // so this sits next to Tenants. Not to be confused with Member App › Leads
+  // below, which lists consumer app users who have not joined a gym yet.
+  { href: '/gym-owner-leads', label: 'Gym Owner Leads', icon: Handshake },
   { href: '/call-center', label: 'Call Center', icon: Phone },
   { href: '/plans', label: 'Plans', icon: Package },
   { href: '/discounts', label: 'Discounts', icon: Tag },

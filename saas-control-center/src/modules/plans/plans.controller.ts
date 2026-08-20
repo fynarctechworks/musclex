@@ -10,14 +10,17 @@ import {
   Query,
   ParseUUIDPipe,
   Req,
+  UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { Request } from 'express';
 import { AdminRole } from '@prisma/client';
 import { PlansService } from './plans.service';
 import { CurrentAdmin } from '../../common/decorators/current-admin.decorator';
+import { Public } from '../../common/decorators/public.decorator';
+import { IngestSecretGuard } from '../../common/guards/ingest-secret.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CreatePlanDto, UpdatePlanDto } from './dto/plans.dto';
 import { UpdateGstDto } from './dto/gst.dto';
@@ -64,6 +67,24 @@ export class PlansController {
       ip_address: req.ip,
       user_agent: req.headers['user-agent'],
     });
+  }
+
+  /**
+   * Public plan catalogue for the marketing website's pricing page.
+   *
+   * Server-to-server: `@Public()` skips the admin JWT (the marketing app has no
+   * admin session) and IngestSecretGuard requires the shared secret instead, so
+   * this is not reachable from a browser.
+   *
+   * Declared BEFORE `@Get(':id')` — otherwise the param route captures
+   * "marketing" and tries to parse it as a UUID.
+   */
+  @Get('marketing')
+  @Public()
+  @UseGuards(IngestSecretGuard)
+  @ApiExcludeEndpoint()
+  findForMarketing() {
+    return this.plansService.findForMarketing();
   }
 
   @Get(':id')

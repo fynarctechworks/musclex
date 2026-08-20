@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditLogsService, AuditContext } from '../audit-logs/audit-logs.service';
 import { AuditAction } from '@prisma/client';
@@ -55,7 +56,36 @@ export class PlansService {
   constructor(
     private prisma: PrismaService,
     private audit: AuditLogsService,
+    private config: ConfigService,
   ) {}
+
+  /**
+   * Tell the marketing website to drop its cached plan catalogue.
+   *
+   * The pricing page is ISR with a 5-minute window; without this ping an edit
+   * here would take that long to appear publicly. Best-effort and never
+   * awaited into the caller's failure path — the same posture as syncToScc:
+   * an unreachable marketing site must never block a plan edit.
+   */
+  private notifyMarketing(): void {
+    const base = this.config.get<string>('MARKETING_SITE_URL')?.replace(/\/$/, '');
+    const secret = this.config.get<string>('MARKETING_INGEST_SECRET');
+    if (!base || !secret) return;
+
+    void fetch(`${base}/api/revalidate-plans`, {
+      method: 'POST',
+      headers: { 'x-ingest-secret': secret },
+      signal: AbortSignal.timeout(5000),
+    })
+      .then((res) => {
+        if (!res.ok) {
+          this.logger.warn(`Marketing revalidation returned ${res.status}`);
+        }
+      })
+      .catch((err) => {
+        this.logger.warn(`Marketing revalidation failed: ${(err as Error).name}`);
+      });
+  }
 
   private computeEffectivePrices(plan: PublicPlan): PlanResponse {
     const monthly = Number(plan.monthly_price);
@@ -122,6 +152,25 @@ export class PlansService {
    * `Tenant.plan_id` foreign key actually references (NOT public). Used by the
    * Add-Tenant picker so the selected id is always a valid FK target.
    */
+  /**
+   * Public plan catalogue for the marketing website's pricing page.
+   *
+   * Reads the same `public.subscription_plans` table the SCC Plans screen
+   * edits, so a price or limit changed by an admin shows on the marketing site
+   * on its next revalidation — there is no second copy to keep in sync.
+   *
+   * Returns only ACTIVE, regular plans, and only fields that are safe to show
+   * publicly. Effective prices already account for an active discount.
+   */
+  async findForMarketing(): Promise<PlanResponse[]> {
+    const rows: PublicPlan[] = await this.prisma.$queryRaw`
+      SELECT * FROM public.subscription_plans
+      WHERE is_active = true AND plan_type = 'regular'
+      ORDER BY sort_order ASC
+    `;
+    return rows.map((p) => this.computeEffectivePrices(p));
+  }
+
   async findAssignable() {
     const plans = await this.prisma.subscriptionPlan.findMany({
       where: { is_active: true },
@@ -227,6 +276,7 @@ export class PlansService {
       ctx,
       { new_value: created[0] },
     );
+    this.notifyMarketing();
 
     await this.syncToScc(created[0]);
     await this.invalidateOnboardingCache();
@@ -317,6 +367,7 @@ export class PlansService {
       old_value: { name: existing.name, monthly_price: existing.monthly_price },
       new_value: dto,
     });
+    this.notifyMarketing();
 
     await this.syncToScc(updated[0]);
     await this.invalidateOnboardingCache();
@@ -338,6 +389,7 @@ export class PlansService {
       old_value: { is_active: plan.is_active },
       new_value: { is_active: newStatus },
     });
+    this.notifyMarketing();
 
     await this.syncToScc(updated[0]);
     await this.invalidateOnboardingCache();
@@ -359,6 +411,7 @@ export class PlansService {
       old_value: { is_featured: plan.is_featured },
       new_value: { is_featured: newFeatured },
     });
+    this.notifyMarketing();
 
     await this.invalidateOnboardingCache();
     return this.computeEffectivePrices(updated[0]);
@@ -380,6 +433,7 @@ export class PlansService {
     await this.audit.log(AuditAction.UPDATE, 'subscription_plan', id, ctx, {
       new_value: { sort_order: sortOrder },
     });
+    this.notifyMarketing();
 
     await this.invalidateOnboardingCache();
     return { success: true };
@@ -402,6 +456,7 @@ export class PlansService {
     await this.audit.log(AuditAction.UPDATE, 'subscription_plan', id, ctx, {
       new_value: { is_active: false },
     });
+    this.notifyMarketing();
 
     await this.invalidateOnboardingCache();
     return { success: true };
@@ -462,6 +517,7 @@ export class PlansService {
       ctx,
       { new_value: value },
     );
+    this.notifyMarketing();
     await this.invalidateOnboardingCache();
 
     return {

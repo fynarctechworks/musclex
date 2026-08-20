@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+build/
+.DS_Store
+*.pem
+.env*.local
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Local review screenshots (marketing/.screenshots) — build artifacts, not source
+.screenshots/

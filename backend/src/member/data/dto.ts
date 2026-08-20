@@ -86,6 +86,19 @@ export class BodyMetricDto implements BodyMetricInput {
   @Max(300)
   waistCm?: number;
 
+  /**
+   * The rest of what `member_body_stats` already stores. Every field optional
+   * and independent: someone measuring only their arms should not have to
+   * invent a chest number to record it.
+   */
+  @IsOptional() @IsNumber() @Min(0) @Max(100) bodyFatPct?: number;
+  @IsOptional() @IsNumber() @Min(0) @Max(300) muscleMassKg?: number;
+  @IsOptional() @IsNumber() @Min(0) @Max(300) chestCm?: number;
+  @IsOptional() @IsNumber() @Min(0) @Max(300) hipsCm?: number;
+  @IsOptional() @IsNumber() @Min(0) @Max(300) armsCm?: number;
+  @IsOptional() @IsNumber() @Min(0) @Max(300) thighsCm?: number;
+  @IsOptional() @IsNumber() @Min(0) @Max(300) calvesCm?: number;
+
   @IsOptional()
   @IsISO8601()
   recordedAt?: string;
@@ -131,10 +144,31 @@ export class SetLogDto implements SetLogData {
   @IsOptional()
   @IsIn(['kg', 'lb'])
   unit!: 'kg' | 'lb';
+
+  /**
+   * Seconds held/worked, for interval exercises (planks, carries, cardio).
+   * Mutually exclusive with reps in practice, but not enforced here: a circuit
+   * entry may legitimately carry both, and rejecting that would block a real
+   * way people train.
+   */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(86400)
+  durationSeconds?: number;
 }
 
 /** POST /workouts/{workoutId}/logs body. */
 export class WorkoutLogDto implements WorkoutLogRequestBody {
+  /** When the session actually happened, for logging a workout after the fact. */
+  @IsOptional()
+  @IsISO8601()
+  startedAt?: string;
+
+  @IsOptional()
+  @IsISO8601()
+  endedAt?: string;
+
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(200)
@@ -725,4 +759,73 @@ export class AvatarUploadUrlDto {
 export class AvatarConfirmDto {
   @IsUUID()
   avatarId!: string;
+}
+
+// ── Member routines ──────────────────────────────────────────────
+
+export class RoutineExerciseDto {
+  @IsString()
+  @IsNotEmpty()
+  exerciseId!: string;
+
+  @IsOptional() @IsInt() @Min(0) @Max(200) position?: number;
+  @IsOptional() @IsInt() @Min(1) @Max(50) targetSets?: number;
+  @IsOptional() @IsInt() @Min(1) @Max(1000) targetReps?: number;
+  @IsOptional() @IsInt() @Min(1) @Max(86400) targetDurationSeconds?: number;
+}
+
+/** POST /routines body. */
+export class RoutineDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(80)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  notes?: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => RoutineExerciseDto)
+  exercises!: RoutineExerciseDto[];
+}
+
+/** PATCH /routines/{id} body — every field optional. */
+export class RoutineUpdateDto {
+  @IsOptional() @IsString() @MaxLength(80) name?: string;
+  @IsOptional() @IsString() @MaxLength(500) notes?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => RoutineExerciseDto)
+  exercises?: RoutineExerciseDto[];
+}
+
+/** POST /routines/import body. */
+export class ImportRoutineDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  token!: string;
+}
+
+/** POST /exercises body — a member's own exercise, never the gym's catalogue. */
+export class CustomExerciseDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(80)
+  name!: string;
+
+  @IsOptional() @IsString() @MaxLength(40) muscleGroup?: string;
+  @IsOptional() @IsString() @MaxLength(40) targetMuscle?: string;
+  @IsOptional() @IsString() @MaxLength(40) equipment?: string;
+  @IsOptional() @IsIn(['reps', 'duration']) trackingType?: 'reps' | 'duration';
+  @IsOptional() @IsString() @MaxLength(2000) instructions?: string;
 }

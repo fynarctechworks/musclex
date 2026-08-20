@@ -18,6 +18,7 @@ import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { HealthModule } from './modules/health/health.module';
 import { ReferralsModule } from './modules/referrals/referrals.module';
 import { SystemMonitoringModule } from './modules/system-monitoring/system-monitoring.module';
+import { GymOwnerLeadsModule } from './modules/gym-owner-leads/gym-owner-leads.module';
 import { MemberAppAnalyticsModule } from './modules/member-app-analytics/member-app-analytics.module';
 
 @Module({
@@ -41,6 +42,7 @@ import { MemberAppAnalyticsModule } from './modules/member-app-analytics/member-
     ReferralsModule,
     SystemMonitoringModule,
     MemberAppAnalyticsModule,
+    GymOwnerLeadsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

@@ -1,7 +1,8 @@
-import { Delete, Get, HttpCode, Param, Put, Query } from '@nestjs/common';
+import { Body, Delete, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import { MemberDataController } from '../decorators/member-data-controller.decorator';
 import { CurrentMember, CurrentMemberContext } from '../decorators/current-member.decorator';
 import { MemberExerciseService } from './member-exercise.service';
+import { CustomExerciseDto } from './dto';
 
 /**
  * Exercise Library endpoints (Member App V2.2): browse/search the gym catalog,
@@ -18,8 +19,36 @@ export class MemberExerciseController {
     @Query('q') q?: string,
     @Query('muscle') muscle?: string,
     @Query('favorites') favorites?: string,
+    @Query('equipment') equipment?: string,
+    @Query('target') target?: string,
   ) {
-    return this.exercises.list(member, q, muscle, favorites === 'true');
+    return this.exercises.list(
+      member,
+      q,
+      muscle,
+      favorites === 'true',
+      equipment,
+      target,
+    );
+  }
+
+  /** Create a personal exercise. Declared before the :exerciseId routes below
+   *  is unnecessary for POST, but keeps the custom-exercise pair together. */
+  @Post('exercises')
+  @HttpCode(201)
+  createCustom(
+    @CurrentMember() member: CurrentMemberContext,
+    @Body() dto: CustomExerciseDto,
+  ) {
+    return this.exercises.createCustom(member, dto);
+  }
+
+  @Delete('exercises/:exerciseId/custom')
+  deleteCustom(
+    @CurrentMember() member: CurrentMemberContext,
+    @Param('exerciseId') exerciseId: string,
+  ) {
+    return this.exercises.deleteCustom(member, exerciseId);
   }
 
   @Get('exercises/:exerciseId')
@@ -28,6 +57,15 @@ export class MemberExerciseController {
     @Param('exerciseId') exerciseId: string,
   ) {
     return this.exercises.detail(member, exerciseId);
+  }
+
+  @Get('exercises/:exerciseId/history')
+  history(
+    @CurrentMember() member: CurrentMemberContext,
+    @Param('exerciseId') exerciseId: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.exercises.history(member, exerciseId, Number(limit) || 10);
   }
 
   @Put('exercises/:exerciseId/favorite')

@@ -1548,7 +1548,7 @@ export class AuthService {
     let validOrgId: string | undefined;
     if (organizationId) {
       const orgCheck = await this.prisma.$transaction(async (tx) => {
-        await tx.$executeRawUnsafe(`SET LOCAL search_path TO "studio_template", public`);
+        await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${schemaName}", public`);
         return tx.$queryRawUnsafe<Array<{ id: string }>>(
           `SELECT id FROM organizations WHERE id = $1::uuid LIMIT 1`,
           organizationId,
@@ -1560,7 +1560,7 @@ export class AuthService {
         // Organization record missing — create it now
         try {
           await this.prisma.$transaction(async (tx) => {
-            await tx.$executeRawUnsafe(`SET LOCAL search_path TO "studio_template", public`);
+            await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${schemaName}", public`);
             await tx.$queryRawUnsafe(
               `INSERT INTO organizations (id, gym_id, name, slug, status)
                VALUES ($1::uuid, $2::uuid, $3, $4, $5)`,
@@ -1600,7 +1600,7 @@ export class AuthService {
 
         const placeholders = values.map((_, i) => `$${i + 1}${casts[i]}`).join(', ');
         const rows = await this.prisma.$transaction(async (tx) => {
-          await tx.$executeRawUnsafe(`SET LOCAL search_path TO "studio_template", public`);
+          await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${schemaName}", public`);
           return tx.$queryRawUnsafe<Array<{ id: string }>>(
             `INSERT INTO branches (${columns.join(', ')}) VALUES (${placeholders}) RETURNING id`,
             ...values,
@@ -1653,7 +1653,7 @@ export class AuthService {
     let validOrgId: string | undefined;
     if (organizationId) {
       const orgCheck = await this.prisma.$transaction(async (tx) => {
-        await tx.$executeRawUnsafe(`SET LOCAL search_path TO "studio_template", public`);
+        await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${schemaName}", public`);
         return tx.$queryRawUnsafe<Array<{ id: string }>>(
           `SELECT id FROM organizations WHERE id = $1::uuid LIMIT 1`,
           organizationId,
@@ -1665,7 +1665,7 @@ export class AuthService {
     if (dto.plans && dto.plans.length > 0) {
       for (const p of dto.plans) {
         const rows = await this.prisma.$transaction(async (tx) => {
-          await tx.$executeRawUnsafe(`SET LOCAL search_path TO "studio_template", public`);
+          await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${schemaName}", public`);
 
           const columns: string[] = ['gym_id', 'name', 'description', 'plan_type', 'duration_days', 'price', 'currency', 'is_active', 'auto_renew_enabled', 'grace_period_days', 'multi_branch_access'];
           const casts: string[] = ['::uuid', '', '', '', '', '', '', '', '', '', ''];
@@ -1739,19 +1739,30 @@ export class AuthService {
         }
 
         try {
-          const staff = await this.prisma.staff.create({
-            data: {
-              gym_id: studioId,
-              full_name: s.full_name,
-              role: s.role,
-              email,
-              phone: s.phone || '',
-              branch_id: branchIds[0] || undefined,
-              organization_id: organizationId || undefined,
-              status: 'active',
-            },
+          // Raw INSERT pinned to THIS gym's schema, matching the branches and
+          // memberships steps.
+          //
+          // It cannot use `this.prisma.staff.create()`: under Prisma's
+          // multiSchema the generated SQL is schema-QUALIFIED, so it always
+          // wrote to studio_template regardless of search_path — landing the
+          // staff row in a schema where the branch created moments earlier does
+          // not exist, and violating staff_branch_id_fkey. Raw SQL honours
+          // search_path, so the row lands beside its branch.
+          const staffRows = await this.prisma.$transaction(async (tx) => {
+            await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${schemaName}", public`);
+            return tx.$queryRawUnsafe<Array<{ id: string }>>(
+              `INSERT INTO staff (gym_id, full_name, role, email, phone, branch_id, organization_id, status)
+               VALUES ($1::uuid, $2, $3, $4, $5, $6::uuid, $7::uuid, 'active') RETURNING id`,
+              studioId,
+              s.full_name,
+              s.role,
+              email ?? null,
+              s.phone || '',
+              branchIds[0] || null,
+              organizationId || null,
+            );
           });
-          createdStaff.push(staff.id);
+          if (staffRows?.[0]?.id) createdStaff.push(staffRows[0].id);
         } catch (err: any) {
           // Idempotent / retry-safe: a staff member with this email already
           // exists for this gym (P2002 on uq_staff_gym_email). Skip it instead

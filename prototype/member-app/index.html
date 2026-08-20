@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:,">
+<title>MuscleX Member App , Prototype</title>
+<style>
+  /* ── tokens ──────────────────────────────────────────────── */
+  :root{
+    --bg:#09090B; --surface:#131316; --surface-2:#1B1B20; --line:#26262C;
+    --t1:#FAFAFA; --t2:#A1A1AA; --t3:#71717A;
+    --accent:#E10600; --accent-soft:rgba(225,6,0,.14);
+    --good:#22C55E; --warn:#F59E0B;
+    --r:14px;
+    --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{
+    font-family:var(--font); background:#121214; color:var(--t1);
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    gap:40px; padding:32px; flex-wrap:wrap;
+    background-image:radial-gradient(900px 500px at 50% -10%, rgba(225,6,0,.10), transparent 70%);
+  }
+
+  /* ── device frame ─────────────────────────────────────────── */
+  .device{
+    width:420px; height:912px; background:var(--bg); border-radius:52px;
+    border:1px solid #303038; box-shadow:0 0 0 10px #17171b, 0 40px 90px rgba(0,0,0,.6);
+    position:relative; overflow:hidden; display:flex; flex-direction:column;
+  }
+  .notch{
+    position:absolute; top:12px; left:50%; transform:translateX(-50%);
+    width:118px; height:32px; background:#000; border-radius:20px; z-index:60;
+  }
+  .statusbar{
+    height:56px; flex:none; display:flex; align-items:flex-end; justify-content:space-between;
+    padding:0 26px 6px; font-size:13px; font-weight:600; color:var(--t1); z-index:50;
+  }
+  .screen{flex:1; overflow-y:auto; overflow-x:hidden; scrollbar-width:none}
+  .screen::-webkit-scrollbar{display:none}
+  .pad{padding:8px 18px 28px}
+
+  /* ── type ─────────────────────────────────────────────────── */
+  h1{font-size:26px; font-weight:680; letter-spacing:-.03em; line-height:1.15}
+  h2{font-size:12px; font-weight:620; letter-spacing:.08em; text-transform:uppercase; color:var(--t3)}
+  .sub{font-size:13px; color:var(--t2); line-height:1.45}
+  .mono{font-variant-numeric:tabular-nums}
+
+  /* ── cards ────────────────────────────────────────────────── */
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:16px}
+  .card + .card{margin-top:12px}
+  .row{display:flex; align-items:center; justify-content:space-between; gap:12px}
+
+  /* ── buttons ──────────────────────────────────────────────── */
+  button{font-family:inherit; cursor:pointer; border:none; background:none; color:inherit}
+  .btn{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    height:46px; border-radius:12px; font-size:15px; font-weight:600; width:100%;
+    background:var(--accent); color:#fff; transition:transform .1s, filter .15s;
+  }
+  .btn:active{transform:scale(.985)}
+  .btn.ghost{background:var(--surface-2); color:var(--t1); border:1px solid var(--line)}
+  .btn.sm{height:36px; font-size:13px; width:auto; padding:0 14px}
+  .chip{
+    display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 12px;
+    border-radius:999px; background:var(--surface-2); border:1px solid var(--line);
+    font-size:12.5px; font-weight:560; color:var(--t2);
+  }
+  .chip.on{background:var(--accent-soft); border-color:rgba(225,6,0,.35); color:#FF6B66}
+
+  /* ── occupancy ────────────────────────────────────────────── */
+  .occ-bar{height:8px; border-radius:99px; background:var(--surface-2); overflow:hidden; margin-top:12px}
+  .occ-fill{height:100%; border-radius:99px; transition:width .6s cubic-bezier(.2,.8,.2,1)}
+  .lv-low .occ-fill{background:var(--good)} .lv-low .lvl{color:var(--good)}
+  .lv-moderate .occ-fill{background:var(--warn)} .lv-moderate .lvl{color:var(--warn)}
+  .lv-high .occ-fill{background:var(--accent)} .lv-high .lvl{color:#FF6B66}
+  .pulse{width:7px;height:7px;border-radius:50%;background:var(--good);animation:p 2s infinite}
+  @keyframes p{0%,100%{opacity:1}50%{opacity:.25}}
+
+  /* ── set rows (the logging screen) ────────────────────────── */
+  .setgrid{display:grid; grid-template-columns:34px 1fr 74px 66px 42px; gap:8px; align-items:center}
+  .setgrid.head{font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--t3); margin-bottom:8px}
+  .setrow{margin-bottom:8px}
+  .setrow input{
+    height:38px; width:100%; border-radius:10px; background:var(--surface-2);
+    border:1px solid var(--line); color:var(--t1); text-align:center;
+    font-size:15px; font-weight:600; font-family:inherit; font-variant-numeric:tabular-nums;
+  }
+  .setrow input:focus{outline:none; border-color:var(--accent)}
+  .setrow.done input{background:rgba(34,197,94,.10); border-color:rgba(34,197,94,.32)}
+  .tick{
+    height:38px; width:38px; border-radius:10px; background:var(--surface-2);
+    border:1px solid var(--line); display:flex; align-items:center; justify-content:center;
+    color:var(--t3); font-size:15px;
+  }
+  .setrow.done .tick{background:var(--good); border-color:var(--good); color:#062B12}
+  .prev{font-size:12.5px; color:var(--t3); font-variant-numeric:tabular-nums}
+
+  /* ── rest timer ───────────────────────────────────────────── */
+  .rest{
+    position:absolute; left:12px; right:12px; bottom:96px; z-index:70;
+    background:rgba(27,27,32,.94); backdrop-filter:blur(14px);
+    border:1px solid var(--line); border-radius:14px; padding:12px 16px;
+    display:none; align-items:center; justify-content:space-between;
+  }
+  .rest.show{display:flex}
+
+  /* ── tab bar ──────────────────────────────────────────────── */
+  .tabs{
+    flex:none; height:88px; border-top:1px solid var(--line); background:rgba(9,9,11,.92);
+    backdrop-filter:blur(20px); display:grid; grid-template-columns:repeat(5,1fr);
+    padding-bottom:18px; position:relative; z-index:65;
+  }
+  .tab{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+       font-size:10.5px; font-weight:560; color:var(--t3)}
+  .tab.on{color:var(--t1)}
+  .tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;
+           stroke-linecap:round;stroke-linejoin:round}
+  .fab{
+    width:52px;height:52px;border-radius:17px;background:var(--accent);color:#fff;
+    display:flex;align-items:center;justify-content:center;margin-top:-16px;
+    box-shadow:0 8px 22px rgba(225,6,0,.42);
+  }
+  .fab svg{width:25px;height:25px;stroke-width:2.4}
+
+  /* ── misc ─────────────────────────────────────────────────── */
+  .sheet{position:absolute;inset:0;background:var(--bg);z-index:80;display:none;flex-direction:column}
+  .sheet.show{display:flex}
+  .sheethead{padding:20px 18px 14px; border-bottom:1px solid var(--line); flex:none}
+  .empty{text-align:center; color:var(--t3); font-size:13.5px; padding:40px 20px; line-height:1.6}
+  .caption{color:var(--t3); font-size:11.5px}
+  .divide{height:1px;background:var(--line);margin:14px 0}
+  .notes{max-width:400px; color:#8A8A94; font-size:13px; line-height:1.65}
+  .notes h3{color:#E4E4E8; font-size:15px; margin-bottom:10px; font-weight:620}
+  .notes b{color:#C9C9D1; font-weight:600}
+  .notes li{margin:7px 0 7px 16px}
+  .live{display:inline-flex;align-items:center;gap:6px;color:var(--good);font-size:11.5px;font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="device">
+  <div class="notch"></div>
+  <div class="statusbar"><span id="clock">9:41</span><span style="display:flex;align-items:center;gap:5px">
+      <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" width="3" height="11" rx="1"/></svg>
+      <svg width="23" height="11" viewBox="0 0 23 11" fill="none"><rect x=".5" y=".5" width="19" height="10" rx="3" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="15" height="7" rx="1.7" fill="currentColor"/><path d="M21.3 4v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" opacity=".4"/></svg>
+    </span></div>
+
+  <div class="screen" id="screen"><div class="pad" id="view"></div></div>
+
+  <div class="rest" id="rest">
+    <div>
+      <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--t3)">Rest</div>
+      <div class="mono" id="restTime" style="font-size:21px;font-weight:680;margin-top:2px">1:30</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn ghost sm" onclick="addRest(30)">+30s</button>
+      <button class="btn ghost sm" onclick="stopRest()">Skip</button>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet">
+    <div class="sheethead row">
+      <div><h1 style="font-size:20px" id="sheetTitle">Add exercise</h1></div>
+      <button class="btn ghost sm" onclick="closeSheet()">Close</button>
+    </div>
+    <div class="screen"><div class="pad" id="sheetBody"></div></div>
+  </div>
+
+  <nav class="tabs" id="tabs"></nav>
+</div>
+
+<div class="notes">
+  <h3>What you are looking at</h3>
+  <p>A running prototype of the MuscleX member app, hitting the <b>real Member BFF</b> on
+     <code>localhost:4002</code> through a same-origin proxy. Nothing here is mocked: the
+     occupancy number, the exercise list, set history and every workout you log are live
+     API calls against the Iron Temple tenant.</p>
+  <div class="divide"></div>
+  <h3>Try the core loop</h3>
+  <ul>
+    <li>Tap the red <b>+</b> to start an empty workout.</li>
+    <li>Add <b>Barbell Bench Press</b>. The <b>PREVIOUS</b> column and the prefilled
+        values come from <code>GET /exercises/:id/history</code>, an endpoint added today.</li>
+    <li>Tap a row's <b>✓</b>. The set commits, the rest timer starts, and the next row
+        prefills from the one you just finished.</li>
+    <li><b>Finish</b> posts to <code>POST /workouts/logs</code> (also new) with an
+        Idempotency-Key, and any PR comes straight back from the server.</li>
+  </ul>
+  <div class="divide"></div>
+  <p><b>Live gym occupancy</b> on the Today tab is the Glofox half: the one thing Hevy and
+     Strava structurally cannot do. It polls <code>GET /gym/occupancy</code> every 30s.</p>
+  <p style="margin-top:10px" class="caption">Floor traffic and the exercise catalogue are
+     seeded dev data in the local Supabase. The endpoints, scoping and idempotency are real.</p>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   API , every call goes through the local proxy, which injects the
+   member JWT. Responses are the BFF envelope { data, meta }.
+   ═══════════════════════════════════════════════════════════════ */
+async function api(path, opts = {}) {
+  const res = await fetch('/member/v1' + path, opts);
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(body?.error?.message || res.status), { body });
+  return body.data;
+}
+const uuid = () => crypto.randomUUID();
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ── state ─────────────────────────────────────────────────── */
+const S = {
+  tab: 'today',
+  home: null,
+  exercises: [],
+  session: null,          // { startedAt, exercises:[{id,name,history,sets:[{kg,reps,done}]}] }
+  lastResult: null,
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   TODAY
+   ═══════════════════════════════════════════════════════════════ */
+function occCard(o) {
+  const pct = o.capacity ? Math.min(100, Math.round(o.current / o.capacity * 100)) : 0;
+  const label = { low: 'Quiet', moderate: 'Filling up', high: 'Busy' }[o.level] || 'Quiet';
+  return `
+  <div class="card lv-${esc(o.level)}">
+    <div class="row">
+      <div>
+        <h2>In the gym right now</h2>
+        <div style="display:flex;align-items:baseline;gap:7px;margin-top:8px">
+          <span class="mono" style="font-size:34px;font-weight:700;letter-spacing:-.04em">${o.current}</span>
+          <span class="sub mono">/ ${o.capacity || '-'} capacity</span>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div class="lvl" style="font-size:14px;font-weight:660">${label}</div>
+        <div class="live"><span class="pulse"></span>live</div>
+      </div>
+    </div>
+    <div class="occ-bar"><div class="occ-fill" style="width:${pct}%"></div></div>
+    <div class="caption" style="margin-top:9px">Updates every 30 seconds from gym check-ins.</div>
+  </div>`;
+}
+
+function renderToday() {
+  const h = S.home;
+  if (!h) return `<div class="empty">Loading…</div>`;
+  const t = h.today || {};
+  const flag = (on, label) => `<span class="chip ${on ? 'on' : ''}">${on ? '✓' : '○'} ${label}</span>`;
+
+  return `
+  <h1>${esc(h.greeting || 'Hello')}</h1>
+  <p class="sub" style="margin-top:5px">${esc(h.membership?.planName || 'Iron Temple Fitness')}</p>
+
+  <div class="card" style="margin-top:18px;${t.streakAtRisk ? 'border-color:rgba(225,6,0,.45);background:linear-gradient(180deg,var(--accent-soft),var(--surface))' : ''}">
+    <div class="row">
+      <div>
+        <h2>Streak</h2>
+        <div style="display:flex;align-items:baseline;gap:7px;margin-top:8px">
+          <span class="mono" style="font-size:34px;font-weight:700;letter-spacing:-.04em">${h.streak?.days ?? 0}</span>
+          <span class="sub">days</span>
+        </div>
+      </div>
+      <div style="font-size:32px">${t.streakAtRisk ? '⚠️' : '🔥'}</div>
+    </div>
+    ${t.streakAtRisk
+      ? `<div class="sub" style="margin-top:10px;color:#FF8A85">Nothing logged yet today. Keep it alive.</div>`
+      : ``}
+    <div style="display:flex;gap:7px;margin-top:14px;flex-wrap:wrap">
+      ${flag(t.checkedIn, 'Checked in')}${flag(t.workoutLogged, 'Workout')}${flag(t.mealLogged, 'Meal')}
+    </div>
+  </div>
+
+  ${occCard(h.occupancy || { current: 0, capacity: 0, level: 'low' })}
+
+  <div class="card">
+    <h2>Today's workout</h2>
+    ${h.todayWorkout
+      ? `<div class="row" style="margin-top:10px">
+           <div><div style="font-size:16px;font-weight:640">${esc(h.todayWorkout.title || 'Assigned workout')}</div>
+           <div class="sub">${h.todayWorkout.exerciseCount ?? ''} exercises</div></div></div>
+         <button class="btn" style="margin-top:14px" onclick="startSession()">Start workout</button>`
+      : `<div class="sub" style="margin-top:9px">No workout assigned by your trainer today.</div>
+         <button class="btn" style="margin-top:14px" onclick="startSession()">Start an empty workout</button>`}
+  </div>
+
+  <div class="card">
+    <h2>Next class</h2>
+    ${h.nextClass
+      ? `<div class="row" style="margin-top:10px">
+           <div><div style="font-size:16px;font-weight:640">${esc(h.nextClass.title)}</div>
+           <div class="sub mono">${new Date(h.nextClass.startsAt).toLocaleString()} · ${h.nextClass.seatsLeft} seats left</div></div>
+           <button class="btn sm">Book</button></div>`
+      : `<div class="sub" style="margin-top:9px">Nothing scheduled at your branch.</div>`}
+  </div>
+
+  <div class="card">
+    <div class="row"><h2>Fuel</h2><button class="btn ghost sm" onclick="addWater()">+250ml</button></div>
+    <div class="row" style="margin-top:12px">
+      <div><div class="mono" style="font-size:21px;font-weight:660">${h.nutrition?.kcal ?? 0}</div>
+           <div class="caption">/ ${h.nutrition?.kcalGoal ?? 0} kcal</div></div>
+      <div style="text-align:right"><div class="mono" style="font-size:21px;font-weight:660">${((h.nutrition?.waterMl ?? 0)/1000).toFixed(1)}L</div>
+           <div class="caption">/ ${((h.nutrition?.waterGoal ?? 0)/1000).toFixed(1)}L water</div></div>
+    </div>
+  </div>`;
+}
+
+async function addWater() {
+  try {
+    await api('/nutrition/water', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'idempotency-key': uuid() },
+      body: JSON.stringify({ amountMl: 250 }),
+    });
+    await loadHome(); render();
+  } catch (e) { alert('Could not log water: ' + e.message); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   WORKOUT LOGGING , the core loop
+   ═══════════════════════════════════════════════════════════════ */
+function startSession() {
+  S.session = { startedAt: Date.now(), exercises: [] };
+  S.lastResult = null;
+  S.tab = 'log'; render();
+}
+
+function renderLog() {
+  if (S.lastResult) return renderSummary();
+  if (!S.session) {
+    return `<h1>Log a workout</h1>
+      <p class="sub" style="margin-top:6px">Start an empty session and add exercises as you go, or follow a plan your trainer assigned.</p>
+      <button class="btn" style="margin-top:20px" onclick="startSession()">Start empty workout</button>`;
+  }
+
+  const mins = Math.floor((Date.now() - S.session.startedAt) / 60000);
+  const doneSets = S.session.exercises.reduce((n, e) => n + e.sets.filter(s => s.done).length, 0);
+  const volume = S.session.exercises.reduce((v, e) =>
+    v + e.sets.filter(s => s.done).reduce((a, s) => a + (+s.kg || 0) * (+s.reps || 0), 0), 0);
+
+  return `
+  <div class="row">
+    <div><h1 style="font-size:22px">Workout</h1>
+      <div class="sub mono">${mins} min · ${doneSets} sets · ${Math.round(volume).toLocaleString()} kg</div></div>
+    <button class="btn sm" onclick="finish()" ${doneSets ? '' : 'style="opacity:.4"'}>Finish</button>
+  </div>
+
+  ${S.session.exercises.map((ex, i) => renderExercise(ex, i)).join('')}
+
+  <button class="btn ghost" style="margin-top:14px" onclick="openPicker()">+ Add exercise</button>
+  ${S.session.exercises.length
+    ? `<button class="btn ghost" style="margin-top:9px;color:var(--t3)" onclick="cancelSession()">Discard workout</button>` : ''}`;
+}
+
+function renderExercise(ex, i) {
+  const prev = ex.history?.sessions?.[0]?.sets || [];
+  const pr = ex.history?.personalRecord;
+  return `
+  <div class="card" style="margin-top:14px">
+    <div class="row">
+      <div>
+        <div style="font-size:16px;font-weight:640">${esc(ex.name)}</div>
+        ${pr ? `<div class="caption mono" style="margin-top:3px">PR ${pr.weight}${esc(pr.unit)} × ${pr.reps}</div>`
+             : `<div class="caption" style="margin-top:3px">No history yet</div>`}
+      </div>
+      <button class="btn ghost sm" onclick="removeExercise(${i})">Remove</button>
+    </div>
+
+    <div class="divide"></div>
+    <div class="setgrid head"><span>Set</span><span>Previous</span><span>Kg</span><span>Reps</span><span></span></div>
+    ${ex.sets.map((s, j) => {
+      const p = prev[j];
+      return `
+      <div class="setgrid setrow ${s.done ? 'done' : ''}">
+        <span class="mono" style="color:var(--t3);font-size:13px;text-align:center">${j + 1}</span>
+        <span class="prev">${p ? `${p.weight}kg × ${p.reps}` : '-'}</span>
+        <input inputmode="decimal" value="${s.kg ?? ''}" placeholder="${p ? p.weight : '0'}"
+               oninput="setVal(${i},${j},'kg',this.value)" ${s.done ? 'disabled' : ''}>
+        <input inputmode="numeric" value="${s.reps ?? ''}" placeholder="${p ? p.reps : '0'}"
+               oninput="setVal(${i},${j},'reps',this.value)" ${s.done ? 'disabled' : ''}>
+        <button class="tick" onclick="toggleSet(${i},${j})">✓</button>
+      </div>`;
+    }).join('')}
+    <button class="btn ghost sm" style="width:100%;margin-top:6px" onclick="addSet(${i})">+ Add set</button>
+  </div>`;
+}
+
+function setVal(i, j, k, v) { S.session.exercises[i].sets[j][k] = v; }
+function addSet(i) {
+  const ex = S.session.exercises[i];
+  const last = ex.sets[ex.sets.length - 1];
+  ex.sets.push({ kg: last?.kg ?? '', reps: last?.reps ?? '', done: false });
+  render();
+}
+function removeExercise(i) { S.session.exercises.splice(i, 1); render(); }
+function cancelSession() { S.session = null; stopRest(); render(); }
+
+/** Completing a set starts the rest timer and prefills the next row , the
+ *  single most-repeated interaction in the app, so it stays one tap. */
+function toggleSet(i, j) {
+  const ex = S.session.exercises[i];
+  const s = ex.sets[j];
+  const prev = ex.history?.sessions?.[0]?.sets?.[j];
+
+  if (!s.done) {
+    if (!s.kg) s.kg = prev?.weight ?? 0;
+    if (!s.reps) s.reps = prev?.reps ?? 0;
+    s.done = true;
+    startRest(90);
+    const next = ex.sets[j + 1];
+    if (next && !next.done && !next.kg) { next.kg = s.kg; next.reps = s.reps; }
+  } else {
+    s.done = false;
+  }
+  render();
+}
+
+async function finish() {
+  const sets = [];
+  for (const ex of S.session.exercises) {
+    ex.sets.filter(s => s.done).forEach((s, n) => sets.push({
+      exerciseId: ex.id, setNumber: n + 1,
+      reps: Math.round(+s.reps || 0), weight: +s.kg || 0, unit: 'kg',
+    }));
+  }
+  if (!sets.length) return alert('Complete at least one set first.');
+
+  try {
+    const result = await api('/workouts/logs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'idempotency-key': uuid() },
+      body: JSON.stringify({ sets }),
+    });
+    S.lastResult = {
+      ...result,
+      mins: Math.max(1, Math.floor((Date.now() - S.session.startedAt) / 60000)),
+      sets: sets.length,
+      volume: sets.reduce((a, s) => a + s.weight * s.reps, 0),
+      names: Object.fromEntries(S.session.exercises.map(e => [e.id, e.name])),
+    };
+    S.session = null; stopRest();
+    await loadHome();
+    render();
+  } catch (e) { alert('Could not save: ' + e.message); }
+}
+
+function renderSummary() {
+  const r = S.lastResult;
+  const prs = r.newPersonalRecords || [];
+  return `
+  <div style="text-align:center;padding:34px 0 10px">
+    <div style="font-size:52px">${prs.length ? '🏆' : '✅'}</div>
+    <h1 style="margin-top:14px">Workout saved</h1>
+    <p class="sub" style="margin-top:6px">Logged to Iron Temple Fitness</p>
+  </div>
+  <div class="card">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);text-align:center">
+      <div><div class="mono" style="font-size:22px;font-weight:680">${r.mins}</div><div class="caption">minutes</div></div>
+      <div><div class="mono" style="font-size:22px;font-weight:680">${r.sets}</div><div class="caption">sets</div></div>
+      <div><div class="mono" style="font-size:22px;font-weight:680">${Math.round(r.volume).toLocaleString()}</div><div class="caption">kg volume</div></div>
+    </div>
+  </div>
+  ${prs.length ? `
+  <div class="card" style="border-color:rgba(225,6,0,.4);background:linear-gradient(180deg,var(--accent-soft),var(--surface))">
+    <h2 style="color:#FF6B66">New personal record${prs.length > 1 ? 's' : ''}</h2>
+    ${prs.map(p => `<div class="row" style="margin-top:10px">
+      <span style="font-weight:600">${esc(r.names[p.exerciseId] || 'Exercise')}</span>
+      <span class="mono" style="font-weight:680">${p.weight} kg</span></div>`).join('')}
+    <div class="caption" style="margin-top:10px">Detected server-side and written to your PR wall.</div>
+  </div>` : ''}
+  <button class="btn" style="margin-top:16px" onclick="S.lastResult=null;S.tab='today';render()">Done</button>`;
+}
+
+/* ── rest timer ────────────────────────────────────────────── */
+let restLeft = 0, restTick = null;
+function startRest(sec) {
+  restLeft = sec;
+  document.getElementById('rest').classList.add('show');
+  paintRest();
+  clearInterval(restTick);
+  restTick = setInterval(() => {
+    if (--restLeft <= 0) return stopRest();
+    paintRest();
+  }, 1000);
+}
+function addRest(s) { restLeft += s; paintRest(); }
+function stopRest() { clearInterval(restTick); document.getElementById('rest').classList.remove('show'); }
+function paintRest() {
+  document.getElementById('restTime').textContent =
+    `${Math.floor(restLeft / 60)}:${String(restLeft % 60).padStart(2, '0')}`;
+}
+
+/* ── exercise picker ───────────────────────────────────────── */
+async function openPicker() {
+  document.getElementById('sheet').classList.add('show');
+  const body = document.getElementById('sheetBody');
+  body.innerHTML = `<div class="empty">Loading catalogue…</div>`;
+  try {
+    if (!S.exercises.length) S.exercises = (await api('/exercises')).exercises || [];
+    body.innerHTML = S.exercises.length
+      ? S.exercises.map(e => `
+        <div class="card" style="margin-top:9px" onclick="pick('${e.id}')">
+          <div class="row">
+            <div><div style="font-weight:620">${esc(e.name)}</div>
+              <div class="caption" style="margin-top:2px">${esc(e.muscleGroup || '')} · ${esc(e.equipment || '')}</div></div>
+            <span style="color:var(--t3)">＋</span>
+          </div>
+        </div>`).join('')
+      : `<div class="empty">This gym has no exercise catalogue yet.</div>`;
+  } catch (e) { body.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function closeSheet() { document.getElementById('sheet').classList.remove('show'); }
+
+/** Adding an exercise pulls its history so the PREVIOUS column and the
+ *  prefilled inputs are populated before the member touches anything. */
+async function pick(id) {
+  const meta = S.exercises.find(e => e.id === id);
+  closeSheet();
+  let history = null;
+  try { history = await api(`/exercises/${id}/history?limit=5`); } catch {}
+  const prev = history?.sessions?.[0]?.sets || [];
+  const sets = (prev.length ? prev : [{}, {}, {}]).map(p => ({ kg: '', reps: '', done: false }));
+  S.session.exercises.push({ id, name: meta?.name || history?.exercise?.name || 'Exercise', history, sets });
+  render();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GYM / PROGRESS / ME
+   ═══════════════════════════════════════════════════════════════ */
+let gymData = null;
+async function loadGym() {
+  const [occ, cls, id] = await Promise.all([
+    api('/gym/occupancy').catch(() => null),
+    api('/classes').catch(() => ({ classes: [] })),
+    api('/id').catch(() => null),
+  ]);
+  gymData = { occ, classes: cls?.classes || [], id };
+}
+/** The dynamic token really does expire, so count it down and pull a fresh
+ *  QR when it does — the same thing the native app would do. */
+let qrTimer = null;
+function driveQr() {
+  clearInterval(qrTimer);
+  const exp = gymData?.id?.dynamicExpiresAt ? new Date(gymData.id.dynamicExpiresAt).getTime() : 0;
+  if (!exp) return;
+  qrTimer = setInterval(async () => {
+    const el = document.getElementById('qrTtl');
+    if (!el || S.tab !== 'gym') { clearInterval(qrTimer); return; }
+    const left = Math.round((exp - Date.now()) / 1000);
+    if (left <= 0) { clearInterval(qrTimer); await loadGym(); render(); driveQr(); return; }
+    el.textContent = left + 's';
+  }, 1000);
+}
+
+function renderGym() {
+  if (!gymData) return `<div class="empty">Loading…</div>`;
+  return `
+  <h1>Your gym</h1>
+  <p class="sub" style="margin-top:5px">Iron Temple Fitness</p>
+  <div style="margin-top:18px">${occCard(gymData.occ || { current: 0, capacity: 0, level: 'low' })}</div>
+  <div class="card">
+    <h2>Check in</h2>
+    <div class="sub" style="margin-top:9px">Show this at the front desk. The code rotates every 35 seconds, so a screenshot will not work.</div>
+    <div style="margin-top:14px;background:#fff;border-radius:12px;padding:14px;display:flex;justify-content:center">
+      ${gymData.id?.dynamicQr
+        ? `<img src="${gymData.id.dynamicQr}" alt="Check-in QR" style="width:170px;height:170px;image-rendering:pixelated">`
+        : `<div style="color:#555;font-size:13px;padding:60px 0">QR unavailable</div>`}
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div><div class="caption">Member code</div>
+        <div class="mono" style="font-weight:620;margin-top:2px">${esc(gymData.id?.memberCode || '-')}</div></div>
+      <div style="text-align:right"><div class="caption">Rotates in</div>
+        <div class="mono" id="qrTtl" style="font-weight:620;margin-top:2px">-</div></div>
+    </div>
+    <button class="btn" style="margin-top:14px" onclick="checkIn()">Check in now</button>
+  </div>
+  <div class="card">
+    <h2>Classes</h2>
+    ${gymData.classes.length
+      ? gymData.classes.map(c => `<div class="row" style="margin-top:11px">
+          <div><div style="font-weight:620">${esc(c.title || c.name)}</div>
+          <div class="caption mono">${new Date(c.startsAt).toLocaleString()}</div></div>
+          <button class="btn sm">Book</button></div>`).join('')
+      : `<div class="sub" style="margin-top:9px">No classes scheduled at your branch.</div>`}
+  </div>`;
+}
+async function checkIn() {
+  try {
+    await api('/checkins', { method: 'POST',
+      headers: { 'content-type': 'application/json', 'idempotency-key': uuid() },
+      body: JSON.stringify({ method: 'qr' }) });
+    await Promise.all([loadHome(), loadGym()]); render();
+    alert('Checked in.');
+  } catch (e) { alert('Check-in refused: ' + e.message); }
+}
+
+let progData = null;
+async function loadProgress() {
+  const [visits, board] = await Promise.all([
+    api('/visits/summary').catch(() => null),
+    api('/community/leaderboard').catch(() => null),
+  ]);
+  // PR wall: one history call per catalogue exercise that has a record.
+  if (!S.exercises.length) S.exercises = (await api('/exercises').catch(() => ({ exercises: [] }))).exercises || [];
+  const hist = await Promise.all(S.exercises.map(e =>
+    api(`/exercises/${e.id}/history?limit=1`).catch(() => null)));
+  progData = {
+    visits, board,
+    prs: hist.filter(h => h?.personalRecord).map(h => ({ name: h.exercise.name, ...h.personalRecord })),
+  };
+}
+function renderProgress() {
+  if (!progData) return `<div class="empty">Loading…</div>`;
+  const b = progData.board;
+  return `
+  <h1>Progress</h1>
+  <div class="card" style="margin-top:18px">
+    <h2>Personal records</h2>
+    ${progData.prs.length
+      ? progData.prs.map(p => `<div class="row" style="margin-top:11px">
+          <span style="font-weight:600">${esc(p.name)}</span>
+          <span class="mono" style="font-weight:680">${p.weight} ${esc(p.unit)} × ${p.reps}</span></div>`).join('')
+      : `<div class="sub" style="margin-top:9px">Log a workout to set your first record.</div>`}
+  </div>
+  <div class="card">
+    <h2>Visits</h2>
+    <div class="row" style="margin-top:12px">
+      <div><div class="mono" style="font-size:22px;font-weight:680">${progData.visits?.thisMonthVisits ?? 0}</div><div class="caption">this month</div></div>
+      <div style="text-align:right"><div class="mono" style="font-size:22px;font-weight:680">${progData.visits?.totalVisits ?? 0}</div><div class="caption">all time</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Gym leaderboard · ${esc(b?.metric || '')} · ${b?.periodDays ?? 30}d</h2>
+    ${(b?.entries || []).slice(0, 7).map(e => `
+      <div class="row" style="margin-top:10px;${e.isMe ? 'color:#FF6B66;font-weight:640' : ''}">
+        <span><span class="mono" style="color:var(--t3);margin-right:10px">${e.rank}</span>${esc(e.name)}</span>
+        <span class="mono">${e.value}</span></div>`).join('') || `<div class="sub" style="margin-top:9px">No entries yet.</div>`}
+  </div>`;
+}
+
+let meData = null;
+async function loadMe() { meData = await api('/me').catch(() => null); }
+function renderMe() {
+  if (!meData) return `<div class="empty">Loading…</div>`;
+  const row = (k, v) => `<div class="row" style="margin-top:11px"><span class="sub">${k}</span><span style="font-weight:600">${esc(v ?? '-')}</span></div>`;
+  return `
+  <h1>${esc(meData.name)}</h1>
+  <p class="sub" style="margin-top:5px">${esc(meData.gymName)}</p>
+  <div class="card" style="margin-top:18px">
+    <h2>Profile</h2>
+    ${row('Phone', meData.phone)}${row('Goal', meData.goal)}${row('Height', meData.heightCm ? meData.heightCm + ' cm' : null)}${row('Weight', meData.weightKg ? meData.weightKg + ' kg' : null)}
+  </div>
+  <div class="card">
+    <h2>Membership</h2>
+    <div class="sub" style="margin-top:9px">${S.home?.membership ? esc(S.home.membership.planName) : 'No active membership on this account.'}</div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SHELL
+   ═══════════════════════════════════════════════════════════════ */
+const ICONS = {
+  today: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V21h13V9.5"/>',
+  gym:   '<path d="M4 8v8M20 8v8M7 6v12M17 6v12"/><path d="M7 12h10"/>',
+  progress: '<path d="M3 20h18"/><path d="M6 20v-6M11 20V7M16 20v-9"/>',
+  me:    '<circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.3-3.9 4.1-5.6 7.5-5.6s6.2 1.7 7.5 5.6"/>',
+};
+function renderTabs() {
+  const tab = (id, label) => `
+    <button class="tab ${S.tab === id ? 'on' : ''}" onclick="go('${id}')">
+      <svg viewBox="0 0 24 24">${ICONS[id]}</svg><span>${label}</span></button>`;
+  document.getElementById('tabs').innerHTML =
+    tab('today', 'Today') + tab('gym', 'Gym') +
+    `<button class="tab" onclick="startSession()"><span class="fab">
+       <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></button>` +
+    tab('progress', 'Progress') + tab('me', 'Me');
+}
+
+const VIEWS = { today: renderToday, gym: renderGym, progress: renderProgress, me: renderMe, log: renderLog };
+function render() {
+  document.getElementById('view').innerHTML = VIEWS[S.tab]();
+  renderTabs();
+}
+async function go(tab) {
+  S.tab = tab; render();
+  try {
+    if (tab === 'today' && !S.home) await loadHome();
+    if (tab === 'gym') { await loadGym(); }
+    if (tab === 'progress') await loadProgress();
+    if (tab === 'me' && !meData) await loadMe();
+  } catch (e) { console.error(e); }
+  render();
+  if (tab === 'gym') driveQr();
+}
+async function loadHome() { S.home = await api('/home'); }
+
+/* clock + occupancy polling */
+setInterval(() => {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}, 1000);
+setInterval(async () => {
+  if (S.tab !== 'today' || !S.home) return;
+  try { S.home.occupancy = await api('/gym/occupancy'); render(); } catch {}
+}, 30000);
+
+(async () => {
+  renderTabs();
+  document.getElementById('view').innerHTML = `<div class="empty">Connecting to the Member BFF…</div>`;
+  try { await loadHome(); } catch (e) {
+    document.getElementById('view').innerHTML =
+      `<div class="empty">Could not reach the API.<br><br>${esc(e.message)}</div>`;
+    return;
+  }
+  render();
+})();
+</script>
+</body>
+</html>

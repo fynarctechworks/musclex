@@ -16,6 +16,8 @@ type SetInput = {
   reps?: number;
   weight?: number;
   unit?: 'kg' | 'lb';
+  /** Seconds, for interval exercises. Null/absent for rep-based sets. */
+  durationSeconds?: number;
 };
 
 /**
@@ -82,11 +84,17 @@ export class MemberWorkoutService {
    * on workout_logs makes the DB write itself safe against offline-outbox
    * retries — a replayed key returns the original log instead of double-counting.
    */
+  /**
+   * Log sets against a trainer-assigned workout. The assignment is
+   * ownership-checked before anything is written, and completing it flips the
+   * assignment to `completed` so the trainer's dashboard reflects the session.
+   */
   async logWorkout(
     member: CurrentMemberContext,
     workoutId: string,
     sets: SetInput[],
     idempotencyKey?: string,
+    span?: { startedAt?: string; endedAt?: string },
   ): Promise<WorkoutLogResultData> {
     // Ownership gate: the assigned workout must belong to THIS member.
     const assigned = await this.tenant.client.assignedWorkout.findFirst({
@@ -95,6 +103,44 @@ export class MemberWorkoutService {
     });
     if (!assigned) throw MemberException.notFound('Workout not found.');
 
+    return this.persistSets(member, sets, idempotencyKey, assigned, span);
+  }
+
+  /**
+   * Log a workout the member started themselves, with no trainer assignment
+   * behind it — the app's core loop, where someone walks in and lifts.
+   *
+   * Same body, same idempotency and the same PR detection as the assigned
+   * variant; it simply leaves `assigned_workout_id` null (the column is
+   * nullable) and marks no assignment complete. Nothing about the write is
+   * client-trusted: member_id comes from the token and gym_id from the tenant
+   * client, so a freestyle log can only ever land in the caller's own gym.
+   */
+  async logFreestyle(
+    member: CurrentMemberContext,
+    sets: SetInput[],
+    idempotencyKey?: string,
+    span?: { startedAt?: string; endedAt?: string },
+  ): Promise<WorkoutLogResultData> {
+    return this.persistSets(member, sets, idempotencyKey, null, span);
+  }
+
+  /**
+   * Shared write path for both logging routes.
+   *
+   * `assigned` is the ownership-checked assignment, or null for a freestyle
+   * session. Replay safety is doubled up: the @Idempotent interceptor catches
+   * the common case, and the `client_key` unique index catches a retry that
+   * outlived the interceptor's cache — which matters here because the app logs
+   * through an offline outbox and may retry a set hours later.
+   */
+  private async persistSets(
+    member: CurrentMemberContext,
+    sets: SetInput[],
+    idempotencyKey: string | undefined,
+    assigned: { id: string; workout_plan_id: string } | null,
+    span?: { startedAt?: string; endedAt?: string },
+  ): Promise<WorkoutLogResultData> {
     if (!Array.isArray(sets) || sets.length === 0) {
       throw MemberException.badRequest('At least one set is required.');
     }
@@ -114,9 +160,13 @@ export class MemberWorkoutService {
       data: {
         gym_id: gymId,
         member_id: member.memberId,
-        assigned_workout_id: assigned.id,
-        workout_plan_id: assigned.workout_plan_id,
+        assigned_workout_id: assigned?.id ?? null,
+        workout_plan_id: assigned?.workout_plan_id ?? null,
         client_key: idempotencyKey ?? null,
+        // When the session actually happened, for a workout logged after the
+        // fact. `logged_at` stays the write time.
+        started_at: span?.startedAt ? new Date(span.startedAt) : null,
+        ended_at: span?.endedAt ? new Date(span.endedAt) : null,
         sets: {
           create: sets.map((s, i) => ({
             gym_id: gymId,
@@ -124,6 +174,7 @@ export class MemberWorkoutService {
             set_number: s.setNumber ?? i + 1,
             reps: s.reps ?? 0,
             weight: s.weight ?? 0,
+            duration_seconds: s.durationSeconds ?? null,
             unit: s.unit === 'lb' ? 'lb' : 'kg',
           })),
         },
@@ -132,10 +183,12 @@ export class MemberWorkoutService {
     });
 
     // Mark the assignment complete (idempotent — repeated calls are harmless).
-    await this.tenant.client.assignedWorkout.updateMany({
-      where: { id: assigned.id, member_id: member.memberId },
-      data: { status: 'completed', completed_at: new Date() },
-    });
+    if (assigned) {
+      await this.tenant.client.assignedWorkout.updateMany({
+        where: { id: assigned.id, member_id: member.memberId },
+        data: { status: 'completed', completed_at: new Date() },
+      });
+    }
 
     const newPersonalRecords = await this.updatePersonalRecords(
       member,
@@ -144,6 +197,178 @@ export class MemberWorkoutService {
     );
 
     return { logId: log.id, newPersonalRecords };
+  }
+
+  /**
+   * Training statistics over a window.
+   *
+   * Computed from the member's own logs rather than stored as counters: a
+   * counter drifts the moment a log is edited or deleted, and these are read
+   * far less often than sets are written. `started_at`/`ended_at` are optional,
+   * so duration only counts sessions that recorded a span — reporting a
+   * best-guess there would make "average session length" quietly fictional.
+   */
+  async stats(
+    member: CurrentMemberContext,
+    days = 30,
+  ): Promise<{
+    periodDays: number;
+    workouts: number;
+    totalVolumeKg: number;
+    avgVolumeKg: number;
+    totalSets: number;
+    totalExercises: number;
+    totalSeconds: number;
+    timedSessions: number;
+    avgSessionSeconds: number | null;
+    currentStreak: number;
+    longestStreak: number;
+    activeDays: { date: string; sets: number }[];
+    mostPerformed: { exerciseId: string; name: string; sessions: number }[];
+    personalRecords: {
+      exerciseId: string;
+      name: string;
+      weight: number;
+      reps: number;
+      unit: string;
+      achievedAt: string;
+    }[];
+  }> {
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    since.setHours(0, 0, 0, 0);
+
+    const logs = await this.tenant.client.workoutLog.findMany({
+      where: { member_id: member.memberId, logged_at: { gte: since } },
+      select: {
+        id: true,
+        logged_at: true,
+        started_at: true,
+        ended_at: true,
+        sets: {
+          select: {
+            reps: true,
+            weight: true,
+            duration_seconds: true,
+            exercise_id: true,
+            exercise: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { logged_at: 'asc' },
+    });
+
+    let totalVolume = 0;
+    let totalSeconds = 0;
+    let totalSets = 0;
+    let sessionSeconds = 0;
+    let timedSessions = 0;
+    const exercises = new Set<string>();
+    const byDay = new Map<string, number>();
+    const perExercise = new Map<string, { name: string; sessions: number }>();
+
+    for (const log of logs) {
+      const day = log.logged_at.toISOString().slice(0, 10);
+      byDay.set(day, (byDay.get(day) ?? 0) + log.sets.length);
+      totalSets += log.sets.length;
+
+      if (log.started_at && log.ended_at) {
+        sessionSeconds += Math.max(
+          0,
+          Math.round((log.ended_at.getTime() - log.started_at.getTime()) / 1000),
+        );
+        timedSessions += 1;
+      }
+
+      const seenHere = new Set<string>();
+      for (const set of log.sets) {
+        totalVolume += (Number(set.weight) || 0) * (set.reps || 0);
+        totalSeconds += set.duration_seconds ?? 0;
+        exercises.add(set.exercise_id);
+        if (!seenHere.has(set.exercise_id)) {
+          seenHere.add(set.exercise_id);
+          const prev = perExercise.get(set.exercise_id);
+          perExercise.set(set.exercise_id, {
+            name: set.exercise?.name ?? 'Exercise',
+            sessions: (prev?.sessions ?? 0) + 1,
+          });
+        }
+      }
+    }
+
+    // Streaks run over calendar days with at least one logged set. Computed
+    // across the window only, so a longer streak that started before it is
+    // reported as the part that falls inside.
+    const days_ = [...byDay.keys()].sort();
+    let longest = 0;
+    let run = 0;
+    let prev: Date | null = null;
+    for (const d of days_) {
+      const cur = new Date(d + 'T00:00:00Z');
+      const consecutive =
+        prev && Math.round((cur.getTime() - prev.getTime()) / 86_400_000) === 1;
+      run = consecutive ? run + 1 : 1;
+      longest = Math.max(longest, run);
+      prev = cur;
+    }
+
+    // The current streak only counts if it reaches today or yesterday —
+    // otherwise it is a streak the member has already broken.
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let current = 0;
+    for (let i = 0; ; i += 1) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      if (byDay.has(key)) current += 1;
+      else if (i > 0) break;
+      else continue;
+    }
+
+    // PRs come back with the stats rather than one request per exercise. The
+    // client used to fetch history for every catalogue entry to build its PR
+    // wall, which is N calls that grow with the gym's library — at 13 exercises
+    // it was already tripping the rate limiter.
+    const prRows = await this.tenant.client.personalRecord.findMany({
+      where: { member_id: member.memberId },
+      orderBy: { weight: 'desc' },
+      select: {
+        exercise_id: true,
+        weight: true,
+        reps: true,
+        unit: true,
+        achieved_at: true,
+        exercise: { select: { name: true } },
+      },
+    });
+
+    return {
+      periodDays: days,
+      workouts: logs.length,
+      totalVolumeKg: Math.round(totalVolume),
+      avgVolumeKg: logs.length ? Math.round(totalVolume / logs.length) : 0,
+      totalSets,
+      totalExercises: exercises.size,
+      totalSeconds,
+      timedSessions,
+      avgSessionSeconds: timedSessions ? Math.round(sessionSeconds / timedSessions) : null,
+      currentStreak: current,
+      longestStreak: longest,
+      activeDays: days_.map((d) => ({ date: d, sets: byDay.get(d) ?? 0 })),
+      mostPerformed: [...perExercise.entries()]
+        .map(([exerciseId, v]) => ({ exerciseId, name: v.name, sessions: v.sessions }))
+        .sort((a, b) => b.sessions - a.sessions)
+        .slice(0, 5),
+      personalRecords: prRows.map((r) => ({
+        exerciseId: r.exercise_id,
+        name: r.exercise?.name ?? 'Exercise',
+        weight: Number(r.weight) || 0,
+        reps: r.reps,
+        unit: r.unit,
+        achievedAt: r.achieved_at.toISOString(),
+      })),
+    };
   }
 
   // ── helpers ────────────────────────────────────────────────────

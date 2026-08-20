@@ -16,7 +16,7 @@ It is a **monorepo of four apps** sharing one Supabase Postgres database:
 |---|---|---|
 | `backend/` | Core gym API (memberships, check-ins, classes, payments, inventory, member BFF) | NestJS 10 + Prisma 5 (**multi-schema**) |
 | `frontend/` | Gym admin / operations web app | Next.js 14 (App Router) + Supabase |
-| `gym-member-app/` | Member mobile app | Expo / React Native (dark-first "Geist" design system) |
+| `member-app/` | Member mobile app | Expo / React Native (dark-first, one red accent) |
 | `saas-control-center/` (+ `/frontend`) | Internal super-admin control center (SCC) | NestJS + Next.js 16 |
 
 Supporting: `docs/`, `design.md` (the design language), `scripts/`, `tasks/`.
@@ -40,6 +40,8 @@ analysis/roadmap first, then are built slice by slice.
    scoping, or the tenant-model set works.
 3. **New dependencies** — adding any package. Justify each one when you propose it.
 4. **Leaving Expo Go / native builds** for the member app (one-way EAS shift).
+   `member-app/` currently runs on Expo web and Expo Go; keep it that way unless
+   asked. A native module is what forced the previous member app onto dev builds.
 5. **External or legal actions** — partner-program registration, publishing,
    sending anything to a third party, anything hard to reverse.
 6. **Deleting code you believe is unused** — show it first and explain why it's safe.
@@ -75,15 +77,19 @@ Tenant isolation here is **enforced in the app layer, not by the database**:
   same `.next/` — vendor-chunk mismatch crashes dev. Prefer `tsc --noEmit` to verify.
 - **Bash cwd resets to the monorepo root between turns.** Use absolute paths,
   `npm --prefix <app>`, or call a sub-project's local binary directly
-  (e.g. `gym-member-app/node_modules/.bin/tsc`). `npx tsc` from the root fails.
-- **Member app can't run in Expo Go** (native modules) — it needs a dev build.
+  (e.g. `member-app/node_modules/.bin/tsc`). `npx tsc` from the root fails.
+- **Member app web needs a CORS entry.** `npm --prefix member-app run web` serves on
+  :8082; the backend's `CORS_ORIGINS` must include that origin or every call fails
+  preflight.
 
 ## Testing & verification
 - ALWAYS run the relevant checks after a change and report the real result.
 - `backend/` has Jest tests — run the ones covering what you touched.
-- `gym-member-app/` has **no tests** — verify with
-  `gym-member-app/node_modules/.bin/tsc --noEmit` and SAY that no tests cover it;
-  RN UI behavior (animation, layout) is **on-device QA**, not verifiable from here.
+- `member-app/` has **no tests** — verify with
+  `member-app/node_modules/.bin/tsc --noEmit` and SAY that no tests cover it.
+  It can additionally be driven end to end in a browser via `run web`, which is
+  how the logging loop was verified; genuine native behaviour (haptics, gestures,
+  background timers) is still **on-device QA**, not verifiable from here.
 - Never invent findings. If you haven't measured or verified something, say
   **"unverified"** — never present a guess as a fact.
 

@@ -134,6 +134,17 @@ export class ExpenseCategoriesService {
     const gymId = getTenantGymId();
     if (!gymId) return;
 
+    // The upsert below keys on the compound unique (gym_id, branch_id, slug).
+    // Prisma will not accept a null inside a compound-unique `where`, so a
+    // missing branch cannot be seeded — bail out loudly instead of throwing
+    // from deep inside an expense create.
+    if (!branchId) {
+      this.logger.warn(
+        'ensureDefaultsForBranch called without a branch — skipping default category seed.',
+      );
+      return;
+    }
+
     for (const def of DEFAULT_EXPENSE_CATEGORIES) {
       try {
         await this.tenant.client.expenseCategory.upsert({

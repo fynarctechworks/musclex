@@ -1,0 +1,204 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * MuscleX marketing — light design system.
+ *
+ * This surface does NOT follow `design.md` (the light ink-on-canvas Geist
+ * system that `frontend/` uses in-product). It keeps the structure of the
+ * dark reference redesign — very large tightly-tracked display type, pill
+ * CTAs, card grids, a gradient-filled rotating headline word — rendered on a
+ * white canvas instead of a black one.
+ *
+ * The accent is MuscleX's own brand red. It carries every conversion target
+ * and nothing else.
+ *
+ * Token NAMES are kept from the dark version on purpose (`--glass-*`,
+ * `--text-2`…) so components did not need rewriting — only what they resolve
+ * to changed. "Glass" here means a soft neutral tint rather than translucent
+ * white.
+ */
+
+@layer base {
+  :root {
+    /* ── Surfaces ─────────────────────────────────────────────────────── */
+    --canvas: 0 0% 100%;            /* #ffffff — page background */
+    --canvas-deep: 240 20% 97%;     /* #f6f6f9 — alternating band */
+    --canvas-raised: 0 0% 100%;     /* card surface */
+
+    /* Neutral tint ladder — hover states, table bands, inset fills. */
+    --glass-1: 240 20% 98.5%;       /* #fafafc */
+    --glass-2: 240 16% 96%;         /* #f3f3f7 */
+    --glass-3: 240 14% 93%;         /* #ebebf0 */
+    --hairline: 240 12% 90%;        /* #e3e3e9 */
+    --hairline-strong: 240 8% 78%;  /* #c3c3cb */
+
+    /* ── Text ladder ──────────────────────────────────────────────────── */
+    --text: 240 12% 7%;             /* #101014 */
+    --text-2: 240 7% 32%;           /* #4c4c57 — body copy */
+    --text-3: 240 5% 46%;           /* #70707c — secondary */
+    --text-4: 240 5% 60%;           /* #94949e — eyebrows, captions */
+
+    /* ── Accent — MuscleX red ─────────────────────────────────────────── */
+    --accent: 2 100% 44%;           /* #E10600 */
+    --accent-bright: 8 100% 52%;    /* #FF2408 — hover / gradient start */
+    --accent-warm: 22 100% 50%;     /* #FF6200 — gradient mid */
+    --accent-amber: 38 100% 48%;    /* #F59700 — gradient end */
+    --accent-ink: 0 0% 100%;        /* text on accent */
+
+    /* ── Semantic ─────────────────────────────────────────────────────── */
+    --success: 160 84% 33%;
+    --warning: 32 95% 44%;
+    --danger: 0 84% 50%;
+
+    /* ── Motion ───────────────────────────────────────────────────────── */
+    --motion-fast: 140ms;
+    --motion-medium: 220ms;
+    --motion-slow: 320ms;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  * {
+    border-color: hsl(var(--hairline));
+  }
+
+  html {
+    font-feature-settings: "ss01", "ss02", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+    background-color: hsl(var(--canvas));
+    /* Overscroll at either end should reveal the page colour, and form
+     * controls should render in their light variants. */
+    color-scheme: light;
+  }
+
+  body {
+    background-color: hsl(var(--canvas));
+    color: hsl(var(--text));
+    font-size: 16px;
+    line-height: 26px;
+  }
+
+  /* Display type is set tight and never heavier than 600 — the weight comes
+   * from size, not from stroke. */
+  h1, h2, h3, h4 { font-weight: 600; }
+  h1 { letter-spacing: -0.04em; }
+  h2 { letter-spacing: -0.035em; }
+  h3 { letter-spacing: -0.02em; }
+
+  ::selection {
+    background: hsl(var(--accent) / 0.16);
+    color: hsl(var(--text));
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--accent));
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-[1200px] px-5 sm:px-8;
+  }
+
+  /* ── Card surfaces ──────────────────────────────────────────────────── */
+
+  /*
+   * The workhorse card. On a white page a card cannot rely on fill alone, so
+   * it is held by a hairline ring plus a soft drop — never fill alone, never a
+   * heavy shadow alone.
+   */
+  .glass {
+    background-color: hsl(var(--canvas-raised));
+    border: 1px solid hsl(var(--hairline));
+    box-shadow: 0 1px 2px rgba(16, 16, 24, 0.04);
+  }
+
+  /* Recessed variant — for inset rows and secondary panels. */
+  .glass-2 {
+    background-color: hsl(var(--glass-2));
+    border: 1px solid hsl(var(--hairline));
+  }
+
+  .glass-hover {
+    transition:
+      background-color var(--motion-medium) var(--ease-out),
+      border-color var(--motion-medium) var(--ease-out),
+      box-shadow var(--motion-medium) var(--ease-out);
+  }
+  .glass-hover:hover {
+    border-color: hsl(var(--hairline-strong));
+    box-shadow:
+      0 1px 2px rgba(16, 16, 24, 0.04),
+      0 12px 28px -12px rgba(16, 16, 24, 0.14);
+  }
+
+  /* ── Atmosphere ─────────────────────────────────────────────────────── */
+
+  /* Faint engineering grid behind hero bands — dark lines at low alpha. */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, hsl(240 12% 10% / 0.045) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(240 12% 10% / 0.045) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+
+  /*
+   * Accent bloom. On white this has to be far softer than it was on black —
+   * a warm tint that lifts the top of the page, not a glow.
+   */
+  .bg-bloom {
+    background-image:
+      radial-gradient(52% 46% at 50% 0%, hsl(var(--accent) / 0.13) 0%, transparent 68%),
+      radial-gradient(46% 40% at 14% 6%, hsl(var(--accent-warm) / 0.10) 0%, transparent 70%),
+      radial-gradient(44% 38% at 88% 10%, hsl(var(--accent-amber) / 0.10) 0%, transparent 68%);
+  }
+
+  /* Accent ring + glow for the highlighted plan card. */
+  .glow-accent {
+    border-color: hsl(var(--accent) / 0.32);
+    box-shadow:
+      0 0 0 1px hsl(var(--accent) / 0.22),
+      0 18px 40px -18px hsl(var(--accent) / 0.42);
+  }
+
+  /* ── Type helpers ───────────────────────────────────────────────────── */
+
+  .text-gradient {
+    background-image: linear-gradient(
+      100deg,
+      hsl(var(--accent)) 0%,
+      hsl(var(--accent-warm)) 52%,
+      hsl(var(--accent-amber)) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    /* Descenders get clipped without a little breathing room. */
+    padding-bottom: 0.06em;
+  }
+
+  .eyebrow {
+    @apply text-[12px] font-semibold uppercase tracking-[0.14em] text-text-4;
+  }
+
+  /* ── Misc ───────────────────────────────────────────────────────────── */
+
+  .fade-x {
+    mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+  }
+}

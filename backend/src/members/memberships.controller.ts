@@ -1,4 +1,5 @@
 import {
+  ParseUUIDPipe,
   Controller,
   Get,
   Post,
@@ -47,7 +48,7 @@ export class MembershipsController {
   // ── Get single membership ─────────────────────────────────
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.membershipService.findOne(id);
   }
 
@@ -55,7 +56,7 @@ export class MembershipsController {
 
   @Post(':id/freeze')
   @Roles('owner', 'branch_manager')
-  freeze(@Param('id') id: string, @Body() dto: FreezeMembershipDto) {
+  freeze(@Param('id', ParseUUIDPipe) id: string, @Body() dto: FreezeMembershipDto) {
     return this.membershipService.freeze(id, dto);
   }
 
@@ -63,7 +64,7 @@ export class MembershipsController {
 
   @Post(':id/unfreeze')
   @Roles('owner', 'branch_manager')
-  unfreeze(@Param('id') id: string) {
+  unfreeze(@Param('id', ParseUUIDPipe) id: string) {
     return this.membershipService.unfreeze(id);
   }
 
@@ -71,7 +72,7 @@ export class MembershipsController {
 
   @Post(':id/cancel')
   @Roles('owner', 'branch_manager')
-  cancel(@Param('id') id: string) {
+  cancel(@Param('id', ParseUUIDPipe) id: string) {
     return this.membershipService.cancel(id);
   }
 
@@ -80,7 +81,7 @@ export class MembershipsController {
   @Post(':id/renew')
   @Roles('owner', 'branch_manager', 'front_desk')
   renew(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body('payment_method') paymentMethod?: string,
   ) {
     return this.membershipService.renew(id, paymentMethod);
@@ -90,7 +91,7 @@ export class MembershipsController {
 
   @Patch(':id/auto-renew')
   toggleAutoRenew(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body('enabled') enabled: boolean,
   ) {
     return this.membershipService.toggleAutoRenew(id, enabled);
@@ -99,7 +100,7 @@ export class MembershipsController {
   // ── Track visit ───────────────────────────────────────────
 
   @Post(':id/track-visit')
-  trackVisit(@Param('id') id: string) {
+  trackVisit(@Param('id', ParseUUIDPipe) id: string) {
     return this.membershipService.trackVisit(id);
   }
 

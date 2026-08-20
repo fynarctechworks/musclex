@@ -106,15 +106,16 @@ jobs:
           NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
 
   # ── Member mobile app ───────────────────────────────────────────────────────
-  # Added in Phase 0.1 of the member-app rebuild (gym-member-app/docs/
-  # MOBILE_IMPLEMENTATION_PLAN.md). Before this the app had no automated gate of
-  # any kind. There is no build step: an Expo app builds via EAS, not in CI.
+  # `member-app/` replaced the previous `gym-member-app/`, which was deleted.
+  # There is no build step: an Expo app builds via EAS, not in CI. There are no
+  # tests or lint config yet either, so typecheck is the whole gate — add the
+  # other steps back here as they land.
   member-app:
-    name: Member App — Typecheck, Lint & Test
+    name: Member App — Typecheck
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: gym-member-app
+        working-directory: member-app
     steps:
       - uses: actions/checkout@v4
 
@@ -122,21 +123,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: gym-member-app/package-lock.json
+          cache-dependency-path: member-app/package-lock.json
 
       - run: npm ci
 
       - name: Typecheck
         run: npm run typecheck
-
-      # NON-BLOCKING on purpose. `expo lint` currently reports 77 errors across 21
-      # PRE-EXISTING files (mostly react-hooks/purity + set-state-in-effect from the
-      # React Compiler rules) — none in newly added code. Making this a hard gate
-      # would put CI red on its first run, which is how gates get switched off.
-      # Phase 9 of the rebuild plan clears the backlog; flip this to blocking then.
-      - name: Lint (report only — see rebuild plan Phase 9)
-        run: npm run lint
-        continue-on-error: true
-
-      - name: Run tests
-        run: npm test -- --ci --coverage

@@ -861,3 +861,40 @@ model WhatsAppNumberIndex {
 
   @@map("whatsapp_number_index")
 }
+
+/// Immutable snapshot of a shared routine, keyed by an unguessable token.
+/// Carries exercise NAMES, never ids: ids are gym-scoped and gyms hold
+/// different catalogues, so names are the only portable key. Holds no member
+/// id, gym id or gym name — a share link reveals a workout, never who wrote it
+/// or where they train.
+model SharedRoutine {
+  token        String   @id
+  name         String
+  exercises    Json
+  created_at   DateTime @default(now()) @db.Timestamptz()
+  import_count Int      @default(0)
+
+  @@map("shared_routines")
+}
+
+/// Central, MuscleX-curated workout library. Content, not tenant state: no
+/// member or gym data lives here. Exercises are NAMES, because ids are
+/// gym-scoped and gyms hold different catalogues.
+model ExploreWorkout {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug             String   @unique
+  title            String
+  description      String?
+  category         String
+  difficulty       String   @default("beginner")
+  duration_minutes Int?
+  exercises        Json
+  is_published     Boolean  @default(false)
+  position         Int      @default(0)
+  add_count        Int      @default(0)
+  created_at       DateTime @default(now()) @db.Timestamptz()
+  updated_at       DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  @@index([category, position])
+  @@map("explore_workouts")
+}

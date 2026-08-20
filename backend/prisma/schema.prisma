@@ -1038,6 +1038,7 @@ model Member {
   assigned_workouts     AssignedWorkout[]
   workout_logs          WorkoutLog[]
   personal_records      PersonalRecord[]
+  routines              MemberRoutine[]
   meal_logs             MealLog[]
   water_logs            WaterLog[]
   nutrition_goal        NutritionGoal?
@@ -1211,20 +1212,37 @@ model Exercise {
   gym_id       String   @db.Uuid
   name         String
   muscle_group String? // chest | back | legs | shoulders | arms | core | full_body | cardio
+  /// Primary mover at HEAD level (front_delt | side_delt | rear_delt | lats | ...).
+  /// `muscle_group` stays the coarse bucket; this is what lets the picker offer
+  /// "one from each delt" rather than an undifferentiated Shoulders list.
+  target_muscle     String?
+  /// Everything else the movement loads. Makes "you have not trained rear delts
+  /// this week" answerable.
+  secondary_muscles String[]
+  /// 'reps' (weight x reps) or 'duration' (planks, carries, cardio, circuits).
+  tracking_type     String   @default("reps")
+  /// NULL = the gym's catalogue, visible to everyone. A member id = personal,
+  /// visible only to them. Members never write into the shared library.
+  created_by_member_id String? @db.Uuid
   equipment    String?
+  /// Animated GIF: the animation is the form cue, so detail views want this.
   media_url    String?
+  /// Lightweight still for list rows, where loading the GIFs would cost megabytes.
+  thumb_url    String?
   instructions String?
   is_active    Boolean  @default(true)
   created_at   DateTime @default(now()) @db.Timestamptz()
   updated_at   DateTime @default(now()) @updatedAt @db.Timestamptz()
 
   plan_entries WorkoutPlanExercise[]
+  routine_entries MemberRoutineExercise[]
   set_logs     WorkoutSetLog[]
   records      PersonalRecord[]
   favorites    ExerciseFavorite[]
 
   @@index([gym_id])
   @@index([gym_id, muscle_group])
+  @@index([gym_id, target_muscle])
   @@map("exercises")
   @@schema("studio_template")
 }
@@ -1304,6 +1322,10 @@ model WorkoutLog {
   assigned_workout_id String?  @db.Uuid
   workout_plan_id     String?  @db.Uuid
   client_key          String? // client idempotency key (offline outbox); unique per gym
+  /// When the session actually happened. `logged_at` is when it was WRITTEN —
+  /// the two differ whenever a member records a workout after the fact.
+  started_at          DateTime? @db.Timestamptz()
+  ended_at            DateTime? @db.Timestamptz()
   logged_at           DateTime @default(now()) @db.Timestamptz()
   created_at          DateTime @default(now()) @db.Timestamptz()
 
@@ -1327,6 +1349,8 @@ model WorkoutSetLog {
   set_number    Int
   reps          Int
   weight        Decimal  @default(0) @db.Decimal(6, 2)
+  /// Set for interval exercises; NULL for rep-based ones.
+  duration_seconds Int?
   unit          String   @default("kg") // kg | lb
   created_at    DateTime @default(now()) @db.Timestamptz()
 
@@ -2639,11 +2663,15 @@ model Expense {
   reference_id         String?  @db.Uuid
   // Partial-unique with gym_id for safe retry/idempotent create.
   idempotency_key      String?
-  recorded_by_staff_id String   @db.Uuid
+  // Optional: an expense can be recorded by a gym OWNER, who has no `staff`
+  // row. Requiring this made every owner-recorded expense fail — the FK could
+  // not be satisfied by any value (the auth user id is not a staff id, and the
+  // column was NOT NULL). See migration 20260818_expense_recorded_by_optional.
+  recorded_by_staff_id String?  @db.Uuid
   created_at           DateTime @default(now()) @db.Timestamptz()
 
   branch       Branch           @relation(fields: [branch_id], references: [id])
-  recorded_by  Staff            @relation(fields: [recorded_by_staff_id], references: [id])
+  recorded_by  Staff?           @relation(fields: [recorded_by_staff_id], references: [id])
   category_ref ExpenseCategory? @relation(fields: [category_id], references: [id])
   // Self-relation for the immutable reversal ledger.
   reversal_of  Expense?         @relation("ExpenseReversal", fields: [reference_id], references: [id])
@@ -4844,5 +4872,82 @@ model WhatsAppNumberIndex {
   updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz()
 
   @@map("whatsapp_number_index")
+  @@schema("public")
+}
+
+model MemberRoutine {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id       String   @db.Uuid
+  member_id    String   @db.Uuid
+  name         String
+  notes        String?
+  /// Set when this routine came from someone else's share link — it is a COPY,
+  /// not a subscription, so edits by the original author never reach it.
+  source_token String?
+  created_at   DateTime @default(now()) @db.Timestamptz()
+  updated_at   DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  member    Member                  @relation(fields: [member_id], references: [id], onDelete: Cascade)
+  exercises MemberRoutineExercise[]
+
+  @@index([gym_id, member_id])
+  @@map("member_routines")
+  @@schema("studio_template")
+}
+
+model MemberRoutineExercise {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id      String   @db.Uuid
+  routine_id  String   @db.Uuid
+  exercise_id String   @db.Uuid
+  position    Int      @default(0)
+  target_sets Int?
+  target_reps Int?
+  target_duration_seconds Int?
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  routine  MemberRoutine @relation(fields: [routine_id], references: [id], onDelete: Cascade)
+  exercise Exercise      @relation(fields: [exercise_id], references: [id])
+
+  @@index([routine_id, position])
+  @@map("member_routine_exercises")
+  @@schema("studio_template")
+}
+
+/// Immutable snapshot of a shared routine, keyed by an unguessable token.
+/// Carries exercise NAMES, never ids: ids are gym-scoped and gyms have
+/// different libraries, so names are the only portable key. Holds no member id,
+/// gym id or gym name — a share link reveals a workout, never who wrote it.
+model SharedRoutine {
+  token        String   @id
+  name         String
+  exercises    Json
+  created_at   DateTime @default(now()) @db.Timestamptz()
+  import_count Int      @default(0)
+
+  @@map("shared_routines")
+  @@schema("public")
+}
+
+/// Central, MuscleX-curated workout library. Content, not tenant state: no
+/// member or gym data lives here. Exercises are NAMES, because ids are
+/// gym-scoped and gyms hold different catalogues.
+model ExploreWorkout {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug             String   @unique
+  title            String
+  description      String?
+  category         String
+  difficulty       String   @default("beginner")
+  duration_minutes Int?
+  exercises        Json
+  is_published     Boolean  @default(false)
+  position         Int      @default(0)
+  add_count        Int      @default(0)
+  created_at       DateTime @default(now()) @db.Timestamptz()
+  updated_at       DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  @@index([category, position])
+  @@map("explore_workouts")
   @@schema("public")
 }

@@ -1,4 +1,5 @@
 import {
+  ParseUUIDPipe,
   Controller,
   Get,
   Post,
@@ -97,7 +98,7 @@ export class ClassesController {
   @Permissions({ module: 'classes', action: 'view' })
   findOne(
     @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.classesService.findOne(user.studio_id, id);
   }
@@ -106,7 +107,7 @@ export class ClassesController {
   @Permissions({ module: 'classes', action: 'edit' })
   update(
     @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body()
     body: {
       name?: string;
@@ -129,7 +130,7 @@ export class ClassesController {
   @Permissions({ module: 'classes', action: 'edit' })
   enroll(
     @CurrentUser() user: JwtPayload,
-    @Param('id') classId: string,
+    @Param('id', ParseUUIDPipe) classId: string,
     @Body('member_id') memberId: string,
   ) {
     return this.classesService.enroll(user.studio_id, classId, memberId);
@@ -139,7 +140,7 @@ export class ClassesController {
   @Permissions({ module: 'classes', action: 'edit' })
   cancelEnrollment(
     @CurrentUser() user: JwtPayload,
-    @Param('id') classId: string,
+    @Param('id', ParseUUIDPipe) classId: string,
     @Body('member_id') memberId: string,
   ) {
     return this.classesService.cancelEnrollment(user.studio_id, classId, memberId);
@@ -149,7 +150,7 @@ export class ClassesController {
   @Permissions({ module: 'classes', action: 'edit' })
   promoteFromWaitlist(
     @CurrentUser() user: JwtPayload,
-    @Param('id') classId: string,
+    @Param('id', ParseUUIDPipe) classId: string,
     @Body('enrollment_id') enrollmentId: string,
   ) {
     return this.classesService.promoteFromWaitlist(user.studio_id, classId, enrollmentId);

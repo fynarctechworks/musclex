@@ -47,6 +47,7 @@ function makeExpenseRow(overrides: Partial<any> = {}) {
 function buildPrismaMock(opts: {
   tenantExpense?: Partial<any>;
   tenantCategory?: Partial<any>;
+    tenantStaff?: Partial<any>;
   txExpense?: Partial<any>;
   txFinancial?: Partial<any>;
 } = {}) {
@@ -75,13 +76,23 @@ function buildPrismaMock(opts: {
     ...opts.txFinancial,
   };
 
+  // createExpense() validates that `recorded_by_staff_id` really is a staff row
+  // before writing it (an owner has no staff row, and writing the auth user id
+  // violated the FK). Default to "not a staff row" so the expense is recorded
+  // unattributed, which is the owner path.
+  const tenantStaff = {
+    findUnique: jest.fn().mockResolvedValue(null),
+    ...opts.tenantStaff,
+  };
+
   const prisma: any = {
     expense: tenantExpense,
     expenseCategory: tenantCategory,
+    staff: tenantStaff,
     $transaction: jest.fn(async (fn: any) =>
       fn({ expense: txExpense, financialTransaction: txFinancial }),
     ),
-    __mocks: { tenantExpense, tenantCategory, txExpense, txFinancial },
+    __mocks: { tenantExpense, tenantCategory, tenantStaff, txExpense, txFinancial },
   };
   return prisma;
 }

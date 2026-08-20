@@ -39,3 +39,30 @@ npm-debug.log*
 
 # Coverage
 coverage/
+
+# Exercise media dataset (~420MB of .gif/.thumb.webp + per-exercise JSON).
+# Binaries do not belong in git history; these live in Supabase Storage and are
+# uploaded by backend/scripts/upload-exercise-media.ts. Only the single metadata
+# file the importer reads is tracked.
+ExerciseGymGifsDB-main/**
+!ExerciseGymGifsDB-main/api/
+!ExerciseGymGifsDB-main/api/en/
+!ExerciseGymGifsDB-main/api/en/exercises.json
+
+# Expo / tooling caches
+.expo/
+.turbo/
+*.tsbuildinfo
+
+# Local Supabase stack state
+supabase/.branches/
+supabase/.temp/
+
+# Captured auth responses from local API testing — contain real bearer tokens.
+login.json
+*.token.json
+
+# Remote/production credential files used for one-off migration runs.
+# `*.env` above does not match `.env.remote`.
+.env.remote
+*.env.remote

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PublicPrismaService } from '../prisma/public-prisma.service';
 import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
+import { getTenantSchema, tenantContext } from '../common/tenant-context';
 import { PermissionsMap, PermissionModule, ModuleAction } from '../common/decorators/current-user.decorator';
 import { ENTERPRISE_ROLES } from './rbac-seed.service';
 
@@ -117,6 +118,20 @@ export class RbacService {
    *
    * NOTE: Tenant search_path must be set before calling this method.
    */
+  /**
+   * Permission codes from the static role definitions. Used as a fallback when
+   * the tenant schema cannot be reached, so a missing schema degrades to
+   * role-level access rather than to no access at all.
+   */
+  private permissionsFromRoleDefinitions(roleNames: string[]): string[] {
+    const codes: string[] = [];
+    for (const roleName of roleNames) {
+      const def = ENTERPRISE_ROLES[roleName];
+      if (def) codes.push(...def.permissions);
+    }
+    return [...new Set(codes)];
+  }
+
   async resolvePermissions(
     userId: string,
     studioId: string,
@@ -141,6 +156,50 @@ export class RbacService {
     }
 
     const roleNames = [...new Set(relevantRoles.map((r) => r.role_name))];
+
+    // Steps 2-5 read Role / RolePermission / Staff, which live in the gym's own
+    // schema. Callers arriving through TenantMiddleware already have that
+    // context. The auth routes do not: at login, 2FA verification and workspace
+    // switching, the JWT that carries the schema is still being minted by the
+    // very request we are serving. Enter the context explicitly for the studio
+    // we were asked about, then re-enter this method by the normal path.
+    //
+    // Safe by construction: we only reach here when `relevantRoles` is
+    // non-empty, i.e. this user genuinely holds roles in THIS studio, and the
+    // schema is read from the registry for that same studio — never derived
+    // from gym_id (see TenantClientFactory for why that distinction matters).
+    if (!getTenantSchema()) {
+      const studio = await this.pub.studio.findUnique({
+        where: { id: studioId },
+        select: { schema_name: true },
+      });
+      const schemaName = studio?.schema_name;
+
+      if (!schemaName) {
+        this.logger.warn(
+          `No schema registered for studio ${studioId}; falling back to role definitions.`,
+        );
+        return this.permissionsFromRoleDefinitions(roleNames);
+      }
+
+      return new Promise<string[]>((resolve, reject) => {
+        tenantContext.run(
+          {
+            schemaName,
+            gymId: studioId,
+            activeBranchId: null,
+            // Role/RolePermission are studio-wide reference data, and step 1
+            // has already applied branch filtering to this user's roles, so
+            // this lookup is gym-wide within the single studio.
+            allowedBranchIds: 'ALL',
+            bypassBranchScope: false,
+          },
+          () => {
+            this.resolvePermissions(userId, studioId, branchId).then(resolve, reject);
+          },
+        );
+      });
+    }
 
     // 2. Find Role records by name in the tenant schema
     const roles = await this.tenant.client.role.findMany({

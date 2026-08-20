@@ -292,7 +292,18 @@ export class MemberDataService {
 
   async addMetric(
     member: CurrentMemberContext,
-    input: { weightKg?: number; waistCm?: number; recordedAt?: string },
+    input: {
+      weightKg?: number;
+      waistCm?: number;
+      bodyFatPct?: number;
+      muscleMassKg?: number;
+      chestCm?: number;
+      hipsCm?: number;
+      armsCm?: number;
+      thighsCm?: number;
+      calvesCm?: number;
+      recordedAt?: string;
+    },
   ): Promise<BodyMetricData> {
     const recordedAt = input.recordedAt ? new Date(input.recordedAt) : new Date();
 
@@ -315,6 +326,13 @@ export class MemberDataService {
         member_id: member.memberId,
         weight: input.weightKg,
         waist: input.waistCm,
+        body_fat: input.bodyFatPct,
+        muscle_mass: input.muscleMassKg,
+        chest: input.chestCm,
+        hips: input.hipsCm,
+        arms: input.armsCm,
+        thighs: input.thighsCm,
+        calves: input.calvesCm,
         bmi,
         recorded_at: recordedAt,
       },
@@ -491,6 +509,13 @@ export class MemberDataService {
     weight: unknown;
     bmi: unknown;
     waist: unknown;
+    body_fat?: unknown;
+    muscle_mass?: unknown;
+    chest?: unknown;
+    hips?: unknown;
+    arms?: unknown;
+    thighs?: unknown;
+    calves?: unknown;
     recorded_at: Date;
   }): BodyMetricData {
     return {
@@ -498,6 +523,13 @@ export class MemberDataService {
       weightKg: toNumber(s.weight),
       bmi: toNumber(s.bmi),
       waistCm: toNumber(s.waist),
+      bodyFatPct: toNumber(s.body_fat),
+      muscleMassKg: toNumber(s.muscle_mass),
+      chestCm: toNumber(s.chest),
+      hipsCm: toNumber(s.hips),
+      armsCm: toNumber(s.arms),
+      thighsCm: toNumber(s.thighs),
+      calvesCm: toNumber(s.calves),
       recordedAt: s.recorded_at.toISOString(),
     };
   }

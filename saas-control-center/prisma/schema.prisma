@@ -464,3 +464,40 @@ model ReleaseTracking {
   @@unique([app, version, environment])
   @@map("release_tracking")
 }
+
+/// Enquiries submitted from the public marketing website's contact form.
+///
+/// These are PROSPECTIVE TENANTS — gym owners asking about MuscleX before they
+/// have an account. Deliberately distinct from the member-app "Leads" surface,
+/// which lists registered consumer app users who have not joined a gym yet.
+model GymOwnerLead {
+  id String @id @default(uuid()) @db.Uuid
+
+  // Submitted by the prospect.
+  name        String
+  studio_name String
+  email       String
+  phone       String
+  branches    String? // '1' | '2-5' | '6-20' | '20+'
+  topic       String?
+  message     String
+
+  // Worked by the SCC admin.
+  // Plain TEXT, not a Postgres enum: the SQL migration is hand-written and a
+  // workflow like this gains states over time. Allowed values are validated at
+  // the API boundary (GYM_OWNER_LEAD_STATUSES) instead of in the type system,
+  // so adding one is a code change, not a database migration.
+  status String  @default("NEW")
+  notes  String?
+
+  // Provenance. `source` lets future marketing forms share this table.
+  source     String  @default("marketing_contact")
+  user_agent String?
+
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @updatedAt @db.Timestamptz()
+
+  @@index([status, created_at])
+  @@index([created_at])
+  @@map("gym_owner_leads")
+}
