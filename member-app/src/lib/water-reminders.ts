@@ -53,6 +53,17 @@ async function notifications(): Promise<NotificationsModule | null> {
 
 const KEY = 'water_reminders_v1';
 
+/**
+ * Android requires every notification to belong to a channel (API 26+). Without
+ * an explicit one the reminders land in an unnamed system-default bucket that a
+ * member cannot find or tune — so they can only silence them by disabling ALL
+ * notifications from the app. Naming the channel puts "Water reminders" in
+ * Android's own settings, where it can be muted on its own.
+ *
+ * Ignored on iOS, which has no notion of channels.
+ */
+const CHANNEL_ID = 'water-reminders';
+
 /** iOS silently drops pending notifications past ~64. Staying well under it
  *  also stops a 15-minute interval turning into a day of buzzing. */
 const MAX_SLOTS = 16;
@@ -149,6 +160,19 @@ export async function ensurePermission(): Promise<boolean> {
  * Always cancels first: rescheduling without clearing is how a member who
  * changes "every 3 hours" to "every hour" ends up with BOTH schedules running.
  */
+async function ensureAndroidChannel(Notifications: NotificationsModule): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+    name: 'Water reminders',
+    // DEFAULT posts to the shade and status bar without the intrusive
+    // heads-up banner HIGH would give a drink reminder.
+    importance: Notifications.AndroidImportance.DEFAULT,
+    sound: null,
+    vibrationPattern: [0, 200],
+    showBadge: false,
+  });
+}
+
 export async function applySettings(settings: WaterReminderSettings): Promise<number> {
   // Persist regardless: the preference is the member's, even on a platform
   // where we cannot act on it yet.
@@ -158,6 +182,8 @@ export async function applySettings(settings: WaterReminderSettings): Promise<nu
 
   await Notifications.cancelAllScheduledNotificationsAsync();
   if (!settings.enabled) return 0;
+
+  await ensureAndroidChannel(Notifications);
 
   const times = computeTimes(settings);
   for (const t of times) {
@@ -169,6 +195,7 @@ export async function applySettings(settings: WaterReminderSettings): Promise<nu
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        channelId: CHANNEL_ID,
         hour: t.hour,
         minute: t.minute,
       },

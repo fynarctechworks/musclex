@@ -310,9 +310,23 @@ function WaterReminders() {
     loadSettings().then(setSettings);
   }, []);
 
-  // Offering a toggle that cannot fire is worse than offering nothing: the
-  // member would switch it on, trust it, and never be reminded.
-  if (!remindersSupported() || !settings) return null;
+  if (!settings) return null;
+
+  // Expo Go on Android cannot load the notifications module at all, so the
+  // controls would be a toggle that silently never fires. This is a PREVIEW
+  // limitation only — a real Android build schedules these normally — so say
+  // that rather than hiding the card and implying the feature is iOS-only.
+  if (!remindersSupported()) {
+    return (
+      <Card>
+        <Label>Drink reminders</Label>
+        <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+          Not available while previewing in Expo Go on Android. They work normally
+          in the installed app.
+        </Txt>
+      </Card>
+    );
+  }
 
   async function commit(next: WaterReminderSettings) {
     setBusy(true);
