@@ -1160,3 +1160,45 @@ export class RsvpDto {
   @IsIn(['going', 'interested'])
   status?: 'going' | 'interested' | null;
 }
+
+/* ── Messages and reports ────────────────────────────────────── */
+
+export const MESSAGE_PRIVACY = ['everyone', 'followers', 'nobody'] as const;
+export const REPORT_KINDS = ['message', 'comment', 'activity', 'profile', 'club'] as const;
+
+/** Member-to-member DM body. Distinct from SendMessageDto, which is the
+ *  trainer-chat surface with its own limits. */
+export class SendDirectMessageDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(2000)
+  body!: string;
+}
+
+export class MessagePrivacyDto {
+  @IsIn(MESSAGE_PRIVACY as unknown as string[])
+  value!: (typeof MESSAGE_PRIVACY)[number];
+}
+
+export class ReportDto {
+  @IsIn(REPORT_KINDS as unknown as string[])
+  targetKind!: (typeof REPORT_KINDS)[number];
+
+  @IsOptional()
+  @IsUUID()
+  targetId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  reportedId?: string;
+
+  @IsString()
+  @MinLength(2)
+  @MaxLength(60)
+  reason!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}

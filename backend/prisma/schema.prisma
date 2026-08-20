@@ -190,6 +190,9 @@ model AppUser {
   /// Sharing switches. All default FALSE: accepting a friend request shares
   /// NOTHING until the member turns a category on.
   share_sessions Boolean @default(false)
+  /// everyone | followers | nobody. Defaults to followers: an open inbox is a
+  /// choice someone should make deliberately, not discover after the fact.
+  message_privacy        String            @default("followers")
   activities             AppUserActivity[]
   follows_given          Follow[]          @relation("FollowsGiven")
   follows_received       Follow[]          @relation("FollowsReceived")
@@ -201,6 +204,12 @@ model AppUser {
   club_memberships       ClubMember[]
   events_created         ClubEvent[]       @relation("EventsCreated")
   event_rsvps            EventAttendee[]
+  conversations_a        Conversation[]     @relation("ConversationsA")
+  conversations_b        Conversation[]     @relation("ConversationsB")
+  messages_sent          DirectMessage[]
+  conversation_reads     ConversationRead[]
+  reports_made           Report[]           @relation("ReportsMade")
+  reports_against        Report[]           @relation("ReportsAgainst")
   share_prs      Boolean @default(false)
   share_streak   Boolean @default(false)
 
@@ -5356,5 +5365,83 @@ model EventAttendee {
 
   @@unique([event_id, app_user_id])
   @@map("event_attendees")
+  @@schema("public")
+}
+
+/// A 1:1 thread. The pair is stored ORDERED (a < b) with a unique index, so two
+/// people opening a thread at the same moment cannot create two conversations
+/// and each end up seeing half the messages.
+model Conversation {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_a_id     String    @db.Uuid
+  member_b_id     String    @db.Uuid
+  last_message_at DateTime? @db.Timestamptz()
+  created_at      DateTime  @default(now()) @db.Timestamptz()
+
+  member_a AppUser             @relation("ConversationsA", fields: [member_a_id], references: [id], onDelete: Cascade)
+  member_b AppUser             @relation("ConversationsB", fields: [member_b_id], references: [id], onDelete: Cascade)
+  messages DirectMessage[]
+  reads    ConversationRead[]
+
+  @@unique([member_a_id, member_b_id])
+  @@index([member_a_id, last_message_at])
+  @@index([member_b_id, last_message_at])
+  @@map("conversations")
+  @@schema("public")
+}
+
+model DirectMessage {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversation_id String    @db.Uuid
+  sender_id       String    @db.Uuid
+  body            String
+  created_at      DateTime  @default(now()) @db.Timestamptz()
+  /// Soft delete so a retraction does not tear a hole in the thread.
+  deleted_at      DateTime? @db.Timestamptz()
+
+  conversation Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  sender       AppUser      @relation(fields: [sender_id], references: [id], onDelete: Cascade)
+
+  @@index([conversation_id, created_at])
+  @@map("direct_messages")
+  @@schema("public")
+}
+
+/// Read state per PERSON, not per message: "unread since" is all the UI needs,
+/// at one row per participant instead of one per message per reader.
+model ConversationRead {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversation_id String   @db.Uuid
+  app_user_id     String   @db.Uuid
+  last_read_at    DateTime @default(now()) @db.Timestamptz()
+
+  conversation Conversation @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  app_user     AppUser      @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([conversation_id, app_user_id])
+  @@map("conversation_reads")
+  @@schema("public")
+}
+
+/// An abuse report. `reported_id` survives the target row being deleted, which
+/// is exactly the moment a report matters most.
+model Report {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reporter_id String   @db.Uuid
+  reported_id String?  @db.Uuid
+  /// message | comment | activity | profile | club
+  target_kind String
+  target_id   String?  @db.Uuid
+  reason      String
+  note        String?
+  /// open | reviewed | actioned | dismissed
+  status      String   @default("open")
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  reporter AppUser  @relation("ReportsMade", fields: [reporter_id], references: [id], onDelete: Cascade)
+  reported AppUser? @relation("ReportsAgainst", fields: [reported_id], references: [id], onDelete: SetNull)
+
+  @@index([status, created_at])
+  @@map("reports")
   @@schema("public")
 }

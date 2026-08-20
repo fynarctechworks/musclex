@@ -30,6 +30,8 @@ export const qk = {
   sports: ['activities', 'sports'] as const,
   feed: ['feed'] as const,
   myClubs: ['clubs', 'mine'] as const,
+  conversations: ['dm'] as const,
+  conversation: (id: string) => ['dm', id] as const,
   discoverClubs: (sport?: string) => ['clubs', 'discover', sport ?? 'all'] as const,
   club: (id: string) => ['club', id] as const,
   clubFeed: (id: string) => ['club', id, 'feed'] as const,
@@ -348,6 +350,52 @@ export function useSendChat(trainerId: string) {
       qc.invalidateQueries({ queryKey: qk.chatThreads });
     },
   });
+}
+
+/* ── Direct messages ───────────────────────────────────────── */
+
+export function useConversations() {
+  return useQuery({
+    queryKey: qk.conversations,
+    queryFn: api.conversations,
+    // The inbox is the one place a stale unread badge is actively annoying.
+    staleTime: 15_000,
+  });
+}
+
+export function useDirectMessages(conversationId: string | null) {
+  return useQuery({
+    queryKey: qk.conversation(conversationId ?? ''),
+    queryFn: () => api.directMessages(conversationId as string),
+    enabled: !!conversationId,
+  });
+}
+
+export function useSendDirectMessage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: string }) => api.sendDirectMessage(id, body),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: qk.conversation(v.id) });
+      qc.invalidateQueries({ queryKey: qk.conversations });
+    },
+  });
+}
+
+export function useOpenConversation() {
+  return useMutation({ mutationFn: (appUserId: string) => api.openConversation(appUserId) });
+}
+
+export function useSetMessagePrivacy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (value: 'everyone' | 'followers' | 'nobody') => api.setMessagePrivacy(value),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.profile }),
+  });
+}
+
+export function useReport() {
+  return useMutation({ mutationFn: (body: Record<string, unknown>) => api.reportSomething(body) });
 }
 
 /* ── Clubs ─────────────────────────────────────────────────── */

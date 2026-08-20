@@ -104,6 +104,19 @@ export default function GymScreen() {
         )}
       </Card>
 
+      <Pressable onPress={() => router.push('/dm')} accessibilityRole="button"
+        accessibilityLabel="Direct messages">
+        <Card>
+          <Row>
+            <Label>Messages</Label>
+            <Txt variant="caption" tone="t3">Open ›</Txt>
+          </Row>
+          <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+            Talk to the people you train with. Trainers have their own threads.
+          </Txt>
+        </Card>
+      </Pressable>
+
       <Pressable onPress={() => router.push('/clubs')} accessibilityRole="button"
         accessibilityLabel="Clubs">
         <Card>

@@ -27,6 +27,8 @@ import type {
   Goal,
   HealthDay,
   Club,
+  Conversation,
+  DirectMessage,
   ClubEvent,
   ClubFeedItem,
   FeedActivity,
@@ -246,6 +248,19 @@ export const api = {
     request<unknown>('/me', { method: 'PATCH', body }),
   updateProfile: (body: Record<string, unknown>) =>
     request<Profile>('/me/profile', { method: 'PATCH', body }),
+
+  /* ── Direct messages (member to member, not trainer chat) ── */
+  conversations: () => request<{ conversations: Conversation[] }>('/messages'),
+  openConversation: (appUserId: string) =>
+    request<{ id: string; withId: string }>(`/messages/with/${appUserId}`, { method: 'POST' }),
+  directMessages: (conversationId: string) =>
+    request<{ messages: DirectMessage[] }>(`/messages/${conversationId}`),
+  sendDirectMessage: (conversationId: string, body: string) =>
+    request<DirectMessage>(`/messages/${conversationId}`, { method: 'POST', body: { body } }),
+  setMessagePrivacy: (value: 'everyone' | 'followers' | 'nobody') =>
+    request<{ messagePrivacy: string }>('/messages/privacy', { method: 'PATCH', body: { value } }),
+  reportSomething: (body: Record<string, unknown>) =>
+    request<{ reported: boolean }>('/reports', { method: 'POST', body }),
 
   /* ── Clubs ───────────────────────────────────────────────── */
   myClubs: () => request<{ clubs: Club[] }>('/clubs'),

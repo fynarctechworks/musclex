@@ -428,6 +428,22 @@ export interface ClubFeedItem {
   mine: boolean;
 }
 
+/* ── Direct messages ──────────────────────────────────────────── */
+
+export interface Conversation {
+  id: string;
+  with: { id: string; name: string | null };
+  lastMessage: { body: string; at: string; mine: boolean } | null;
+  unread: number;
+}
+
+export interface DirectMessage {
+  id: string;
+  body: string;
+  at: string;
+  mine: boolean;
+}
+
 /* ── On-device health (steps) ─────────────────────────────────── */
 /** One day's rollup from the phone or watch. Public/app_user scoped. */
 export interface HealthDay {
