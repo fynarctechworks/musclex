@@ -384,7 +384,11 @@ export class MemberDataService {
     };
   }
 
-  async getHome(member: CurrentMemberContext): Promise<HomeDashboardData> {
+  async getHome(
+    member: CurrentMemberContext,
+    /** The member's offset from UTC in minutes east, from the device. */
+    tzOffsetMinutes = 0,
+  ): Promise<HomeDashboardData> {
     const m = await this.tenant.client.member.findFirst({
       where: { id: member.memberId },
       select: { full_name: true, branch_id: true },
@@ -395,8 +399,8 @@ export class MemberDataService {
       await Promise.all([
         this.membershipSummary(member),
         this.occupancyForBranch(m.branch_id),
-        this.streak.getStreakDays(member.memberId),
-        this.streak.getTodayActivity(member.memberId),
+        this.streak.getStreakDays(member.memberId, tzOffsetMinutes),
+        this.streak.getTodayActivity(member.memberId, tzOffsetMinutes),
         this.workouts.getTodaySummary(member),
         this.nextClassForBranch(m.branch_id),
         this.nutrition.getTodaySummary(member),

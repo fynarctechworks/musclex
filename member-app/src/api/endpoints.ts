@@ -1,4 +1,16 @@
 import { request, uuid } from './client';
+
+/**
+ * The device's offset from UTC in minutes EAST (IST returns 330).
+ *
+ * Sent on every route that reports in calendar days — home, stats, check-in,
+ * badges. Without it the server keys days in UTC, and two surfaces showing
+ * "your streak" disagree for anyone not living on the meridian.
+ *
+ * Read per call, not once at module load: a member can cross a timezone
+ * between opening the app and pulling to refresh.
+ */
+const tz = () => -new Date().getTimezoneOffset();
 import type {
   AssignedWorkout,
   BodyMetricInput,
@@ -55,7 +67,7 @@ import type {
 
 export const api = {
   /** One call drives the whole Today screen. */
-  home: () => request<Home>('/home'),
+  home: () => request<Home>(`/home?tz=${tz()}`),
   occupancy: () => request<Occupancy>('/gym/occupancy'),
   me: () => request<Me>('/me'),
   digitalId: () => request<DigitalId>('/id'),
@@ -122,7 +134,12 @@ export const api = {
     }),
 
   /** Training statistics over a window. */
-  stats: (days = 30) => request<TrainingStats>(`/workouts/stats?days=${days}`),
+  /**
+   * `tz` is the device's offset in minutes EAST of UTC (IST sends 330).
+   * Without it the server keys days in UTC and an early-morning session lands
+   * on the previous day — wrong on the calendar and wrong in the streak.
+   */
+  stats: (days = 30) => request<TrainingStats>(`/workouts/stats?days=${days}&tz=${tz()}`),
 
   /** Freestyle session: no trainer assignment behind it. `span` records when
    *  the session actually happened, which is what makes retro-logging work. */
@@ -138,7 +155,7 @@ export const api = {
     }),
 
   checkIn: (key = uuid()) =>
-    request<unknown>('/checkins', {
+    request<unknown>(`/checkins?tz=${tz()}`, {
       method: 'POST',
       body: { method: 'qr' },
       idempotencyKey: key,
@@ -163,7 +180,7 @@ export const api = {
       method: 'POST',
       idempotencyKey: key,
     }),
-  badges: () => request<{ badges: Badge[] }>('/community/badges'),
+  badges: () => request<{ badges: Badge[] }>(`/community/badges?tz=${tz()}`),
 
   /* ── Coach ───────────────────────────────────────────────── */
   coach: () => request<CoachConversation>('/coach'),

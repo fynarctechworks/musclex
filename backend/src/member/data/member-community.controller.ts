@@ -1,6 +1,7 @@
 import { Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { MemberDataController } from '../decorators/member-data-controller.decorator';
 import { CurrentMember, CurrentMemberContext } from '../decorators/current-member.decorator';
+import { tzOffset } from '../common/tz';
 import { MemberCommunityService } from './member-community.service';
 
 /**
@@ -36,7 +37,7 @@ export class MemberCommunityController {
   }
 
   @Get('community/badges')
-  badges(@CurrentMember() member: CurrentMemberContext) {
-    return this.community.badges(member);
+  badges(@CurrentMember() member: CurrentMemberContext, @Query('tz') tz?: string) {
+    return this.community.badges(member, tzOffset(tz));
   }
 }

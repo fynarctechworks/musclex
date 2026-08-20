@@ -1,6 +1,7 @@
-import { Body, Headers, HttpCode, Post } from '@nestjs/common';
+import { Body, Headers, HttpCode, Post , Query} from '@nestjs/common';
 import { MemberDataController } from '../decorators/member-data-controller.decorator';
 import { CurrentMember, CurrentMemberContext } from '../decorators/current-member.decorator';
+import { tzOffset } from '../common/tz';
 import { Idempotent } from '../decorators/idempotent.decorator';
 import { MemberCheckInService } from './member-checkin.service';
 import { CheckInDto } from './dto';
@@ -20,7 +21,8 @@ export class MemberCheckInController {
     @CurrentMember() member: CurrentMemberContext,
     @Body() dto: CheckInDto,
     @Headers('idempotency-key') idempotencyKey: string,
+    @Query('tz') tz?: string,
   ) {
-    return this.checkins.checkIn(member, dto, idempotencyKey);
+    return this.checkins.checkIn(member, dto, idempotencyKey, tzOffset(tz));
   }
 }

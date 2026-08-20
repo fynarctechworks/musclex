@@ -230,6 +230,15 @@ export class MemberWorkoutService {
   async stats(
     member: CurrentMemberContext,
     days = 30,
+    /**
+     * The member's offset from UTC in MINUTES EAST (IST = +330).
+     *
+     * Days are the unit this whole endpoint reports in — active days, both
+     * streaks, the calendar built on top of them — and a day is a fact about
+     * where the member is standing, not about the server. Defaults to 0 so an
+     * existing caller that sends nothing keeps the behaviour it already has.
+     */
+    tzOffsetMinutes = 0,
   ): Promise<{
     periodDays: number;
     workouts: number;
@@ -253,9 +262,15 @@ export class MemberWorkoutService {
       achievedAt: string;
     }[];
   }> {
-    const since = new Date();
-    since.setDate(since.getDate() - days);
-    since.setHours(0, 0, 0, 0);
+    const tz = tzOffsetMinutes;
+    /** "YYYY-MM-DD" on the member's own calendar. */
+    const dayKey = (at: Date) =>
+      new Date(at.getTime() + tz * 60_000).toISOString().slice(0, 10);
+
+    // The window starts at the member's local midnight `days` ago, so its edge
+    // lines up with the day keys below rather than falling mid-day.
+    const startKey = dayKey(new Date(Date.now() - days * 86_400_000));
+    const since = new Date(new Date(`${startKey}T00:00:00Z`).getTime() - tz * 60_000);
 
     const logs = await this.tenant.client.workoutLog.findMany({
       where: { member_id: member.memberId, logged_at: { gte: since } },
@@ -287,7 +302,11 @@ export class MemberWorkoutService {
     const perExercise = new Map<string, { name: string; sessions: number }>();
 
     for (const log of logs) {
-      const day = log.logged_at.toISOString().slice(0, 10);
+      // NOT toISOString() on the raw timestamp. That keys by UTC, so a 5am
+      // session in IST (+5:30) was filed under the previous day — visible on
+      // the calendar as a workout on a day the member did not train, and
+      // invisible on the day they did.
+      const day = dayKey(log.logged_at);
       byDay.set(day, (byDay.get(day) ?? 0) + log.sets.length);
       totalSets += log.sets.length;
 
@@ -333,14 +352,15 @@ export class MemberWorkoutService {
 
     // The current streak only counts if it reaches today or yesterday —
     // otherwise it is a streak the member has already broken.
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Walk back from the member's today. Keys are plain dates, so stepping in
+    // UTC across them is exact — no DST arithmetic, no drift.
+    const todayUtc = new Date(`${dayKey(new Date())}T00:00:00Z`).getTime();
     let current = 0;
     for (let i = 0; ; i += 1) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
+      const key = new Date(todayUtc - i * 86_400_000).toISOString().slice(0, 10);
       if (byDay.has(key)) current += 1;
+      // Today not yet trained does not break the run — it is still live until
+      // the day ends. Any other gap does.
       else if (i > 0) break;
       else continue;
     }

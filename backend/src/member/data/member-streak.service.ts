@@ -59,8 +59,8 @@ export class MemberStreakService {
   }
 
   /** Current consecutive-day activity streak for the member. */
-  async getStreakDays(memberId: string): Promise<number> {
-    return computeStreakDays(await this.getActivityDates(memberId));
+  async getStreakDays(memberId: string, tzOffsetMinutes = 0): Promise<number> {
+    return computeStreakDays(await this.getActivityDates(memberId), tzOffsetMinutes);
   }
 
   /**
@@ -70,9 +70,16 @@ export class MemberStreakService {
    */
   async getTodayActivity(
     memberId: string,
+    tzOffsetMinutes = 0,
   ): Promise<{ checkedIn: boolean; workoutLogged: boolean; mealLogged: boolean }> {
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    // The member's midnight, not the server's — the three chips on Home have
+    // to agree with the streak they sit under.
+    const localDate = new Date(Date.now() + tzOffsetMinutes * 60_000)
+      .toISOString()
+      .slice(0, 10);
+    const startOfToday = new Date(
+      new Date(`${localDate}T00:00:00Z`).getTime() - tzOffsetMinutes * 60_000,
+    );
 
     const [checkIn, workout, meal] = await Promise.all([
       this.tenant.client.checkIn.findFirst({

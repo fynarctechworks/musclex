@@ -123,7 +123,19 @@ export function occupancyLevel(
  * union of all three (see MemberStreakService). Multiple entries on the same
  * calendar day collapse to one — the Set keys on the day, not the timestamp.
  */
-export function computeStreakDays(activityDates: Date[]): number {
+export function computeStreakDays(
+  activityDates: Date[],
+  /**
+   * The member's offset from UTC in MINUTES EAST (IST = +330).
+   *
+   * Was implicit before: the day was keyed with getFullYear()/getMonth(),
+   * which is the SERVER's calendar. That is correct only while the server and
+   * the member happen to share a timezone — true on a dev box set to
+   * Asia/Calcutta, false the moment this runs on a UTC host, and it fails
+   * silently in both directions.
+   */
+  tzOffsetMinutes = 0,
+): number {
   // Key on the LOCAL calendar day, never toISOString().
   //
   // The old version mixed the two: `today` was local midnight but was then
@@ -133,17 +145,18 @@ export function computeStreakDays(activityDates: Date[]): number {
   // 4th — so "did I train today?" never matched and the streak silently reset
   // or came back one short. It only looked correct because the tests run under
   // TZ=UTC, where the shift is zero.
+  // Shift into the member's offset, then read the date in UTC. One rule for
+  // both the activity dates and "today", so they cannot disagree.
   const dayKey = (d: Date) =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-      d.getDate(),
-    ).padStart(2, '0')}`;
+    new Date(d.getTime() + tzOffsetMinutes * 60_000).toISOString().slice(0, 10);
 
   const days = new Set(activityDates.map((d) => dayKey(new Date(d))));
   if (days.size === 0) return 0;
 
   const oneDay = 86_400_000;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Midnight of the member's today, expressed as the UTC instant of that
+  // local date — so stepping back a day at a time stays exact.
+  const today = new Date(`${dayKey(new Date())}T00:00:00Z`);
 
   // Streak may count from today or yesterday (today not yet visited is OK).
   let cursor = today;

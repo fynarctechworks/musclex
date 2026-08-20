@@ -107,3 +107,48 @@ describe('MemberStreakService — source union + member scoping', () => {
     });
   });
 });
+
+/**
+ * The streak's day boundary belongs to the MEMBER, not the server.
+ *
+ * These were not covered before, and the gap was load-bearing: the day used to
+ * be keyed with getFullYear()/getMonth(), i.e. the server's calendar, which is
+ * only correct while the server and the member share a timezone. It passed on
+ * a dev box set to Asia/Calcutta and would have broken on a UTC host.
+ */
+describe('computeStreakDays — whose day is it', () => {
+  const IST = 330;
+
+  it('counts a small-hours session as the member\'s today, not yesterday', () => {
+    // 01:00 IST today = 19:30 UTC yesterday.
+    const nowIst = new Date(Date.now() + IST * 60_000);
+    const todayIstMidnightUtc = new Date(
+      new Date(`${nowIst.toISOString().slice(0, 10)}T00:00:00Z`).getTime() - IST * 60_000,
+    );
+    const oneAmIst = new Date(todayIstMidnightUtc.getTime() + 60 * 60_000);
+    expect(computeStreakDays([oneAmIst], IST)).toBe(1);
+  });
+
+  it('merges two sessions either side of UTC midnight but inside one local day', () => {
+    const nowIst = new Date(Date.now() + IST * 60_000);
+    const midnightUtc = new Date(
+      new Date(`${nowIst.toISOString().slice(0, 10)}T00:00:00Z`).getTime() - IST * 60_000,
+    );
+    const early = new Date(midnightUtc.getTime() + 60 * 60_000);       // 01:00 local
+    const late = new Date(midnightUtc.getTime() + 22 * 60 * 60_000);   // 22:00 local
+    // One day, not two — so a two-day run does not appear from one day's work.
+    expect(computeStreakDays([early, late], IST)).toBe(1);
+  });
+
+  it('is 0 with no activity at all', () => {
+    expect(computeStreakDays([], IST)).toBe(0);
+  });
+
+  it('survives a gap by ending the run', () => {
+    const day = 86_400_000;
+    const now = Date.now();
+    expect(
+      computeStreakDays([new Date(now), new Date(now - day), new Date(now - 3 * day)], IST),
+    ).toBe(2);
+  });
+});

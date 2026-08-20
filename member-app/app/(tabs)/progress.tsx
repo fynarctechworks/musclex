@@ -1,4 +1,5 @@
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, Label, Loading, Row, Txt } from '../../src/ui';
 import { color, space } from '../../src/ui/theme';
@@ -26,6 +27,7 @@ const TAB_BAR_CLEARANCE = 108;
 
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { data: visits } = useVisitSummary();
   const { data: weekly } = useWeekly();
   const { data: progress } = useProgress();
@@ -108,7 +110,17 @@ export default function ProgressScreen() {
           </Card>
 
           <Card>
-            <Label>Streak</Label>
+            <Row>
+              <Label>Streak</Label>
+              <Pressable
+                onPress={() => router.push('/calendar')}
+                accessibilityRole="button"
+                accessibilityLabel="Open your training calendar"
+                hitSlop={10}
+              >
+                <Txt variant="caption" tone="t3">Calendar ›</Txt>
+              </Pressable>
+            </Row>
             <Row style={{ marginTop: space.md }}>
               <View>
                 <Txt variant="display">{stats.currentStreak}</Txt>

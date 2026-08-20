@@ -31,6 +31,9 @@ export class MemberCheckInService {
     member: CurrentMemberContext,
     input: { method: 'qr' | 'manual'; token?: string; occurredAt?: string },
     idempotencyKey?: string,
+    /** Member's offset from UTC in minutes east, so the streak returned here
+     *  matches the one Home will show a second later. */
+    tzOffsetMinutes = 0,
   ): Promise<CheckInResultData> {
     const m = await this.tenant.client.member.findFirst({
       where: { id: member.memberId },
@@ -60,7 +63,7 @@ export class MemberCheckInService {
       recordedAt: new Date().toISOString(),
       alreadyRecorded: false,
       // Unified streak: the just-recorded check-in is committed, so this reflects it.
-      streakDays: await this.streak.getStreakDays(member.memberId),
+      streakDays: await this.streak.getStreakDays(member.memberId, tzOffsetMinutes),
     };
   }
 }

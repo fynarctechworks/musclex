@@ -1,6 +1,7 @@
 import { Body, Get, Headers, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { MemberDataController } from '../decorators/member-data-controller.decorator';
 import { CurrentMember, CurrentMemberContext } from '../decorators/current-member.decorator';
+import { tzOffset } from '../common/tz';
 import { Idempotent } from '../decorators/idempotent.decorator';
 import { MemberWorkoutService } from './member-workout.service';
 import { WorkoutLogDto } from './dto';
@@ -19,9 +20,15 @@ export class MemberWorkoutController {
   stats(
     @CurrentMember() member: CurrentMemberContext,
     @Query('days') days?: string,
+    /** Minutes east of UTC, from the device. IST sends 330. */
+    @Query('tz') tz?: string,
   ) {
     const n = Number(days);
-    return this.workouts.stats(member, Number.isFinite(n) && n > 0 ? Math.min(n, 365) : 30);
+    return this.workouts.stats(
+      member,
+      Number.isFinite(n) && n > 0 ? Math.min(n, 365) : 30,
+      tzOffset(tz),
+    );
   }
 
   @Get('workouts/today')

@@ -1,5 +1,6 @@
-import { Body, Get, HttpCode, Patch, Post } from '@nestjs/common';
+import { Body, Get, HttpCode, Patch, Post, Query } from '@nestjs/common';
 import { MemberDataController } from '../decorators/member-data-controller.decorator';
+import { tzOffset } from '../common/tz';
 import { CurrentMember, CurrentMemberContext } from '../decorators/current-member.decorator';
 import { Idempotent } from '../decorators/idempotent.decorator';
 import { MemberDataService } from './member-data.service';
@@ -70,8 +71,12 @@ export class MemberCoreController {
   }
 
   @Get('home')
-  home(@CurrentMember() member: CurrentMemberContext) {
-    return this.data.getHome(member);
+  home(
+    @CurrentMember() member: CurrentMemberContext,
+    /** Minutes east of UTC, from the device. IST sends 330. */
+    @Query('tz') tz?: string,
+  ) {
+    return this.data.getHome(member, tzOffset(tz));
   }
 
   @Get('gym/occupancy')

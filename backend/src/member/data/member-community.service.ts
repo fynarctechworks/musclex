@@ -142,10 +142,10 @@ export class MemberCommunityService {
     return { joined: true, progress };
   }
 
-  async badges(member: CurrentMemberContext): Promise<BadgeListData> {
+  async badges(member: CurrentMemberContext, tzOffsetMinutes = 0): Promise<BadgeListData> {
     const [checkins, streak, workouts] = await Promise.all([
       this.tenant.client.checkIn.count({ where: { member_id: member.memberId } }),
-      this.streak.getStreakDays(member.memberId),
+      this.streak.getStreakDays(member.memberId, tzOffsetMinutes),
       this.tenant.client.workoutLog.count({ where: { member_id: member.memberId } }),
     ]);
     const stats = { checkins, streak, workouts };
