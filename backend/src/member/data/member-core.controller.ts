@@ -127,6 +127,12 @@ export class MemberCoreController {
   }
 
   /** Get a signed URL to upload a progress photo directly to storage. */
+  @Get('progress/photos')
+  listPhotos(@CurrentMember() member: CurrentMemberContext, @Query('limit') limit?: string) {
+    const n = Number(limit);
+    return this.photos.list(member, Number.isFinite(n) && n > 0 ? n : undefined);
+  }
+
   @Post('progress/photos/upload-url')
   @HttpCode(200)
   photoUploadUrl(

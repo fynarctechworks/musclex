@@ -6,6 +6,9 @@ import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { AuditService } from '../../audit/audit.service';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
 
+/** One hour, matching the rule for every private bucket here. */
+const SIGNED_URL_TTL_SECONDS = 3600;
+
 const BUCKET = 'member-photos';
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
@@ -109,6 +112,51 @@ export class MemberProgressPhotoService {
       id: row.id,
       url: row.photo_url,
       takenAt: row.taken_at.toISOString(),
+    };
+  }
+
+  /**
+   * The member's own photos, newest first, with short-lived signed URLs.
+   *
+   * The bucket is PRIVATE and stays that way: a stored `photo_url` is an
+   * object path, never a public link. Progress photos are among the most
+   * personal things this product holds, so the URL a client receives expires
+   * — pasting it into a group chat an hour later gets nobody anything.
+   *
+   * Member-scoped and gym-scoped: `member_id` is filtered explicitly and
+   * `gym_id` is injected by the tenant client, so this cannot read across
+   * either boundary.
+   */
+  async list(
+    member: CurrentMemberContext,
+    limit = 60,
+  ): Promise<{ photos: { id: string; url: string | null; takenAt: string }[] }> {
+    const rows = await this.tenant.client.memberProgressPhoto.findMany({
+      where: { member_id: member.memberId },
+      orderBy: { taken_at: 'desc' },
+      take: Math.min(Math.max(limit, 1), 200),
+      select: { id: true, photo_url: true, taken_at: true },
+    });
+    if (rows.length === 0) return { photos: [] };
+
+    const { data, error } = await this.supabase.storage
+      .from(BUCKET)
+      .createSignedUrls(rows.map((r) => r.photo_url), SIGNED_URL_TTL_SECONDS);
+
+    if (error) {
+      this.logger.error(`signed URLs failed: ${error.message}`);
+    }
+    const byPath = new Map((data ?? []).map((d) => [d.path, d.signedUrl]));
+
+    return {
+      photos: rows.map((r) => ({
+        id: r.id,
+        // Null rather than the raw path when signing failed: a path is not a
+        // URL, and handing one to the client would render a broken image with
+        // an internal location in it.
+        url: byPath.get(r.photo_url) ?? null,
+        takenAt: r.taken_at.toISOString(),
+      })),
     };
   }
 

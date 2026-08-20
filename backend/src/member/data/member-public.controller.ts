@@ -1,5 +1,6 @@
 import { Body, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { PublicMemberDataController } from '../decorators/member-data-controller.decorator';
+import { tzOffset } from '../common/tz';
 import {
   CurrentMember,
   CurrentMemberContext,
@@ -181,8 +182,12 @@ export class MemberPublicController {
 
   // ── Goals ──
   @Get('me/goals')
-  listGoals(@CurrentMember() member: CurrentMemberContext) {
-    return this.health.listGoals(member.appUserId);
+  listGoals(
+    @CurrentMember() member: CurrentMemberContext,
+    /** Minutes east of UTC, from the device. */
+    @Query('tz') tz?: string,
+  ) {
+    return this.health.listGoals(member.appUserId, tzOffset(tz));
   }
 
   @Post('me/goals')

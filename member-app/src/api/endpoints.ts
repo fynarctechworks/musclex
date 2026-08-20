@@ -37,6 +37,7 @@ import type {
   MatchedPerson,
   Person,
   PersonProfile,
+  ProgressPhoto,
   SuggestedPerson,
   SportType,
   MembershipDetail,
@@ -237,7 +238,7 @@ export const api = {
     }),
 
   /* ── Goals + profile ─────────────────────────────────────── */
-  goals: () => request<{ goals: Goal[] }>('/me/goals'),
+  goals: () => request<{ goals: Goal[] }>(`/me/goals?tz=${tz()}`),
   addGoal: (body: Record<string, unknown>) =>
     request<Goal>('/me/goals', { method: 'POST', body }),
   updateGoal: (goalId: string, body: Record<string, unknown>) =>
@@ -263,6 +264,16 @@ export const api = {
     request<{ invited: boolean }>(`/group-challenges/${id}/invite/${appUserId}`, { method: 'POST' }),
   leaveChallenge: (id: string) =>
     request<{ joined: boolean }>(`/group-challenges/${id}/join`, { method: 'DELETE' }),
+
+  /* ── Progress photos ─────────────────────────────────────── */
+  progressPhotos: () => request<{ photos: ProgressPhoto[] }>('/progress/photos'),
+  photoUploadUrl: (contentType: string) =>
+    request<{ photoId: string; uploadUrl: string }>('/progress/photos/upload-url', {
+      method: 'POST',
+      body: { contentType },
+    }),
+  confirmPhoto: (photoId: string, takenAt: string) =>
+    request<ProgressPhoto>('/progress/photos', { method: 'POST', body: { photoId, takenAt } }),
 
   /* ── Finding people ──────────────────────────────────────── */
   suggestions: () => request<{ people: SuggestedPerson[] }>('/people/suggestions'),

@@ -111,6 +111,19 @@ export default function ProgressScreen() {
             ) : null}
           </Card>
 
+          <Pressable onPress={() => router.push('/photos')} accessibilityRole="button"
+            accessibilityLabel="Progress photos">
+            <Card>
+              <Row>
+                <Label>Progress photos</Label>
+                <Txt variant="caption" tone="t3">Open ›</Txt>
+              </Row>
+              <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+                The same pose, months apart. Only you can see them.
+              </Txt>
+            </Card>
+          </Pressable>
+
           <Card>
             <Label>What you have been training</Label>
             <View style={{ marginTop: space.md }}>

@@ -451,6 +451,15 @@ export interface DirectMessage {
   mine: boolean;
 }
 
+/* ── Progress photos ──────────────────────────────────────────── */
+
+export interface ProgressPhoto {
+  id: string;
+  /** A signed URL that expires, or null if signing failed. Never a raw path. */
+  url: string | null;
+  takenAt: string;
+}
+
 /* ── Finding people ───────────────────────────────────────────── */
 
 export interface SuggestedPerson {

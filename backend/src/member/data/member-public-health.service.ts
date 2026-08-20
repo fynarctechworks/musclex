@@ -158,12 +158,77 @@ export class MemberPublicHealthService {
     };
   }
 
-  async listGoals(appUserId: string): Promise<GoalListData> {
+  /**
+   * Goals, with progress FILLED IN rather than left at whatever was last
+   * written.
+   *
+   * `current_value` was only ever set when the member typed it, so a steps or
+   * water goal read "0 / 8000" forever no matter how much they did — which is
+   * worse than having no goal at all, because it says they have done nothing.
+   *
+   * The value is computed from the data we already store, per type, and never
+   * persisted: a stored copy drifts the moment a log is edited or deleted.
+   */
+  async listGoals(appUserId: string, tzOffsetMinutes = 0): Promise<GoalListData> {
     const rows = await this.pub.appUserGoal.findMany({
       where: { app_user_id: appUserId },
       orderBy: [{ status: 'asc' }, { created_at: 'desc' }],
     });
-    return { goals: rows.map((r) => this.toGoal(r)) };
+    if (rows.length === 0) return { goals: [] };
+
+    const active = rows.filter((r) => r.status === 'active');
+    const needs = (type: string) => active.some((r) => r.type === type);
+    // The member's today, not the server's. `me/health/daily` is written
+    // against the DEVICE's calendar day, so reading it against UTC would show
+    // an IST member yesterday's steps until half past five in the morning —
+    // the same drift already fixed in stats and the streak.
+    const today = this.day(
+      new Date(Date.now() + tzOffsetMinutes * 60_000).toISOString().slice(0, 10),
+    );
+
+    const [steps, water, weight] = await Promise.all([
+      needs('steps')
+        ? this.pub.appUserHealthDaily.findFirst({
+            where: { app_user_id: appUserId, logged_on: today },
+            select: { steps: true },
+          })
+        : Promise.resolve(null),
+      needs('water')
+        ? this.pub.appUserWaterLog.aggregate({
+            where: { app_user_id: appUserId, logged_on: today },
+            _sum: { amount_ml: true },
+          })
+        : Promise.resolve(null),
+      needs('weight')
+        ? this.pub.appUserWeightLog.findFirst({
+            where: { app_user_id: appUserId },
+            orderBy: { logged_on: 'desc' },
+            select: { weight_kg: true },
+          })
+        : Promise.resolve(null),
+    ]);
+
+    const computed = (type: string): number | null => {
+      switch (type) {
+        // Daily goals reset: today's number, not a running total.
+        case 'steps': return steps?.steps ?? 0;
+        case 'water': return Number(water?._sum.amount_ml ?? 0);
+        // A weight goal is about where you are now, not how far you have moved.
+        case 'weight': return weight ? Number(weight.weight_kg) : null;
+        default: return null;
+      }
+    };
+
+    return {
+      goals: rows.map((r) => {
+        const g = this.toGoal(r);
+        if (r.status !== 'active') return g;
+        const value = computed(r.type);
+        // Fall back to the stored value for types nothing computes yet, so a
+        // manually tracked goal keeps working.
+        return value === null ? g : { ...g, currentValue: value };
+      }),
+    };
   }
 
   async createGoal(appUserId: string, dto: GoalInputDto): Promise<GoalData> {

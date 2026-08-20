@@ -32,6 +32,7 @@ export const qk = {
   myClubs: ['clubs', 'mine'] as const,
   conversations: ['dm'] as const,
   suggestions: ['people', 'suggestions'] as const,
+  progressPhotos: ['progress', 'photos'] as const,
   groupChallenges: ['group-challenges'] as const,
   groupChallenge: (id: string) => ['group-challenge', id] as const,
   myCode: ['people', 'code'] as const,
@@ -392,6 +393,35 @@ export function useLeaveChallenge() {
   return useMutation({
     mutationFn: (id: string) => api.leaveChallenge(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.groupChallenges }),
+  });
+}
+
+/* ── Progress photos ───────────────────────────────────────── */
+
+export function useProgressPhotos() {
+  return useQuery({
+    queryKey: qk.progressPhotos,
+    queryFn: api.progressPhotos,
+    // Signed URLs expire in an hour, so a long-cached list would render
+    // broken images. Refetching well inside that window avoids it.
+    staleTime: 15 * 60_000,
+  });
+}
+
+export function useAddProgressPhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ contentType, upload }: {
+      contentType: string;
+      upload: (uploadUrl: string) => Promise<void>;
+    }) => {
+      const { photoId, uploadUrl } = await api.photoUploadUrl(contentType);
+      // The bytes go straight to storage; only the confirmation comes back
+      // through our API.
+      await upload(uploadUrl);
+      return api.confirmPhoto(photoId, new Date().toISOString());
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.progressPhotos }),
   });
 }
 
