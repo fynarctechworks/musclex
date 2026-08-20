@@ -9,6 +9,7 @@ import { useCreateRoutine, useLogWorkout, useRoutine, useTodayWorkout } from '..
 import { ExerciseBlock } from '../src/features/ExerciseBlock';
 import { toPayload, totalDuration, totalVolume, type WorkingSet } from '../src/features/sets';
 import { useUnits } from '../src/lib/use-units';
+import { backOrHome } from '../src/lib/nav';
 import { RestTimer } from '../src/features/RestTimer';
 import { ExercisePicker } from '../src/features/ExercisePicker';
 import type { WorkoutLogResult } from '../src/api/types';
@@ -205,7 +206,7 @@ export default function SessionScreen() {
   }
 
   function close() {
-    if (!payload.length || done) return router.back();
+    if (!payload.length || done) return backOrHome(router);
     setConfirmDiscard(true);
   }
 
@@ -323,7 +324,7 @@ export default function SessionScreen() {
             </Card>
           ) : null}
 
-          <Button title="Done" onPress={() => router.back()} />
+          <Button title="Done" onPress={() => backOrHome(router)} />
         </ScrollView>
       </View>
     );
@@ -395,7 +396,7 @@ export default function SessionScreen() {
                 <Button title="Keep logging" variant="secondary" onPress={() => setConfirmDiscard(false)} />
               </View>
               <View style={{ flex: 1 }}>
-                <Button title="Discard" onPress={() => router.back()} />
+                <Button title="Discard" onPress={() => backOrHome(router)} />
               </View>
             </Row>
           </Card>

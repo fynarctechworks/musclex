@@ -10,6 +10,7 @@ import { color, font, radius, space } from '../src/ui/theme';
 import { ExercisePicker } from '../src/features/ExercisePicker';
 import { useCreateRoutine, useRoutine, useUpdateRoutine } from '../src/api/queries';
 import { useUnits } from '../src/lib/use-units';
+import { backOrHome } from '../src/lib/nav';
 import type { ExerciseListItem, RoutineExercise } from '../src/api/types';
 
 /**
@@ -240,7 +241,7 @@ export default function RoutineEditScreen() {
         await create.mutateAsync({ name: clean, exercises });
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      router.back();
+      backOrHome(router);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save the routine.');
     }
