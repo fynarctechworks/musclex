@@ -153,7 +153,20 @@ model AppUser {
   health_daily  AppUserHealthDaily[]
   events        AppUserEvent[]
   device_tokens AppUserDeviceToken[]
+  /// Sharing switches. All default FALSE: accepting a friend request shares
+  /// NOTHING until the member turns a category on.
+  share_sessions Boolean @default(false)
+  share_prs      Boolean @default(false)
+  share_streak   Boolean @default(false)
+
   deliveries    AppCampaignDelivery[]
+  friendships_sent     Friendship[]         @relation("FriendshipRequester")
+  friendships_received Friendship[]         @relation("FriendshipAddressee")
+  published_sessions   AppUserSession[]
+  published_prs        AppUserPr[]
+  kudos_given          SessionKudos[]
+  routine_shares_sent  FriendRoutineShare[] @relation("RoutineShareFrom")
+  routine_shares_recvd FriendRoutineShare[] @relation("RoutineShareTo")
 
   @@index([city])
   @@index([status])
@@ -874,6 +887,10 @@ model SharedRoutine {
   created_at   DateTime @default(now()) @db.Timestamptz()
   import_count Int      @default(0)
 
+  /// Deliveries of this snapshot to specific friends. A routine can be sent to
+  /// several people from one token, so the snapshot is stored once.
+  friend_shares FriendRoutineShare[]
+
   @@map("shared_routines")
 }
 
@@ -897,4 +914,103 @@ model ExploreWorkout {
 
   @@index([category, position])
   @@map("explore_workouts")
+}
+
+/// ─── FRIENDS ────────────────────────────────────────────────────────────────
+/// Everything below lives in `public` on purpose. A friend is usually at ANOTHER
+/// gym, and their workouts live in that gym's schema — reading it would be a
+/// cross-tenant read. Instead each member publishes the summary they opted into
+/// sharing, and friends read only from here. See the 20260820_friends migration.
+
+model Friendship {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  requester_id String    @db.Uuid
+  addressee_id String    @db.Uuid
+  /// 'pending' | 'accepted' | 'blocked'. Only 'accepted' grants any read.
+  status       String    @default("pending")
+  created_at   DateTime  @default(now()) @db.Timestamptz()
+  responded_at DateTime? @db.Timestamptz()
+
+  requester AppUser @relation("FriendshipRequester", fields: [requester_id], references: [id], onDelete: Cascade)
+  addressee AppUser @relation("FriendshipAddressee", fields: [addressee_id], references: [id], onDelete: Cascade)
+
+  @@index([requester_id, status])
+  @@index([addressee_id, status])
+  @@map("friendships")
+}
+
+/// A published workout summary. Pruned to 90 days by the publisher on write, so
+/// this table stays bounded instead of growing with every session ever logged.
+model AppUserSession {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id      String   @db.Uuid
+  /// The tenant workout_logs id, so re-publishing updates instead of duplicating.
+  /// NOT for joining back into the gym schema — avoiding that is the point.
+  source_log_id    String?  @db.Uuid
+  performed_at     DateTime @db.Timestamptz()
+  title            String?
+  exercise_count   Int      @default(0)
+  set_count        Int      @default(0)
+  total_volume_kg  Decimal? @db.Decimal(10, 2)
+  duration_seconds Int?
+  exercise_names   Json     @default("[]")
+  kudos_count      Int      @default(0)
+  created_at       DateTime @default(now()) @db.Timestamptz()
+
+  app_user AppUser       @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+  kudos    SessionKudos[]
+
+  @@index([app_user_id, performed_at])
+  @@map("app_user_sessions")
+}
+
+/// Best lift per exercise NAME. Name, not id: exercise ids are gym-scoped, so an
+/// id means nothing across the boundary this table exists to cross.
+model AppUserPr {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id   String   @db.Uuid
+  /// Stored lowercased so comparison is equality, not a function scan.
+  exercise_name String
+  weight_kg     Decimal  @db.Decimal(6, 2)
+  reps          Int
+  achieved_at   DateTime @db.Timestamptz()
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  app_user AppUser @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([app_user_id, exercise_name])
+  @@map("app_user_prs")
+}
+
+model SessionKudos {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id  String   @db.Uuid
+  app_user_id String   @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  session  AppUserSession @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  app_user AppUser        @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([session_id, app_user_id])
+  @@map("session_kudos")
+}
+
+/// Delivery record for a routine sent to a friend. The routine itself is an
+/// existing shared_routines snapshot, so the receiver's import path is the one
+/// already proven by share links.
+model FriendRoutineShare {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  from_app_user_id String    @db.Uuid
+  to_app_user_id   String    @db.Uuid
+  token            String
+  routine_name     String
+  created_at       DateTime  @default(now()) @db.Timestamptz()
+  imported_at      DateTime? @db.Timestamptz()
+
+  from_app_user AppUser       @relation("RoutineShareFrom", fields: [from_app_user_id], references: [id], onDelete: Cascade)
+  to_app_user   AppUser       @relation("RoutineShareTo", fields: [to_app_user_id], references: [id], onDelete: Cascade)
+  routine       SharedRoutine @relation(fields: [token], references: [token], onDelete: Cascade)
+
+  @@index([to_app_user_id, created_at])
+  @@map("friend_routine_shares")
 }
