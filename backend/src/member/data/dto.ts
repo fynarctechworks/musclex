@@ -893,3 +893,205 @@ export class FriendPrefsDto {
   @IsOptional() @IsBoolean() sharePrs?: boolean;
   @IsOptional() @IsBoolean() shareStreak?: boolean;
 }
+
+/* ── Activities ──────────────────────────────────────────────── */
+
+export const ACTIVITY_SOURCES = ['gps', 'manual', 'import', 'device'] as const;
+export const ACTIVITY_VISIBILITY = ['everyone', 'followers', 'only_me'] as const;
+
+/** POST /activities body. Sport is checked against SPORT_TYPES in the service. */
+export class ActivityCreateDto {
+  @IsString()
+  @MaxLength(60)
+  sportType!: string;
+
+  @IsISO8601()
+  startedAt!: string;
+
+  @IsOptional()
+  @IsISO8601()
+  endedAt?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @IsOptional()
+  @IsIn(ACTIVITY_SOURCES as unknown as string[])
+  source?: (typeof ACTIVITY_SOURCES)[number];
+
+  /** A week, matching the CHECK constraint on the column. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(604800)
+  elapsedSeconds?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(604800)
+  movingSeconds?: number;
+
+  /** Metres. 1000 km caps a single activity — beyond that it is a data error. */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1_000_000)
+  distanceM?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(30000)
+  elevationGainM?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(30000)
+  elevationLossM?: number;
+
+  /** 100 m/s is 360 km/h — past anything a person does under their own power. */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  avgSpeedMps?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  maxSpeedMps?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(300)
+  avgHeartRate?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(300)
+  maxHeartRate?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(50000)
+  calories?: number;
+
+  /** Encoded polyline for the map preview. Length-capped so the summary row
+   *  stays small; the full track goes to the streams endpoint. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(65535)
+  polyline?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  startLatitude?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  startLongitude?: number;
+
+  @IsOptional()
+  @IsIn(ACTIVITY_VISIBILITY as unknown as string[])
+  visibility?: (typeof ACTIVITY_VISIBILITY)[number];
+}
+
+/** PATCH /activities/:id — only the fields a member may edit after the fact. */
+export class ActivityUpdateDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  sportType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @IsOptional()
+  @IsIn(ACTIVITY_VISIBILITY as unknown as string[])
+  visibility?: (typeof ACTIVITY_VISIBILITY)[number];
+
+  /** Metres hidden at each end of the track when anyone else views it. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(5000)
+  privacyZoneM?: number;
+}
+
+export class ActivityLapDto {
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  lapIndex?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(604800)
+  elapsedSeconds?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(604800)
+  movingSeconds?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  distanceM?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(300)
+  avgHeartRate?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(300)
+  maxHeartRate?: number;
+}
+
+/**
+ * PUT /activities/:id/streams.
+ *
+ * `streams` is a free-form object because its keys ARE the stream names and the
+ * set grows with every sensor we support. Both the key and the array length are
+ * checked in the service, where the limits live next to the reason for them.
+ */
+export class ActivityStreamsDto {
+  @IsObject()
+  streams!: Record<string, unknown[]>;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ActivityLapDto)
+  laps?: ActivityLapDto[];
+}

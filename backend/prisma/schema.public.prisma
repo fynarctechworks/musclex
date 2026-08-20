@@ -156,6 +156,7 @@ model AppUser {
   /// Sharing switches. All default FALSE: accepting a friend request shares
   /// NOTHING until the member turns a category on.
   share_sessions Boolean @default(false)
+  activities             AppUserActivity[]
   share_prs      Boolean @default(false)
   share_streak   Boolean @default(false)
 
@@ -1013,4 +1014,119 @@ model FriendRoutineShare {
 
   @@index([to_app_user_id, created_at])
   @@map("friend_routine_shares")
+}
+
+/// A workout of any sport, owned by the PERSON not the gym.
+///
+/// A run in a park has no studio, and a member who changes gyms must not lose
+/// their history — so this lives in `public` beside friendships and health
+/// rollups, and never enters the tenant model set.
+model AppUserActivity {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id      String   @db.Uuid
+
+  /// One of SPORT_TYPES. Text, not a pg enum: new sports get added often and
+  /// ALTER TYPE ... ADD VALUE cannot run inside a transaction.
+  sport_type       String
+  title            String?
+  description      String?
+  /// gps | manual | import | device
+  source           String   @default("manual")
+
+  started_at       DateTime @db.Timestamptz()
+  ended_at         DateTime? @db.Timestamptz()
+  /// Wall clock. `moving_seconds` excludes auto-paused time.
+  elapsed_seconds  Int      @default(0)
+  moving_seconds   Int?
+
+  distance_m       Decimal? @db.Decimal(10, 2)
+  elevation_gain_m Decimal? @db.Decimal(8, 2)
+  elevation_loss_m Decimal? @db.Decimal(8, 2)
+  avg_speed_mps    Decimal? @db.Decimal(6, 3)
+  max_speed_mps    Decimal? @db.Decimal(6, 3)
+
+  avg_heart_rate   Int?
+  max_heart_rate   Int?
+  calories         Int?
+
+  /// Simplified encoded polyline for map previews only. The full track lives in
+  /// the streams, so a feed of twenty cards does not load twenty rides.
+  polyline         String?
+  start_latitude   Decimal? @db.Decimal(10, 7)
+  start_longitude  Decimal? @db.Decimal(10, 7)
+
+  /// everyone | followers | only_me. Defaults to followers: a GPS trace shows
+  /// where someone lives and when they are out.
+  visibility       String   @default("followers")
+  privacy_zone_m   Int?
+
+  kudos_count      Int      @default(0)
+  comment_count    Int      @default(0)
+
+  created_at       DateTime @default(now()) @db.Timestamptz()
+  updated_at       DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  app_user AppUser                   @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+  streams  AppUserActivityStream[]
+  laps     AppUserActivityLap[]
+  photos   AppUserActivityPhoto[]
+
+  @@index([app_user_id, started_at])
+  @@index([app_user_id, sport_type, started_at])
+  @@map("app_user_activities")
+}
+
+/// One whole time series as a single JSON array.
+///
+/// Row-per-point would be ~70,000 rows for one three-hour ride across all
+/// streams, for data that is only ever read whole to draw a chart.
+model AppUserActivityStream {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  activity_id String   @db.Uuid
+  /// latlng | time | distance | altitude | heartrate | cadence | velocity |
+  /// watts | temperature | moving
+  type        String
+  data        Json     @default("[]")
+  point_count Int      @default(0)
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  activity AppUserActivity @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+
+  @@unique([activity_id, type])
+  @@map("app_user_activity_streams")
+}
+
+model AppUserActivityLap {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  activity_id     String   @db.Uuid
+  lap_index       Int
+  elapsed_seconds Int      @default(0)
+  moving_seconds  Int?
+  distance_m      Decimal? @db.Decimal(10, 2)
+  avg_heart_rate  Int?
+  max_heart_rate  Int?
+  /// Offsets into the streams, so a lap highlights on the chart without
+  /// storing its points twice.
+  start_index     Int?
+  end_index       Int?
+  created_at      DateTime @default(now()) @db.Timestamptz()
+
+  activity AppUserActivity @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+
+  @@unique([activity_id, lap_index])
+  @@map("app_user_activity_laps")
+}
+
+model AppUserActivityPhoto {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  activity_id  String   @db.Uuid
+  /// Path in the private bucket; served as a signed URL, never public.
+  storage_path String
+  is_primary   Boolean  @default(false)
+  created_at   DateTime @default(now()) @db.Timestamptz()
+
+  activity AppUserActivity @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+
+  @@index([activity_id])
+  @@map("app_user_activity_photos")
 }
