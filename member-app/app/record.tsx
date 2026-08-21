@@ -21,6 +21,7 @@ import {
   type RecordState,
 } from '../src/lib/recorder';
 import { foregroundGranted, requestForeground, watchPosition, type Watcher } from '../src/lib/geo';
+import { clearRecording, loadRecording, saveRecording } from '../src/lib/recording-store';
 import {
   drainBackgroundFixes,
   startBackgroundUpdates,
@@ -45,7 +46,10 @@ import type { SportType } from '../src/api/types';
  * an hour of someone's work to tidy up a screen.
  */
 
-const STORE_KEY = 'musclex.recording.v1';
+/** How often the in-progress recording is written to storage. Every fix would
+ *  be a database write a second; ten seconds bounds the worst-case loss to a
+ *  few metres while staying far off the hot path. */
+const SAVE_EVERY_MS = 10_000;
 
 export default function RecordScreen() {
   const insets = useSafeAreaInsets();
@@ -63,6 +67,9 @@ export default function RecordScreen() {
   const [leftApp, setLeftApp] = useState(false);
   /** Whether the OS agreed to keep tracking with the app in the background. */
   const [background, setBackground] = useState(false);
+  /** A recording the app died holding, waiting to be resumed or thrown away. */
+  const [orphan, setOrphan] = useState<{ sport: string; state: RecordState } | null>(null);
+  const lastSaved = useRef(0);
 
   const watcher = useRef<Watcher | null>(null);
   // The reducer runs off a ref so a fix arriving between renders is never
@@ -75,6 +82,11 @@ export default function RecordScreen() {
 
   useEffect(() => {
     foregroundGranted().then(setPerm);
+    // Offer, never auto-resume: silently restarting somebody's run would be a
+    // worse surprise than losing it, and the times would be wrong.
+    loadRecording().then((saved) => {
+      if (saved) setOrphan({ sport: saved.sport, state: saved.state });
+    });
   }, []);
 
   // Expo Go cannot keep a background task alive, so note it honestly the first
@@ -128,7 +140,13 @@ export default function RecordScreen() {
       // first, so the track stays in time order.
       let next = cur;
       for (const buffered of drainBackgroundFixes()) next = accept(next, buffered);
-      setBoth(accept(next, f));
+      const updated = accept(next, f);
+      setBoth(updated);
+      const now = Date.now();
+      if (now - lastSaved.current >= SAVE_EVERY_MS) {
+        lastSaved.current = now;
+        void saveRecording(sport, updated);
+      }
     });
   }, [perm]);
 
@@ -179,6 +197,7 @@ export default function RecordScreen() {
 
       live.current = null;
       setState(null);
+      void clearRecording();
       router.replace(`/activity/${activity.id}`);
     } catch (e) {
       // Deliberately keeps the recording on screen.
@@ -222,6 +241,44 @@ export default function RecordScreen() {
         contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
       >
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
+
+        {/* A recording the app died holding. Offered, not auto-resumed: silently
+            restarting somebody's run is a worse surprise than losing it, and
+            the elapsed time would be wrong either way. */}
+        {orphan && !s ? (
+          <Card tone="accent">
+            <Label>Unfinished recording</Label>
+            <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+              {(orphan.state.distanceM / 1000).toFixed(2)} km over {clock(orphan.state.elapsedMs)},
+              from a session that did not get saved.
+            </Txt>
+            <Row style={{ marginTop: space.md, gap: space.sm }}>
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="Save it"
+                  size="sm"
+                  onPress={() => {
+                    // Restore it as the live recording, then Finish sends it.
+                    setSport(orphan.sport);
+                    setBoth(orphan.state);
+                    setOrphan(null);
+                  }}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button
+                  title="Discard"
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => {
+                    setOrphan(null);
+                    void clearRecording();
+                  }}
+                />
+              </View>
+            </Row>
+          </Card>
+        ) : null}
 
         {!s ? (
           <Card>
@@ -291,6 +348,7 @@ export default function RecordScreen() {
                     setBackground(false);
                     live.current = null;
                     setState(null);
+                    void clearRecording();
                   }}
                   accessibilityRole="button"
                   accessibilityLabel="Discard this recording"
