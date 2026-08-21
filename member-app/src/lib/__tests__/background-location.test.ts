@@ -1,4 +1,9 @@
-import { bufferedCount, drainBackgroundFixes, LOCATION_TASK } from '../background-location';
+import {
+  backgroundTaskSupported,
+  bufferedCount,
+  drainBackgroundFixes,
+  LOCATION_TASK,
+} from '../background-location';
 
 /**
  * The buffer between the background task and the recorder.
@@ -26,5 +31,13 @@ describe('background fix buffer', () => {
 
   it('names the task with our own prefix, so it cannot collide', () => {
     expect(LOCATION_TASK).toBe('musclex.location.recording');
+  });
+
+  it('reports whether the native module is even present', () => {
+    // This module is imported from _layout for its side effect. A plain import
+    // of a MISSING native module takes the whole app down at startup — which is
+    // exactly what happened the first time this ran in a dev build. Loading it
+    // defensively turns that into "background recording is unavailable".
+    expect(typeof backgroundTaskSupported()).toBe('boolean');
   });
 });

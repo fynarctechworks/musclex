@@ -1,4 +1,30 @@
-import * as TaskManager from 'expo-task-manager';
+/**
+ * Loaded defensively, NOT as a plain import.
+ *
+ * This module is imported from _layout for its side effect, so a plain import
+ * of a native module that is missing takes down the ENTIRE APP at startup —
+ * every screen gone over an optional feature. That is exactly what happened
+ * the first time this ran in a dev build: "Cannot find native module
+ * 'ExpoTaskManager'" and a red screen before anything rendered.
+ *
+ * Expo modules resolve their native binding at import time, so a failure
+ * surfaces here and is caught here. Missing module means background recording
+ * is unavailable; it never means the app fails to start.
+ */
+type TaskManagerModule = typeof import('expo-task-manager');
+
+let TaskManager: TaskManagerModule | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  TaskManager = require('expo-task-manager') as TaskManagerModule;
+} catch {
+  TaskManager = null;
+}
+
+/** False when the native module is absent — background tracking cannot work. */
+export function backgroundTaskSupported(): boolean {
+  return TaskManager !== null;
+}
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -54,7 +80,7 @@ export function bufferedCount(): number {
 
 try {
   // The executor must return a promise; the work itself is synchronous.
-  TaskManager.defineTask(LOCATION_TASK, async ({ data, error }: any) => {
+  TaskManager?.defineTask(LOCATION_TASK, async ({ data, error }: any) => {
     if (error || !data?.locations) return;
     for (const l of data.locations) {
       if (buffer.length >= MAX_BUFFERED) break;
@@ -100,6 +126,7 @@ export async function backgroundPermissionGranted(): Promise<boolean> {
 export async function startBackgroundUpdates(
   { request = false }: { request?: boolean } = {},
 ): Promise<boolean> {
+  if (!TaskManager) return false;
   try {
     const Location = await import('expo-location');
     const existing = await Location.getBackgroundPermissionsAsync();
@@ -133,7 +160,7 @@ export async function startBackgroundUpdates(
 export async function stopBackgroundUpdates(): Promise<void> {
   try {
     const Location = await import('expo-location');
-    if (await TaskManager.isTaskRegisteredAsync(LOCATION_TASK)) {
+    if (TaskManager && (await TaskManager.isTaskRegisteredAsync(LOCATION_TASK))) {
       await Location.stopLocationUpdatesAsync(LOCATION_TASK);
     }
   } catch {
