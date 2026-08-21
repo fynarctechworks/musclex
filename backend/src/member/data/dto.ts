@@ -1311,3 +1311,29 @@ export class RouteImportDto {
   @MaxLength(60)
   sportType?: string;
 }
+
+/* ── Segments ────────────────────────────────────────────────── */
+
+/** POST /segments — cut from part of an activity the member actually did. */
+export class SegmentCreateDto {
+  @IsUUID()
+  activityId!: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(120)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  sportType?: string;
+
+  @IsInt()
+  @Min(0)
+  startIndex!: number;
+
+  @IsInt()
+  @Min(1)
+  endIndex!: number;
+}

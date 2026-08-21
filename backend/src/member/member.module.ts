@@ -60,6 +60,8 @@ import { MemberFeedController } from './data/member-feed.controller';
 import { MemberMessageController } from './data/member-message.controller';
 import { MemberPeopleController } from './data/member-people.controller';
 import { MemberRouteController } from './data/member-route.controller';
+import { MemberSegmentController } from './data/member-segment.controller';
+import { MemberSegmentService } from './data/member-segment.service';
 import { MemberRouteService } from './data/member-route.service';
 import { MemberPeopleService } from './data/member-people.service';
 import { MemberMessageService } from './data/member-message.service';
@@ -121,6 +123,7 @@ import { MemberIdentityController } from './data/member-identity.controller';
     MemberMessageController,
     MemberPeopleController,
     MemberRouteController,
+    MemberSegmentController,
     MemberFriendController,
     MemberExploreController,
     MemberChatController,
@@ -157,6 +160,7 @@ import { MemberIdentityController } from './data/member-identity.controller';
     MemberMessageService,
     MemberPeopleService,
     MemberRouteService,
+    MemberSegmentService,
     MemberFriendService,
     FriendPublisherService,
     MemberExploreService,
