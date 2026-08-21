@@ -21,7 +21,8 @@
         "NSContactsUsageDescription": "MuscleX checks which of your contacts already use MuscleX. Your contacts are never uploaded \u2014 only a scrambled version is checked.",
         "UIBackgroundModes": [
           "location"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -80,6 +81,18 @@
       ]
     ],
     "scheme": "musclex",
-    "backgroundColor": "#F5F5F7"
+    "backgroundColor": "#F5F5F7",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "bd4cb5ba-61ba-4216-bb3f-f86e15adc757"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/bd4cb5ba-61ba-4216-bb3f-f86e15adc757"
+    }
   }
 }
