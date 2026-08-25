@@ -121,3 +121,22 @@ states their membership standing.
 The tab is already hidden for roles without the permission, but a deep link
 would still reach the route. Screens that show revenue guard themselves rather
 than relying on navigation to keep people out.
+
+### Calendar dates use LOCAL fields, never `toISOString()`
+`toISOString().slice(0,10)` is UTC. Any evening east of Greenwich reports the
+previous day, so the schedule marked one date on the calendar while listing a
+different day's classes — which made every one of today's sessions render as
+"Done". `toLocalISODate()` in `src/lib/format.ts` is now the single helper, used
+by the calendar, the day filter and the query key so they cannot disagree.
+Tested.
+
+### Schedule is day-first, not week-first
+A week grid is unreadable on a phone, and the question staff ask is "what is on
+this day". Month calendar to pick, list below.
+
+### Seeder resets via guarded `TRUNCATE ... CASCADE`
+49 tables reference `members`, so ordered DELETEs silently failed (a child row
+aborted the parent delete, and the next run collided on `member_code`). The test
+gym owns its own schema, so TRUNCATE CASCADE is complete and scoped. A guard
+refuses to run unless the schema name matches the test gym's own — it must never
+touch `studio_template` or a real tenant.

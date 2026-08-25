@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { Calendar, type DateData } from 'react-native-calendars';
 
 import { Text } from '@/components/ui/text';
+import { toLocalISODate } from '@/lib/format';
 import { tokens } from '@/ui/tokens';
 
 /**
@@ -18,9 +19,9 @@ import { tokens } from '@/ui/tokens';
  */
 export type DayMark = { date: string; count: number; tone?: 'default' | 'warning' | 'danger' };
 
-function toISO(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+// Shared helper — the calendar and the session filter must agree on what
+// "today" means, in LOCAL time.
+const toISO = toLocalISODate;
 
 export function ScheduleCalendar({
   selected, onSelect, marks = [], testID,

@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@/api/client';
+import { toLocalISODate } from '@/lib/format';
 import type {
   ActivityItem, Branch, DashboardAlert, DashboardKpis, DashboardPulse, Member,
-  MemberDetail, Paginated, Payment,
+  ClassSession, MemberDetail, Paginated, Payment,
 } from '@/api/types';
 
 /**
@@ -73,6 +74,31 @@ export function useActivityFeed() {
     // The live check-in feed is the point of this section; keep it fresh.
     staleTime: 15_000,
     queryFn: () => api.get<ActivityItem[]>('/dashboard/activity-feed'),
+  });
+}
+
+/**
+ * Class sessions for one day.
+ *
+ * The API paginates rather than taking a date range, so the day filter is
+ * applied here after fetching a generous page. A gym runs a handful of classes
+ * a day, so this is cheap — but if a studio ever runs hundreds, this needs a
+ * server-side date filter rather than a bigger page.
+ */
+export function useSessionsForDay(day: Date) {
+  const key = toLocalISODate(day);
+  return useQuery({
+    queryKey: ['class-sessions', key],
+    queryFn: async () => {
+      const res = await api.get<Paginated<ClassSession>>('/classes/sessions', {
+        params: { limit: 200 },
+      });
+      // Compare in LOCAL time on both sides: start_time is a UTC instant, and
+      // slicing its ISO string would bucket an evening class into the next day.
+      return res.data.filter(
+        (s) => s.start_time && toLocalISODate(new Date(s.start_time)) === key,
+      );
+    },
   });
 }
 

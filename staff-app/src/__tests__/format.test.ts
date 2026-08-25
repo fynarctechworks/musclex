@@ -1,6 +1,6 @@
 import {
   formatCurrency, formatCurrencyCompact, formatDate, formatNumber,
-  formatRelative, formatTime,
+  formatRelative, formatTime, toLocalISODate,
 } from '../lib/format';
 
 /**
@@ -82,5 +82,23 @@ describe('formatNumber', () => {
   it('groups by locale convention', () => {
     expect(formatNumber(123456, 'INR')).toBe('1,23,456');
     expect(formatNumber(123456, 'USD')).toBe('123,456');
+  });
+});
+
+describe('toLocalISODate', () => {
+  it('uses LOCAL calendar fields, not UTC', () => {
+    // 26 Aug 00:30 local. toISOString() would report 25 Aug for any timezone
+    // ahead of UTC — which made the schedule mark one day and list another.
+    const d = new Date(2026, 7, 26, 0, 30, 0);
+    expect(toLocalISODate(d)).toBe('2026-08-26');
+  });
+
+  it('is stable late in the evening', () => {
+    const d = new Date(2026, 7, 26, 23, 45, 0);
+    expect(toLocalISODate(d)).toBe('2026-08-26');
+  });
+
+  it('zero-pads month and day', () => {
+    expect(toLocalISODate(new Date(2026, 0, 5))).toBe('2026-01-05');
   });
 });

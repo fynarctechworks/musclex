@@ -79,10 +79,23 @@ async function main() {
   console.log(`Seeding test gym ${GYM_ID}\n`);
 
   try {
-    // ── Clean prior run (scoped strictly to this gym) ──
-    for (const t of ['check_ins', 'payments', 'member_memberships', 'member_profiles', 'members', 'membership_plans', 'staff', 'branches']) {
-      await db.query(`DELETE FROM ${SCHEMA}.${t} WHERE gym_id=$1`, [GYM_ID]).catch(() => {});
+    // ── Clean prior run ──
+    //
+    // 49 tables reference `members`, so ordered DELETEs are fragile — an
+    // un-deleted child silently aborts the parent delete and the next run
+    // collides on member_code. This schema belongs to the test gym ALONE, so a
+    // scoped TRUNCATE ... CASCADE is both correct and complete.
+    //
+    // The guard below is the safety rail: this must never run against a real
+    // tenant schema, and `studio_template` in particular would wipe fixtures
+    // shared with other tests.
+    if (SCHEMA !== `studio_${GYM_ID.replace(/-/g, '_')}`) {
+      throw new Error(`Refusing to truncate ${SCHEMA}: not the test gym's own schema`);
     }
+    await db.query(
+      `TRUNCATE ${SCHEMA}.members, ${SCHEMA}.classes, ${SCHEMA}.class_sessions,
+                ${SCHEMA}.membership_plans, ${SCHEMA}.staff, ${SCHEMA}.branches CASCADE`,
+    );
     await db.query('DELETE FROM public.user_roles WHERE studio_id=$1', [GYM_ID]);
 
     // ── Studio + branch ──
@@ -218,7 +231,60 @@ async function main() {
       }
     }
 
+    // ── Classes + sessions ──
+    // A fortnight either side of today so the schedule has past and future.
+    const trainerStaff = await db.query(
+      `SELECT id FROM ${SCHEMA}.staff WHERE gym_id=$1 AND role='trainer' LIMIT 1`, [GYM_ID],
+    );
+    const trainerId = trainerStaff.rows[0]?.id;
+    let sessions = 0;
+
+    if (trainerId) {
+      const CLASSES = [
+        { name: 'Morning HIIT',  category: 'hiit',     hour: 7,  mins: 45, cap: 20 },
+        { name: 'Power Yoga',    category: 'yoga',     hour: 9,  mins: 60, cap: 15 },
+        { name: 'Strength 101',  category: 'strength', hour: 18, mins: 50, cap: 12 },
+        { name: 'Evening Spin',  category: 'cardio',   hour: 19, mins: 45, cap: 25 },
+      ];
+
+      for (const c of CLASSES) {
+        const classId = randomUUID();
+        const firstStart = new Date(today);
+        firstStart.setHours(c.hour, 0, 0, 0);
+
+        await db.query(
+          `INSERT INTO ${SCHEMA}.classes
+             (id, gym_id, branch_id, trainer_id, name, category, capacity, duration_minutes, starts_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [classId, GYM_ID, BRANCH_ID, trainerId, c.name, c.category, c.cap, c.mins, firstStart.toISOString()],
+        );
+
+        for (let d = -7; d <= 7; d++) {
+          // Skip Sundays so the calendar has visible gaps rather than a solid block.
+          const day = addDays(today, d);
+          if (day.getDay() === 0) continue;
+          const start = new Date(day);
+          start.setHours(c.hour, 0, 0, 0);
+          const end = new Date(start.getTime() + c.mins * 60000);
+          await db.query(
+            `INSERT INTO ${SCHEMA}.class_sessions
+               (id, gym_id, branch_id, trainer_id, name, category,
+                start_time, end_time, capacity, enrolled_count, status)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+            // template_id is left NULL: it references class_templates (a
+            // separate table), not `classes`. Sessions stand alone here.
+            [randomUUID(), GYM_ID, BRANCH_ID, trainerId, c.name, c.category,
+             start.toISOString(), end.toISOString(), c.cap,
+             // Partial fill so capacity bars are not all empty or all full.
+             rand(c.cap), d < 0 ? 'completed' : 'scheduled'],
+          );
+          sessions++;
+        }
+      }
+    }
+
     console.log(`\n  40 members — ${active} active, ${due} with dues`);
+    console.log(`  ${sessions} class sessions across 4 classes`);
     console.log(`\n  Password for all staff accounts: ${PASSWORD}`);
     console.log(`  Gym id: ${GYM_ID}\n`);
   } finally {

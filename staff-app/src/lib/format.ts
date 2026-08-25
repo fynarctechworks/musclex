@@ -136,3 +136,16 @@ export function formatNumber(value: number, code: CurrencyCode = 'INR'): string 
   const negative = value < 0;
   return `${negative ? '-' : ''}${groupDigits(String(Math.abs(Math.round(value))), code)}`;
 }
+
+/**
+ * Local calendar date as YYYY-MM-DD.
+ *
+ * NOT `toISOString().slice(0,10)` — that is UTC, so any evening east of
+ * Greenwich (or morning west of it) reports the wrong day. It caused the
+ * schedule to mark one date on the calendar while listing another day's
+ * classes, which made every session look "Done".
+ */
+export function toLocalISODate(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}

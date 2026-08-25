@@ -84,3 +84,13 @@ Tests: 105 passing.
 15. **Money screen** — month revenue + expiring-soon tiles, payment list with
     status filter, all behind `<Can module="payments">` so a deep link cannot
     bypass the hidden tab. Verified live (₹24,000 completed payment rendering).
+16. **Schedule** — month calendar, day selection, class list with trainer,
+    times and capacity meters. Seeder extended with 4 classes × 52 sessions.
+    Verified as `trainer` (tabs: Home·Check-in·Members·Schedule·More).
+17. **Fixed: UTC vs local date bug** — the calendar marked one day while listing
+    another's classes, making today's sessions show "Done". Added
+    `toLocalISODate()` and used it everywhere a calendar date is compared.
+18. **Seeder reset made reliable** — guarded `TRUNCATE ... CASCADE` instead of
+    ordered deletes that were failing silently.
+
+Tests: 108 passing.

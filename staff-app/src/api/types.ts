@@ -109,3 +109,17 @@ export type ActivityItem = {
   method?: string | null;
   timestamp: string;
 };
+
+export type ClassSession = {
+  id: string;
+  name: string;
+  category?: string | null;
+  start_time: string;
+  end_time: string;
+  capacity: number;
+  enrolled_count?: number | null;
+  waitlist_count?: number | null;
+  status: string;
+  trainer?: { full_name?: string | null } | null;
+  branch?: { name?: string | null } | null;
+};
