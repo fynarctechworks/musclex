@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import type {
   ActivityItem, Branch, DashboardAlert, DashboardKpis, DashboardPulse, Member,
-  MemberDetail, Paginated,
+  MemberDetail, Paginated, Payment,
 } from '@/api/types';
 
 /**
@@ -22,6 +22,7 @@ import type {
 export const keys = {
   branches: ['branches'] as const,
   dashboard: ['dashboard'] as const,
+  payments: (params?: PaymentListParams) => ['payments', params ?? {}] as const,
   members: (params?: MemberListParams) => ['members', params ?? {}] as const,
   member: (id: string) => ['member', id] as const,
 };
@@ -72,6 +73,19 @@ export function useActivityFeed() {
     // The live check-in feed is the point of this section; keep it fresh.
     staleTime: 15_000,
     queryFn: () => api.get<ActivityItem[]>('/dashboard/activity-feed'),
+  });
+}
+
+export type PaymentListParams = { status?: string; page?: number; limit?: number };
+
+/** Payments list. The row carries `member` when the API includes it. */
+export function usePayments(params: PaymentListParams = {}) {
+  const { limit = 20, ...rest } = params;
+  return useQuery({
+    queryKey: keys.payments({ ...rest, limit }),
+    queryFn: () => api.get<Paginated<Payment & { member?: { full_name?: string } | null }>>(
+      '/payments', { params: { ...rest, limit } },
+    ),
   });
 }
 

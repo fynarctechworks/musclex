@@ -81,3 +81,6 @@ Tests: 98 passing.
     raced the close. Held in a ref instead.
 
 Tests: 105 passing.
+15. **Money screen** — month revenue + expiring-soon tiles, payment list with
+    status filter, all behind `<Can module="payments">` so a deep link cannot
+    bypass the hidden tab. Verified live (₹24,000 completed payment rendering).

@@ -116,3 +116,8 @@ Two members frequently share a first name (the seeded data has two "Neha"s and
 four "Vikram"s). Checking in the wrong member consumes their entitlement and
 corrupts attendance, so the row tap opens a confirm that names the member and
 states their membership standing.
+
+### Money screen is wrapped in `<Can module="payments">` with a fallback
+The tab is already hidden for roles without the permission, but a deep link
+would still reach the route. Screens that show revenue guard themselves rather
+than relying on navigation to keep people out.
