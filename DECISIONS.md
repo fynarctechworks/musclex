@@ -77,3 +77,22 @@ slow or failing section (alerts touch several tables) cannot blank the screen.
 Default stays 1 for scannable list rows, but alert rows put the whole message in
 the title — clamping hid the thing the staffer needs to act on ("Vikram Kumar
 (TG1028) — mem…"). Alerts use 3.
+
+### Member detail shows payments/visits behind `<Can>`
+A trainer has no `payments` permission, so the money section is absent for them
+rather than empty. Role hides; it does not show an empty box that implies "no
+payments exist".
+
+### Call / WhatsApp / SMS helpers rather than showing a number to copy
+These are the two things a front-desk staffer does with a member's number and a
+genuine advantage over the web app. `normalisePhone` keeps a leading `+`:
+dropping it turns an international number into a local one and silently dials
+the wrong person (tested). iOS uses `telprompt:` so the OS confirms before
+dialling; Android has no equivalent and uses `tel:`.
+*Where:* `src/lib/contact.ts`.
+
+### `scripts/tap-label.sh` for device automation
+Reading coordinates out of `idb ui describe-all` and passing them through the
+shell repeatedly hit word-splitting bugs. Tapping by accessibility label is also
+stable across layout changes, where coordinates are not. It refuses off-screen
+elements, which report a real frame but never respond.

@@ -37,6 +37,36 @@ export type Member = {
   memberships?: MembershipSummary[];
 };
 
+export type Payment = {
+  id: string;
+  amount: number;
+  currency?: string | null;
+  payment_method: string;
+  status: string;
+  receipt_number?: string | null;
+  paid_at?: string | null;
+  created_at?: string | null;
+};
+
+export type CheckIn = {
+  id: string;
+  checkin_method: string;
+  checked_in_at: string;
+  status: string;
+  branch_id?: string | null;
+};
+
+/** GET /members/:id — unlike the list, this includes ALL memberships. */
+export type MemberDetail = Member & {
+  date_of_birth?: string | null;
+  gender?: string | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
+  notes?: string | null;
+  payments?: Payment[];
+  check_ins?: CheckIn[];
+};
+
 export type Branch = {
   id: string;
   name: string;

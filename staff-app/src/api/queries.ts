@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@/api/client';
 import type {
-  ActivityItem, Branch, DashboardAlert, DashboardKpis, DashboardPulse, Member, Paginated,
+  ActivityItem, Branch, DashboardAlert, DashboardKpis, DashboardPulse, Member,
+  MemberDetail, Paginated,
 } from '@/api/types';
 
 /**
@@ -93,7 +94,9 @@ export function useMember(id: string | undefined) {
   return useQuery({
     queryKey: keys.member(id ?? ''),
     enabled: Boolean(id),
-    queryFn: () => api.get<Member>(`/members/${id}`),
+    // Detail returns ALL memberships (the list only returns active ones), plus
+    // payments and check-ins.
+    queryFn: () => api.get<MemberDetail>(`/members/${id}`),
   });
 }
 

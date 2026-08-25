@@ -62,3 +62,11 @@ Tests: staff-app 93 passing (was 84).
 Verified on device as front_desk: Home·Check-in·Members·Money·More, real KPIs
 (20 active members, 2 expiring), and full alert text.
 Tests: 95 passing.
+10. **Member detail** — header, native Call/WhatsApp, contact fields,
+    membership, payments and recent visits. Payments/visits sit behind `<Can>`
+    so a trainer sees neither. Verified on device with real data
+    (₹24,000 UPI payment, Gold plan, visit history).
+11. **`scripts/tap-label.sh`** — taps by accessibility label; ends the recurring
+    coordinate word-splitting bug in device automation.
+
+Tests: 98 passing.
