@@ -105,3 +105,8 @@ Tests: 108 passing.
     classes by name. See docs/SECURITY_FINDINGS_2026-08-26.md F-3.
 
 Tests: staff-app 112, backend 33 (+ new interceptor regression tests).
+21. **Plan updated** — `docs/STAFF_APP_PLAN.md` now reflects real status:
+    Phases 1–3 done, Phase 4 partial (offline pending deps), Phase 5
+    substantially built.
+22. **Verification re-run** — `npm run verify:ui` still passes end to end after
+    the navigation changes.

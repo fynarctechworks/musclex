@@ -1,6 +1,6 @@
 # MuscleX Staff App — Build Plan (full native)
 
-**Status:** Phase 1 complete; Phase 2 (design system) in progress · **Date:** 2026-08-25
+**Status:** Phases 1–3 complete; Phase 5 (front desk) substantially built · **Date:** 2026-08-26
 
 Goal: *a mobile app giving gym staff the same features and options they currently use in
 the web admin app (`frontend/`).*
@@ -478,15 +478,15 @@ NOTED FOR LATER. Durations are **unverified estimates**, one full-time developer
 |---|---|---|
 | **0 — Decisions** ✅ **DONE** | All plan-shaping decisions taken 2026-08-25 (table at top). | — |
 | **1 — Skeleton** ✅ **code DONE** | `staff-app/` Expo app, expo-router, strict TS, Jest (3 passing), EAS profiles, front-desk placeholder shell. Typecheck + web bundle verified. **STILL OUTSTANDING — not code:** iOS signing, TestFlight internal group, and branding assets (icon, splash, store copy). These block on-device testing by anyone but the developer and are external/asset work, not mine to complete. | Deps approved 2026-08-25 |
-| **2 — Design system** 🔄 **in progress** | **Done:** uniwind + RNR (30 primitives) themed to the web app's tokens; MuscleX-specific layer — formatters, RowCard (table replacement), StatTile, SegmentedControl, empty/error/offline, chart set (sparkline/line/bar/donut on react-native-svg), Toast, SwipeActions, Sheet + FilterSheet, date/time/range pickers, ScheduleCalendar, virtualised DataList. All verified on an iOS simulator (`npm run verify:ui`). 43 unit tests. **Remaining:** `<Can>` / `<PlanGate>` — deferred to Phase 3, which owns the permission map and entitlement registry. | Deps approved 2026-08-25/26 |
-| **3 — Auth, RBAC & shell** *(1.5–2 wk)* | Login → 2FA → workspace select → branch switcher. SecureStore, refresh, biometric lock, cache reset on workspace switch. Ported API client. Permission map + entitlement registry + role-adaptive nav + role-matrix tests. | — |
-| **4 — Charts, lists & offline** *(1.5 wk)* | `react-native-svg` chart set replacing recharts; the table→card-list pattern; React Query persistence on `expo-sqlite`; offline/error/empty states. | — |
+| **2 — Design system** ✅ **DONE** | uniwind + RNR (30 primitives) themed to the web app's tokens, plus the MuscleX layer: formatters, RowCard, StatTile, SegmentedControl, states, charts, Toast, SwipeActions, Sheet/FilterSheet, date pickers, ScheduleCalendar, virtualised DataList, Meter. Verified on device. | — |
+| **3 — Auth, RBAC & shell** ✅ **DONE** | SecureStore session, ported API client, RBAC from `permission_codes`, entitlements, `<Can>`/`<PlanGate>`, sign-in/2FA/workspace/forgot screens, role-adaptive tabs, branch switcher, sign-out. Verified against the real backend with 4 seeded role accounts. | — |
+| **4 — Charts, lists & offline** 🔄 **partial** | Charts and the virtualised list are done. **Offline persistence is NOT built** — it needs `@tanstack/react-query-persist-client` + `expo-sqlite` (new deps, see TODO_FOR_ME.md). | Deps pending |
 
 ### Release trains — each ships a complete app for one persona
 
 | Phase | Persona unlocked | Modules ported | Est. |
 |---|---|---|---|
-| **5 — Front desk** | `front_desk` ✅ **first shippable app, ~week 12** | Dashboard · Members (list/profile/new/edit) · Check-in (QR camera, manual, history, live feed) · Payments (collect, dues) · Schedule (view) · POS | 3–4 wk |
+| **5 — Front desk** 🔄 **substantially built** | Dashboard, Members list + detail (native call/WhatsApp), manual Check-in, Money, Schedule, POS — all on live data against a seeded gym. **Remaining:** QR check-in (needs expo-camera), member create/edit, offline write. | ~week 12 target |
 | **5b — Kiosk mode (iPad)** | *(no persona — a device role)* | `/kiosk/[branchSlug]`: locked-down unattended check-in reusing Phase 5's module. Guided Access / single-app mode, always-on display, branch pinning, offline-tolerant queue for the door. | 1.5–2 wk |
 | **6 — Trainer** | `trainer` ✅ | Classes (edit, sessions, attendance, bookings) · PT sessions · Training plans & exercises · AI advisor · Member progress | 2.5–3 wk |
 | **7 — Push & deep links** | all shipped roles | Staff device tokens, role-aware triggers, notification→screen deep links | 1–1.5 wk · **DB schema → approval** |

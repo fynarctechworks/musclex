@@ -80,3 +80,32 @@ the whole path. It should toast "<name> checked in" and clear the search.
 That flow did surface one real bug on the way, now fixed: `crypto.randomUUID`
 does not exist in Hermes, so a non-UUID idempotency key was sent and the backend
 rejected it with `client_event_id must be a UUID`. See `src/lib/uuid.ts`.
+
+## 8. Offline persistence needs two dependencies
+
+Plan Phase 4 includes offline read (cached dashboard/member/schedule visible
+with no signal). That needs `@tanstack/react-query-persist-client` plus a
+storage layer — `expo-sqlite` (already used by `member-app`) or
+`@react-native-async-storage/async-storage` (SDK-pinned at 2.2.0).
+
+**Blocked:** offline read. The app currently shows its error state with no
+network, which is honest but not what the plan promises.
+**Recommendation:** `expo-sqlite`, matching `member-app`, plus the persist
+client. Both are additive; no screen changes needed.
+
+Note: whichever is chosen, the cache must still be **wiped on sign-out,
+workspace switch and branch change** — a persisted cache makes that
+cross-tenant rule more important, not less, because it now survives app
+restarts. `SessionProvider` already does the wiping; it will need to clear the
+persisted store too.
+
+## 9. Two flows still need a human tap to confirm
+
+Portal/overlay content is a single accessibility element to idb, so its buttons
+cannot be driven by automation. Both sides of each flow are verified; only the
+final tap is not:
+
+- **Check-in confirm** (Check-in tab → search → Check in). See item 7.
+- **POS checkout** (More → Shop / POS → add items → Checkout → Take ₹…).
+  The sale endpoint contract is implemented against the real DTO, but no sale
+  has been recorded from the app.
