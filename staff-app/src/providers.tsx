@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { SessionProvider } from '@/auth/SessionProvider';
 import { ToastProvider } from '@/ui/Toast';
 
 /**
@@ -13,6 +14,7 @@ import { ToastProvider } from '@/ui/Toast';
  *    at the ROOT, bottom sheets and swipe rows render but never respond — a
  *    silent failure, exactly like the missing PortalHost was.
  *  - ToastProvider sits inside so toasts can overlay app content.
+ *  - SessionProvider needs the QueryClient above it (see inline note).
  *
  * Phase 3 (auth, session, RBAC) and Phase 4 (offline persistence) land here.
  */
@@ -38,7 +40,12 @@ export function Providers({ children }: { children: ReactNode }) {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
-          <ToastProvider>{children}</ToastProvider>
+          {/* SessionProvider must sit INSIDE QueryClientProvider: it clears the
+              query cache on sign-out and workspace switch, which is what stops
+              one gym's data surviving into another's session. */}
+          <SessionProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </SessionProvider>
         </SafeAreaProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>

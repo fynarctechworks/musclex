@@ -1,53 +1,59 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { CalendarDays, LayoutGrid, ScanLine, ShoppingCart, Users } from 'lucide-react-native';
-import type { LucideIcon } from 'lucide-react-native';
 
+import { useSession } from '@/auth/SessionProvider';
+import { can } from '@/rbac/permissions';
+import { CANDIDATE_TABS, MAX_PRIMARY_TABS, MORE_TAB } from '@/rbac/nav';
 import { tokens } from '@/ui/tokens';
 
 /**
- * PHASE 1/2: a STATIC front-desk tab set.
+ * Role-adaptive tab bar.
  *
- * This is scaffolding, not the shipping navigation. Phase 3 replaces it with
- * role-adaptive nav derived at runtime from the user's permission map — it
- * cannot be a per-role lookup table, because gyms author their own roles via
- * /settings/roles, so a hardcoded map would simply miss them.
+ * expo-router needs a <Tabs.Screen> for every route file, so ALL candidate
+ * tabs are declared and the ones the role cannot see are hidden with
+ * `href: null` rather than omitted. Omitting them would make those routes
+ * unreachable even via a deep link that the role IS allowed to follow.
  *
- * The front_desk set is used as the placeholder because front_desk is the
- * first release train (plan §11, Phase 5).
+ * Tabs are derived from the permission map, never from the role NAME: gyms
+ * author custom roles via /settings/roles, and a per-role lookup would give
+ * them an empty bar.
+ *
+ * ⚠️ Hiding a tab is UX, not security — the backend guard is the boundary.
  */
-const TABS: { name: string; title: string; icon: LucideIcon }[] = [
-  { name: 'index', title: 'Check-in', icon: ScanLine },
-  { name: 'members', title: 'Members', icon: Users },
-  { name: 'schedule', title: 'Schedule', icon: CalendarDays },
-  { name: 'pos', title: 'POS', icon: ShoppingCart },
-  { name: 'more', title: 'More', icon: LayoutGrid },
-];
-
 export default function TabsLayout() {
+  const { session } = useSession();
+  const user = session?.user;
+
+  const visible = CANDIDATE_TABS.filter((t) => can(user, t.module, t.action ?? 'view'));
+  const primary = new Set(visible.slice(0, MAX_PRIMARY_TABS).map((t) => t.name));
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: tokens.foreground,
         tabBarInactiveTintColor: tokens.mutedForeground,
-        tabBarStyle: {
-          backgroundColor: tokens.card,
-          borderTopColor: tokens.border,
-        },
+        tabBarStyle: { backgroundColor: tokens.card, borderTopColor: tokens.border },
       }}>
-      {TABS.map(({ name, title, icon: Icon }) => (
+      {CANDIDATE_TABS.map(({ name, title, icon: Icon }) => (
         <Tabs.Screen
           key={name}
           name={name}
           options={{
             title,
-            // Without an explicit icon React Navigation renders a default
-            // glyph — the "▼" placeholders visible in the first screenshots.
+            // null removes it from the bar but keeps the route addressable.
+            href: primary.has(name) ? undefined : null,
             tabBarIcon: ({ color, size }) => <Icon color={color} size={size} />,
           }}
         />
       ))}
+      <Tabs.Screen
+        name={MORE_TAB.name}
+        options={{
+          title: MORE_TAB.title,
+          tabBarIcon: ({ color, size }) => <MORE_TAB.icon color={color} size={size} />,
+        }}
+      />
     </Tabs>
   );
 }

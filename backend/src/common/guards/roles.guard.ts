@@ -41,10 +41,31 @@ export class RolesGuard implements CanActivate {
       if (hasRole) return true;
     }
 
-    // Super admin / owner / brand_owner bypass
-    const adminRoles = ['super_admin', 'owner', 'brand_owner'];
-    if (adminRoles.includes(user.role)) {
-      return true;
+    /*
+     * Owner-tier bypass.
+     *
+     * `owner` and `brand_owner` are TENANT roles — they are the top of a single
+     * gym, not of the platform. Letting them satisfy every @Roles(...) meant a
+     * decorator reading @Roles('super_admin') still admitted a gym owner, so
+     * the decorator stopped expressing a real boundary. (Verified: a gym-owner
+     * token returned 200 from /api/v1/admin/referrals/analytics/funnel, which
+     * is declared super_admin-only.)
+     *
+     * The bypass is kept for tenant-scoped routes — dozens of endpoints list
+     * `owner` but not `brand_owner`, and removing it outright would lock
+     * franchise owners out of their own gyms. It is now refused only where the
+     * requirement is PLATFORM-ONLY, which is exactly the escalation case.
+     */
+    const PLATFORM_ONLY_ROLES = new Set(['super_admin']);
+    const requiresOnlyPlatformRoles = requiredRoles.every((r) =>
+      PLATFORM_ONLY_ROLES.has(r),
+    );
+
+    if (!requiresOnlyPlatformRoles) {
+      const tenantAdminRoles = ['super_admin', 'owner', 'brand_owner'];
+      if (tenantAdminRoles.includes(user.role)) {
+        return true;
+      }
     }
 
     throw new ForbiddenException('Insufficient permissions');

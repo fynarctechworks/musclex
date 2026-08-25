@@ -5,6 +5,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PortalHost } from '@rn-primitives/portal';
 
+import { AuthGate } from '@/auth/AuthGate';
 import { Providers } from '@/providers';
 import { tokens } from '@/ui/tokens';
 
@@ -12,12 +13,14 @@ export default function RootLayout() {
   return (
     <Providers>
       <StatusBar style="dark" />
+      <AuthGate>
       <Stack
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: tokens.background },
         }}
       />
+      </AuthGate>
       {/*
         REQUIRED. Seven registry components (dialog, alert-dialog, select,
         dropdown-menu, popover, context-menu, tooltip) render through a portal

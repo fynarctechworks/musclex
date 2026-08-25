@@ -39,6 +39,15 @@ analysis/roadmap first, then are built slice by slice.
    migration, or hand-written SQL that alters structure.
 2. **Auth, RLS, or tenant-isolation** — anything touching how identity, gym
    scoping, or the tenant-model set works.
+   **Standing exception (granted 2026-08-26):** you may fix bugs and security
+   defects directly in **`frontend/`** AND in **`backend/` authorisation code**
+   (guards, role checks, endpoint-level permission checks) without stopping to
+   ask. Report what changed and why, as usual.
+   Still gated: schema/migrations (#1), RLS policy changes, and the
+   tenant-model set in `backend/src/prisma/tenant-models.ts` — those alter how
+   gym scoping itself works, where a wrong call is a cross-tenant leak.
+   When changing a shared guard, do it in two steps: add the narrower explicit
+   check first, verify nothing legitimate breaks, then remove the broad one.
 3. **New dependencies** — adding any package. Justify each one when you propose it.
 4. **Native modules and the mobile build pipeline.** `member-app/` is on **EAS dev
    builds** (`eas.json` ships a `developmentClient: true` profile, `expo-dev-client`

@@ -59,6 +59,13 @@ export class ReferralsAdminController {
     );
   }
 
+  /** Platform-only actions (rule config, cross-tenant reporting). */
+  private assertPlatformAdmin(user: JwtPayload): void {
+    if (!this.isSuperAdmin(user)) {
+      throw new ForbiddenException('This is a platform-admin action.');
+    }
+  }
+
   /** A gym owner may only ever touch their OWN studio's wallet; platform admins any. */
   private assertOwnStudio(user: JwtPayload, studioId: string): void {
     if (this.isSuperAdmin(user)) return;
@@ -136,7 +143,13 @@ export class ReferralsAdminController {
 
   @Post('rules')
   @HttpCode(HttpStatus.CREATED)
-  createRule(@Body() dto: CreateRuleDto) {
+  createRule(@Body() dto: CreateRuleDto, @CurrentUser() user: JwtPayload) {
+    // Referral reward rules are PLATFORM configuration — every gym is scored
+    // against them — so a single gym owner must not create, alter or remove
+    // one. RolesGuard admits owners to this controller for their own referral
+    // data, which makes an explicit check necessary here (same pattern as
+    // manualAdjustment below).
+    this.assertPlatformAdmin(user);
     if (!dto.rewards || dto.rewards.length === 0) {
       throw new BadRequestException('At least one reward action is required');
     }
@@ -161,7 +174,14 @@ export class ReferralsAdminController {
   async updateRule(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateRuleDto,
+    @CurrentUser() user: JwtPayload,
   ) {
+    // Referral reward rules are PLATFORM configuration — every gym is scored
+    // against them — so a single gym owner must not create, alter or remove
+    // one. RolesGuard admits owners to this controller for their own referral
+    // data, which makes an explicit check necessary here (same pattern as
+    // manualAdjustment below).
+    this.assertPlatformAdmin(user);
     const existing = await this.prisma.referralRewardRule.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Rule not found');
 
@@ -184,7 +204,16 @@ export class ReferralsAdminController {
 
   @Delete('rules/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteRule(@Param('id', ParseUUIDPipe) id: string) {
+  async deleteRule(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    // Referral reward rules are PLATFORM configuration — every gym is scored
+    // against them — so a single gym owner must not create, alter or remove
+    // one. RolesGuard admits owners to this controller for their own referral
+    // data, which makes an explicit check necessary here (same pattern as
+    // manualAdjustment below).
+    this.assertPlatformAdmin(user);
     const hasLogs = await this.prisma.rewardLog.count({ where: { rule_id: id } });
     if (hasLogs > 0) {
       // Soft-delete: deactivate instead of delete to preserve audit trail
@@ -274,14 +303,28 @@ export class ReferralsAdminController {
   /** Reward logs for auditing */
   @Get('reward-logs')
   getRewardLogs(
+    @CurrentUser() user: JwtPayload,
     @Query('studio_id') studioId?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
     const p = page ? parseInt(page, 10) : 1;
     const l = limit ? parseInt(limit, 10) : 20;
+
+    /*
+     * Previously `where: studioId ? {...} : {}` — omitting the query parameter
+     * returned EVERY studio's reward logs (including other gyms' names via the
+     * include below) to any gym owner. A tenant caller is now pinned to their
+     * own studio and cannot widen the scope by passing someone else's id;
+     * platform admins keep the cross-tenant view they need for auditing.
+     */
+    const scopedStudioId = this.isSuperAdmin(user) ? studioId : user.studio_id;
+    if (!scopedStudioId && !this.isSuperAdmin(user)) {
+      throw new ForbiddenException('No studio in scope.');
+    }
+
     return this.prisma.rewardLog.findMany({
-      where:   studioId ? { beneficiary_studio_id: studioId } : {},
+      where:   scopedStudioId ? { beneficiary_studio_id: scopedStudioId } : {},
       orderBy: { applied_at: 'desc' },
       skip:    (p - 1) * l,
       take:    l,
