@@ -143,3 +143,31 @@ describe('StripSecretsInterceptor', () => {
     expect(await run(interceptor, mockCtx({ role: 'owner' }), 'hello')).toBe('hello');
   });
 });
+
+describe('class instances survive stripping', () => {
+  const interceptor = new StripSecretsInterceptor();
+  /**
+   * Regression: the interceptor rebuilt every object with Object.entries, which
+   * destroyed Prisma Decimal instances and leaked their internals to clients as
+   * {"s":1,"e":3,"d":[1400]}. The web app's Number(price) then produced NaN and
+   * the mobile app rendered a dash. Date and Buffer were dodged by name; every
+   * other class was not.
+   */
+  it('leaves a Prisma Decimal serialisable as a scalar, not {s,e,d}', async () => {
+    const { Prisma } = await import('@prisma/client');
+    const payload = { product_name: 'Whey', price: new Prisma.Decimal('1400') };
+    const result = await run(interceptor, mockCtx({ role: 'owner' }), payload);
+    const out = JSON.parse(JSON.stringify(result));
+    expect(out.price).toBe('1400');
+    expect(typeof out.price).not.toBe('object');
+  });
+
+  it('still strips secrets from the plain objects around it', async () => {
+    const out: any = await run(
+      interceptor, mockCtx({ role: 'owner' }),
+      { full_name: 'A', face_descriptor: [1, 2, 3] },
+    );
+    expect('face_descriptor' in out).toBe(false);
+    expect(out.full_name).toBe('A');
+  });
+});

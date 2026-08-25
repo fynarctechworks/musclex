@@ -25,8 +25,23 @@ const OWNER_ONLY: ReadonlySet<string> = new Set([
 
 const OWNER_ROLES: ReadonlySet<string> = new Set(['owner', 'brand_owner']);
 
+/**
+ * True only for OBJECT LITERALS — not class instances.
+ *
+ * The previous version excluded Date and Buffer by name, which missed every
+ * other class. Prisma returns `Decimal` for numeric columns, and rebuilding one
+ * with Object.entries destroyed the instance and leaked its internals to
+ * clients as `{"s":1,"e":3,"d":[1400]}`. The web app's `Number(price)` then
+ * produced NaN and the mobile app rendered a dash.
+ *
+ * Checking the prototype covers Decimal, Date, Buffer and anything added later,
+ * instead of maintaining a list of classes to dodge. Secret-bearing fields all
+ * live on plain Prisma row objects, which are still walked.
+ */
 function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v) && !(v instanceof Date) && !Buffer.isBuffer(v);
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return false;
+  const proto = Object.getPrototypeOf(v);
+  return proto === Object.prototype || proto === null;
 }
 
 function strip(value: unknown, isOwner: boolean): unknown {

@@ -39,7 +39,8 @@ export type Member = {
 
 export type Payment = {
   id: string;
-  amount: number;
+  /** Int on this column today, but treat as Money — see format.ts. */
+  amount: number | string;
   currency?: string | null;
   payment_method: string;
   status: string;
@@ -122,4 +123,21 @@ export type ClassSession = {
   status: string;
   trainer?: { full_name?: string | null } | null;
   branch?: { name?: string | null } | null;
+};
+
+export type Product = {
+  id: string;
+  product_name: string;
+  /** Prisma Decimal — arrives as a STRING. Use toAmount()/formatCurrency(). */
+  price: number | string;
+  sku?: string | null;
+  brand?: string | null;
+  status?: string | null;
+};
+
+export type StaffRow = {
+  id: string;
+  user_id?: string | null;
+  full_name: string;
+  role?: string | null;
 };

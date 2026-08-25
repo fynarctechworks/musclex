@@ -94,3 +94,14 @@ Tests: 105 passing.
     ordered deletes that were failing silently.
 
 Tests: 108 passing.
+19. **POS** — product list, cart, quantity controls, payment method, sale
+    submission (`POST /pos/sales`). Reachable from the More hub, because front
+    desk has `inventory.create` but POS never made the 4 primary tab slots.
+    Seeder extended with 8 products.
+20. **Fixed a backend bug that also breaks the WEB app** —
+    `StripSecretsInterceptor` flattened Prisma `Decimal` instances, so prices
+    left the API as `{"s":1,"e":3,"d":[1400]}`. The web app's `Number(price)`
+    yields NaN on that. Fixed by testing the prototype rather than dodging
+    classes by name. See docs/SECURITY_FINDINGS_2026-08-26.md F-3.
+
+Tests: staff-app 112, backend 33 (+ new interceptor regression tests).

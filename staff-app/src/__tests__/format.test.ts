@@ -1,6 +1,6 @@
 import {
   formatCurrency, formatCurrencyCompact, formatDate, formatNumber,
-  formatRelative, formatTime, toLocalISODate,
+  formatRelative, formatTime, toAmount, toLocalISODate,
 } from '../lib/format';
 
 /**
@@ -100,5 +100,27 @@ describe('toLocalISODate', () => {
 
   it('zero-pads month and day', () => {
     expect(toLocalISODate(new Date(2026, 0, 5))).toBe('2026-01-05');
+  });
+});
+
+describe('toAmount — the API mixes Int and Decimal-as-string', () => {
+  it('accepts a plain number', () => {
+    expect(toAmount(24000)).toBe(24000);
+  });
+
+  it('accepts a Decimal serialised as a string', () => {
+    // products.price is a Prisma Decimal and arrives as "1400".
+    expect(toAmount('1400')).toBe(1400);
+    expect(toAmount('24.50')).toBe(24.5);
+  });
+
+  it('is NaN for junk, so formatters render a dash rather than NaN', () => {
+    expect(Number.isNaN(toAmount(undefined))).toBe(true);
+    expect(Number.isNaN(toAmount(''))).toBe(true);
+    expect(Number.isNaN(toAmount('abc'))).toBe(true);
+  });
+
+  it('formats a Decimal string with Indian grouping', () => {
+    expect(formatCurrency('123456', 'INR')).toContain('1,23,456');
   });
 });

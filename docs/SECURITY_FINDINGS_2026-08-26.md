@@ -158,3 +158,46 @@ Backend suite: 27 referral/guard tests pass, plus the 9 new guard tests.
   reading** — they use the global `PrismaService` with no studio filter. Fixing
   them properly means deciding what a gym owner *should* see of their own
   referral funnel, which is a product question, not a mechanical one.
+
+---
+
+## F-3 — `StripSecretsInterceptor` destroyed class instances (data-integrity, not a leak)
+
+**File:** [`backend/src/common/interceptors/strip-secrets.interceptor.ts`](../backend/src/common/interceptors/strip-secrets.interceptor.ts)
+
+Found while building the mobile POS screen. Not a security hole — secrets were
+always stripped correctly — but a correctness bug in the same shared code path,
+affecting **every** response.
+
+`strip()` rebuilt every object with `Object.entries`. `isPlainObject` dodged
+`Date` and `Buffer` **by name**, so every other class was flattened. Prisma
+returns `Decimal` for numeric columns, so a price left the API as its internal
+representation:
+
+```json
+{"product_name":"Creatine 250g","price":{"s":1,"e":3,"d":[1400]}}
+```
+
+**Both clients break on that.** `frontend/src/features/inventory/components/BundleDialog.tsx`
+does `Number(p.price)` → `NaN` → renders `₹NaN`; the staff app rendered `—`.
+It survived because money columns are inconsistent — `payments.amount` is an
+`Int` (unaffected) while `products.price` is a `Decimal` — so only some screens
+show it.
+
+**Fixed** by testing the prototype instead of listing classes to dodge:
+
+```ts
+const proto = Object.getPrototypeOf(v);
+return proto === Object.prototype || proto === null;
+```
+
+This covers Decimal, Date, Buffer and anything added later. Secret-bearing
+fields live on plain Prisma row objects, which are still walked.
+
+**Verified:** `price` now serialises as `"1400"` (the string form the web app's
+`Number()` already expects), `salary`/`base_salary` are still absent for a
+non-owner caller, and the POS screen renders ₹1,400. Regression test added to
+`backend/test/strip-secrets.interceptor.spec.ts` (10 tests pass).
+
+I deliberately did NOT change the wire format to a JSON number — that would be
+a broader behavioural change than the bug required.

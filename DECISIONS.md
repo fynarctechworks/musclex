@@ -140,3 +140,14 @@ aborted the parent delete, and the next run collided on `member_code`). The test
 gym owns its own schema, so TRUNCATE CASCADE is complete and scoped. A guard
 refuses to run unless the schema name matches the test gym's own — it must never
 touch `studio_template` or a real tenant.
+
+### Money is `number | string` on the client, coerced in the formatter
+The API is inconsistent: `payments.amount` is an Int, `products.price` is a
+Prisma Decimal that serialises to a string. `toAmount()` in `src/lib/format.ts`
+coerces both, so no caller has to know which column type it is reading, and junk
+renders as "—" rather than "NaN". Tested.
+
+### POS is reachable from the More hub
+Front desk has `inventory.create` but POS sits 6th in tab priority, so it never
+made the 4 primary slots — the till was unreachable. The More hub now links to
+real routes as well as listing unbuilt ones.

@@ -4,7 +4,7 @@ import { api } from '@/api/client';
 import { toLocalISODate } from '@/lib/format';
 import type {
   ActivityItem, Branch, DashboardAlert, DashboardKpis, DashboardPulse, Member,
-  ClassSession, MemberDetail, Paginated, Payment,
+  ClassSession, MemberDetail, Paginated, Payment, Product, StaffRow,
 } from '@/api/types';
 
 /**
@@ -98,6 +98,61 @@ export function useSessionsForDay(day: Date) {
       return res.data.filter(
         (s) => s.start_time && toLocalISODate(new Date(s.start_time)) === key,
       );
+    },
+  });
+}
+
+export function useProducts() {
+  return useQuery({
+    queryKey: ['products'],
+    staleTime: 5 * 60_000,
+    queryFn: () => api.get<Paginated<Product>>('/products', { params: { limit: 100 } }),
+  });
+}
+
+/**
+ * The signed-in user's STAFF row.
+ *
+ * POS sales require `staff_id` — the tenant staff row — but the session only
+ * carries the auth user id. There is no /staff/me endpoint, so the row is found
+ * by matching user_id in the staff list. Cached for the session: it does not
+ * change while signed in.
+ */
+export function useCurrentStaff(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['staff', 'me', userId ?? ''],
+    enabled: Boolean(userId),
+    staleTime: Infinity,
+    queryFn: async () => {
+      const res = await api.get<Paginated<StaffRow>>('/staff', { params: { limit: 200 } });
+      return res.data.find((s) => s.user_id === userId) ?? null;
+    },
+  });
+}
+
+export type PosCartLine = { product: Product; quantity: number };
+
+export function useCreateSale() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      branchId: string;
+      staffId: string;
+      lines: PosCartLine[];
+      paymentMethod: 'cash' | 'card' | 'upi' | 'wallet';
+      memberId?: string;
+    }) =>
+      api.post<{ id: string; invoice_number?: string; total_amount?: number }>('/pos/sales', {
+        branch_id: input.branchId,
+        staff_id: input.staffId,
+        payment_method: input.paymentMethod,
+        items: input.lines.map((l) => ({ product_id: l.product.id, quantity: l.quantity })),
+        ...(input.memberId ? { member_id: input.memberId } : {}),
+      }),
+    onSuccess: () => {
+      // A sale moves stock and money.
+      void qc.invalidateQueries({ queryKey: ['products'] });
+      void qc.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }

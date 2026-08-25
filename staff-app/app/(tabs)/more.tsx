@@ -3,8 +3,8 @@ import { ScrollView, View } from 'react-native';
 import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  BarChart3, Boxes, Dumbbell, LogOut, Megaphone, Package, Settings, Sparkles,
-  UserCog, Users2, type LucideIcon,
+  BarChart3, Boxes, Dumbbell, LogOut, Megaphone, Package, Settings, ShoppingCart,
+  Sparkles, UserCog, Users2, type LucideIcon,
 } from 'lucide-react-native';
 
 import { Text } from '@/components/ui/text';
@@ -45,6 +45,9 @@ type Entry = {
 };
 
 const ENTRIES: Entry[] = [
+  // POS is a REAL route, not a placeholder: front desk has inventory.create but
+  // POS sits 6th in tab priority, so without this entry the till is unreachable.
+  { href: '/(tabs)/pos', label: 'Shop / POS', icon: ShoppingCart, module: 'inventory', action: 'create', phase: '' },
   { href: '/more/staff',      label: 'Staff',        icon: UserCog,   module: 'staff',     feature: 'staff_management',    phase: 'Phase 10' },
   { href: '/more/marketing',  label: 'Marketing',    icon: Megaphone, module: 'marketing', feature: 'marketing_campaigns', phase: 'Phase 9' },
   { href: '/more/inventory',  label: 'Inventory',    icon: Package,   module: 'inventory', phase: 'Phase 8' },
@@ -135,16 +138,20 @@ function MoreRow({ entry }: { entry: Entry }) {
   const state = useFeatureState(entry.feature ?? 'member_management');
   const locked = Boolean(entry.feature) && state === 'locked';
   const Icon = entry.icon;
+  const built = entry.phase === '';
 
-  return (
+  const row = (
     <RowCard
       title={entry.label}
-      subtitle={locked ? undefined : `Not built yet — ${entry.phase}`}
+      subtitle={locked || built ? undefined : `Not built yet — ${entry.phase}`}
       leading={<Icon size={20} color={locked ? tokens.mutedForeground : tokens.foreground} />}
       trailing={locked && entry.feature ? <PremiumTag feature={entry.feature} /> : undefined}
       // Locked entries stay visible and inert: the lock IS the upsell.
-      onPress={locked ? undefined : () => {}}
+      onPress={locked || built ? undefined : () => {}}
       chevron={!locked}
     />
   );
+
+  // Built destinations navigate; unbuilt ones render inert with their phase.
+  return built && !locked ? <Link href={entry.href} asChild>{row}</Link> : row;
 }

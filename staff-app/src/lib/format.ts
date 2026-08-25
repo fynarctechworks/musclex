@@ -13,6 +13,23 @@
 
 export type CurrencyCode = string;
 
+/**
+ * Money arrives in two shapes from this API: `payments.amount` is an Int
+ * (number) while `products.price` is a Prisma Decimal, which serialises to a
+ * STRING. Coercing at the formatter keeps every caller from having to know
+ * which column type it happens to be reading.
+ */
+export type Money = number | string | null | undefined;
+
+export function toAmount(value: Money): number {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : Number.NaN;
+  }
+  return Number.NaN;
+}
+
 const SYMBOLS: Record<string, string> = {
   INR: '₹',
   USD: '$',
@@ -34,11 +51,12 @@ function groupDigits(value: string, code: CurrencyCode): string {
  * callers pass major units, matching what the API returns.
  */
 export function formatCurrency(
-  amount: number,
+  value: Money,
   code: CurrencyCode = 'INR',
   opts: { decimals?: boolean } = {},
 ): string {
   const decimals = opts.decimals ?? false;
+  const amount = toAmount(value);
   if (!Number.isFinite(amount)) return '—';
 
   try {
@@ -60,7 +78,9 @@ export function formatCurrency(
 }
 
 /** Compact money for dense tiles: ₹1.2L, ₹12.4k. */
-export function formatCurrencyCompact(amount: number, code: CurrencyCode = 'INR'): string {
+export function formatCurrencyCompact(value: Money, code: CurrencyCode = 'INR'): string {
+  const amount = toAmount(value);
+  if (!Number.isFinite(amount)) return '—';
   const symbol = SYMBOLS[code] ?? `${code} `;
   const abs = Math.abs(amount);
   const sign = amount < 0 ? '-' : '';

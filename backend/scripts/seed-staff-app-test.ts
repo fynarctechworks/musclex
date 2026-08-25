@@ -94,7 +94,8 @@ async function main() {
     }
     await db.query(
       `TRUNCATE ${SCHEMA}.members, ${SCHEMA}.classes, ${SCHEMA}.class_sessions,
-                ${SCHEMA}.membership_plans, ${SCHEMA}.staff, ${SCHEMA}.branches CASCADE`,
+                ${SCHEMA}.membership_plans, ${SCHEMA}.products,
+                ${SCHEMA}.staff, ${SCHEMA}.branches CASCADE`,
     );
     await db.query('DELETE FROM public.user_roles WHERE studio_id=$1', [GYM_ID]);
 
@@ -285,6 +286,30 @@ async function main() {
 
     console.log(`\n  40 members — ${active} active, ${due} with dues`);
     console.log(`  ${sessions} class sessions across 4 classes`);
+
+    // ── Shop products (POS) ──
+    const PRODUCTS = [
+      { name: 'Whey Protein 1kg',   price: 3200, stock: 14, cat: 'supplements' },
+      { name: 'Creatine 250g',      price: 1400, stock: 9,  cat: 'supplements' },
+      { name: 'Shaker Bottle',      price: 350,  stock: 40, cat: 'accessories' },
+      { name: 'Gym Towel',          price: 250,  stock: 25, cat: 'accessories' },
+      { name: 'Energy Drink',       price: 120,  stock: 60, cat: 'beverages' },
+      { name: 'Protein Bar',        price: 150,  stock: 48, cat: 'beverages' },
+      { name: 'Resistance Band',    price: 600,  stock: 0,  cat: 'accessories' },
+      { name: 'Lifting Straps',     price: 900,  stock: 6,  cat: 'accessories' },
+    ];
+    // NOTE: products has category_id (FK) and `status`, not a `category` string
+    // or a stock column — stock is tracked in a separate table, so it is not
+    // seeded here and the POS screen does not claim to show it.
+    for (const p of PRODUCTS) {
+      await db.query(
+        `INSERT INTO ${SCHEMA}.products
+           (id, gym_id, branch_id, product_name, sku, price, status, product_type)
+         VALUES ($1,$2,$3,$4,$5,$6,'active','retail')`,
+        [randomUUID(), GYM_ID, BRANCH_ID, p.name, p.name.replace(/\W+/g, '-').toUpperCase(), p.price],
+      );
+    }
+    console.log(`  ${PRODUCTS.length} products`);
     console.log(`\n  Password for all staff accounts: ${PASSWORD}`);
     console.log(`  Gym id: ${GYM_ID}\n`);
   } finally {
