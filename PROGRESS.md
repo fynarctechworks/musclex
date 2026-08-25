@@ -50,3 +50,15 @@ backend `tsc` clean, 36 referral/guard tests.
    active plan". See DECISIONS.md.
 
 Tests: staff-app 93 passing (was 84).
+7. **Dashboard (Home tab)** — live KPIs, member-trend sparkline, "needs
+   attention" alerts and the activity feed, each an independent query with its
+   own loading/error state. Pull-to-refresh refetches all four.
+8. **Tab IA fixed** — first tab said "Check-in" while showing a dashboard. Home
+   is now the dashboard, check-in has its own route, and Money sits ahead of
+   Schedule so front desk gets the tab they actually use.
+9. **Alert truncation fixed** — `RowCard` gained `titleLines`; alerts no longer
+   clip mid-message.
+
+Verified on device as front_desk: Home·Check-in·Members·Money·More, real KPIs
+(20 active members, 2 expiring), and full alert text.
+Tests: 95 passing.

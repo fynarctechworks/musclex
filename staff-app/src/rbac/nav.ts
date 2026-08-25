@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react-native';
 import {
-  BarChart3, CalendarDays, LayoutGrid, Megaphone, ScanLine, ShoppingCart,
-  Users, Wallet,
+  BarChart3, CalendarDays, LayoutDashboard, LayoutGrid, Megaphone, ScanLine,
+  ShoppingCart, Users, Wallet,
 } from 'lucide-react-native';
 
 import type { StaffUser } from '@/auth/types';
@@ -35,15 +35,21 @@ export type TabDef = {
  * Candidate tabs in priority order. The first four the user can see become
  * their tabs; More is always appended.
  *
- * Order encodes what each role opens the app to do: check-in leads for front
- * desk, schedule for trainers, money for accountants. It is a single ordered
- * list rather than per-role sets so custom roles inherit sane behaviour.
+ * Order is tuned so the same list serves every role sensibly:
+ *   front_desk  → Home · Check-in · Members · Money
+ *   trainer     → Home · Check-in · Members · Schedule
+ *   accountant  → Home · Members · Money · Reports
+ * A single ordered list (rather than per-role sets) means gym-authored custom
+ * roles inherit sane behaviour instead of an empty bar.
  */
 export const CANDIDATE_TABS: TabDef[] = [
-  { name: 'index',    title: 'Check-in', icon: ScanLine,     module: 'check_ins' },
+  { name: 'index',    title: 'Home',     icon: LayoutDashboard, module: 'dashboard' },
+  { name: 'checkin',  title: 'Check-in', icon: ScanLine,     module: 'check_ins' },
   { name: 'members',  title: 'Members',  icon: Users,        module: 'members' },
-  { name: 'schedule', title: 'Schedule', icon: CalendarDays, module: 'classes' },
+  // Money before Schedule: front desk takes payments all day; a trainer has no
+  // payments permission so still lands on Schedule.
   { name: 'money',    title: 'Money',    icon: Wallet,       module: 'payments' },
+  { name: 'schedule', title: 'Schedule', icon: CalendarDays, module: 'classes' },
   { name: 'pos',      title: 'POS',      icon: ShoppingCart, module: 'inventory', action: 'create' },
   { name: 'marketing',title: 'Marketing',icon: Megaphone,    module: 'marketing' },
   { name: 'reports',  title: 'Reports',  icon: BarChart3,    module: 'reports' },

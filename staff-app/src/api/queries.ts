@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@/api/client';
-import type { Branch, Member, Paginated } from '@/api/types';
+import type {
+  ActivityItem, Branch, DashboardAlert, DashboardKpis, DashboardPulse, Member, Paginated,
+} from '@/api/types';
 
 /**
  * React Query hooks.
@@ -18,6 +20,7 @@ import type { Branch, Member, Paginated } from '@/api/types';
 
 export const keys = {
   branches: ['branches'] as const,
+  dashboard: ['dashboard'] as const,
   members: (params?: MemberListParams) => ['members', params ?? {}] as const,
   member: (id: string) => ['member', id] as const,
 };
@@ -29,6 +32,45 @@ export function useBranches() {
     // screen that shows the branch switcher.
     staleTime: 10 * 60_000,
     queryFn: () => api.get<Branch[]>('/branches'),
+  });
+}
+
+/**
+ * Dashboard.
+ *
+ * The four calls are separate queries rather than one aggregate so a single
+ * slow or failing section (alerts hit several tables) cannot blank the whole
+ * screen — each renders its own loading/error state.
+ */
+export function useDashboardKpis() {
+  return useQuery({
+    queryKey: [...keys.dashboard, 'kpis'],
+    staleTime: 60_000,
+    queryFn: () => api.get<DashboardKpis>('/dashboard/kpis'),
+  });
+}
+
+export function useDashboardPulse() {
+  return useQuery({
+    queryKey: [...keys.dashboard, 'pulse'],
+    staleTime: 60_000,
+    queryFn: () => api.get<DashboardPulse>('/dashboard/pulse'),
+  });
+}
+
+export function useDashboardAlerts() {
+  return useQuery({
+    queryKey: [...keys.dashboard, 'alerts'],
+    queryFn: () => api.get<DashboardAlert[]>('/dashboard/alerts'),
+  });
+}
+
+export function useActivityFeed() {
+  return useQuery({
+    queryKey: [...keys.dashboard, 'activity'],
+    // The live check-in feed is the point of this section; keep it fresh.
+    staleTime: 15_000,
+    queryFn: () => api.get<ActivityItem[]>('/dashboard/activity-feed'),
   });
 }
 

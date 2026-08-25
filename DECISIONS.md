@@ -55,3 +55,25 @@ cleared). *Where:* `app/(tabs)/more.tsx`.
 Same asymmetry as the web app — a role-restricted module is absent, a
 plan-restricted one is visible with its required tier. Inverting either leaks a
 module or deletes the upsell.
+
+### Tab order: Home first, then Money before Schedule
+`CANDIDATE_TABS` is one ordered list filtered by permission, so the order has to
+serve every role at once. Final order puts Home first (every role opens to it)
+and **Money before Schedule**, because front desk takes payments all day while a
+trainer has no `payments` permission and therefore still lands on Schedule.
+Result: front_desk → Home·Check-in·Members·Money, trainer →
+Home·Check-in·Members·Schedule, accountant → Home·Members·Money·Reports.
+Each is asserted in `src/__tests__/nav.test.ts`.
+
+### Dashboard is `index` ("Home"); check-in moved to its own route
+The first tab previously read "Check-in" while rendering a dashboard. Home is now
+the dashboard and `app/(tabs)/checkin.tsx` is a separate screen.
+
+### Dashboard is four independent queries, not one aggregate
+KPIs, pulse, alerts and activity each render their own loading/error state, so a
+slow or failing section (alerts touch several tables) cannot blank the screen.
+
+### RowCard gained `titleLines`
+Default stays 1 for scannable list rows, but alert rows put the whole message in
+the title — clamping hid the thing the staffer needs to act on ("Vikram Kumar
+(TG1028) — mem…"). Alerts use 3.

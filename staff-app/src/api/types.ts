@@ -43,3 +43,39 @@ export type Branch = {
   city?: string | null;
   is_active?: boolean;
 };
+
+/** One metric from GET /dashboard/pulse. Deltas may be null on a new gym. */
+export type PulseMetric = {
+  value: number;
+  delta_pct?: number | null;
+  delta_abs?: number | null;
+  delta_label?: string | null;
+  sparkline?: number[];
+  as_of?: string;
+};
+
+export type DashboardPulse = Record<string, PulseMetric>;
+
+export type DashboardKpis = {
+  active_members: number;
+  monthly_revenue: number;
+  avg_attendance_rate: number;
+  expiring_soon_count: number;
+};
+
+export type DashboardAlert = {
+  id: string;
+  severity: 'high' | 'medium' | 'low' | string;
+  message: string;
+};
+
+export type ActivityItem = {
+  id: string;
+  type: string;
+  message: string;
+  member_name?: string | null;
+  member_code?: string | null;
+  branch_name?: string | null;
+  method?: string | null;
+  timestamp: string;
+};

@@ -8,7 +8,16 @@ const titles = (u: Parameters<typeof tabsForUser>[0]) => tabsForUser(u).map((t) 
 
 describe('role-adaptive tabs', () => {
   it('gives front_desk its counter workflow', () => {
-    expect(titles(user('front_desk'))).toEqual(['Check-in', 'Members', 'Schedule', 'Money']);
+    // Home first (every role opens to it), then the desk's actual work.
+    expect(titles(user('front_desk'))).toEqual(['Home', 'Check-in', 'Members', 'Money']);
+  });
+
+  it('gives a trainer their teaching day', () => {
+    expect(titles(user('trainer'))).toEqual(['Home', 'Check-in', 'Members', 'Schedule']);
+  });
+
+  it('gives an accountant the money view', () => {
+    expect(titles(user('accountant'))).toEqual(['Home', 'Members', 'Money', 'Reports']);
   });
 
   it('gives a trainer no money tab', () => {
@@ -17,7 +26,7 @@ describe('role-adaptive tabs', () => {
     expect(t).not.toContain('Money');
   });
 
-  it('gives an accountant money and reports, not check-in', () => {
+  it('gives an accountant money but not check-in', () => {
     const t = titles(user('accountant'));
     expect(t).toContain('Money');
     expect(t).not.toContain('Check-in');
@@ -38,7 +47,7 @@ describe('role-adaptive tabs', () => {
   it('derives tabs for a CUSTOM role from its server permission map', () => {
     // The reason tabs are derived rather than looked up by role name.
     const custom = user('weekend_reception', { check_ins: ['view'], members: ['view'] });
-    expect(titles(custom)).toEqual(['Check-in', 'Members']);
+    expect(titles(custom)).toEqual(['Check-in', 'Members']);  // no dashboard grant → no Home
   });
 
   it('returns nothing when signed out', () => {

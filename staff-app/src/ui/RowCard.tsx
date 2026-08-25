@@ -31,6 +31,12 @@ export type RowCardProps = {
   initials?: string;
   leading?: React.ReactNode;
   onPress?: () => void;
+  /**
+   * Title line clamp. Defaults to 1 for scannable list rows, but alerts and
+   * notifications put the whole message in the title — clamping those hides
+   * the thing the staffer needs to act on.
+   */
+  titleLines?: number;
   /** Show a chevron. Defaults to true when the row is pressable. */
   chevron?: boolean;
   className?: string;
@@ -39,7 +45,7 @@ export type RowCardProps = {
 
 export function RowCard({
   title, subtitle, trailing, meta, initials, leading,
-  onPress, chevron, className, testID,
+  onPress, chevron, className, testID, titleLines = 1,
 }: RowCardProps) {
   const showChevron = chevron ?? Boolean(onPress);
   const Container = onPress ? Pressable : View;
@@ -67,7 +73,7 @@ export function RowCard({
           ) : null)}
 
         <View className="min-w-0 flex-1">
-          <Text numberOfLines={1} className="text-base font-medium text-foreground">
+          <Text numberOfLines={titleLines} className="text-base font-medium text-foreground">
             {title}
           </Text>
           {subtitle ? (
