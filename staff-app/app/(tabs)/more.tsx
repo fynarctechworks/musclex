@@ -1,38 +1,150 @@
 import React from 'react';
-import { View } from 'react-native';
-import { Link } from 'expo-router';
+import { ScrollView, View } from 'react-native';
+import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  BarChart3, Boxes, Dumbbell, LogOut, Megaphone, Package, Settings, Sparkles,
+  UserCog, Users2, type LucideIcon,
+} from 'lucide-react-native';
 
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { RowCard } from '@/ui/RowCard';
+import { BranchSwitcher } from '@/features/BranchSwitcher';
+import { useSession } from '@/auth/SessionProvider';
+import { useCan } from '@/rbac/Gate';
+import { PremiumTag } from '@/rbac/Gate';
+import { useFeatureState } from '@/rbac/Gate';
+import type { FeatureKey } from '@/rbac/entitlements';
+import type { Action, Module } from '@/rbac/permissions';
 import { tokens } from '@/ui/tokens';
 
 /**
- * The "More" hub.
+ * The "More" hub — everything that does not earn a tab.
  *
- * Phase 3 replaces this with the role-adaptive module list derived from the
- * user's permission map. Until then it carries one entry: a route into the
- * design-system gallery, so the components are reachable by tapping — both for
- * a human and for the idb UI harness (scripts/verify-interactive.sh), which
- * navigates by accessibility label rather than pixel coordinates.
- *
- * SafeAreaView uses `style`, not className: uniwind only augments React Native
- * CORE components, and a dropped `flex-1` here renders a blank screen.
+ * Entries are filtered by ROLE (hidden when not permitted) and decorated by
+ * PLAN (shown locked with the required tier). That asymmetry is the web app's
+ * rule and must not invert: hiding a plan-gated feature deletes the upsell,
+ * showing a role-gated one leaks a module across roles.
  */
+type Entry = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  module: Module;
+  action?: Action;
+  feature?: FeatureKey;
+  phase: string;
+};
+
+const ENTRIES: Entry[] = [
+  { href: '/more/staff',      label: 'Staff',        icon: UserCog,   module: 'staff',     feature: 'staff_management',    phase: 'Phase 10' },
+  { href: '/more/marketing',  label: 'Marketing',    icon: Megaphone, module: 'marketing', feature: 'marketing_campaigns', phase: 'Phase 9' },
+  { href: '/more/inventory',  label: 'Inventory',    icon: Package,   module: 'inventory', phase: 'Phase 8' },
+  { href: '/more/reports',    label: 'Reports',      icon: BarChart3, module: 'reports',   feature: 'basic_reports',       phase: 'Phase 8' },
+  { href: '/more/training',   label: 'Training',     icon: Dumbbell,  module: 'members',   phase: 'Phase 6' },
+  { href: '/more/ai',         label: 'AI advisor',   icon: Sparkles,  module: 'ai',        feature: 'ai_advisor',          phase: 'Phase 6' },
+  { href: '/more/branches',   label: 'Branches',     icon: Boxes,     module: 'branches',  feature: 'multi_branch',        phase: 'Phase 10' },
+  { href: '/more/memberships',label: 'Memberships',  icon: Users2,    module: 'members',   phase: 'Phase 10' },
+  { href: '/more/settings',   label: 'Settings',     icon: Settings,  module: 'settings',  phase: 'Phase 11' },
+];
+
 export default function More() {
+  const { session, signOut } = useSession();
+  const can = useCan();
+  const user = session?.user;
+
+  const initials = (user?.full_name ?? '?')
+    .split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
+
+  async function onSignOut() {
+    await signOut();
+    router.replace('/(auth)/sign-in');
+  }
+
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: tokens.background }}>
-      <View className="flex-1 gap-4 p-6">
-        <Text className="text-2xl font-semibold text-foreground">More</Text>
-        <Text className="text-sm text-muted-foreground">
-          Modules land here in Phase 3, filtered by the signed-in role.
-        </Text>
-        <Link href="/gallery" asChild>
-          <Button variant="secondary">
-            <Text>Design system</Text>
-          </Button>
-        </Link>
-      </View>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 16 }}>
+        {/* Who am I, and which gym am I in — the two things staff check first. */}
+        <View className="flex-row items-center gap-3 rounded-lg border border-border bg-card p-4">
+          <Avatar alt={user?.full_name ?? 'Signed in user'}>
+            <AvatarFallback><Text>{initials}</Text></AvatarFallback>
+          </Avatar>
+          <View className="min-w-0 flex-1">
+            <Text numberOfLines={1} className="text-base font-medium text-foreground">
+              {user?.full_name ?? 'Signed in'}
+            </Text>
+            <Text numberOfLines={1} className="text-sm text-muted-foreground">
+              {session?.studio?.name ?? '—'}
+            </Text>
+          </View>
+          <Badge variant="secondary">
+            <Text>{(user?.role ?? '').replace(/_/g, ' ')}</Text>
+          </Badge>
+        </View>
+
+        <BranchSwitcher />
+
+        <View className="gap-2">
+          {ENTRIES.filter((e) => can(e.module, e.action ?? 'view')).map((e) => (
+            <MoreRow key={e.href} entry={e} />
+          ))}
+        </View>
+
+        {/* Dev surface — not gated by role, it ships only in development. */}
+        {__DEV__ ? (
+          <Link href="/gallery" asChild>
+            <Button variant="ghost"><Text>Design system (dev)</Text></Button>
+          </Link>
+        ) : null}
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline" testID="sign-out">
+              <LogOut size={16} color={tokens.destructive} />
+              <Text className="text-destructive">Sign out</Text>
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Sign out?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {/* Front-desk phones are shared — say what actually happens. */}
+                This device will forget your session and any cached gym data.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel><Text>Cancel</Text></AlertDialogCancel>
+              <AlertDialogAction onPress={onSignOut}><Text>Sign out</Text></AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function MoreRow({ entry }: { entry: Entry }) {
+  const state = useFeatureState(entry.feature ?? 'member_management');
+  const locked = Boolean(entry.feature) && state === 'locked';
+  const Icon = entry.icon;
+
+  return (
+    <RowCard
+      title={entry.label}
+      subtitle={locked ? undefined : `Not built yet — ${entry.phase}`}
+      leading={<Icon size={20} color={locked ? tokens.mutedForeground : tokens.foreground} />}
+      trailing={locked && entry.feature ? <PremiumTag feature={entry.feature} /> : undefined}
+      // Locked entries stay visible and inert: the lock IS the upsell.
+      onPress={locked ? undefined : () => {}}
+      chevron={!locked}
+    />
   );
 }

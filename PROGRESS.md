@@ -29,3 +29,24 @@ Needs you: [`TODO_FOR_ME.md`](TODO_FOR_ME.md)
 
 Verification at hand-off: staff-app `tsc` clean, 84 unit tests;
 backend `tsc` clean, 36 referral/guard tests.
+
+---
+
+## Autonomous session — 2026-08-26
+
+1. **Committed** the security fixes + phase 3 auth/RBAC (`f177573`).
+2. **API layer** — `src/api/types.ts` (shapes captured from the live API, not
+   guessed) and `src/api/queries.ts` (React Query hooks for branches/members).
+3. **Branch switcher** — `src/features/BranchSwitcher.tsx`. Sets
+   `activeBranchId` → `X-Active-Branch-Id`; changing it clears the cache.
+4. **More hub** — profile card, branch switcher, role-filtered/plan-locked
+   module list, and **sign-out** behind a confirm dialog (the gap found while
+   testing: switching accounts previously needed a keychain reset).
+5. **Members list** — first screen on live data: server-side search + status
+   filter, pull-to-refresh, virtualised, empty/error states.
+   Verified on device against the seeded gym: 40 real members rendering.
+6. **Fixed a data-fidelity bug found on device** — the list showed "No plan" for
+   lapsed members because the API only includes ACTIVE memberships. Now "No
+   active plan". See DECISIONS.md.
+
+Tests: staff-app 93 passing (was 84).
