@@ -114,3 +114,7 @@ Tests: staff-app 112, backend 33 (+ new interceptor regression tests).
     the new member on success. **Verified end to end on device:** created a real
     member (40 → 41), API assigned code `FS-20260825-D6649020`, app routed to
     her detail page. This is the first confirmed WRITE from the app.
+24. **Check-in mutation confirmed working** — with the confirm step temporarily
+    bypassed, a tap recorded a real check-in (59 → 60 rows). The earlier silent
+    failure was the Hermes UUID bug. Only the dialog's button tap remains
+    unautomatable; the code path is proven. Temporary code removed.

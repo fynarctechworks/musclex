@@ -67,6 +67,13 @@ end to end; adding the scanner is an additive change to the same screen.
 
 ## 7. One tap I could not automate: the check-in confirm dialog
 
+> **UPDATE:** the check-in MUTATION is now verified working end to end — with
+> the confirm bypassed temporarily, a tap recorded a real check-in (59 → 60 rows)
+> and the row's "last visit" updated. The earlier failure was the Hermes UUID
+> bug, now fixed. What remains unverified is only the dialog's *button tap*,
+> which is a tooling limit, not a code path. A single human tap closes it out.
+
+
 Portal/overlay content (AlertDialog, bottom sheet) is exposed to idb as a
 SINGLE accessibility element, so its buttons cannot be tapped by the automation.
 Everything either side is verified — the member search, the dialog opening, and
