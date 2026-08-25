@@ -42,16 +42,17 @@ has_label() { [ -n "$(find_center "$1")" ]; }
 # A one-directional scroll silently fails for anything already above the fold.
 scroll_to() {
   local want="$1" c y
-  for _ in $(seq 1 14); do
+  # The gallery has grown; give the scan enough room to traverse it.
+  for _ in $(seq 1 26); do
     c=$(find_center "$want"); y=$(echo "$c" | awk '{print $2}')
     if [ -z "$y" ]; then
-      "$IDB" ui swipe 210 700 210 320 --duration 0.25 >/dev/null 2>&1 || true
+      "$IDB" ui swipe 210 760 210 260 --duration 0.25 >/dev/null 2>&1 || true
     elif [ "$y" -ge 130 ] && [ "$y" -le 760 ]; then
       sleep 0.8; return 0
     elif [ "$y" -gt 760 ]; then
-      "$IDB" ui swipe 210 700 210 320 --duration 0.25 >/dev/null 2>&1 || true
+      "$IDB" ui swipe 210 760 210 260 --duration 0.25 >/dev/null 2>&1 || true
     else
-      "$IDB" ui swipe 210 320 210 700 --duration 0.25 >/dev/null 2>&1 || true
+      "$IDB" ui swipe 210 260 210 760 --duration 0.25 >/dev/null 2>&1 || true
     fi
     sleep 1
   done

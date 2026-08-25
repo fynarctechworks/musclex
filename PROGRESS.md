@@ -128,3 +128,50 @@ Tests: staff-app 112, backend 33 (+ new interceptor regression tests).
     app. The earlier failure was NOT the UI: the seeder created products with no
     `inventory` rows, so the API correctly returned "Insufficient stock". Seeder
     now seeds stock (one product deliberately at zero).
+27. **Harness repaired** — the gallery grew enough that `verify:ui`'s scroll
+    budget no longer reached the filter sheet. Widened; passing again.
+
+---
+
+## Where things stand
+
+**Verified working on a real device, against the real backend, with seeded data:**
+
+| Flow | Verified how |
+|---|---|
+| Sign in (4 roles) | Real API; role-adaptive tabs differ per role |
+| Role-adaptive nav | front_desk / trainer / accountant each get a different bar |
+| Dashboard | Live KPIs, sparkline, alerts, activity feed |
+| Members list | 40 live members, server-side search + filter |
+| Member detail | Real plan, payments, visits; native Call / WhatsApp |
+| **Add member** | **WRITE** — created a real member (40 → 41) |
+| **Check-in** | **WRITE** — recorded a real visit (59 → 60) |
+| **Collect payment** | **WRITE** — recorded ₹24,000 (receipt RCP-20260825-CDA6FB67) |
+| **POS sale** | **WRITE** — recorded ₹1,400 cash |
+| Schedule | 4 classes/day from 52 seeded sessions, capacity meters |
+| Money | Revenue tiles + payments list |
+| More / sign-out | Profile, branch switcher, role-filtered modules |
+
+**Test counts:** staff-app 112 · backend 53 · `verify:ui` device harness passing.
+
+**Bugs found and fixed while building** (each caught by running against the real
+API, not by unit tests):
+
+1. `permission_codes`, not `permissions`, is what the API sends — every custom
+   role would have fallen back to a role-name default.
+2. `crypto.randomUUID` does not exist in Hermes — check-in sent an invalid
+   idempotency key and was rejected.
+3. `AlertDialogAction` closes the dialog before the confirm handler reads state.
+4. `toISOString()` for a calendar date is UTC — the schedule marked one day and
+   listed another, making today's classes read "Done".
+5. `StripSecretsInterceptor` flattened Prisma `Decimal`s — **this one also
+   breaks the web app**, which renders `₹NaN`.
+6. POS tab gated on `inventory.view` gave an accountant a till.
+7. `/members` returns only ACTIVE memberships, so "No plan" was telling the desk
+   a lapsed member had nothing to renew.
+
+Plus two backend authorisation vulnerabilities fixed earlier
+(`docs/SECURITY_FINDINGS_2026-08-26.md`).
+
+**What is NOT done:** QR check-in and offline persistence (both blocked on
+dependency approval), member edit, and Phases 6–12. See `TODO_FOR_ME.md`.
