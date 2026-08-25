@@ -173,3 +173,9 @@ a previous member would be dangerous.
 Despite the name, the endpoint's DTO accepts cash/card/upi/bank_transfer.
 "Cash" here means *recorded manually* as opposed to arriving via a gateway
 callback.
+
+### Seeder creates `inventory` rows, not just products
+Stock lives in a separate `inventory` table keyed by product + branch. Seeding
+products alone produced a shop that looked fine but could not sell anything —
+the API correctly rejected every sale with "Insufficient stock". One product is
+seeded at zero stock deliberately, so that path stays exercised.

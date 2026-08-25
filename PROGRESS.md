@@ -124,3 +124,7 @@ Tests: staff-app 112, backend 33 (+ new interceptor regression tests).
     `RCP-20260825-CDA6FB67`).
     Also learned: bottom-SHEET buttons ARE automatable; only AlertDialog
     buttons are not.
+26. **POS sale verified end to end** — recorded a real ₹1,400 cash sale from the
+    app. The earlier failure was NOT the UI: the seeder created products with no
+    `inventory` rows, so the API correctly returned "Insufficient stock". Seeder
+    now seeds stock (one product deliberately at zero).

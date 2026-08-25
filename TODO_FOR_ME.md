@@ -108,6 +108,13 @@ persisted store too.
 
 ## 9. One flow still needs a human tap to confirm
 
+> **UPDATE:** POS checkout is now VERIFIED — a real sale was recorded from the
+> app (₹1,400 cash). The earlier failure was not the UI at all: the seeder
+> created products without `inventory` rows, so the API correctly rejected the
+> sale with "Insufficient stock". Seeder fixed. Only the check-in AlertDialog
+> tap (item 7) remains unconfirmed.
+
+
 Portal/overlay content is a single accessibility element to idb, so its buttons
 cannot be driven by automation. Both sides of each flow are verified; only the
 final tap is not:

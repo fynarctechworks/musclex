@@ -94,7 +94,7 @@ async function main() {
     }
     await db.query(
       `TRUNCATE ${SCHEMA}.members, ${SCHEMA}.classes, ${SCHEMA}.class_sessions,
-                ${SCHEMA}.membership_plans, ${SCHEMA}.products,
+                ${SCHEMA}.membership_plans, ${SCHEMA}.products, ${SCHEMA}.inventory,
                 ${SCHEMA}.staff, ${SCHEMA}.branches CASCADE`,
     );
     await db.query('DELETE FROM public.user_roles WHERE studio_id=$1', [GYM_ID]);
@@ -302,14 +302,25 @@ async function main() {
     // or a stock column — stock is tracked in a separate table, so it is not
     // seeded here and the POS screen does not claim to show it.
     for (const p of PRODUCTS) {
+      const productId = randomUUID();
       await db.query(
         `INSERT INTO ${SCHEMA}.products
            (id, gym_id, branch_id, product_name, sku, price, status, product_type)
          VALUES ($1,$2,$3,$4,$5,$6,'active','retail')`,
-        [randomUUID(), GYM_ID, BRANCH_ID, p.name, p.name.replace(/\W+/g, '-').toUpperCase(), p.price],
+        [productId, GYM_ID, BRANCH_ID, p.name, p.name.replace(/\W+/g, '-').toUpperCase(), p.price],
+      );
+      // Stock lives in `inventory`, per product per branch — POS rejects a sale
+      // with "Insufficient stock" without a row here, so seeding products alone
+      // produces a shop that cannot sell anything.
+      await db.query(
+        `INSERT INTO ${SCHEMA}.inventory
+           (id, gym_id, product_id, branch_id, stock_quantity, reorder_level)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [randomUUID(), GYM_ID, productId, BRANCH_ID, p.stock, 5],
       );
     }
-    console.log(`  ${PRODUCTS.length} products`);
+    const outOfStock = PRODUCTS.filter((p) => p.stock === 0).length;
+    console.log(`  ${PRODUCTS.length} products with stock (${outOfStock} out of stock)`);
     console.log(`\n  Password for all staff accounts: ${PASSWORD}`);
     console.log(`  Gym id: ${GYM_ID}\n`);
   } finally {
