@@ -1,0 +1,63 @@
+@import 'tailwindcss';
+@import 'uniwind';
+
+/*
+  MuscleX Staff design tokens.
+
+  These MIRROR frontend/src/app/globals.css, not member-app. The staff app is a
+  port of the web admin app: the same people use both, often on the same day,
+  and a member row that is grey-on-white in one and grey-on-off-white in the
+  other reads as two products. member-app is a different audience and keeps its
+  own palette.
+
+  The critical mapping, taken from the web app and NOT from stock shadcn:
+
+    --color-primary     = ink (#171717), the single primary CTA colour
+    --color-destructive = error red (#ee0000), reserved for destructive actions
+
+  Mapping primary to MuscleX red instead makes "Collect payment" and "Delete"
+  the same colour, and "Active" and "Overdue" the same badge. In an app that
+  takes payments and deletes members, those must never be indistinguishable.
+
+  `success` and `warning` are not part of stock shadcn; the web app defines them
+  because the product needs membership-active / expiring-soon states.
+*/
+@theme {
+  --color-background: #fafafa;        /* --canvas-soft */
+  --color-foreground: #171717;        /* --ink */
+
+  --color-card: #ffffff;              /* --canvas */
+  --color-card-foreground: #171717;
+
+  --color-popover: #ffffff;
+  --color-popover-foreground: #171717;
+
+  --color-primary: #171717;           /* --ink: the single primary CTA */
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #f5f5f5;         /* --canvas-soft-2 */
+  --color-secondary-foreground: #171717;
+
+  --color-muted: #f5f5f5;
+  --color-muted-foreground: #888888;  /* --mute */
+
+  --color-accent: #f5f5f5;
+  --color-accent-foreground: #171717;
+
+  --color-destructive: #ee0000;       /* --error: destructive ONLY */
+  --color-destructive-foreground: #ffffff;
+
+  /* In-product semantic states — membership active, expiring soon. */
+  --color-success: #2eb87a;           /* --success-ink, hsl(153 60% 45%) */
+  --color-success-foreground: #ffffff;
+  --color-warning: #f5a623;           /* --warning */
+  --color-warning-foreground: #171717;
+
+  --color-border: #ebebeb;            /* --hairline */
+  --color-input: #ebebeb;
+  --color-ring: #171717;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}

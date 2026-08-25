@@ -16,7 +16,8 @@ It is a **monorepo of four apps** sharing one Supabase Postgres database:
 |---|---|---|
 | `backend/` | Core gym API (memberships, check-ins, classes, payments, inventory, member BFF) | NestJS 10 + Prisma 5 (**multi-schema**) |
 | `frontend/` | Gym admin / operations web app | Next.js 14 (App Router) + Supabase |
-| `member-app/` | Member mobile app | Expo / React Native (dark-first, one red accent) |
+| `member-app/` | Member mobile app | Expo / React Native (light-first, one red accent `#E10600`) |
+| `staff-app/` | Staff mobile app — native port of `frontend/`, all 10 roles (Phase 1: skeleton) | Expo / React Native · plan in `docs/STAFF_APP_PLAN.md` |
 | `saas-control-center/` (+ `/frontend`) | Internal super-admin control center (SCC) | NestJS + Next.js 16 |
 
 Supporting: `docs/`, `design.md` (the design language), `scripts/`, `tasks/`.
@@ -39,9 +40,14 @@ analysis/roadmap first, then are built slice by slice.
 2. **Auth, RLS, or tenant-isolation** — anything touching how identity, gym
    scoping, or the tenant-model set works.
 3. **New dependencies** — adding any package. Justify each one when you propose it.
-4. **Leaving Expo Go / native builds** for the member app (one-way EAS shift).
-   `member-app/` currently runs on Expo web and Expo Go; keep it that way unless
-   asked. A native module is what forced the previous member app onto dev builds.
+4. **Native modules and the mobile build pipeline.** `member-app/` is on **EAS dev
+   builds** (`eas.json` ships a `developmentClient: true` profile, `expo-dev-client`
+   is a dependency, EAS Update is adopted; `ios/`/`android/` are gitignored prebuild
+   output). Expo Go is no longer the constraint. What still needs confirmation:
+   **adding any native module**, changing `eas.json` / build profiles / channels, or
+   anything that forces every developer and tester to reinstall a new dev build.
+   Expo-web compatibility is still worth preserving where it's free — `run web` is
+   how several loops get verified — but it is no longer a hard gate.
 5. **External or legal actions** — partner-program registration, publishing,
    sending anything to a third party, anything hard to reverse.
 6. **Deleting code you believe is unused** — show it first and explain why it's safe.
@@ -85,8 +91,11 @@ Tenant isolation here is **enforced in the app layer, not by the database**:
 ## Testing & verification
 - ALWAYS run the relevant checks after a change and report the real result.
 - `backend/` has Jest tests — run the ones covering what you touched.
-- `member-app/` has **no tests** — verify with
-  `member-app/node_modules/.bin/tsc --noEmit` and SAY that no tests cover it.
+- `member-app/` has Jest (`jest-expo` + `@testing-library/react-native`): run
+  `npm --prefix member-app test`. Coverage is **partial** — ~24 spec files, almost
+  all over `src/lib/*` helpers plus a little `src/ui`; screens in `app/` are largely
+  untested. Also verify with `member-app/node_modules/.bin/tsc --noEmit`, and when a
+  change isn't covered, SAY so. Note `testMatch` only picks up `**/__tests__/**`.
   It can additionally be driven end to end in a browser via `run web`, which is
   how the logging loop was verified; genuine native behaviour (haptics, gestures,
   background timers) is still **on-device QA**, not verifiable from here.
