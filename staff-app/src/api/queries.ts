@@ -250,6 +250,35 @@ export function useCreateMember() {
   });
 }
 
+/**
+ * Record a payment taken at the desk.
+ *
+ * POST /payments/cash despite the name — the endpoint covers cash, card, UPI
+ * and bank transfer; "cash" here means "recorded manually" as opposed to a
+ * gateway callback.
+ */
+export function useRecordPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      memberId: string; branchId: string; amount: number;
+      method: 'cash' | 'card' | 'upi' | 'bank_transfer'; membershipId?: string;
+    }) =>
+      api.post<{ id: string; receipt_number?: string }>('/payments/cash', {
+        member_id: input.memberId,
+        branch_id: input.branchId,
+        amount: input.amount,
+        payment_method: input.method,
+        ...(input.membershipId ? { membership_id: input.membershipId } : {}),
+      }),
+    onSuccess: (_r, input) => {
+      void qc.invalidateQueries({ queryKey: ['payments'] });
+      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+      void qc.invalidateQueries({ queryKey: keys.member(input.memberId) });
+    },
+  });
+}
+
 /** Invalidate every member list — use after any mutation that changes one. */
 export function useInvalidateMembers() {
   const qc = useQueryClient();

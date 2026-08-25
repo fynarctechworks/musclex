@@ -106,7 +106,7 @@ cross-tenant rule more important, not less, because it now survives app
 restarts. `SessionProvider` already does the wiping; it will need to clear the
 persisted store too.
 
-## 9. Two flows still need a human tap to confirm
+## 9. One flow still needs a human tap to confirm
 
 Portal/overlay content is a single accessibility element to idb, so its buttons
 cannot be driven by automation. Both sides of each flow are verified; only the
@@ -114,8 +114,13 @@ final tap is not:
 
 - **Check-in confirm** (Check-in tab → search → Check in). See item 7.
 - **POS checkout** (More → Shop / POS → add items → Checkout → Take ₹…).
-  The sale endpoint contract is implemented against the real DTO, but no sale
-  has been recorded from the app.
+  Not yet exercised, though the *same kind* of bottom-sheet button was proven
+  tappable when recording a payment (below), so this is likely fine.
+
+**Resolved since:** bottom-SHEET buttons ARE reachable by automation — a real
+₹24,000 payment was recorded from the app (receipt `RCP-20260825-CDA6FB67`).
+Only **AlertDialog** buttons resist it, which narrows item 7 to just the
+check-in confirm.
 
 ## 10. Minor: the "Add" button collides with the dev-client Tools bubble
 

@@ -162,3 +162,14 @@ payment, check in) is one tap rather than a search.
 ### "Add" is gated on `members.create`
 A trainer can view members but not add them, so the button is absent for them
 rather than failing on submit.
+
+### Collect payment pre-fills the plan price but stays editable
+The common case is "they are paying for their plan", so the amount is pre-filled
+from the current membership. Part-payments are normal at a counter, so the field
+remains editable. It re-prefills on every open — a stale amount carried over from
+a previous member would be dangerous.
+
+### `POST /payments/cash` covers card and UPI too
+Despite the name, the endpoint's DTO accepts cash/card/upi/bank_transfer.
+"Cash" here means *recorded manually* as opposed to arriving via a gateway
+callback.

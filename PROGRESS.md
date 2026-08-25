@@ -118,3 +118,9 @@ Tests: staff-app 112, backend 33 (+ new interceptor regression tests).
     bypassed, a tap recorded a real check-in (59 → 60 rows). The earlier silent
     failure was the Hermes UUID bug. Only the dialog's button tap remains
     unautomatable; the code path is proven. Temporary code removed.
+25. **Collect payment** — from the member's page, pre-filled with the plan
+    price, method selector, `POST /payments/cash`. **Verified end to end:**
+    recorded a real ₹24,000 payment (30 → 31 rows, receipt
+    `RCP-20260825-CDA6FB67`).
+    Also learned: bottom-SHEET buttons ARE automatable; only AlertDialog
+    buttons are not.

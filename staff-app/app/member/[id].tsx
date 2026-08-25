@@ -12,6 +12,7 @@ import { RowCard } from '@/ui/RowCard';
 import { EmptyState, ErrorState } from '@/ui/States';
 import { Loading } from '@/ui/Loading';
 import { Can } from '@/rbac/Gate';
+import { CollectPayment } from '@/features/CollectPayment';
 import { useMember } from '@/api/queries';
 import { initialsOf, membershipState } from '@/features/MemberRow';
 import { callNumber, messageOnWhatsApp } from '@/lib/contact';
@@ -28,6 +29,7 @@ import { tokens } from '@/ui/tokens';
  */
 export default function MemberDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [collectOpen, setCollectOpen] = React.useState(false);
   const { session } = useSession();
   const currency = session?.studio?.currency ?? 'INR';
   const query = useMember(id);
@@ -109,6 +111,12 @@ export default function MemberDetail() {
             </Section>
 
             {/* Money is role-gated: a trainer has no payments permission. */}
+            <Can module="payments" action="create">
+              <Button onPress={() => setCollectOpen(true)} testID="collect-payment">
+                <Text>Collect payment</Text>
+              </Button>
+            </Can>
+
             <Can module="payments">
               <Section title="Payments">
                 {(member.payments ?? []).length === 0 ? (
@@ -150,6 +158,12 @@ export default function MemberDetail() {
           </>
         )}
       </ScrollView>
+
+      {/* Outside the ScrollView: a bottom sheet nested in scroll content
+          positions itself within that content and lands off-screen. */}
+      {member ? (
+        <CollectPayment member={member} open={collectOpen} onClose={() => setCollectOpen(false)} />
+      ) : null}
     </>
   );
 }
