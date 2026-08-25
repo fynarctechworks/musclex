@@ -110,3 +110,7 @@ Tests: staff-app 112, backend 33 (+ new interceptor regression tests).
     substantially built.
 22. **Verification re-run** — `npm run verify:ui` still passes end to end after
     the navigation changes.
+23. **Add member** — short create form gated on `members.create`, navigating to
+    the new member on success. **Verified end to end on device:** created a real
+    member (40 → 41), API assigned code `FS-20260825-D6649020`, app routed to
+    her detail page. This is the first confirmed WRITE from the app.

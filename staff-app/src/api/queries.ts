@@ -222,6 +222,34 @@ export function useCheckIn() {
   });
 }
 
+/**
+ * Create a member.
+ *
+ * `branch_id` is required by the DTO. When the user is on "All branches" we
+ * fall back to their first assigned branch rather than failing validation with
+ * a message the staffer cannot act on.
+ */
+export function useCreateMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      fullName: string; phone: string; email?: string; branchId: string;
+      gender?: string;
+    }) =>
+      api.post<Member>('/members', {
+        full_name: input.fullName.trim(),
+        phone: input.phone.trim(),
+        branch_id: input.branchId,
+        ...(input.email?.trim() ? { email: input.email.trim() } : {}),
+        ...(input.gender ? { gender: input.gender } : {}),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['members'] });
+      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
 /** Invalidate every member list — use after any mutation that changes one. */
 export function useInvalidateMembers() {
   const qc = useQueryClient();

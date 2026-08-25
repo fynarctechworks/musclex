@@ -1,9 +1,11 @@
 import React from 'react';
 import { View } from 'react-native';
-import { router } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/ui/text';
+import { Button } from '@/components/ui/button';
+import { Can } from '@/rbac/Gate';
 import { Input } from '@/components/ui/input';
 import { DataList } from '@/ui/DataList';
 import { SegmentedControl } from '@/ui/SegmentedControl';
@@ -44,11 +46,21 @@ export default function Members() {
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: tokens.background }}>
       <View className="gap-3 px-4 pb-3 pt-2">
-        <View className="flex-row items-baseline justify-between">
-          <Text className="text-2xl font-semibold text-foreground">Members</Text>
-          {query.isSuccess ? (
-            <Text className="text-sm text-muted-foreground">{total}</Text>
-          ) : null}
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-baseline gap-2">
+            <Text className="text-2xl font-semibold text-foreground">Members</Text>
+            {query.isSuccess ? (
+              <Text className="text-sm text-muted-foreground">{total}</Text>
+            ) : null}
+          </View>
+          {/* Adding a member needs members.create — a trainer can view but not add. */}
+          <Can module="members" action="create">
+            <Link href="/member/new" asChild>
+              <Button size="sm" variant="outline" testID="members-add">
+                <Text>Add</Text>
+              </Button>
+            </Link>
+          </Can>
         </View>
 
         <Input

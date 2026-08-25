@@ -109,3 +109,11 @@ final tap is not:
 - **POS checkout** (More → Shop / POS → add items → Checkout → Take ₹…).
   The sale endpoint contract is implemented against the real DTO, but no sale
   has been recorded from the app.
+
+## 10. Minor: the "Add" button collides with the dev-client Tools bubble
+
+On the Members screen the header "Add" button sits at roughly the same spot as
+Expo dev-client's floating Tools bubble, so in a DEV build a tap can hit the
+bubble instead. Release builds have no bubble, so this is a development-only
+annoyance — but if it bothers you during testing, the button can move to the
+left of the header or become a floating action button.

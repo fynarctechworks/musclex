@@ -151,3 +151,14 @@ renders as "—" rather than "NaN". Tested.
 Front desk has `inventory.create` but POS sits 6th in tab priority, so it never
 made the 4 primary slots — the till was unreachable. The More hub now links to
 real routes as well as listing unbuilt ones.
+
+### Add-member form is deliberately short
+Only the DTO's required fields plus the two the desk always has to hand
+(email, gender). DOB, emergency contact and address are left to the web app —
+a long form at a busy counter is how members get entered badly or not at all.
+On success it navigates straight to the new member, so the next action (take
+payment, check in) is one tap rather than a search.
+
+### "Add" is gated on `members.create`
+A trainer can view members but not add them, so the button is absent for them
+rather than failing on submit.
