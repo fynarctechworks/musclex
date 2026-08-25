@@ -70,3 +70,14 @@ Tests: 95 passing.
     coordinate word-splitting bug in device automation.
 
 Tests: 98 passing.
+12. **Check-in (manual)** — search, confirm dialog naming the member and their
+    membership standing, idempotent `POST /check-ins`, cache invalidation.
+    QR scanning is blocked on `expo-camera` (TODO_FOR_ME #6).
+13. **Fixed: invalid idempotency key** — `crypto.randomUUID` does not exist in
+    Hermes, so check-in sent a non-UUID and the API rejected it. Added
+    `src/lib/uuid.ts` (RFC 4122 v4) and used it for correlation ids too.
+14. **Fixed: confirm-dialog state race** — `AlertDialogAction` closes the dialog
+    as part of its press handling, so reading the pending member from state
+    raced the close. Held in a ref instead.
+
+Tests: 105 passing.

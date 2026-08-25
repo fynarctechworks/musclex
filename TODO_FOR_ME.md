@@ -50,3 +50,33 @@ intended on mobile.
 platform-wide aggregates to gym owners. Fixing them means deciding what a gym
 owner *should* see of their own referral funnel — a product call, not a
 mechanical one. Detail in `docs/SECURITY_FINDINGS_2026-08-26.md`.
+
+## 6. QR check-in needs `expo-camera` (new native dependency)
+
+Manual check-in is built and working (search a member, tap, confirm). **QR
+scanning is not**, because it needs `expo-camera` — a new dependency plus a
+native rebuild, which hard-gate #3 keeps behind your approval.
+
+`member-app` already depends on `expo-camera` and has QR helpers in
+`src/lib/qr.ts`, so the version and the pattern are both established; this is a
+one-line approval rather than a research question.
+
+**Blocked:** QR check-in, and later the kiosk mode (which is QR-driven).
+**Workaround:** the check-in screen is built around member search and works
+end to end; adding the scanner is an additive change to the same screen.
+
+## 7. One tap I could not automate: the check-in confirm dialog
+
+Portal/overlay content (AlertDialog, bottom sheet) is exposed to idb as a
+SINGLE accessibility element, so its buttons cannot be tapped by the automation.
+Everything either side is verified — the member search, the dialog opening, and
+the `POST /check-ins` endpoint (confirmed working via curl, returns
+`{"success":true,...}`) — but the final "Check in" tap has never been performed
+by a human on the device.
+
+**Please tap it once** (Check-in tab → search a member → Check in) to confirm
+the whole path. It should toast "<name> checked in" and clear the search.
+
+That flow did surface one real bug on the way, now fixed: `crypto.randomUUID`
+does not exist in Hermes, so a non-UUID idempotency key was sent and the backend
+rejected it with `client_event_id must be a UUID`. See `src/lib/uuid.ts`.

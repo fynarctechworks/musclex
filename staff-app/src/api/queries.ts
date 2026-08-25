@@ -100,6 +100,33 @@ export function useMember(id: string | undefined) {
   });
 }
 
+/**
+ * Manual check-in.
+ *
+ * `client_event_id` is a client-generated idempotency key. A gym doorway has
+ * poor signal and staff double-tap; without it a retry records a second visit
+ * and can consume a second class credit. The key is generated ONCE per attempt
+ * and reused across retries.
+ */
+export function useCheckIn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { memberId: string; clientEventId: string; branchId?: string | null }) =>
+      api.post<{ id: string; status?: string }>('/check-ins', {
+        member_id: input.memberId,
+        checkin_method: 'manual',
+        client_event_id: input.clientEventId,
+        source: 'staff_mobile',
+        ...(input.branchId ? { branch_id: input.branchId } : {}),
+      }),
+    onSuccess: () => {
+      // A check-in changes last_visit_at and the dashboard feed.
+      void qc.invalidateQueries({ queryKey: ['members'] });
+      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
 /** Invalidate every member list — use after any mutation that changes one. */
 export function useInvalidateMembers() {
   const qc = useQueryClient();

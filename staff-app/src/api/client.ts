@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 
 import { clearSession, getSession, patchSession } from '@/auth/session-store';
+import { uuidv4 } from '@/lib/uuid';
 
 /**
  * API client — ported from frontend/src/services/api-client.ts.
@@ -90,11 +91,13 @@ function buildUrl(endpoint: string, params?: Record<string, unknown>): string {
   return url.toString();
 }
 
+/**
+ * Correlation id. Uses the shared uuidv4 helper because Hermes has no
+ * crypto.randomUUID — the same gap that made check-in send an invalid
+ * idempotency key.
+ */
 function correlationId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `rn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  return uuidv4();
 }
 
 // One in-flight refresh shared by all callers: a burst of 401s on app resume

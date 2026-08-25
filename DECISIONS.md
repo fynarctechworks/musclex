@@ -96,3 +96,23 @@ Reading coordinates out of `idb ui describe-all` and passing them through the
 shell repeatedly hit word-splitting bugs. Tapping by accessibility label is also
 stable across layout changes, where coordinates are not. It refuses off-screen
 elements, which report a real frame but never respond.
+
+### Own UUID v4 helper instead of adding `expo-crypto`
+`crypto.randomUUID` does not exist in Hermes. Rather than take a new native
+dependency (hard-gate #3) for one function, `src/lib/uuid.ts` implements RFC
+4122 v4 and defers to the platform when it genuinely exists. `Math.random` is
+adequate because these are idempotency and correlation keys — de-duplicating a
+user's own retries — not secrets; anything security-bearing must use a CSPRNG.
+Found because the backend rejected the old fallback with
+"client_event_id must be a UUID".
+
+### Check-in carries a client-generated idempotency key
+A gym doorway has poor signal and staff double-tap. Without `client_event_id` a
+retry records a second visit and can consume a second class credit. The key is
+generated once per ATTEMPT and reused across retries.
+
+### Check-in confirms rather than checking in on first tap
+Two members frequently share a first name (the seeded data has two "Neha"s and
+four "Vikram"s). Checking in the wrong member consumes their entitlement and
+corrupts attendance, so the row tap opens a confirm that names the member and
+states their membership standing.
