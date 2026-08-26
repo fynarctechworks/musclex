@@ -196,20 +196,31 @@ export function useMember(id: string | undefined) {
 }
 
 /**
- * Manual check-in.
+ * Check-in, by member id (manual) or by scanned QR token.
  *
  * `client_event_id` is a client-generated idempotency key. A gym doorway has
  * poor signal and staff double-tap; without it a retry records a second visit
  * and can consume a second class credit. The key is generated ONCE per attempt
  * and reused across retries.
+ *
+ * The scanned string is forwarded VERBATIM and is never parsed here. It is an
+ * HMAC-signed token (`mxqr.v1…`) whose signature, gym and replay-nonce are all
+ * checked server-side; a client that tried to decode it could only ever reach
+ * a weaker conclusion than the server does, and any leniency we invented here
+ * would become the real check.
  */
 export function useCheckIn() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { memberId: string; clientEventId: string; branchId?: string | null }) =>
+    mutationFn: (input: {
+      memberId?: string;
+      qrCode?: string;
+      clientEventId: string;
+      branchId?: string | null;
+    }) =>
       api.post<{ id: string; status?: string }>('/check-ins', {
-        member_id: input.memberId,
-        checkin_method: 'manual',
+        ...(input.qrCode ? { qr_code: input.qrCode } : { member_id: input.memberId }),
+        checkin_method: input.qrCode ? 'qr' : 'manual',
         client_event_id: input.clientEventId,
         source: 'staff_mobile',
         ...(input.branchId ? { branch_id: input.branchId } : {}),

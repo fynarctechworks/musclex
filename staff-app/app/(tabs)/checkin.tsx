@@ -13,6 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useCheckIn, useMembers } from '@/api/queries';
+import { QrScanner, type ScanOutcome } from '@/features/QrScanner';
 import { initialsOf, membershipState } from '@/features/MemberRow';
 import { useToast } from '@/ui/Toast';
 import { useSession } from '@/auth/SessionProvider';
@@ -24,13 +25,13 @@ import { tokens } from '@/ui/tokens';
 /**
  * Check-in — the front desk's core task.
  *
- * Manual (search → confirm) only for now; QR scanning needs expo-camera, which
- * is a new native dependency (see TODO_FOR_ME.md). The screen is built so the
- * scanner drops in beside the search field without restructuring.
+ * Two ways in, and they behave differently on purpose:
  *
- * The confirm step is deliberate rather than one-tap: checking in the wrong
- * member consumes their entitlement and corrupts attendance, and two members
- * often share a first name.
+ *  - SCAN — auto-submits. The code carries an HMAC-signed member id, so there
+ *    is nothing to disambiguate and a confirm tap would only slow the queue.
+ *  - SEARCH — confirms first. The staffer picked a row out of a list of
+ *    similar names, and checking in the wrong member consumes their
+ *    entitlement and corrupts attendance.
  */
 export default function CheckIn() {
   const [search, setSearch] = React.useState('');
@@ -48,9 +49,43 @@ export default function CheckIn() {
    */
   const pendingRef = React.useRef<Member | null>(null);
 
+  const [scanning, setScanning] = React.useState(false);
+
   const toast = useToast();
   const { session } = useSession();
   const checkIn = useCheckIn();
+
+  /**
+   * Submit a scanned code and translate the result into something readable
+   * over a counter.
+   *
+   * `retryable` decides whether the gate forgets the code. A network failure
+   * should be re-scannable at once; a revoked or already-used card should not,
+   * because re-scanning it just fails again — and the card is still in frame,
+   * so "again" means ten times a second.
+   */
+  const submitScan = React.useCallback(
+    async (code: string): Promise<ScanOutcome & { retryable?: boolean }> => {
+      try {
+        const res = await checkIn.mutateAsync({
+          qrCode: code,
+          clientEventId: uuidv4(),
+          branchId: session?.activeBranchId,
+        });
+        void res;
+        return { ok: true, message: 'Checked in' };
+      } catch (e) {
+        const status = (e as { status?: number }).status;
+        const message = e instanceof Error ? e.message : 'Check-in failed';
+        // 4xx is a verdict about the CODE and will not change on a re-scan.
+        // Anything else (offline, 5xx, timeout) is about the moment, not the
+        // card, so let it be tried again immediately.
+        const retryable = !(typeof status === 'number' && status >= 400 && status < 500);
+        return { ok: false, message, retryable };
+      }
+    },
+    [checkIn, session?.activeBranchId],
+  );
 
   React.useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim()), 300);
@@ -90,10 +125,23 @@ export default function CheckIn() {
     }
   }
 
+  if (scanning) {
+    return (
+      <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: '#000' }}>
+        <QrScanner onScan={submitScan} onClose={() => setScanning(false)} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: tokens.background }}>
       <View className="gap-3 px-4 pb-3 pt-2">
-        <Text className="text-2xl font-semibold text-foreground">Check-in</Text>
+        <View className="flex-row items-center justify-between">
+          <Text className="text-2xl font-semibold text-foreground">Check-in</Text>
+          <Button size="sm" onPress={() => setScanning(true)} testID="checkin-scan">
+            <Text>Scan</Text>
+          </Button>
+        </View>
         <Input
           value={search}
           onChangeText={setSearch}
