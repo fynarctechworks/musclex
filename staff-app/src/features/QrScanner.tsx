@@ -35,12 +35,21 @@ interface Props {
    * plausibly succeed (network blip) or never will (revoked card).
    */
   onScan: (code: string) => Promise<ScanOutcome & { retryable?: boolean }>;
-  onClose: () => void;
+  /**
+   * The way out of the scanner, if there is one.
+   *
+   * OPTIONAL because a kiosk has none. Passing a no-op here instead would
+   * render a button that visibly does nothing — and on an unattended lobby
+   * tablet, "Search by name" is a staff action being offered to a member.
+   */
+  onClose?: () => void;
+  /** Label for that escape hatch. Defaults to the staff wording. */
+  closeLabel?: string;
 }
 
 type Perm = 'checking' | 'granted' | 'denied' | 'unsupported';
 
-export function QrScanner({ onScan, onClose }: Props) {
+export function QrScanner({ onScan, onClose, closeLabel = 'Search by name' }: Props) {
   const [perm, setPerm] = React.useState<Perm>('checking');
   const [CameraView, setCameraView] = React.useState<React.ComponentType<any> | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -124,15 +133,19 @@ export function QrScanner({ onScan, onClose }: Props) {
             </Text>
             <Text className="text-center text-muted-foreground">
               {perm === 'unsupported'
-                ? 'QR check-in works on the phone app. You can still search by name.'
-                : 'Allow camera access to scan member codes. You can still search by name.'}
+                ? 'QR check-in works on the phone app.'
+                : onClose
+                  ? 'Allow camera access to scan member codes. You can still search by name.'
+                  : 'Allow camera access to scan member codes. Please see the front desk.'}
             </Text>
             {perm === 'denied' ? (
               <Button variant="outline" onPress={() => void Linking.openSettings()}>
                 <Text>Open Settings</Text>
               </Button>
             ) : null}
-            <Button onPress={onClose}><Text>Search instead</Text></Button>
+            {onClose ? (
+              <Button onPress={onClose}><Text>Search instead</Text></Button>
+            ) : null}
           </>
         )}
       </View>
@@ -176,9 +189,11 @@ export function QrScanner({ onScan, onClose }: Props) {
             </Text>
           </View>
         )}
-        <Button variant="secondary" onPress={onClose} testID="qr-close">
-          <Text>Search by name</Text>
-        </Button>
+        {onClose ? (
+          <Button variant="secondary" onPress={onClose} testID="qr-close">
+            <Text>{closeLabel}</Text>
+          </Button>
+        ) : null}
       </View>
     </View>
   );

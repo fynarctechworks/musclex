@@ -4,7 +4,7 @@ import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   BarChart3, Boxes, Dumbbell, LogOut, Megaphone, Package, Settings, ShoppingCart,
-  Sparkles, UserCog, Users2, type LucideIcon,
+  Sparkles, Tablet, UserCog, Users2, type LucideIcon,
 } from 'lucide-react-native';
 
 import { Text } from '@/components/ui/text';
@@ -48,6 +48,9 @@ const ENTRIES: Entry[] = [
   // POS is a REAL route, not a placeholder: front desk has inventory.create but
   // POS sits 6th in tab priority, so without this entry the till is unreachable.
   { href: '/(tabs)/pos', label: 'Shop / POS', icon: ShoppingCart, module: 'inventory', action: 'create', phase: '' },
+  // Kiosk turns the device into an unattended check-in station, so it is gated
+  // on being allowed to RECORD a check-in — not merely to view them.
+  { href: '/kiosk/setup', label: 'Kiosk mode', icon: Tablet, module: 'check_ins', action: 'create', phase: '' },
   { href: '/more/staff',      label: 'Staff',        icon: UserCog,   module: 'staff',     feature: 'staff_management',    phase: 'Phase 10' },
   { href: '/more/marketing',  label: 'Marketing',    icon: Megaphone, module: 'marketing', feature: 'marketing_campaigns', phase: 'Phase 9' },
   { href: '/more/inventory',  label: 'Inventory',    icon: Package,   module: 'inventory', phase: 'Phase 8' },

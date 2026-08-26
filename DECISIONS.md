@@ -372,3 +372,52 @@ Local matching uses two minimums: **2 characters for names, 3 for identifiers**.
 Member codes share a prefix and a run of zeroes, so "00" is a substring of
 nearly every code and phone in the building — matching those loosely returns
 the whole roster, which looks like it worked while being useless.
+
+## 2026-08-26 — Kiosk mode (Phase 5b)
+
+Reuses the check-in module rather than reimplementing it: same scanner, same
+mutation, same offline queue. The differences are all consequences of the
+device being **unattended and public**.
+
+**No staff context on screen.** No greeting, no branch switcher, no nav. A
+queue of members should not be reading the name of whoever signed the tablet
+in.
+
+**Branch is pinned to the DEVICE, in the Keychain — not taken from the
+session.** A tablet at the Andheri door must keep recording Andheri visits even
+if somebody switches branch on another screen, and it must survive a reload.
+
+**Leaving requires a PIN, and that is the real security boundary here.**
+Check-in is deliberately open to anyone walking past. The way *out* is not:
+whoever exits has every member's phone number, the payment history and the
+till. The PIN is stored in SecureStore (the iOS Keychain) rather than hashed —
+a 4-digit space is trivially brute-forced from a hash, so hashing would buy
+nothing while implying a protection that is not there. What actually protects
+it is the Keychain plus a 5-attempt limit. It is **not** a second auth factor;
+the server's boundary is still the staff JWT.
+
+**No exit PIN configured means it refuses to exit**, rather than falling open.
+A kiosk whose lock was never set up is not thereby unlocked.
+
+**The exit is an unlabelled long-press on the top-left corner.** A visible
+"Exit" button on a lobby tablet is an invitation. But staff must never be
+locked out of their own device either, so the setup screen states plainly where
+it is and suggests trying it once before walking away, and the target is
+generous (120pt, two seconds).
+
+**iOS Guided Access and Auto-Lock are device settings, and the app does not try
+to enforce them.** The setup screen gives the exact steps instead. An app that
+fought the OS here would lose and confuse people on the way.
+
+### Verified on device
+
+Setup (branch pinned, PIN set) → kiosk live with no chrome → long-press →
+PIN screen → wrong PIN gives "Incorrect PIN. 4 attempts left." → correct PIN
+returns to the dashboard.
+
+### One bug this found
+
+The scanner's `onClose` was mandatory, so the kiosk passed a no-op — rendering
+a **"Search by name" button that visibly did nothing**, and offering a staff
+action to a member. `onClose` is now optional and the button is omitted
+entirely when there is no way out.

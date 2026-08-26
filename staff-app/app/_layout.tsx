@@ -18,6 +18,14 @@ export default function RootLayout() {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: tokens.background },
+          /*
+            Without this, iOS labels the back button with the previous ROUTE
+            name — which for anything pushed from a tab is the expo-router
+            group, so the header read a literal "(tabs)". "Back" is what the
+            control does; the group name is an implementation detail that
+            should never have been on screen.
+          */
+          headerBackTitle: 'Back',
         }}
       />
       </AuthGate>
