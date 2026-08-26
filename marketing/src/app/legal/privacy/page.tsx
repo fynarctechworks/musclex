@@ -85,7 +85,29 @@ export default function PrivacyPage() {
         />
       </LegalSection>
 
-      <LegalSection heading="4. Why we process it">
+      <LegalSection heading="4. The mobile apps">
+        <p>
+          MuscleX has two mobile apps: <strong>MuscleX Staff</strong>, used by gym
+          employees, and <strong>MuscleX</strong>, used by members. Both collect some
+          things on the device itself that the web app does not.
+        </p>
+        <LegalList
+          items={[
+            'Camera: the staff app uses the camera to scan a member’s QR code at check-in. Frames are decoded on the device and discarded. No photograph is stored, uploaded, or sent anywhere.',
+            'Push notifications: if you allow them, the device is issued a push token by Apple or Google, which we store so the app can be notified. It identifies the handset, not you. Signing out deletes it from every gym the account belongs to.',
+            'On-device storage: sign-in tokens are held in the device keychain, and recent gym data is cached so the app keeps working when the connection drops. Signing out clears both.',
+            'Crash reports: if a crash reporter is enabled for a release, we receive the stack trace, app version, device model and OS version. Request bodies, query strings and console logs are stripped before sending, identifiers in URLs are masked, and the report carries a staff or member row identifier, role and gym — never a name, email or phone number.',
+            'Location: the member app can record the route of a run, ride or walk. This is opt-in, used only while a member is recording an activity, and never collected by the staff app.',
+            'Health and fitness data: the member app records what the member enters, and reads from Apple Health or Google Fit only if the member connects it. It is used to show the member their own progress and to share it with their gym where they have chosen to train with one. It is never used for advertising.',
+          ]}
+        />
+        <p>
+          Neither app contains third-party advertising or analytics SDKs, and neither
+          tracks you across other companies&rsquo; apps or websites.
+        </p>
+      </LegalSection>
+
+      <LegalSection heading="5. Why we process it">
         <LegalList
           items={[
             'To provide the service the studio has subscribed to: memberships, attendance, scheduling, billing, staff management and reporting.',
@@ -103,7 +125,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection heading="5. Automated processing and AI features">
+      <LegalSection heading="6. Automated processing and AI features">
         <p>
           MuscleX includes AI features: a business advisor, a morning briefing and churn
           risk scoring. These operate on a studio&rsquo;s own operational data and produce
@@ -113,7 +135,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection heading="6. Who we share it with">
+      <LegalSection heading="7. Who we share it with">
         <p>
           We share personal data only with the service providers needed to run the
           platform, and only as far as each needs to do its job:
@@ -133,7 +155,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection heading="7. Retention">
+      <LegalSection heading="8. Retention">
         <p>
           Member data is retained for as long as the studio maintains it in their account.
           When a studio deletes a record, it is removed in accordance with our deletion
@@ -142,7 +164,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection heading="8. Security">
+      <LegalSection heading="9. Security">
         <p>
           Each studio&rsquo;s data is kept separate from every other studio&rsquo;s. Access
           requires authentication, every request is scoped to the signed-in studio, and
@@ -156,7 +178,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection heading="9. Your rights">
+      <LegalSection heading="10. Your rights">
         <p>
           Depending on where you live, you may have rights to access, correct, delete,
           restrict or port your personal data, and to object to certain processing. Gym
@@ -166,7 +188,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection heading="10. Children">
+      <LegalSection heading="11. Children">
         <p>
           MuscleX is not directed at children. Where a studio enrols a minor, the studio is
           responsible for obtaining the consent required in its jurisdiction and for the
@@ -174,7 +196,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection heading="11. Changes">
+      <LegalSection heading="12. Changes">
         <p>
           We will update this page when our practices change and revise the &ldquo;last
           updated&rdquo; date above. Material changes affecting studios will be
@@ -182,7 +204,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection heading="12. Contact">
+      <LegalSection heading="13. Contact">
         <p>
           Questions about this policy: <a href={`mailto:${contactEmail}`}>{contactEmail}</a>.
         </p>

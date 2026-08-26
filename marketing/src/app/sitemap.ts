@@ -11,6 +11,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: routes.memberApp, priority: 0.8, changeFrequency: 'monthly' },
     { path: routes.security, priority: 0.7, changeFrequency: 'monthly' },
     { path: routes.contact, priority: 0.6, changeFrequency: 'yearly' },
+    // Linked from both app stores as the support URL, so it should be indexed.
+    { path: routes.support, priority: 0.6, changeFrequency: 'monthly' },
     { path: routes.privacy, priority: 0.3, changeFrequency: 'yearly' },
     { path: routes.terms, priority: 0.3, changeFrequency: 'yearly' },
     { path: routes.refund, priority: 0.3, changeFrequency: 'yearly' },
