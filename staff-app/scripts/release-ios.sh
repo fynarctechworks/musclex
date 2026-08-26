@@ -179,10 +179,24 @@ app_id() {
         });"
 }
 
+latest_build() {
+  asc builds list --app "$1" --output json 2>/dev/null \
+    | node -e "
+        let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{
+          const rows = JSON.parse(s);
+          const list = Array.isArray(rows) ? rows : (rows.data ?? []);
+          const ok = list.filter((b) => (b.processingState ?? b.processing) === 'VALID');
+          process.stdout.write((ok[0] ?? list[0] ?? {}).id ?? '');
+        });"
+}
+
 submit() {
   preflight
   local id; id="$(app_id)"
   [ -n "$id" ] || { bad "Could not resolve the App Store Connect app id."; exit 1; }
+  local build; build="$(latest_build "$id")"
+  [ -n "$build" ] || { bad "No processed build found for $BUNDLE_ID."; exit 1; }
+  echo "  build: $build"
 
   bold "Validating release readiness"
   asc validate --app "$id" --version "$VERSION" --platform IOS --output table
@@ -190,8 +204,10 @@ submit() {
   if [ "${1:-}" != "--confirm" ]; then
     echo
     bold "DRY RUN — nothing was submitted."
-    asc release stage --app "$id" --version "$VERSION" \
-      --metadata-dir "./metadata/version/$VERSION" --dry-run --output table
+    # `asc review submit --dry-run` previews the real submission flow. The
+    # earlier version called `asc release stage`, which now requires
+    # --build-id and in any case re-applies metadata that is already applied.
+    asc review submit --app "$id" --version "$VERSION" --platform IOS --build-id "$build" --dry-run --output table
     echo
     echo "  Re-run with --confirm to submit for App Store review."
     return 0
@@ -205,9 +221,7 @@ submit() {
   read -r -p "  Type the version ($VERSION) to confirm: " typed
   [ "$typed" = "$VERSION" ] || { bad "Did not match — aborted."; exit 1; }
 
-  asc release stage --app "$id" --version "$VERSION" \
-    --metadata-dir "./metadata/version/$VERSION" --confirm --output table
-  asc review submit --app "$id" --version "$VERSION" --platform IOS --confirm --output table
+  asc review submit --app "$id" --version "$VERSION" --platform IOS --build-id "$build" --confirm --output table
   asc status --app "$id" --output table
 }
 
