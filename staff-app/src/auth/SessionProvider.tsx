@@ -2,6 +2,7 @@ import React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import * as store from '@/auth/session-store';
+import { setCrashContext } from '@/observability/sentry';
 import { setSignOutHandler } from '@/api/client';
 import type { Session } from '@/auth/types';
 
@@ -43,6 +44,23 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const [session, setSession] = React.useState<Session | null>(store.getSession());
   const [ready, setReady] = React.useState(store.isLoaded());
+
+  /*
+   * Keep crash reports attributable to a gym and a role WITHOUT identifying a
+   * person: staff row id, role and gym id only. Cleared on sign-out, so a
+   * crash after signing out is not filed against the person who left.
+   */
+  React.useEffect(() => {
+    setCrashContext(
+      session
+        ? {
+            staffId: session.user?.id ?? null,
+            role: session.user?.role ?? null,
+            gymId: session.studio?.id ?? session.user?.studio_id ?? null,
+          }
+        : null,
+    );
+  }, [session]);
 
   React.useEffect(() => {
     const unsub = store.subscribe(setSession);

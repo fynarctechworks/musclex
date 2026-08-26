@@ -1,5 +1,14 @@
 import '../src/global.css';
 
+import { initCrashReporting } from '@/observability/sentry';
+
+/*
+ * Before anything else renders, so a crash during startup is still reported.
+ * A no-op unless EXPO_PUBLIC_SENTRY_DSN is set — crash reporting has to be
+ * switched on deliberately, not left on by accident.
+ */
+initCrashReporting();
+
 import React from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

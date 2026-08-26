@@ -1112,3 +1112,39 @@ larger change than this fix.
 
 Verified on device: picker lists both gyms, selecting Bandra lands on a
 dashboard headed "MuscleX Bandra" showing **12** active members rather than 40.
+
+## 2026-08-26 — Sentry, wired to send no member data
+
+Approved by the owner. `@sentry/react-native` installed via `npx expo install`.
+
+**The default configuration would have been a leak.** Sentry is built for
+consumer apps: it attaches request URLs, bodies and user identifiers unless
+told not to. In a multi-tenant gym SaaS each of those carries members' names,
+phone numbers, measurements and payment amounts. So every one is turned off or
+scrubbed explicitly rather than trusted to a default:
+
+- `sendDefaultPii: false` — no IP address, no automatic identifiers.
+- **Query strings are stripped from every breadcrumb.** `GET
+  /members?search=Neha` would otherwise ship a member's name to a third party
+  on every keystroke of a desk search. This is the one I would most expect a
+  team to miss.
+- UUIDs in paths are masked to `:id`. The route SHAPE is what makes an issue
+  groupable; the id only makes it identifiable.
+- Request and response bodies are dropped entirely; console breadcrumbs are
+  dropped (a developer can log anything).
+- User context carries the **staff row id, role and gym id** — no email, no
+  name. Enough to answer "which gym, which role, how many people affected", not
+  enough to identify a person. Gym id is a TAG rather than part of `user`, so
+  issues group by tenant without a tenant being treated as a person.
+- Context is cleared on sign-out, so a later crash is not filed against
+  whoever last used the phone.
+
+**Off unless `EXPO_PUBLIC_SENTRY_DSN` is set**, and the key is committed to
+`.env` empty. Crash reporting should be switched on deliberately, never left on
+by accident.
+
+`tracesSampleRate: 0.1` — a gym floor is not a place to spend somebody's mobile
+data on telemetry.
+
+The scrubbers are unit-tested directly, because they are the part that must not
+be wrong.

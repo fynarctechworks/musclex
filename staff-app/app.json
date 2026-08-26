@@ -33,7 +33,8 @@
           "cameraPermission": "MuscleX uses the camera to scan member QR codes at check-in.",
           "recordAudioAndroid": false
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "extra": {
       "router": {}
