@@ -737,4 +737,54 @@ database rather than read off a screen.
     when signed in as front desk, which was RBAC working correctly and read
     exactly like a missing screen.
 
-**Tests: 395 staff-app · 915 backend unit · 15 backend e2e · both harnesses PASS.**
+## Your four answers, built
+
+83. **Multi-workspace** — you said go ahead. It was not merely untested; it was
+    broken in three places, each hidden by the one in front of it.
+    `selectWorkspace` never persisted `user_metadata.studio_id`; persisting was
+    not enough, because the token embeds metadata at mint time; and the app
+    discarded the interim access token that arrives with
+    `requires_workspace_selection`, so the authenticated select call 401'd and
+    showed "Session expired". A second gym ("MuscleX Bandra") now exists via
+    `scripts/seed-second-gym.ts` and `owner@mxtest.app` holds a role in both.
+    Verified on the simulator and in the browser.
+84. **Sentry** — approved and shipped, DSN-gated, scrubbing unit-tested. No
+    PII, no bodies, query strings stripped, UUIDs masked, context cleared on
+    sign-out.
+85. **Push notifications, cleared on sign out** — `public.staff_device_tokens`
+    keyed by the person rather than the gym, precisely so sign-out is one
+    delete that cannot miss a studio. Register / unregister endpoints,
+    `sendToStaff` with dead-token pruning, client registration that can never
+    break sign-in, and tap-routing that refuses external URLs. Verified against
+    the running API: one sign-out removed the device from **both** its gyms,
+    another staffer's device was untouched, and re-registering on a shared
+    handset takes it away from the previous owner. 16 client + 11 backend tests.
+    Needs an EAS `projectId` and a dev rebuild before a real token exists.
+86. **The referral question, answered with the actual data** — see
+    TODO_FOR_ME.md item 4. Inserted one referral between two unrelated gyms and
+    showed the owner of a third gym reading its name, referral code and count.
+    Then found it was not only reporting: the same controller let a gym owner
+    create and edit reward campaigns, force referral statuses, revoke other
+    gyms' rewards and clear fraud signals. Twenty handlers, four of which called
+    the `assertPlatformAdmin` helper that already existed for exactly this.
+    Now all of them do except `GET rules`, which is the offer we publish to
+    gyms. 26 tests.
+
+## Also this pass
+
+87. **AI advisor reads "coming soon"** in both apps, per your instruction, and
+    `GET /ai/status` drives it. The fallback no longer tells a paying gym to
+    "configure the ANTHROPIC_API_KEY environment variable" — that was our
+    config name, on a screen where they cannot act on it. Insights and the
+    Daily Briefing keep working; they are rules over real numbers, not model
+    output.
+88. **The TENANT_MODELS exemption list is now enforced, not commented.** Adding
+    the staff-token table meant adding an entry to the drift guard's
+    public-schema exemption set — the one place a tenant table could be parked
+    by mistake and leak silently. A new test reads `schema.prisma` and fails if
+    any exempted model is not actually `@@schema("public")`. Confirmed it fails
+    when a tenant model is added to the list.
+
+**Tests: 421 staff-app · 953 backend unit · 15 backend e2e · both harnesses PASS.**
+**Frontend: `tsc --noEmit` clean; vitest 25/26 — the one failure (`KPICard`
+'+12%') pre-dates this work and is untouched by it.**

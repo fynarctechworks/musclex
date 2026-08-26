@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as store from '@/auth/session-store';
 import { setCrashContext } from '@/observability/sentry';
 import { setSignOutHandler } from '@/api/client';
+import { registerForPush, unregisterForPush } from '@/push/push-registration';
 import type { Session } from '@/auth/types';
 
 /**
@@ -62,6 +63,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     );
   }, [session]);
 
+  /*
+   * Register on sign-in and on every workspace switch. The server upserts on
+   * (token, gym), so a switch ADDS the new gym rather than moving the device —
+   * a staffer working two studios should be reachable in both.
+   */
+  const gymId = session?.studio?.id ?? session?.user?.studio_id ?? null;
+  React.useEffect(() => {
+    if (!gymId) return;
+    void registerForPush();
+  }, [gymId]);
+
   React.useEffect(() => {
     const unsub = store.subscribe(setSession);
     if (!store.isLoaded()) {
@@ -76,6 +88,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [queryClient]);
 
   const signOut = React.useCallback(async () => {
+    /*
+     * Order matters: /staff-push/unregister is authenticated, so it has to go
+     * out while the session still exists. Clearing first would turn it into a
+     * 401 and leave the handset registered — which on a shared front-desk
+     * phone means the next person to hold it keeps receiving this gym's
+     * alerts. It never blocks sign-out: a failure is logged, and the server
+     * re-points the device to whoever signs in next.
+     */
+    await unregisterForPush();
     wipeCache();
     await store.clearSession();
   }, [wipeCache]);

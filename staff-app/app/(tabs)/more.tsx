@@ -78,7 +78,10 @@ export const ENTRIES: Entry[] = [
   // entry is the only way in, and it was pointing at nothing.
   { href: '/(tabs)/reports',  label: 'Reports',      icon: BarChart3, module: 'reports',   feature: 'basic_reports',       phase: '' },
   { href: '/more/training',   label: 'Training',     icon: Dumbbell,  module: 'members',   phase: '' },
-  { href: '/more/ai',         label: 'AI advisor',   icon: Sparkles,  module: 'ai',        feature: 'ai_advisor',          phase: 'Phase 6' },
+  // No screen yet, and the backend advisor is not connected to a model, so the
+  // row is inert. Reads "Coming soon", not "Not built yet — Phase 6": our
+  // internal phase numbering means nothing to a gym paying for the product.
+  { href: '/more/ai',         label: 'AI advisor',   icon: Sparkles,  module: 'ai',        feature: 'ai_advisor',          phase: 'Coming soon' },
   { href: '/more/branches',   label: 'Branches',     icon: Boxes,     module: 'branches',  feature: 'multi_branch',        phase: '' },
   { href: '/more/memberships',label: 'Memberships',  icon: Users2,    module: 'members',   phase: '' },
   { href: '/more/visits',     label: 'Visits',       icon: DoorOpen,  module: 'check_ins',  phase: '' },
@@ -169,7 +172,7 @@ function MoreRow({ entry }: { entry: Entry }) {
   const row = (
     <RowCard
       title={entry.label}
-      subtitle={locked || built ? undefined : `Not built yet — ${entry.phase}`}
+      subtitle={locked || built ? undefined : entry.phase}
       leading={<Icon size={20} color={locked ? tokens.mutedForeground : tokens.foreground} />}
       trailing={locked && entry.feature ? <PremiumTag feature={entry.feature} /> : undefined}
       // Locked entries stay visible and inert: the lock IS the upsell.

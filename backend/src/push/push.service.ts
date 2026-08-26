@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { TenantTaskRunner } from '../prisma/tenant-task-runner';
 import { getTenantGymId } from '../common/tenant-context';
+import { isExpoToken, sendViaExpo } from './expo-transport';
 
 export interface PushPayload {
   title: string;
@@ -46,32 +47,24 @@ export class PushService {
           return prefs[opts.category] !== false;
         })
         .map((t) => t.token)
-        .filter((t) => t.startsWith('ExponentPushToken['));
+        .filter(isExpoToken);
 
       if (targets.length === 0) {
         this.logger.debug(`Push skipped for member=${memberId} (no Expo tokens). Would send: "${payload.title}".`);
         return 0;
       }
 
-      const res = await fetch('https://exp.host/--/api/v2/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          targets.map((to) => ({
-            to,
-            title: payload.title,
-            body: payload.body,
-            data: payload.data ?? {},
-            sound: 'default',
-          })),
-        ),
-      });
-      if (!res.ok) {
-        const err = await res.text().catch(() => 'unknown');
-        throw new Error(`Expo push API ${res.status}: ${err}`);
-      }
-      this.logger.log(`Push sent to member=${memberId} (${targets.length} device(s)): "${payload.title}"`);
-      return targets.length;
+      const { sent } = await sendViaExpo(
+        targets.map((to) => ({
+          to,
+          title: payload.title,
+          body: payload.body,
+          data: payload.data ?? {},
+          sound: 'default' as const,
+        })),
+      );
+      this.logger.log(`Push sent to member=${memberId} (${sent} device(s)): "${payload.title}"`);
+      return sent;
     };
 
     if (getTenantGymId()) return run();

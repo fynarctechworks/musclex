@@ -1,3 +1,6 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
 import { Prisma } from '@prisma/client';
 import { TENANT_MODELS } from './tenant-models';
 
@@ -40,6 +43,17 @@ describe('TENANT_MODELS drift guard', () => {
     'DeviceIndex',
     'BiometricDeviceIndex',
     'WhatsAppNumberIndex',
+    /*
+     * StaffDeviceToken — staff push tokens.
+     *
+     * Not a routing index, but public for the same structural reason: the row
+     * is keyed by the PERSON, not the gym. One staff phone can hold roles in
+     * several studios, and "clear my device on sign out" has to be a single
+     * delete that cannot miss one. Its gym_id is the send-target column, and
+     * every read in StaffPushService filters on it explicitly (asserted in
+     * test/push/staff-push.service.spec.ts) because nothing injects it here.
+     */
+    'StaffDeviceToken',
   ]);
 
   it('every Prisma model with a gym_id field is registered in TENANT_MODELS (or explicitly deferred)', () => {
@@ -61,6 +75,20 @@ describe('TENANT_MODELS drift guard', () => {
       (name) => !gymIdModelSet.has(name) || TENANT_MODELS.has(name),
     );
     expect(bogus).toEqual([]);
+  });
+
+  /*
+   * The exemption list is the one place a tenant table could be parked by
+   * mistake and leak silently. A comment saying "this one is public" is not
+   * enforcement — so read the schema and check.
+   */
+  it('every exempted model is genuinely declared in the public schema', () => {
+    const schema = readFileSync(join(__dirname, '../../prisma/schema.prisma'), 'utf8');
+    const notPublic = [...PUBLIC_REGISTRY_MODELS].filter((name) => {
+      const block = new RegExp(`model\\s+${name}\\s*\\{([\\s\\S]*?)\\n\\}`).exec(schema);
+      return !block || !/@@schema\("public"\)/.test(block[1]);
+    });
+    expect(notPublic).toEqual([]);
   });
 
   it('every name in TENANT_MODELS is a real model that has a gym_id field', () => {

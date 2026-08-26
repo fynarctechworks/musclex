@@ -1148,3 +1148,126 @@ data on telemetry.
 
 The scrubbers are unit-tested directly, because they are the part that must not
 be wrong.
+
+---
+
+## Staff push notifications: tokens live in `public`, keyed by the person
+
+`MemberDeviceToken` is per-studio (`@@schema("studio_template")`, registered in
+TENANT_MODELS). The obvious move was to copy it for staff. I did not, and the
+reason is the requirement you gave me: **cleared on sign out.**
+
+A member belongs to one gym. A staff member does not — the same phone can hold
+roles in several studios, and after the multi-workspace work it genuinely does.
+If tokens were per-studio, "clear my device on sign out" would be a walk over
+every studio the person belongs to, and **any studio missed keeps pushing that
+gym's alerts to a handset whose owner has signed out**. That is the exact
+failure the requirement exists to prevent, so the storage should make it
+impossible rather than merely unlikely.
+
+So: `public.staff_device_tokens`, keyed by `user_id`. Sign-out is one
+`deleteMany`. Verified against the running API — a device registered in two
+gyms, one unregister call, `{"removed": 2}`.
+
+**It carries a `gym_id` and is deliberately NOT in TENANT_MODELS.** That column
+is the send TARGET, not a tenant scope, and the Prisma gym_id injection never
+sees the public client anyway. Because that is exactly the shape of a
+cross-tenant leak, three things guard it:
+
+1. `StaffPushService.sendToStaff(gymId, ...)` takes the gym as a **required
+   argument** and always puts it in the WHERE clause — never inferred from
+   ambient context.
+2. The drift guard (`tenant-models.spec.ts`) had to be told about it, so I made
+   the exemption *enforced* rather than commented: a new test reads
+   `schema.prisma` and fails if anything on the exemption list is not actually
+   declared `@@schema("public")`. Confirmed it fails when a tenant model is
+   added to the list.
+3. `test/push/staff-push.service.spec.ts` asserts the gym filter on every read.
+
+### Other decisions in the same slice
+
+- **`unregister` clears the token in every gym, but only for the calling
+  user.** Scoped by `user_id` as well as the token, so one person cannot
+  unregister another's handset by guessing a token string. Verified: the owner
+  attempting to unregister the front desk's device got `{"removed": 0}`.
+- **`register` takes the handset away from any previous owner** (`deleteMany
+  where token = t AND user_id != me`). Sign-out clears tokens over the network,
+  so a sign-out on a dead connection leaves rows behind. A shared front-desk
+  phone must never keep notifying the last person who held it; the next sign-in
+  repairs it.
+- **Sign-out never blocks on the network.** `unregisterForPush()` runs before
+  the session is cleared (the endpoint is authenticated — clearing first makes
+  it a 401 that silently leaves the device registered), but a failure is logged
+  and sign-out proceeds. The reclaim rule above is what makes that safe.
+- **Registration can never break sign-in.** Denied permission, a simulator with
+  no push support, a missing EAS projectId and an offline network all resolve
+  to "no token", never to an error a user sees.
+- **Dead tokens are pruned on send.** Expo returns HTTP 200 and reports dead
+  handsets *inside* the ticket body; `DeviceNotRegistered` rows are deleted, so
+  an uninstalled app is not retried forever. Transient errors are kept.
+- **Deep links from a push payload are untrusted.** Only in-app paths are
+  followed (`/…`, and not `//…`), so a payload cannot push an external URL into
+  the router.
+- One `expo-transport.ts` now serves both the member and staff paths, so the
+  details that decide whether a notification lands — the `ExponentPushToken[`
+  filter, Expo's 100-per-request chunking, reading tickets back — cannot drift.
+
+**Not done, deliberately: nothing sends a staff push yet.** The pipe is built
+and verified; `sendToStaff` is injectable anywhere. Which events should reach a
+staff phone (an overdue payment? a class starting unstaffed? a failed
+check-in?) is a product decision, and CLAUDE.md says not to guess at business
+logic.
+
+---
+
+## AI advisor: "coming soon", and never naming our config to a customer
+
+You asked for the advisor to read as coming soon in both apps until the LLM key
+lands. Three decisions inside that:
+
+**Only CHAT is model-backed.** The Insights tab and the Daily Briefing are
+rules over the gym's own numbers — churn risk, expiring memberships, pending
+payments — and they work today. A blanket "coming soon" over the AI page would
+have hidden working analytics, so the gate is on the chat surface only.
+
+**The fallback text was the real bug.** Without a key the advisor replied *"To
+get real-time AI insights, ensure your ANTHROPIC_API_KEY environment variable
+is configured."* — to a **gym owner**. That names our internal configuration to
+a paying customer, on a screen where they cannot act on it, and frames an
+unreleased feature as a broken one. It is now one honest sentence plus a
+pointer to the page that already has the answer.
+
+**No composer when it is unavailable.** The drawer and the chat tab render the
+coming-soon panel *instead of* the input, not above it. A box that accepts a
+question and answers "not yet" wastes the person's time; saying so before they
+type reads as a roadmap. `GET /api/v1/ai/status` is what the UI asks, and it is
+outside the entitlement check — otherwise the "coming soon" state would itself
+depend on a plan lookup.
+
+---
+
+## `/admin/referrals/*` was a platform-admin screen wearing a gym-owner
+## decorator
+
+Written up in TODO_FOR_ME.md item 4 with the measured example. The decision
+worth recording here is **why I fixed it without asking**, given the open
+product question next to it.
+
+The product question is "what should a gym owner see of their own referral
+funnel". That is genuinely yours. But it was sitting on top of an
+authorisation defect that is not a product question at all: a gym owner could
+read every other gym's referral counts, names and codes, and could **write** —
+create and edit reward campaigns, force referral statuses, revoke other gyms'
+rewards, clear fraud signals. CLAUDE.md's standing exception covers exactly
+this (endpoint-level permission checks in `backend/`), and leaving a live leak
+open while a product decision is pending is the wrong trade.
+
+The fix is not new machinery: `assertPlatformAdmin` already existed on the
+class, documented as "platform-only actions (rule config, cross-tenant
+reporting)", and had been applied to four handlers out of twenty. This is the
+recurring shape in this codebase — **things that agree with themselves while
+being wrong**. The helper, its docstring and the four call sites were all
+consistent; nothing pointed at the sixteen handlers that never called it.
+
+`GET rules` stays owner-readable on purpose: reward rules are the offer we
+publish to gyms, and the gym-facing settings page renders them.

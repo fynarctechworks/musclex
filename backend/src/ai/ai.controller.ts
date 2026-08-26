@@ -42,6 +42,16 @@ export class AiController {
     return this.aiService.getDailyBriefing();
   }
 
+  /**
+   * Whether the advisor is live. Unmetered and outside the entitlement check:
+   * the UI needs it to decide what to RENDER, so gating it would make the
+   * "coming soon" state itself depend on a plan lookup.
+   */
+  @Get('status')
+  getStatus() {
+    return { available: this.aiService.isAvailable() };
+  }
+
   @Get('conversations')
   getConversations(@CurrentUser() user: JwtPayload) {
     return this.aiService.getConversations(user.user_id);

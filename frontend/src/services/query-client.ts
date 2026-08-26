@@ -200,6 +200,7 @@ export const queryKeys = {
     all: ['ai'] as const,
     conversations: () => [...queryKeys.ai.all, 'conversations'] as const,
     briefing: () => [...queryKeys.ai.all, 'briefing'] as const,
+    status: () => [...queryKeys.ai.all, 'status'] as const,
   },
 
   // Branches

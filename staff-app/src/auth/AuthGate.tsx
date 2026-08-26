@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
 
 import { useSession } from '@/auth/SessionProvider';
+import { usePushRouter } from '@/push/use-push-router';
 import { Loading } from '@/ui/Loading';
 
 /**
@@ -20,6 +21,13 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const inAuthGroup = segments[0] === '(auth)';
+
+  /*
+   * Only route notification taps once there is a session. A tap that arrives
+   * while signed out would otherwise push a gym screen behind the sign-in
+   * wall, and the deep link would be consumed by the redirect anyway.
+   */
+  usePushRouter(Boolean(session));
 
   React.useEffect(() => {
     if (!ready) return;

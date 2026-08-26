@@ -77,7 +77,8 @@ export class ReferralsAdminController {
   // ── Campaigns ─────────────────────────────────────────────────────
 
   @Get('campaigns')
-  listCampaigns() {
+  listCampaigns(@CurrentUser() user: JwtPayload) {
+    this.assertPlatformAdmin(user);
     return this.prisma.referralCampaign.findMany({
       orderBy: { created_at: 'desc' },
       include: { rules: { select: { id: true, name: true, is_active: true } } },
@@ -86,7 +87,8 @@ export class ReferralsAdminController {
 
   @Post('campaigns')
   @HttpCode(HttpStatus.CREATED)
-  createCampaign(@Body() dto: CreateCampaignDto) {
+  createCampaign(@CurrentUser() user: JwtPayload, @Body() dto: CreateCampaignDto) {
+    this.assertPlatformAdmin(user);
     return this.prisma.referralCampaign.create({
       data: {
         name:          dto.name,
@@ -100,9 +102,11 @@ export class ReferralsAdminController {
 
   @Patch('campaigns/:id')
   updateCampaign(
+    @CurrentUser() user: JwtPayload,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: Partial<CreateCampaignDto>,
   ) {
+    this.assertPlatformAdmin(user);
     return this.prisma.referralCampaign.update({
       where: { id },
       data:  {
@@ -120,7 +124,12 @@ export class ReferralsAdminController {
   /**
    * GET /api/v1/admin/referrals/rules
    * Returns all rules, sorted by priority desc.
-   * Allows admin to understand which rules are active and their config.
+   *
+   * DELIBERATELY still readable by a gym owner, unlike the rest of this
+   * controller: reward rules are the platform's published offer — what a gym
+   * earns for referring another gym — and the gym-facing
+   * `/[gymSlug]/settings/referrals` page renders them. They describe our terms,
+   * not another customer's data. Writing them is platform-only (below).
    */
   @Get('rules')
   listRules(@Query('campaign_id') campaignId?: string) {
@@ -233,7 +242,8 @@ export class ReferralsAdminController {
    * Platform-wide referral funnel metrics.
    */
   @Get('analytics')
-  async getAnalytics() {
+  async getAnalytics(@CurrentUser() user: JwtPayload) {
+    this.assertPlatformAdmin(user);
     const [
       totalReferrals,
       byStatus,
@@ -289,10 +299,12 @@ export class ReferralsAdminController {
   /** List all referrals with optional filters */
   @Get()
   listAllReferrals(
+    @CurrentUser() user: JwtPayload,
     @Query('status') status?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
+    this.assertPlatformAdmin(user);
     return this.referralsService.listReferrals({
       status,
       page:  page ? parseInt(page, 10) : 1,
@@ -342,14 +354,16 @@ export class ReferralsAdminController {
   // ── Aggregate overview ──────────────────────────────────────────
 
   @Get('overview')
-  getOverview() {
+  getOverview(@CurrentUser() user: JwtPayload) {
+    this.assertPlatformAdmin(user);
     return this.admin.getOverview();
   }
 
   // ── Fraud review queue ──────────────────────────────────────────
 
   @Get('fraud-queue')
-  listFraudQueue(@Query() filters: FraudQueueFilterDto) {
+  listFraudQueue(@CurrentUser() user: JwtPayload, @Query() filters: FraudQueueFilterDto) {
+    this.assertPlatformAdmin(user);
     return this.admin.listFraudQueue(filters);
   }
 
@@ -360,6 +374,7 @@ export class ReferralsAdminController {
     @Body() dto: ReviewSignalDto,
     @CurrentUser() user: JwtPayload,
   ) {
+    this.assertPlatformAdmin(user);
     return this.admin.reviewFraudSignal({
       signalId,
       reviewerId: user.user_id,
@@ -371,7 +386,8 @@ export class ReferralsAdminController {
   // ── Lifecycle history + force transition ────────────────────────
 
   @Get(':id/lifecycle')
-  getLifecycle(@Param('id', ParseUUIDPipe) referralId: string) {
+  getLifecycle(@CurrentUser() user: JwtPayload, @Param('id', ParseUUIDPipe) referralId: string) {
+    this.assertPlatformAdmin(user);
     return this.lifecycle.getHistory(referralId);
   }
 
@@ -382,6 +398,7 @@ export class ReferralsAdminController {
     @Body() dto: ForceTransitionDto,
     @CurrentUser() user: JwtPayload,
   ) {
+    this.assertPlatformAdmin(user);
     return this.admin.forceTransition({
       referralId,
       toStatus: dto.to_status,
@@ -399,6 +416,7 @@ export class ReferralsAdminController {
     @Body() dto: RevokeRewardDto,
     @CurrentUser() user: JwtPayload,
   ) {
+    this.assertPlatformAdmin(user);
     return this.admin.revokeReward({
       rewardLogId,
       adminId: user.user_id,
@@ -474,7 +492,8 @@ export class ReferralsAdminController {
 
   @Post(':id/recompute-risk')
   @HttpCode(HttpStatus.OK)
-  recomputeRisk(@Param('id', ParseUUIDPipe) referralId: string) {
+  recomputeRisk(@CurrentUser() user: JwtPayload, @Param('id', ParseUUIDPipe) referralId: string) {
+    this.assertPlatformAdmin(user);
     return this.admin.recomputeRiskScore(referralId);
   }
 }

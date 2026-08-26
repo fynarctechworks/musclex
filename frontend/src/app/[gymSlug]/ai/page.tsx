@@ -6,7 +6,7 @@ import { PageHeader, KPICard, LoadingSkeleton, AccessDenied } from "@/components
 import { useRequirePermission } from "@/hooks/use-require-permission";
 import { useEntitlement, LockedFeatureCard } from "@/features/entitlements";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAiChat, useDailyBriefing } from "@/features/ai";
+import { useAiChat, useDailyBriefing, useAiStatus, AiComingSoon } from "@/features/ai";
 import { useChurnRisk, useAnalyticsDashboard, useDailyMetricsTrend } from "@/features/reports";
 import type { ChatMessage, AIInsight, InsightType, InsightSeverity } from "@/features/ai";
 import type { ChurnRiskEntry, DashboardSummary, TrendDataPoint } from "@/features/reports";
@@ -258,6 +258,12 @@ export default function AIAdvisorPage() {
   const trend = useDailyMetricsTrend();
   const briefing = useDailyBriefing();
   const chatMutation = useAiChat();
+  /*
+   * Only CHAT is model-backed. The Insights tab and the daily briefing are
+   * rules over real numbers this gym already has, so they keep working — a
+   * blanket "coming soon" over the whole page would hide working analytics.
+   */
+  const { available: aiAvailable } = useAiStatus();
 
   const insightsLoading = dashboard.isLoading || churnRisk.isLoading || trend.isLoading || briefing.isLoading;
 
@@ -361,6 +367,13 @@ export default function AIAdvisorPage() {
             <TabsTrigger value="chat">
               <Bot className="w-4 h-4 mr-1.5" />
               Chat
+              {/* Say it on the tab, not only after the click — otherwise the
+                  only way to find out is to open an empty room. */}
+              {!aiAvailable && (
+                <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  Soon
+                </span>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -425,88 +438,92 @@ export default function AIAdvisorPage() {
 
           {/* ── Chat Tab ────────────────────────────────── */}
           <TabsContent value="chat">
-            <div className="flex flex-col h-[calc(100vh-280px)]">
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto bg-card border border-border rounded-lg p-4 space-y-4">
-                {/* Welcome message */}
-                {messages.length === 0 && (
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-canvas-soft-2 flex items-center justify-center flex-shrink-0">
-                      <Bot className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="max-w-[70%] rounded-lg px-4 py-3 text-sm bg-muted text-foreground">
-                      <p>
-                        Hi! I&apos;m your AI gym advisor. Ask me about revenue trends,
-                        member retention, class optimization, trainer performance, or any
-                        other business question.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {messages.map((msg, i) => (
-                  <div
-                    key={i}
-                    className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}
-                  >
-                    {msg.role === "assistant" && (
+            {!aiAvailable ? (
+              <AiComingSoon className="h-[calc(100vh-280px)]" />
+            ) : (
+              <div className="flex flex-col h-[calc(100vh-280px)]">
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto bg-card border border-border rounded-lg p-4 space-y-4">
+                  {/* Welcome message */}
+                  {messages.length === 0 && (
+                    <div className="flex gap-3">
                       <div className="w-8 h-8 rounded-lg bg-canvas-soft-2 flex items-center justify-center flex-shrink-0">
                         <Bot className="w-4 h-4 text-primary" />
                       </div>
-                    )}
+                      <div className="max-w-[70%] rounded-lg px-4 py-3 text-sm bg-muted text-foreground">
+                        <p>
+                          Hi! I&apos;m your AI gym advisor. Ask me about revenue trends,
+                          member retention, class optimization, trainer performance, or any
+                          other business question.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {messages.map((msg, i) => (
                     <div
-                      className={`max-w-[70%] rounded-lg px-4 py-3 text-sm ${
-                        msg.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted text-foreground"
-                      }`}
+                      key={i}
+                      className={`flex gap-3 ${msg.role === "user" ? "justify-end" : ""}`}
                     >
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
-                    </div>
-                    {msg.role === "user" && (
-                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                        <User className="w-4 h-4 text-muted-foreground" />
+                      {msg.role === "assistant" && (
+                        <div className="w-8 h-8 rounded-lg bg-canvas-soft-2 flex items-center justify-center flex-shrink-0">
+                          <Bot className="w-4 h-4 text-primary" />
+                        </div>
+                      )}
+                      <div
+                        className={`max-w-[70%] rounded-lg px-4 py-3 text-sm ${
+                          msg.role === "user"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-foreground"
+                        }`}
+                      >
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
                       </div>
-                    )}
-                  </div>
-                ))}
-
-                {chatMutation.isPending && (
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-canvas-soft-2 flex items-center justify-center flex-shrink-0">
-                      <Bot className="w-4 h-4 text-primary" />
+                      {msg.role === "user" && (
+                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                          <User className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                      )}
                     </div>
-                    <div className="bg-muted rounded-lg px-4 py-3">
-                      <div className="flex gap-1">
-                        <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
-                        <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce [animation-delay:0.1s]" />
-                        <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce [animation-delay:0.2s]" />
+                  ))}
+
+                  {chatMutation.isPending && (
+                    <div className="flex gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-canvas-soft-2 flex items-center justify-center flex-shrink-0">
+                        <Bot className="w-4 h-4 text-primary" />
+                      </div>
+                      <div className="bg-muted rounded-lg px-4 py-3">
+                        <div className="flex gap-1">
+                          <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
+                          <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce [animation-delay:0.1s]" />
+                          <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce [animation-delay:0.2s]" />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
 
-              {/* Input */}
-              <div className="mt-3 flex gap-2">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  placeholder="Ask about revenue, retention, classes, trainers..."
-                  className="flex-1 bg-background border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary outline-none"
-                />
-                <button
-                  onClick={handleSend}
-                  disabled={!input.trim() || chatMutation.isPending}
-                  className="bg-primary text-primary-foreground px-4 py-3 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-                >
-                  <Send className="w-5 h-5" />
-                </button>
+                {/* Input */}
+                <div className="mt-3 flex gap-2">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                    placeholder="Ask about revenue, retention, classes, trainers..."
+                    className="flex-1 bg-background border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary outline-none"
+                  />
+                  <button
+                    onClick={handleSend}
+                    disabled={!input.trim() || chatMutation.isPending}
+                    className="bg-primary text-primary-foreground px-4 py-3 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    <Send className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

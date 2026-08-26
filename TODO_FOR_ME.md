@@ -5,21 +5,75 @@ instead so the rest of the work continued.
 
 ---
 
-## 1. Branding assets for TestFlight (blocks on-device testing by others)
+## 1. Branding assets — the exact list
 
-App icon, splash screen, App Store screenshots and store copy do not exist.
-`app.json` has no `icon`/`splash` entries, so Expo's defaults are in use.
+You asked which ones exactly. This is all of it. `app.json` currently declares
+no `icon` and no `splash`, so Expo's generic defaults are in the build.
 
-**Blocked:** distributing a build to anyone but this machine.
-**Workaround:** none needed for development; the app runs fine on the simulator.
+**Blocking a TestFlight build (3 files):**
 
-## 2. Apple signing / TestFlight setup
+| File | Size | Rules |
+|---|---|---|
+| `staff-app/assets/icon.png` | 1024×1024 | PNG, **no alpha/transparency**, no rounded corners — Apple masks it. Full-bleed artwork. |
+| `staff-app/assets/adaptive-icon.png` | 1024×1024 | Android. Transparency allowed. Keep the logo inside the centre **66%** — Android crops to a circle/squircle. |
+| `staff-app/assets/splash.png` | 1284×2778 | Or just a centred logo ~1200×1200 on a solid background; I set the background colour in `app.json`. |
 
-You confirmed the Apple Developer account and bundle id
-(`com.infynarc.musclex.staff`) exist, but signing and a TestFlight internal
-group have not been set up from here — that needs your account.
+**Blocking App Store / TestFlight external testers (not internal):**
 
-**Blocked:** Phase 5 testing by anyone but the developer.
+- Screenshots: **6.7"** (1290×2796) and **6.5"** (1242×2688), 3–5 each. I can
+  produce these from the simulator once the icon exists — no design work needed
+  from you.
+- Store copy: app name (30 chars), subtitle (30), description, keywords (100),
+  support URL, privacy-policy URL. The privacy URL is **mandatory** and it is
+  the one I cannot write for you.
+
+**Fastest path:** send me the MuscleX logo as **SVG or a ≥1024px PNG with
+transparency**, plus the brand background colour, and I will generate all three
+files at the right sizes and wire them into `app.json`. One asset from you,
+everything else derived.
+
+## 2. Apple signing — how you actually hand it over
+
+You asked how to give this. Three options, easiest first. **Do not paste any
+credential into this chat** — it lands in the transcript.
+
+**Option A — you run two commands (recommended, ~10 min).**
+EAS handles certificates and provisioning profiles itself; you never touch
+Keychain or the developer portal.
+
+```bash
+cd staff-app
+npx eas login          # your Expo account
+npx eas build --platform ios --profile production
+```
+
+It will prompt for your **Apple ID**, then generate the distribution
+certificate and provisioning profile on your behalf and store them in your Expo
+account. Then `npx eas submit --platform ios --latest` pushes it to TestFlight.
+Once that has run once, I can trigger every later build without your Apple ID.
+
+**Option B — you delegate it.** Add me (or a build account) to your Expo
+organisation with the right role, and add that same Apple ID to your Apple
+Developer team as **App Manager**. Then A runs from here without you.
+
+**Option C — App Store Connect API key (fully unattended, best for CI).**
+App Store Connect → Users and Access → Integrations → **App Store Connect API**
+→ generate a key with the **App Manager** role. You get:
+- an `.p8` private key file (downloadable **once**),
+- a Key ID,
+- an Issuer ID.
+
+Put the `.p8` outside the repo and set `EXPO_ASC_API_KEY_PATH`, `EXPO_ASC_KEY_ID`
+and `EXPO_ASC_ISSUER_ID` in your shell — or upload them to EAS with
+`npx eas credentials`. This is the one to pick if you want builds to happen
+without you at all.
+
+**Also needed once, in App Store Connect:** create the app record for bundle id
+`com.infynarc.musclex.staff` (it does not exist yet), and answer the export-
+compliance question. `app.json` already declares
+`ITSAppUsesNonExemptEncryption: false`, so that answer is "no".
+
+**Blocked until then:** anyone but this machine installing the app.
 
 ## 3. Two auth paths still need a human pass
 
@@ -31,21 +85,86 @@ and **no access token**. Details in DECISIONS.md.
 What I did not do is drive `app/(auth)/two-factor.tsx` on the device, because
 that means leaving a seeded account in a 2FA state while the simulator is
 driven through it, and I would rather not hand back a fixture in a state you
-did not ask for. **One manual pass** would close it: enable 2FA on a test
-account, sign in on the phone, confirm the code screen accepts a real code and
-rejects a wrong one.
+did not ask for.
 
-**Multi-workspace is still entirely unverified.** It needs one user holding
-roles in two studios, which the seeder does not create. Say the word and I will
-extend the seeder to make a second gym and a dual-membership account — it is
-the only way to exercise `/auth/select-workspace` and the workspace picker.
+**You asked what is needed from your side. Two minutes, on the web app:**
 
-## 4. Unscoped referral reporting endpoints (product question)
+1. Sign in as `owner@mxtest.app` → Settings → Security → **Enable 2FA**.
+2. Scan the QR with any authenticator (Google Authenticator, 1Password, Authy)
+   and confirm the 6-digit code it shows.
+3. Tell me it is on. I drive the phone screen from here, confirm it accepts a
+   real code and rejects a wrong one, and tell you when to turn it back off.
 
-`GET /admin/referrals/{,overview,analytics,fraud-queue}` still return
-platform-wide aggregates to gym owners. Fixing them means deciding what a gym
-owner *should* see of their own referral funnel — a product call, not a
-mechanical one. Detail in `docs/SECURITY_FINDINGS_2026-08-26.md`.
+That is the whole ask — I need the enrolment to exist on an account, and only
+you should be holding the authenticator secret. **Alternatively**, say "go
+ahead and enable it yourself on the test account" and I will do all three steps
+and disable it again afterwards; I avoided that only because it changes a
+fixture you did not ask me to change.
+
+~~**Multi-workspace is still entirely unverified.**~~ **Done** — you approved
+it, and it turned out to be broken in three separate places, not merely
+untested. See DECISIONS.md. A second gym ("MuscleX Bandra") now exists via
+`backend/scripts/seed-second-gym.ts`, and `owner@mxtest.app` holds a role in
+both; the picker and the switch are verified on the simulator and in the
+browser.
+
+## 4. Referral reporting — the leak is closed; one product question is left
+
+You said you did not follow this one. Here is exactly what was happening,
+measured against the running API, not described.
+
+**The concrete example.** I inserted one referral into the local database:
+*Iron Temple Fitness* referred *Zen Yoga Studio*. Neither gym has anything to
+do with MuscleX Test Gym. I then signed in as the owner of **MuscleX Test Gym**
+and called `GET /api/v1/admin/referrals/analytics`. They got back:
+
+```json
+{
+  "total_referrals": 1,
+  "by_status": [{ "status": "rewarded", "count": 1 }],
+  "top_referrers": [{
+    "studio": { "name": "Iron Temple Fitness", "referral_code": "A234AC" },
+    "rewarded_count": 1
+  }]
+}
+```
+
+One of your paying gyms could read another gym's **name**, its **referral
+code**, and how many successful referrals it had made. Substitute a real
+customer list and a gym owner is reading a leaderboard of their competitors on
+your platform.
+
+The cause: the whole `/admin/referrals/*` controller is declared
+`@Roles('owner', 'super_admin')`, and its handlers query
+`prisma.referral.count()` with **no gym filter at all**. It was written as a
+platform-admin screen; the `owner` in that decorator let every gym owner walk
+into it.
+
+It was worse than reporting. The same controller let a gym owner **write**:
+create and edit referral **campaigns** (the reward amounts you offer), force a
+referral's status, revoke another gym's reward, clear fraud signals, and
+recompute risk scores.
+
+**Fixed (this is authorisation, not a product call, so I did not wait).** Every
+cross-tenant read and every write on that controller now calls
+`assertPlatformAdmin` — a helper that already existed on the class and simply
+had not been applied. Verified live as a gym owner: `analytics`, `overview`,
+`fraud-queue`, `campaigns`, the referral list and `POST campaigns` all now
+return **403**, while the gym's own `GET /referrals/stats` still returns 200.
+26 tests in `backend/test/referrals/admin-scope.spec.ts` cover each handler for
+both roles.
+
+One deliberate exception: `GET /admin/referrals/rules` is still readable by a
+gym owner. Reward rules are the offer *you publish to gyms* — what they earn
+for referring someone — and the gym-facing
+`/[gymSlug]/settings/referrals` page renders them.
+
+**The question that is actually yours** (nothing is leaking while it is open):
+a gym owner can currently see their own referral totals via `/referrals/stats`.
+Do you want them to see more — a funnel (invited → signed up → paid), the names
+of gyms *they* referred, pending vs paid reward amounts? If yes, that is a new
+gym-scoped endpoint and I need to know which of those numbers a gym should see.
+If "stats is enough", this item closes.
 
 ## 5. One QR scan on a physical device
 
@@ -63,58 +182,32 @@ but they have never met a real camera firing ten events a second.
 a member's code once. If it checks them in and a second scan of the same code
 is ignored for a few seconds, the feature is done.
 
-## 6. AI advisor needs an LLM API key
+## 6. AI advisor — waiting on your LLM key (now a clean "coming soon")
 
-`POST /api/v1/ai/chat` returns **500** in this environment. Neither
-`ANTHROPIC_API_KEY` nor `OPENAI_API_KEY` is set in `backend/.env`, and the
-service has no key to call.
+**Still needs:** `ANTHROPIC_API_KEY` in `backend/.env`. Nothing else.
 
-`GET /ai/conversations` works (returns an empty list), so the endpoint surface
-and the `ai_advisor` entitlement are fine — only the model call fails.
+You asked for it to read as "coming soon" in both apps until then, so it now
+does, and the endpoint no longer misbehaves without a key:
 
-**Not built:** the AI advisor screen. I deliberately did not build a chat UI I
-could not exercise even once; its entire behaviour *is* the model's response,
-so there would be nothing to verify and it would look finished while being
-untested. The trainer role does hold `ai.view` and `ai.create`, so it is
-reachable as soon as a key exists.
+- `GET /api/v1/ai/status` reports `{ available: false }`. Every AI surface asks
+  it before rendering.
+- **Web:** AI Advisor → the *Chat* tab shows a "coming soon" panel and the tab
+  itself carries a `Soon` badge; the floating **Ask AI** drawer on all four
+  dashboards opens straight to the same panel with **no composer**. The
+  *Insights* tab and the Daily Briefing keep working — they are rules over your
+  real numbers, not model output, and blanking them would have hidden working
+  analytics.
+- **Mobile (staff app):** the More → AI advisor row reads "Coming soon" and is
+  inert.
+- The fallback reply no longer tells a paying gym to "configure the
+  ANTHROPIC_API_KEY environment variable" — that was our internal config name,
+  on a screen where they cannot act on it, phrased as if the feature were
+  broken rather than unreleased.
 
-**What I need:** a key in `backend/.env`, then this is roughly a day of work.
+The advisor screen itself is still not built, for the reason below. Once the key
+lands it is roughly a day of work.
 
-## 7. Phase 7 (push notifications) needs a schema decision
-
-The plan marks Phase 7 as **"DB schema → approval"**, and `CLAUDE.md` hard-gate
-#1 puts any migration behind your explicit go-ahead. Staff push needs somewhere
-to store device tokens (per staff user, per device, revocable on sign-out),
-which is a new table.
-
-I have **not** designed or written that migration. It is skipped, not
-forgotten, and Phase 8 was built instead.
-
-**What I need:** approval to add a staff device-token table, or a steer that
-push should reuse an existing mechanism I have not found.
-
-Worth noting: the app already signs users out on token expiry and wipes the
-query cache on workspace switch, so a device-token table has to be cleared on
-those paths too — otherwise a staffer who signs out keeps receiving another
-gym's notifications on that handset.
-
-## 8. Sentry (or another crash reporter) — a new dependency
-
-Phase 12 lists Sentry. It is a new package plus a native module, which
-hard-gate #3 and #4 both cover, so I have not added it.
-
-**Worth knowing before you decide:** the app currently has no crash reporting
-at all. Everything I found this session was found by looking at a simulator or
-querying the database. On a real device in a real gym, a crash is silent — the
-staffer force-quits and carries on, and you never hear about it.
-
-`@sentry/react-native` is the obvious choice (already used elsewhere in this
-monorepo's dependency tree — `jest.config` references `@sentry/react-native` in
-`transformIgnorePatterns`), so it is likely already an approved vendor here.
-
-**What I need:** approval for the package and a DSN.
-
-## 9. Android is entirely unverified
+## 7. Android is entirely unverified
 
 The plan is iOS-first and that is what I built and tested. Everything verified
 this session was on an iOS simulator. The app has **never been run on
@@ -146,6 +239,26 @@ Android, and it is a day of work plus a build, not a rewrite.
   `members.edit`, so a trainer records body stats without gaining the right to
   rename members or change their phone numbers. Verified per role against the
   running API and on device. See DECISIONS.md.
+
+- **Push notifications** (was item 7). You approved it and asked for tokens to
+  be cleared on sign out. Built end to end and verified against the running
+  API — including the property you asked for: one sign-out call removed the
+  device from **both** gyms it was registered in (`{"removed": 2}`), while
+  another staffer's device on the same gym was untouched (`{"removed": 0}`).
+  See DECISIONS.md. **Still needs from you:** an EAS `projectId` (`npx eas
+  init` in `staff-app/`) before a real token can be minted, and a new dev build
+  — `expo-notifications` is a native module.
+
+- **Sentry** (was item 8). Approved and shipped, DSN-gated so it is inert until
+  `EXPO_PUBLIC_SENTRY_DSN` is set. Scrubbing is unit-tested: no PII, no request
+  bodies, URLs redacted and UUIDs masked. **Still needs from you:** the DSN.
+
+- **AI advisor reads "coming soon"** in both apps, as you asked, and the
+  fallback no longer names our environment variables to a paying gym. See
+  item 6 — it is now purely waiting on the key.
+
+- **Referral endpoints no longer leak across gyms** (see item 4). The
+  reporting-scope product question is all that is left.
 
 ### Earlier, since you approved the dependencies
 

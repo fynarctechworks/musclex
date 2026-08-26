@@ -8,6 +8,9 @@ export const aiApi = {
   getDailyBriefing: () =>
     apiClient.get<DailyBriefing>('/ai/daily-briefing'),
 
+  /** Whether the advisor is live. Drives the "coming soon" state. */
+  getStatus: () => apiClient.get<{ available: boolean }>('/ai/status'),
+
   getConversations: () =>
     apiClient.get<{ data: Conversation[] }>('/ai/conversations'),
 };

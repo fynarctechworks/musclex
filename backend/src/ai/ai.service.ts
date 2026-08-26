@@ -362,27 +362,38 @@ export class AiService {
   }
 
   /**
-   * Generate a contextual fallback response when Claude API is unavailable.
+   * Is the AI advisor actually live?
+   *
+   * The UI asks this so it can say "coming soon" up front, instead of
+   * accepting a question and answering it with an apology.
+   */
+  isAvailable(): boolean {
+    return this.anthropic !== null;
+  }
+
+  /**
+   * The reply when the advisor is not connected.
+   *
+   * Deliberately ONE message, and deliberately silent about configuration.
+   * The previous version routed on keywords and told the gym owner to "set the
+   * ANTHROPIC_API_KEY environment variable" — naming our internal config to a
+   * paying customer, on a screen where they cannot act on it, while implying
+   * the feature is broken rather than not yet released. Pointing at the pages
+   * that already hold the answer is the useful half; keep that, drop the rest.
    */
   private generateFallbackResponse(message: string): string {
     const lowerMsg = message.toLowerCase();
 
-    if (lowerMsg.includes('revenue') || lowerMsg.includes('income')) {
-      return 'I can help analyze your revenue trends once connected. To get real-time AI insights, ensure your ANTHROPIC_API_KEY environment variable is configured. In the meantime, check your Finance dashboard for revenue charts and trends.';
-    }
+    const pointer = lowerMsg.includes('revenue') || lowerMsg.includes('income')
+      ? ' In the meantime, the Finance dashboard has your revenue charts and trends.'
+      : lowerMsg.includes('member') && (lowerMsg.includes('churn') || lowerMsg.includes('retention'))
+      ? ' In the meantime, Members → Churn Risk lists the members most at risk of leaving.'
+      : lowerMsg.includes('class') || lowerMsg.includes('schedule')
+      ? ' In the meantime, the Classes page shows occupancy rates per session.'
+      : lowerMsg.includes('staff') || lowerMsg.includes('trainer')
+      ? ' In the meantime, Staff → Analytics covers attendance rates and trainer ratings.'
+      : '';
 
-    if (lowerMsg.includes('member') && (lowerMsg.includes('churn') || lowerMsg.includes('retention'))) {
-      return 'Member retention analysis requires AI to be fully connected. Check your Members > Churn Risk page for members at risk of leaving. Common retention strategies include: personalized check-in messages, offering complimentary sessions, and renewal reminder campaigns.';
-    }
-
-    if (lowerMsg.includes('class') || lowerMsg.includes('schedule')) {
-      return 'For class optimization insights, please configure your ANTHROPIC_API_KEY. Meanwhile, review your Classes page for occupancy rates and consider adjusting low-attendance classes to peak hours.';
-    }
-
-    if (lowerMsg.includes('staff') || lowerMsg.includes('trainer')) {
-      return 'Staff performance analysis is available when AI is fully connected. Check your Staff > Analytics page for attendance rates and trainer ratings. Consider scheduling regular performance reviews.';
-    }
-
-    return 'I\'m your AI gym advisor. To unlock full AI-powered insights (revenue analysis, churn prediction, class optimization), please configure the ANTHROPIC_API_KEY environment variable. Meanwhile, I can help with general gym management questions.';
+    return `The AI advisor is coming soon and is not answering questions yet.${pointer}`;
   }
 }
