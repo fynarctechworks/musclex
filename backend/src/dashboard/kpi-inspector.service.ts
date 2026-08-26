@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { resolveBranchScope } from '../common/branch-scope.util';
 import type { JwtPayload } from '../common/decorators/current-user.decorator';
 
@@ -41,7 +41,28 @@ type BranchFilter = { branch_id?: string | { in: string[] } };
 @Injectable()
 export class KpiInspectorService {
   private readonly logger = new Logger(KpiInspectorService.name);
-  constructor(private readonly prisma: PrismaService) {}
+  /**
+   * TENANT-scoped client, not the raw PrismaService.
+   *
+   * This service used to inject `PrismaService` and query tenant models with
+   * it. Tenant models are declared `@@schema("studio_template")`, so the raw
+   * client resolved them against **studio_template** rather than the caller's
+   * `studio_<gym_id>` schema — every number here came from the template.
+   *
+   * It went unnoticed because this dev database's template holds a stale copy
+   * of the same fixtures, so most metrics agreed by coincidence.
+   * `member_invoices` was the one table where the two diverged: a gym with
+   * three pending invoices worth ₹22,400 was shown outstanding dues of zero.
+   *
+   * Every other service that touches these models uses this accessor.
+   * See docs/SECURITY_FINDINGS_2026-08-26.md F-5.
+   */
+  constructor(private readonly tenant: TenantPrisma) {}
+
+  /** Shorthand so the query bodies below read unchanged. */
+  private get prisma() {
+    return this.tenant.client;
+  }
 
   async inspect(
     user: JwtPayload | undefined,
@@ -300,27 +321,43 @@ export class KpiInspectorService {
     branchFilter: BranchFilter,
   ): Promise<KpiInspection> {
     const now = new Date();
-    const invoices = await this.prisma.memberInvoice.findMany({
-      where: {
-        status: { in: ['pending', 'partial'] },
-        ...branchFilter,
-      },
-      select: {
-        id: true,
-        member_id: true,
-        invoice_number: true,
-        total_amount: true,
-        due_date: true,
-        issued_at: true,
-      },
-      orderBy: [{ due_date: 'asc' }, { issued_at: 'asc' }],
-      take: 10,
-    });
+    const where = {
+      status: { in: ['pending', 'partial'] },
+      ...branchFilter,
+    };
 
-    const value = invoices.reduce(
-      (sum, i) => sum + Number(i.total_amount ?? 0),
-      0,
-    );
+    /*
+     * The VALUE is aggregated over every matching invoice; the SAMPLE is the
+     * ten oldest.
+     *
+     * These used to be the same query: `findMany({ take: 10 })`, with the
+     * headline summed from those ten rows while `formula` advertised
+     * "SUM(total_amount) of member_invoices". A gym with 500 unpaid invoices
+     * was shown the total of the ten oldest and told that was everything it
+     * was owed. `take: 10` is right for a preview and wrong for a total.
+     */
+    const [totals, invoices] = await Promise.all([
+      this.prisma.memberInvoice.aggregate({
+        where,
+        _sum: { total_amount: true },
+        _count: true,
+      }),
+      this.prisma.memberInvoice.findMany({
+        where,
+        select: {
+          id: true,
+          member_id: true,
+          invoice_number: true,
+          total_amount: true,
+          due_date: true,
+          issued_at: true,
+        },
+        orderBy: [{ due_date: 'asc' }, { issued_at: 'asc' }],
+        take: 10,
+      }),
+    ]);
+
+    const value = Number(totals._sum.total_amount ?? 0);
     return {
       metric: 'outstanding_dues',
       formula:
@@ -338,7 +375,8 @@ export class KpiInspectorService {
         issued_at: i.issued_at,
       })),
       notes:
-        'Cancelled and refunded invoices are excluded. Partial payments still count their full remaining balance until status flips to paid.',
+        'Cancelled and refunded invoices are excluded. Partial payments still count their full remaining balance until status flips to paid. ' +
+        `The value sums all ${totals._count} matching invoices; the rows below are the 10 oldest.`,
     };
   }
 }

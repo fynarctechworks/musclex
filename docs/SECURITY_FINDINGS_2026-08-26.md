@@ -270,12 +270,11 @@ Recording it so the next person does not re-open it.
 
 ---
 
-## F-5 — Dashboard KPI inspector reads `studio_template`, not the caller's gym (NOT FIXED — gated)
+## F-5 — Dashboard KPI inspector read `studio_template`, not the caller's gym (FIXED 2026-08-26)
 
 **Severity:** correctness defect in dashboard numbers; possible cross-tenant
 disclosure in any environment where `studio_template` is not empty.
-**Status:** **reported, deliberately not fixed** — this is gym scoping, which
-`CLAUDE.md` hard-gate #2 puts behind explicit approval.
+**Status:** **FIXED** — the owner gave the go-ahead after this was reported.
 **Found:** 2026-08-26, while trying to surface outstanding dues in the app.
 
 ### What is wrong
@@ -338,14 +337,27 @@ template** to whichever gym happens to be inspecting. That is a cross-tenant
 disclosure path. In a correctly-empty production template it degrades to
 "every gym sees zeroes", which is merely wrong rather than unsafe.
 
-### The fix (one line, awaiting approval)
+### The fix, applied
 
-Inject `TenantPrisma` and use `this.tenant.client.*`, exactly as every other
-service does. It strictly NARROWS what the query can reach, but it changes how
-this service is gym-scoped, which is the gated class — so it is written up here
-rather than applied.
+`KpiInspectorService` now injects `TenantPrisma` and reads
+`this.tenant.client.*`, exactly as every other service does. It strictly
+NARROWS what the queries can reach.
 
-### Second, independent bug in the same method
+**Verified against the running API** (seeded gym: 3 pending invoices, ₹22,400):
+
+| Metric | Before | After | DB truth |
+|---|---|---|---|
+| `outstanding_dues` | 0 | **22,400** | 22,400 |
+| `mrr` | 21,890 | **20,808** | tenant schema |
+| `check_ins_today` | 3 | **7** | 7 (studio's IST day) |
+| `active_members` | 24 | 24 | 24 (same in both, by coincidence) |
+
+`mrr` and `check_ins_today` **also changed**, which confirms the diagnosis:
+those numbers had been coming from the template all along and merely looked
+plausible. `active_members` was identical in both schemas, which is exactly why
+this hid for so long.
+
+### Second, independent bug in the same method (also FIXED)
 
 `inspectOutstandingDues` computes its headline **`value` from the first 10 rows
 only**:
@@ -360,8 +372,9 @@ IN ('pending','partial')"`. A gym with 500 unpaid invoices would be shown the
 total of the 10 oldest and told it was everything they are owed. `take: 10` is
 correct for `sample_rows`; the value needs its own `aggregate`.
 
-This one is arithmetic rather than scoping, but it lives in the same method and
-should be fixed in the same pass.
+Fixed in the same pass: the value is now a `_sum` aggregate over every matching
+invoice, while `take: 10` remains for the sample. The `notes` field states how
+many invoices the total covers, so a reader can see the sample is a preview.
 
 ---
 
