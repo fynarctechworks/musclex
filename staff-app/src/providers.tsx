@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { SessionProvider } from '@/auth/SessionProvider';
 import { OfflineCache } from '@/offline/OfflineCache';
+import { OutboxProvider } from '@/offline/OutboxProvider';
 import { ToastProvider } from '@/ui/Toast';
 
 /**
@@ -51,7 +52,9 @@ export function Providers({ children }: { children: ReactNode }) {
               one gym's data surviving into another's session. */}
           <SessionProvider>
             <OfflineCache>
-              <ToastProvider>{children}</ToastProvider>
+              <OutboxProvider>
+                <ToastProvider>{children}</ToastProvider>
+              </OutboxProvider>
             </OfflineCache>
           </SessionProvider>
         </SafeAreaProvider>

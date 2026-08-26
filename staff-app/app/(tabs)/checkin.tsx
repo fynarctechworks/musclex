@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useCheckIn, useMembers } from '@/api/queries';
 import { QrScanner, type ScanOutcome } from '@/features/QrScanner';
+import { useOutbox } from '@/offline/OutboxProvider';
+import { isQueueableFailure } from '@/offline/outbox';
 import { initialsOf, membershipState } from '@/features/MemberRow';
 import { useToast } from '@/ui/Toast';
 import { useSession } from '@/auth/SessionProvider';
@@ -54,6 +56,7 @@ export default function CheckIn() {
   const toast = useToast();
   const { session } = useSession();
   const checkIn = useCheckIn();
+  const outbox = useOutbox();
 
   /**
    * Submit a scanned code and translate the result into something readable
@@ -120,8 +123,31 @@ export default function CheckIn() {
       });
       toast.show(`${member.full_name} checked in`);
       setSearch('');
+      return;
     } catch (e) {
-      toast.show(e instanceof Error ? e.message : 'Check-in failed', 'error');
+      // A 4xx is the server REFUSING this check-in. Queueing it would promise
+      // the staffer it goes through later when it never will, so it is
+      // reported at the counter where it can still be acted on.
+      if (!isQueueableFailure(e)) {
+        toast.show(e instanceof Error ? e.message : 'Check-in failed', 'error');
+        return;
+      }
+
+      const branchId = member.branch_id ?? session?.activeBranchId ?? null;
+      if (!branchId) {
+        // The sync DTO requires a branch. Without one there is nothing valid
+        // to queue, and a silent drop would be worse than saying so.
+        toast.show('No branch selected — cannot save this for later', 'error');
+        return;
+      }
+
+      await outbox.enqueue({
+        memberId: member.id,
+        branchId,
+        memberName: member.full_name,
+      });
+      toast.show(`Saved — ${member.full_name} will sync when back online`);
+      setSearch('');
     }
   }
 
@@ -153,6 +179,22 @@ export default function CheckIn() {
         <Text className="text-sm text-muted-foreground">
           {enabled ? 'Tap a member to check them in.' : 'Type at least 2 characters.'}
         </Text>
+
+        {/* Queued check-ins are money and attendance the gym cannot see yet.
+            They stay visible until they land, so nobody assumes they did. */}
+        {outbox.pending > 0 ? (
+          <View
+            className="flex-row items-center justify-between rounded-lg border border-border bg-muted px-3 py-2"
+            testID="outbox-banner">
+            <Text className="text-sm text-muted-foreground">
+              {outbox.pending} check-in{outbox.pending === 1 ? '' : 's'} waiting to sync
+            </Text>
+            <Button size="sm" variant="outline" onPress={() => void outbox.flush()}
+                    testID="outbox-sync">
+              <Text>Sync now</Text>
+            </Button>
+          </View>
+        ) : null}
       </View>
 
       <DataList<Member>

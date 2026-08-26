@@ -264,3 +264,38 @@ Anything else is about the moment, so it is immediately re-scannable.
 **The scanned string is never parsed client-side.** Signature, gym and replay
 nonce are all checked server-side, and the client holds no signing secret — any
 leniency invented here would silently become the real check.
+
+## 2026-08-26 — Offline check-in queues; offline QR does not
+
+`POST /check-ins/sync` already existed and is well-suited: it takes an
+`occurred_at`, accepts a client-minted idempotency key, and returns PER-ROW
+outcomes with a `retryable` flag rather than a single count. The client mirrors
+that design instead of inventing its own.
+
+**Only search-based check-in can queue.** `OfflineCheckInDto.member_id` is
+required, so a queued row must carry a resolved member id. A scanned token
+resolves to a member only via HMAC verification the server performs, and the
+client holds no signing secret — decoding it locally to extract `mid` would
+mean trusting an unverified payload, which is exactly the leniency that becomes
+the real check. Offline, the scanner therefore directs staff to search by name,
+where the member id comes from the cached member list.
+
+**Rows are stamped with their gym and only flushed under a matching session.**
+Flushing gym A's queue under gym B's token would push A's member ids into B's
+audit trail. The filter is applied in SQL, not after loading, so a later
+refactor cannot quietly drop it; a session change purges other gyms' rows
+outright. Stated as a test: "NEVER sends another gym rows".
+
+**A policy denial is dropped, not retried.** "Membership expired" is a final
+answer; keeping it would wedge the queue behind a row that can never succeed.
+Only transient failures are kept, with a 25-attempt backstop.
+
+**Only network-class failures queue.** A 4xx is the server refusing this
+check-in — queueing it would promise the staffer it goes through later when it
+never will, which is worse than saying so while the member is still standing
+there.
+
+**Foreground-triggered, not polled.** The signal we have is "the staffer picked
+the phone up", which correlates with walking back into range and costs nothing
+while the phone sits on the counter. Proper connectivity detection needs
+NetInfo, which is not an approved dependency.
