@@ -22,6 +22,7 @@ export const routes = {
   pricing: '/pricing',
   security: '/security',
   contact: '/contact',
+  support: '/support',
   privacy: '/legal/privacy',
   terms: '/legal/terms',
   refund: '/legal/refund',
@@ -84,7 +85,7 @@ export const footerNav: { title: string; links: { label: string; href: string }[
     links: [
       { label: 'Contact', href: routes.contact },
       { label: 'Talk to sales', href: `mailto:${salesEmail}` },
-      { label: 'Support', href: `mailto:${supportEmail}` },
+      { label: 'Support', href: routes.support },
       { label: 'Report a vulnerability', href: `mailto:${securityEmail}` },
     ],
   },
