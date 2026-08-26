@@ -498,3 +498,67 @@ than an absent one, so it is in `TODO_FOR_ME.md` item 10 instead.
 
 **Tests: 349 staff-app (33 suites) · 895 backend · tsc clean ·
 `verify:ui` PASS · `verify:screens` PASS.**
+
+66. **Membership plans** (Phase 10) — with the per-month equivalent a desk is
+    actually asked for, suppressed when it would just repeat the headline.
+67. **Fixed harness cross-contamination** — `verify:screens` run after
+    `verify:ui` failed because that harness ends with a sheet open and its
+    backdrop ate every tap. Both now relaunch first.
+
+---
+
+# OVERALL STATUS — 2026-08-26 (second session)
+
+## Numbers
+
+**362 staff-app tests (35 suites) · 895 backend tests · tsc clean in both ·
+`verify:ui` PASS · `verify:screens` PASS.** 30+ commits on
+`staff-app/phase-1-2-foundation`.
+
+## Phases
+
+| Phase | State |
+|---|---|
+| 1–3 Skeleton, design system, auth/RBAC | **DONE** |
+| 4 Charts, lists, offline | **DONE** — offline read *and* write |
+| 5 Front desk | **DONE** |
+| 5b Kiosk | **DONE** |
+| 6 Trainer | **DONE** except the AI advisor (no LLM key — TODO 8) |
+| 7 Push & deep links | **BLOCKED** — needs a schema decision (TODO 9) |
+| 8 Accountant | Payments, Expenses, Reports, Inventory **DONE**; dues blocked by F-5 |
+| 9 Marketing | not started |
+| 10 Manager | started — Staff and Membership plans done |
+| 11 Owner / settings | not started |
+| 12 Hardening & GA | not started |
+
+## Product bugs found and fixed this session
+
+1. **Class attendance and PT completion returned 403 for every gym** — four
+   sites compared a nullable `organization_id` to `studio_id` (F-4).
+2. **Money filtered on a payment status the product never writes** — `completed`
+   vs `paid`. It looked right only because my seed data shared the same
+   invented value.
+3. **Sheets rendered where they were written** — the branch switcher's list was
+   unreachable, clipped against the top of the dashboard.
+4. **Schedule was unreachable for front desk**; **Reports was unreachable for
+   an owner**. Both now have property tests rather than one-off fixes.
+5. **No request timeout**, and **timeouts were retried**, so a dead uplink hung
+   forever and then took ~35s to fall back.
+
+## Found and NOT fixed (needs your call)
+
+**F-5 — the dashboard KPI inspector reads `studio_template`, not the caller's
+gym.** One line to fix; it changes how a service is gym-scoped, which
+hard-gate #2 reserves for you. Full evidence in
+`docs/SECURITY_FINDINGS_2026-08-26.md`. I did not build a dues tile on top of
+it.
+
+## What I'd tell you if we were talking
+
+The recurring theme this session was **data that agrees with itself while being
+wrong**: a seeder and a screen sharing an invented payment status; an
+`enrolled_count` with no bookings behind it; a test mocking a column shape
+production never produces. Each looked fine until something else moved. The
+device harnesses caught what unit tests could not, and the second harness
+(`verify:screens`) earned its place by finding an unreachable screen on its
+first run.
