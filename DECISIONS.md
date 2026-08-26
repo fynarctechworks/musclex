@@ -578,3 +578,43 @@ manager settles it.
 **A no-show is warning-toned, never destructive-red.** A missed session is a
 normal fact of gym life that the trainer records, not a mistake they made — and
 a screen that shouts every time somebody oversleeps stops being read.
+
+## 2026-08-26 — Training: plans and exercise library (Phase 6)
+
+**Read-only, deliberately.** Authoring a plan needs `members.create`/`edit`,
+which the trainer role does not have — the same permissions question as
+measurements (TODO_FOR_ME item 7). Building an editor the primary user cannot
+open would be work aimed at nobody, so this ships as the reference a trainer
+actually uses on the floor, and the editor waits on that decision.
+
+**A plan is a SEQUENCE, so it is sorted by `position`** rather than by whatever
+order the API returned. Squats before the finisher. Showing it shuffled turns a
+prescription into a list of suggestions. The circle shows the prescribed
+position, not the array index.
+
+**The prescription line omits what was not prescribed.** "3 × 10 @ 0kg" reads
+as an instruction to lift nothing; "3 × 10" reads as the truth. Weight arrives
+as a Prisma Decimal string, so it is coerced before the zero check — otherwise
+`"0" > 0` is false for the wrong reason and junk like `"heavy"` would render
+as `NaN`.
+
+**Exercises are filtered server-side by muscle group**, not fetched whole and
+hidden client-side. The library grows per gym, and "download everything then
+show a tenth of it" is the habit that makes a list slow on the mid-range
+Android phones front-desk staff use.
+
+**Test data came from the product's own `POST /exercises/seed-defaults`**
+(50 exercises) rather than hand-written SQL, so the library matches what a real
+gym gets on day one. Three plans and nine assignments were then created through
+the public API for the same reason.
+
+## 2026-08-26 — AI advisor deferred (blocked, not skipped)
+
+`POST /ai/chat` returns 500: no LLM API key is configured for this environment
+(`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` are absent from `backend/.env`).
+
+I did not build a chat UI against it. An interface I cannot exercise even once
+is unverified code that looks finished, and this one's whole behaviour is the
+model's response — there is nothing meaningful to check without a key. Logged
+as TODO_FOR_ME item 8 instead. `GET /ai/conversations` works and returns empty,
+so the surface is otherwise reachable when a key exists.

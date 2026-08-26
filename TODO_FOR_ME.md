@@ -93,6 +93,23 @@ app sends was accepted, and unfilled fields correctly stored as null rather
 than 0. What is *not* verified on device is the button, because no role I was
 signed in as can see it.
 
+## 8. AI advisor needs an LLM API key
+
+`POST /api/v1/ai/chat` returns **500** in this environment. Neither
+`ANTHROPIC_API_KEY` nor `OPENAI_API_KEY` is set in `backend/.env`, and the
+service has no key to call.
+
+`GET /ai/conversations` works (returns an empty list), so the endpoint surface
+and the `ai_advisor` entitlement are fine — only the model call fails.
+
+**Not built:** the AI advisor screen. I deliberately did not build a chat UI I
+could not exercise even once; its entire behaviour *is* the model's response,
+so there would be nothing to verify and it would look finished while being
+untested. The trainer role does hold `ai.view` and `ai.create`, so it is
+reachable as soon as a key exists.
+
+**What I need:** a key in `backend/.env`, then this is roughly a day of work.
+
 ## RESOLVED since you approved the dependencies
 
 These no longer need you. Kept as a record of what changed.

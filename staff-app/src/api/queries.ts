@@ -4,8 +4,8 @@ import { api } from '@/api/client';
 import { buildCheckInBody, type CheckInInput } from '@/api/checkin-payload';
 import { toLocalISODate } from '@/lib/format';
 import type {
-  ActivityItem, BodyStats, Branch, DashboardAlert, DashboardKpis, DashboardPulse, Member,
-  ClassSession, MemberDetail, Paginated, Payment, Product, StaffRow, TrainerSession,
+  ActivityItem, BodyStats, Branch, Exercise, DashboardAlert, DashboardKpis, DashboardPulse, Member,
+  ClassSession, MemberDetail, Paginated, Payment, Product, StaffRow, TrainerSession, WorkoutPlan,
   SessionAttendance,
   SessionRoster,
 } from '@/api/types';
@@ -366,6 +366,53 @@ export function useBulkAttendance(sessionId: string | undefined) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['class-attendance', sessionId] });
     },
+  });
+}
+
+/**
+ * The gym's workout plan library.
+ *
+ * Gated on `members.view`, which every staff role has — a trainer can read the
+ * library. Authoring needs `members.create`/`edit`, which trainers do NOT have,
+ * so the screen is read-only for them by design (see TODO_FOR_ME item 7 — the
+ * same permissions question as measurements).
+ */
+export function useWorkoutPlans(limit = 50) {
+  return useQuery({
+    queryKey: ['workout-plans', limit],
+    queryFn: () => api.get<Paginated<WorkoutPlan>>('/workout-plans', { params: { limit } }),
+  });
+}
+
+/** One plan WITH its exercises — the list endpoint omits them. */
+export function useWorkoutPlan(id: string | undefined) {
+  return useQuery({
+    queryKey: ['workout-plan', id],
+    queryFn: () => api.get<WorkoutPlan>(`/workout-plans/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
+/**
+ * The exercise library.
+ *
+ * Filtered server-side by muscle group rather than fetched whole and filtered
+ * here: the library grows per gym, and "download everything then hide most of
+ * it" is the habit that makes a list screen slow on the mid-range Android
+ * phones front-desk staff actually use.
+ */
+export function useExercises(params: { search?: string; muscleGroup?: string } = {}) {
+  const { search, muscleGroup } = params;
+  return useQuery({
+    queryKey: ['exercises', search ?? '', muscleGroup ?? ''],
+    queryFn: () =>
+      api.get<Paginated<Exercise>>('/exercises', {
+        params: {
+          limit: 100,
+          ...(search ? { search } : {}),
+          ...(muscleGroup ? { muscle_group: muscleGroup } : {}),
+        },
+      }),
   });
 }
 

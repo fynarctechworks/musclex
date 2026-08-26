@@ -68,7 +68,7 @@ export const ENTRIES: Entry[] = [
   { href: '/more/marketing',  label: 'Marketing',    icon: Megaphone, module: 'marketing', feature: 'marketing_campaigns', phase: 'Phase 9' },
   { href: '/more/inventory',  label: 'Inventory',    icon: Package,   module: 'inventory', phase: 'Phase 8' },
   { href: '/more/reports',    label: 'Reports',      icon: BarChart3, module: 'reports',   feature: 'basic_reports',       phase: 'Phase 8' },
-  { href: '/more/training',   label: 'Training',     icon: Dumbbell,  module: 'members',   phase: 'Phase 6' },
+  { href: '/more/training',   label: 'Training',     icon: Dumbbell,  module: 'members',   phase: '' },
   { href: '/more/ai',         label: 'AI advisor',   icon: Sparkles,  module: 'ai',        feature: 'ai_advisor',          phase: 'Phase 6' },
   { href: '/more/branches',   label: 'Branches',     icon: Boxes,     module: 'branches',  feature: 'multi_branch',        phase: 'Phase 10' },
   { href: '/more/memberships',label: 'Memberships',  icon: Users2,    module: 'members',   phase: 'Phase 10' },

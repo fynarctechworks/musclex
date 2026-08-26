@@ -217,3 +217,42 @@ export type TrainerSession = {
   member?: { id: string; full_name: string } | null;
   branch?: { id: string; name: string } | null;
 };
+
+/** One movement in the gym's exercise library. */
+export type Exercise = {
+  id: string;
+  name: string;
+  muscle_group?: string | null;
+  equipment?: string | null;
+  media_url?: string | null;
+  instructions?: string | null;
+  is_active?: boolean;
+};
+
+/** An exercise as it appears inside a plan, with its prescription. */
+export type PlanExercise = {
+  id: string;
+  exercise_id: string;
+  position?: number | null;
+  target_sets?: number | null;
+  target_reps?: number | null;
+  target_weight?: number | string | null;
+  rest_seconds?: number | null;
+  notes?: string | null;
+  exercise?: Exercise | null;
+};
+
+export type WorkoutPlan = {
+  id: string;
+  title: string;
+  description?: string | null;
+  /** weight_loss | muscle_gain | endurance | general_fitness */
+  goal?: string | null;
+  /** beginner | intermediate | advanced */
+  difficulty?: string | null;
+  is_template?: boolean;
+  is_active?: boolean;
+  created_by?: { id: string; full_name: string } | null;
+  /** Present on the detail endpoint; absent from the list. */
+  exercises?: PlanExercise[];
+};
