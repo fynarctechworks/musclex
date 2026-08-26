@@ -5,32 +5,26 @@ instead so the rest of the work continued.
 
 ---
 
-## 1. Branding assets — the exact list
+## 1. ~~Branding assets~~ — done from your logos
 
-You asked which ones exactly. This is all of it. `app.json` currently declares
-no `icon` and no `splash`, so Expo's generic defaults are in the build.
+You pointed me at `asserts/logo/`. Generated and wired in:
 
-**Blocking a TestFlight build (3 files):**
+| File | What it is |
+|---|---|
+| `staff-app/assets/icon.png` | 1024², **no alpha** (Apple's hard requirement — verified in the built asset catalogue), MX mark on white |
+| `staff-app/assets/adaptive-icon.png` | 1024², transparent, mark inside the centre 62% so Android's launcher mask cannot crop it |
+| `staff-app/assets/splash-logo.png` | 1024², full MUSCLEX·MX lockup, used by both the native splash and the animated hand-off |
 
-| File | Size | Rules |
-|---|---|---|
-| `staff-app/assets/icon.png` | 1024×1024 | PNG, **no alpha/transparency**, no rounded corners — Apple masks it. Full-bleed artwork. |
-| `staff-app/assets/adaptive-icon.png` | 1024×1024 | Android. Transparency allowed. Keep the logo inside the centre **66%** — Android crops to a circle/squircle. |
-| `staff-app/assets/splash.png` | 1284×2778 | Or just a centred logo ~1200×1200 on a solid background; I set the background colour in `app.json`. |
+`npm run assets:launch` regenerates all three from the logos, so changing the
+artwork is a one-line rerun rather than a design round-trip.
 
-**Blocking App Store / TestFlight external testers (not internal):**
+**Still needed for the App Store listing** (not for a build, and not for
+TestFlight *internal* testing):
 
-- Screenshots: **6.7"** (1290×2796) and **6.5"** (1242×2688), 3–5 each. I can
-  produce these from the simulator once the icon exists — no design work needed
-  from you.
-- Store copy: app name (30 chars), subtitle (30), description, keywords (100),
-  support URL, privacy-policy URL. The privacy URL is **mandatory** and it is
-  the one I cannot write for you.
-
-**Fastest path:** send me the MuscleX logo as **SVG or a ≥1024px PNG with
-transparency**, plus the brand background colour, and I will generate all three
-files at the right sizes and wire them into `app.json`. One asset from you,
-everything else derived.
+- **Screenshots** — 6.7" (1290×2796) and 6.5" (1242×2688), 3–5 each. I can
+  capture these from the simulator now that the icon exists; say the word.
+- **Privacy policy URL** and **support URL** — see item 8. Apple rejects
+  without the first.
 
 ## 2. Apple signing — how you actually hand it over
 
@@ -271,33 +265,22 @@ Store copy is already written and validates within Apple's limits — you should
 read it and change anything you disagree with:
 `staff-app/metadata/version/1.0.0/en-US.json`.
 
-## 9. A production build has nowhere to send API calls (blocks TestFlight)
+## 9. ~~A production build has nowhere to send API calls~~ — resolved
 
-Found while checking the build command. `eas.json` sets
-`EXPO_PUBLIC_API_BASE_URL` on the **development** profile only:
+You gave me the nginx config. `api.musclex.infynarc.com` → `127.0.0.1:4100`.
 
-| profile | API URL |
-|---|---|
-| development | `http://localhost:4002/api/v1` |
-| preview | **not set** |
-| production | **not set** |
+Verified against the live server rather than assumed: `GET /health` returns
+`{"status":"ok"}`, and `POST /api/v1/auth/login` returns **400** — a validation
+error on my empty body, which means the route is there. (`GET` on it returns
+404, which is what made the prefix look wrong at first.)
 
-`app.json` has no `extra.apiBaseUrl` either, so both fall through to the
-hardcoded default in `src/api/client.ts` — `http://localhost:4002/api/v1`. On a
-tester's iPhone that is **the phone itself**. Sign-in would fail, every screen
-would fail, and it would look like the app is broken rather than misconfigured.
+`eas.json` now sets `EXPO_PUBLIC_API_BASE_URL=https://api.musclex.infynarc.com/api/v1`
+on both `preview` and `production`.
 
-I have made it fail LOUDLY instead of silently: a release build with no
-configured URL now refuses the request with
-`EXPO_PUBLIC_API_BASE_URL is not set in this build`, and logs it at startup.
-That turns a mystery into one obvious message — but it does not make the build
-usable.
-
-**What I need from you: the public URL of the production backend** (and the
-staging one, if `preview` should point somewhere different). Something like
-`https://api.musclex.app/api/v1`. One line each in `eas.json` and it is done —
-I did not guess at a hostname, because a wrong one is indistinguishable from
-this same bug.
+**One thing to confirm:** `preview` currently points at the SAME production
+API. If you have a staging backend you would rather internal testers hit, tell
+me the host and it is one line. `scc-api.musclex.infynarc.com` (→ 4101) is the
+control-centre API and is not what this app talks to.
 
 ## RESOLVED
 

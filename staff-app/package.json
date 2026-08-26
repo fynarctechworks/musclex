@@ -18,7 +18,8 @@
     "release:preflight": "scripts/release-ios.sh preflight",
     "release:build": "scripts/release-ios.sh build",
     "release:testflight": "scripts/release-ios.sh testflight",
-    "release:submit": "scripts/release-ios.sh submit"
+    "release:submit": "scripts/release-ios.sh submit",
+    "assets:launch": "node scripts/generate-launch-assets.js"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.14",
@@ -59,6 +60,7 @@
     "expo-notifications": "~57.0.14",
     "expo-router": "~57.0.15",
     "expo-secure-store": "~57.0.1",
+    "expo-splash-screen": "~57.0.8",
     "expo-sqlite": "~57.0.1",
     "expo-status-bar": "~57.0.1",
     "expo-updates": "~57.0.16",

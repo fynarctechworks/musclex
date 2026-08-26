@@ -12,14 +12,19 @@
       "bundleIdentifier": "com.infynarc.musclex.staff",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "icon": "./assets/icon.png"
     },
     "android": {
       "package": "com.infynarc.musclex.staff",
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA"
-      ]
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
     },
     "web": {
       "bundler": "metro"
@@ -43,7 +48,16 @@
           "recordAudioAndroid": false
         }
       ],
-      "@sentry/react-native"
+      "@sentry/react-native",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-logo.png",
+          "imageWidth": 260,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ]
     ],
     "extra": {
       "router": {},
@@ -53,6 +67,7 @@
     },
     "runtimeVersion": {
       "policy": "appVersion"
-    }
+    },
+    "icon": "./assets/icon.png"
   }
 }

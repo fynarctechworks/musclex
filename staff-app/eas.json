@@ -26,7 +26,8 @@
         "buildType": "apk"
       },
       "env": {
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.musclex.infynarc.com/api/v1"
       }
     },
     "production": {
@@ -36,7 +37,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.musclex.infynarc.com/api/v1"
       }
     }
   },

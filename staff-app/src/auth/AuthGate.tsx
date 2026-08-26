@@ -1,10 +1,9 @@
 import React from 'react';
-import { View } from 'react-native';
 import { useRouter, useSegments } from 'expo-router';
 
 import { useSession } from '@/auth/SessionProvider';
 import { usePushRouter } from '@/push/use-push-router';
-import { Loading } from '@/ui/Loading';
+import { SplashGate } from '@/ui/SplashGate';
 
 /**
  * Routes on session state.
@@ -38,13 +37,14 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     }
   }, [ready, session, inAuthGroup, router]);
 
-  if (!ready) {
-    return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <Loading />
-      </View>
-    );
-  }
-
-  return <>{children}</>;
+  /*
+   * The branded splash covers the app until the session is resolved, replacing
+   * the spinner that used to sit here. A spinner on a launch screen tells the
+   * user nothing except that something is slow; the mark tells them which app
+   * they opened, and it is already on screen from the native splash.
+   *
+   * Children mount underneath immediately rather than after `ready`, so the
+   * first screen has laid out by the time the cover lifts.
+   */
+  return <SplashGate ready={ready}>{children}</SplashGate>;
 }

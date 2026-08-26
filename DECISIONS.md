@@ -1584,3 +1584,85 @@ the gallery gone it would have walked past a dozen no-op taps and printed
 It now exits 2 with an explanation and the two ways to restore it. A harness
 that passes while doing nothing is worse than one that is switched off, because
 only one of the two lies to you.
+
+---
+
+## Launch assets and an animated splash, without a design round-trip
+
+`asserts/logo/` has the artwork as PNGs on white, no alpha, with wide margins.
+Rather than hand-cut them once, `staff-app/scripts/generate-launch-assets.js`
+derives every launch asset from those sources — so when the logo changes it is
+`npm run assets:launch`, not a request to a designer. It uses `pngjs`, already
+present as an Expo transitive dependency: no ImageMagick, no Pillow, no new
+package.
+
+The generator finds each logo's ink bounding box, scales it with bilinear
+sampling, and composes onto a fixed canvas. Sizing is deliberate per target:
+the icon at 88% (the mark is 3.5:1, so a conservative fill reads tiny on a home
+screen), the Android adaptive foreground at 62% (the launcher mask crops the
+outer quarter), the splash lockup at 86%.
+
+### Three attempts at the same 4-level colour difference
+
+The splash logo went through three versions, and the failures are worth
+keeping because each looked correct at the previous stage.
+
+1. **Alpha from average luminance.** Derived transparency from how dark each
+   pixel was. The brand red (225,6,0) has an average of 77, so it came out
+   ~70% opaque and rendered as salmon. Wrong on device, fine in the file.
+2. **Alpha from max channel deviation.** Correct colour in the source PNG —
+   verified 255 alpha, exact hue. Then `expo-splash-screen` resampled and
+   premultiplied it, and the mark arrived on screen as `139,2,2 @ 171` — a
+   67%-opaque maroon.
+3. **No alpha at all, ink re-based onto the background.** The artwork is ink on
+   its own 254-white; cropping to the ink box brings that white along, so a
+   linear shift `out = src − 254 + bg` puts the source's white exactly on the
+   destination background. Verified 250,250,250 inside the lockup's bounding
+   box.
+
+Version 3 was correct in the file and STILL showed a 254-vs-250 rectangle on a
+clean install. Measured on the actual screenshot: background 250, plate 254.
+Two caches can serve a stale copy of that asset — Metro's transform cache for
+the JS overlay and the compiled asset catalogue for the native splash — and any
+one of them reintroduces the seam.
+
+So the final version stops trying to win that race: **the splash is pure white
+end to end**, background and artwork. The worst case is now a one-level seam
+nobody can see, and no cache can bring the bug back. Measured across eight
+launch frames: background 255, lockup background 255, identical.
+
+The lesson is the one that keeps recurring here — the file being right is not
+the same as the screen being right, and only the screen counts.
+
+### The animation runs without a new native module, and the sizes are load-bearing
+
+`SplashGate` is Reanimated only (already a dependency). The native splash hides
+on the first rendered JS frame, which is exactly when the overlay mounts, so
+`expo-splash-screen`'s `preventAutoHideAsync` buys nothing and is not used.
+
+Continuity is the whole job: the overlay renders the SAME lockup at the SAME
+size on the SAME background, so the swap from native image to React image is
+invisible and only then does anything move. `imageWidth: 260` in app.json and
+`width: 260` in the stylesheet are one number in two files — if they drift the
+logo visibly jumps at the handover, which is the single frame this component
+exists to hide. Both are commented as such.
+
+The motion itself settles 3% smaller before lifting away. Scaling straight up
+from 1 reads as the logo lunging forward; the small counter-move first is what
+makes it feel placed rather than fired. The background outlasts the mark by a
+beat so the app is never revealed under a logo that is still visible.
+
+`expo-splash-screen` WAS added — a new dependency and a native module, both
+gated. Two things justified it: SDK 57 ignores the legacy `expo.splash` key, so
+the storyboard referenced a `SplashScreenLogo` imageset that nothing generated
+and the launch screen was blank white; and the icon change forced a rebuild
+anyway, so the marginal cost was zero.
+
+### The production API URL, verified rather than assumed
+
+From the nginx config: `api.musclex.infynarc.com` → `127.0.0.1:4100`. `GET
+/api/v1/auth/login` returns 404, which made the prefix look wrong; `POST` to
+the same path returns **400** — a validation error on an empty body, so the
+route is there. `GET /health` returns `{"status":"ok"}`. Base URL confirmed as
+`https://api.musclex.infynarc.com/api/v1`, now set on both `preview` and
+`production`.
