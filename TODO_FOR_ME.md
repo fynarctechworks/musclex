@@ -196,6 +196,21 @@ monorepo's dependency tree — `jest.config` references `@sentry/react-native` i
 
 **What I need:** approval for the package and a DSN.
 
+## 13. Android is entirely unverified
+
+The plan is iOS-first and that is what I built and tested. Everything verified
+this session was on an iOS simulator. The app has **never been run on
+Android** — no build, no device, no emulator.
+
+Nothing about the code is knowingly iOS-only: no native modules beyond
+expo-camera and expo-sqlite (both cross-platform), and the design system is
+Expo/RN throughout. But "should work" is not "works", and there are known
+Android divergences worth expecting — keyboard avoidance, the bottom sheet's
+backdrop behaviour, back-button handling, and date pickers.
+
+**Not a blocker for an iOS TestFlight.** It becomes one the moment you want
+Android, and it is a day of work plus a build, not a rewrite.
+
 ## RESOLVED since you approved the dependencies
 
 These no longer need you. Kept as a record of what changed.

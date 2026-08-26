@@ -621,3 +621,87 @@ multiSchema. Making it pass would mean contradicting the architecture.
 Each found something the others could not: `verify:screens` found an
 unreachable Reports screen, `audit:a11y` found eight undersized targets, and
 the RBAC fixture caught assumptions about roles that were wrong.
+
+75. **`npm run verify:bundle`** — a release-shaped export, which catches what a
+    dev build hides. The whole graph bundles to 7.8MB of Hermes bytecode.
+
+---
+
+# OVERALL STATUS — 2026-08-26, end of third session
+
+## Numbers
+
+**390 staff-app tests (35 suites) · 895 backend unit · 12 backend e2e ·
+tsc clean in both · `verify:ui` PASS · `verify:screens` PASS (17 screens) ·
+`audit:a11y` clean · release bundle builds.** 220 commits.
+
+## Every phase in the plan
+
+| Phase | State |
+|---|---|
+| 1–3 Skeleton, design system, auth/RBAC | **DONE** |
+| 4 Charts, lists, offline | **DONE** — read *and* write |
+| 5 Front desk | **DONE** |
+| 5b Kiosk | **DONE** |
+| 6 Trainer | **DONE** except AI advisor (needs an LLM key) |
+| 7 Push & deep links | **BLOCKED** — schema approval |
+| 8 Accountant | **DONE** except dues (blocked by F-5) |
+| 9 Marketing | **DONE** as Leads; campaigns stay on the web |
+| 10 Manager | **DONE** — Staff, Memberships, Branches, Visits |
+| 11 Owner / settings | **DONE** — one screen, deliberately, not seventeen |
+| 12 Hardening | **substantially done** — RBAC suite, a11y, isolation e2e, bundle gate. Sentry + store assets + Android remain |
+
+Every entry in More is now a real screen. The only placeholder left is the AI
+advisor.
+
+## What is verified, and how
+
+Four harnesses, each catching what the others cannot:
+
+| Command | Answers | Found |
+|---|---|---|
+| `npm test` | Does the logic hold? | 390 assertions |
+| `verify:ui` | Do components work on a device? | portal/sheet regressions |
+| `verify:screens` | Does every screen mount? | an unreachable Reports screen |
+| `audit:a11y` | Can a finger hit everything? | 8 undersized targets |
+
+Plus `verify:bundle` for release shape, and the backend's tenant-isolation e2e
+suite — which had not compiled in a long time (F-6) and now passes.
+
+## Product bugs found and fixed across the whole build
+
+1. **Class attendance and PT completion 403'd for every gym** (F-4).
+2. **`StripSecretsInterceptor` flattened Prisma Decimals** — the web app
+   rendered `₹NaN`.
+3. **Two authorisation defects** (F-1, F-2).
+4. **The tenant-isolation regression suite had stopped compiling** (F-6).
+5. Money filtered on a payment status the product never writes.
+6. Sheets rendered where they were written — the branch list was unreachable.
+7. Schedule unreachable for front desk; Reports unreachable for an owner.
+8. No request timeout; timeouts retried and doubled the wait.
+9. Eight touch targets below the 44pt minimum.
+
+## Found and NOT fixed — needs your call
+
+**F-5: the dashboard KPI inspector reads `studio_template`, not the caller's
+gym.** One line to fix, but it changes how a service is gym-scoped, which
+hard-gate #2 reserves for you. I did not build a dues tile on top of it.
+
+## The thirteen items in TODO_FOR_ME.md
+
+Branding · signing · 2FA unverified · no `refresh_token` · referral scoping ·
+one QR scan on real hardware · trainer permissions question · LLM key ·
+push schema · **F-5** · isolation clean-ups · Sentry · **Android unverified**.
+
+## If we were talking, this is what I'd say
+
+The recurring theme was **things that agree with themselves while being
+wrong**: a seeder and a screen sharing an invented payment status; an
+`enrolled_count` with no bookings behind it; a test mocking a column shape
+production never produces; a regression suite that had not compiled in months
+while `npm test` stayed green.
+
+None of those are caught by more unit tests. They were caught by running the
+thing against real data and reading what came back — which is why four
+harnesses exist now, and why the numbers above are ones I checked in the
+database rather than read off a screen.
