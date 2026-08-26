@@ -16,10 +16,23 @@ export class AttendanceService {
     // Get session and verify it belongs to studio
     const session = await this.tenant.client.classSession.findFirst({
       where: { id: sessionId },
-      include: { branch: { select: { organization_id: true } } },
+      select: { id: true, gym_id: true, status: true },
     });
     if (!session) throw new NotFoundException('Class session not found');
-    if (session.branch.organization_id !== studioId) {
+    /*
+     * Compare the TENANT key.
+     *
+     * This previously read `session.branch.organization_id !== studioId`, but
+     * `Branch.organization_id` is nullable and is null for every single-org
+     * gym — the default. So the check was `null !== '<studio uuid>'`, i.e.
+     * always true, and every attendance call 403'd for the gym's own staff.
+     * Verified against a seeded gym: its owner got "Access denied to this
+     * session" reading attendance for its own class.
+     *
+     * `gym_id` is the tenant key this system actually scopes on
+     * (see backend/src/prisma/tenant-models.ts).
+     */
+    if (session.gym_id !== studioId) {
       throw new ForbiddenException('Access denied to this session');
     }
 
@@ -91,10 +104,23 @@ export class AttendanceService {
     // Get session and verify it belongs to studio
     const session = await this.tenant.client.classSession.findFirst({
       where: { id: sessionId },
-      include: { branch: { select: { organization_id: true } } },
+      select: { id: true, gym_id: true, status: true },
     });
     if (!session) throw new NotFoundException('Class session not found');
-    if (session.branch.organization_id !== studioId) {
+    /*
+     * Compare the TENANT key.
+     *
+     * This previously read `session.branch.organization_id !== studioId`, but
+     * `Branch.organization_id` is nullable and is null for every single-org
+     * gym — the default. So the check was `null !== '<studio uuid>'`, i.e.
+     * always true, and every attendance call 403'd for the gym's own staff.
+     * Verified against a seeded gym: its owner got "Access denied to this
+     * session" reading attendance for its own class.
+     *
+     * `gym_id` is the tenant key this system actually scopes on
+     * (see backend/src/prisma/tenant-models.ts).
+     */
+    if (session.gym_id !== studioId) {
       throw new ForbiddenException('Access denied to this session');
     }
 
@@ -175,10 +201,23 @@ export class AttendanceService {
     // Get session and verify it belongs to studio
     const session = await this.tenant.client.classSession.findFirst({
       where: { id: sessionId },
-      include: { branch: { select: { organization_id: true } } },
+      select: { id: true, gym_id: true, status: true },
     });
     if (!session) throw new NotFoundException('Class session not found');
-    if (session.branch.organization_id !== studioId) {
+    /*
+     * Compare the TENANT key.
+     *
+     * This previously read `session.branch.organization_id !== studioId`, but
+     * `Branch.organization_id` is nullable and is null for every single-org
+     * gym — the default. So the check was `null !== '<studio uuid>'`, i.e.
+     * always true, and every attendance call 403'd for the gym's own staff.
+     * Verified against a seeded gym: its owner got "Access denied to this
+     * session" reading attendance for its own class.
+     *
+     * `gym_id` is the tenant key this system actually scopes on
+     * (see backend/src/prisma/tenant-models.ts).
+     */
+    if (session.gym_id !== studioId) {
       throw new ForbiddenException('Access denied to this session');
     }
 

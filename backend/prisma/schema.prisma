@@ -184,6 +184,10 @@ model AppUser {
   weight_logs   AppUserWeightLog[]
   water_logs    AppUserWaterLog[]
   goals         AppUserGoal[]
+  // The gym-less half: routines, a personal exercise catalogue, and meals.
+  own_exercises AppUserExercise[]
+  routines      AppUserRoutine[]
+  meal_logs     AppUserMealLog[]
   health_daily  AppUserHealthDaily[]
   events        AppUserEvent[]
   device_tokens AppUserDeviceToken[]
@@ -5601,5 +5605,130 @@ model SegmentStar {
   @@unique([segment_id, app_user_id])
   @@index([app_user_id])
   @@map("segment_stars")
+  @@schema("public")
+}
+
+/// ────────────────────────────────────────────────────────────────
+/// PERSONAL TRAINING & NUTRITION — the gym-less half
+/// ────────────────────────────────────────────────────────────────
+///
+/// Routines, exercises and meals for someone who belongs to NO gym.
+///
+/// The gym versions of these (Exercise, MemberRoutine, MealLog) all carry a
+/// gym_id and live in a studio schema, so a member with no gym has nowhere to
+/// write and every one of those endpoints returns 403. These are the public
+/// mirrors, keyed by app_user_id exactly like AppUserActivity and
+/// AppUserWaterLog already are.
+///
+/// TENANT SAFETY: none of these has a gym_id, so there is no tenant column to
+/// scope and nothing for the gym_id injection to do. They must therefore stay
+/// OUT of TENANT_MODELS — the drift guard test asserts exactly that. A gym
+/// member's data is untouched; these tables are additive and no existing table
+/// changes.
+
+/// A global exercise catalogue plus personal additions.
+///
+/// app_user_id NULL = a system exercise everyone can see. Non-null = one this
+/// person created, visible only to them. Mirrors the tenant catalogue's
+/// created_by_member_id convention so the two behave the same way.
+model AppUserExercise {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id       String?  @db.Uuid
+  name              String
+  muscle_group      String?
+  target_muscle     String?
+  secondary_muscles String[]
+  /// 'reps' (weight x reps) or 'duration' (planks, carries, cardio).
+  tracking_type     String   @default("reps")
+  instructions      String?
+  created_at        DateTime @default(now()) @db.Timestamptz()
+  updated_at        DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  app_user          AppUser?                    @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+  routine_exercises AppUserRoutineExercise[]
+
+  @@index([app_user_id])
+  @@index([muscle_group])
+  @@map("app_user_exercises")
+  @@schema("public")
+}
+
+model AppUserRoutine {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id String   @db.Uuid
+  name        String
+  notes       String?
+  created_at  DateTime @default(now()) @db.Timestamptz()
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  app_user  AppUser                  @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+  exercises AppUserRoutineExercise[]
+
+  @@index([app_user_id])
+  @@map("app_user_routines")
+  @@schema("public")
+}
+
+model AppUserRoutineExercise {
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  routine_id              String    @db.Uuid
+  exercise_id             String    @db.Uuid
+  position                Int       @default(0)
+  target_sets             Int?
+  target_reps             Int?
+  target_duration_seconds Int?
+  /// Per-set plan. Empty = uniform target_sets x target_reps. When present the
+  /// array is authoritative and its length IS the set count.
+  target_reps_per_set     Int[]
+  target_seconds_per_set  Int[]
+  target_weight_per_set   Decimal[] @db.Decimal(6, 2)
+  created_at              DateTime  @default(now()) @db.Timestamptz()
+
+  routine  AppUserRoutine  @relation(fields: [routine_id], references: [id], onDelete: Cascade)
+  exercise AppUserExercise @relation(fields: [exercise_id], references: [id])
+
+  @@index([routine_id])
+  @@index([exercise_id])
+  @@map("app_user_routine_exercises")
+  @@schema("public")
+}
+
+model AppUserMealLog {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id String   @db.Uuid
+  meal_type   String   @default("snack")
+  logged_at   DateTime @default(now()) @db.Timestamptz()
+  notes       String?
+  /// Client idempotency key for the offline outbox, unique per person.
+  client_key  String?
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  app_user AppUser              @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+  items    AppUserMealLogItem[]
+
+  @@unique([app_user_id, client_key])
+  @@index([app_user_id, logged_at])
+  @@map("app_user_meal_logs")
+  @@schema("public")
+}
+
+model AppUserMealLogItem {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  meal_log_id String   @db.Uuid
+  /// Snapshot of what was eaten. Free text on purpose: there is no public food
+  /// catalogue yet, and waiting for one would mean no meal logging at all.
+  name        String
+  quantity    Decimal  @default(1) @db.Decimal(8, 2)
+  unit        String   @default("serving")
+  kcal        Decimal  @default(0) @db.Decimal(8, 2)
+  protein_g   Decimal  @default(0) @db.Decimal(7, 2)
+  carbs_g     Decimal  @default(0) @db.Decimal(7, 2)
+  fat_g       Decimal  @default(0) @db.Decimal(7, 2)
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  meal_log AppUserMealLog @relation(fields: [meal_log_id], references: [id], onDelete: Cascade)
+
+  @@index([meal_log_id])
+  @@map("app_user_meal_log_items")
   @@schema("public")
 }

@@ -222,12 +222,19 @@ export class TrainerService {
   async updateSession(studioId: string, id: string, dto: UpdateTrainerSessionDto) {
     const session = await this.tenant.client.trainerSession.findUnique({
       where: { id },
-      include: { revenue: true, trainer: { select: { organization_id: true } } },
+      include: { revenue: true, trainer: { select: { gym_id: true } } },
     });
     if (!session) throw new NotFoundException('Trainer session not found');
 
-    // Verify session belongs to this studio
-    if (session.trainer.organization_id !== studioId) {
+    /*
+     * Compare the TENANT key, not `organization_id`.
+     *
+     * `StaffUser.organization_id` is nullable and is null for every
+     * single-org gym — the default — so this read `null !== '<studio uuid>'`
+     * and 403'd every PT-session update for the gym's own staff. Same defect
+     * as the three in classes/attendance.service.ts.
+     */
+    if (session.trainer.gym_id !== studioId) {
       throw new ForbiddenException('Access denied to this session');
     }
 

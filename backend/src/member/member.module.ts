@@ -61,6 +61,10 @@ import { MemberMessageController } from './data/member-message.controller';
 import { MemberPeopleController } from './data/member-people.controller';
 import { MemberRouteController } from './data/member-route.controller';
 import { MemberSegmentController } from './data/member-segment.controller';
+import { MemberPersonalController } from './data/member-personal.controller';
+import { MemberPersonalService } from './data/member-personal.service';
+import { MemberTrainingController } from './data/member-training.controller';
+import { MemberTrainingService } from './data/member-training.service';
 import { MemberSegmentService } from './data/member-segment.service';
 import { MemberRouteService } from './data/member-route.service';
 import { MemberPeopleService } from './data/member-people.service';
@@ -124,6 +128,8 @@ import { MemberIdentityController } from './data/member-identity.controller';
     MemberPeopleController,
     MemberRouteController,
     MemberSegmentController,
+    MemberPersonalController,
+    MemberTrainingController,
     MemberFriendController,
     MemberExploreController,
     MemberChatController,
@@ -161,6 +167,8 @@ import { MemberIdentityController } from './data/member-identity.controller';
     MemberPeopleService,
     MemberRouteService,
     MemberSegmentService,
+    MemberPersonalService,
+    MemberTrainingService,
     MemberFriendService,
     FriendPublisherService,
     MemberExploreService,

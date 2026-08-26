@@ -17,7 +17,10 @@ describe('TrainerService — PT session rate', () => {
     branch_id: 'b-1',
     revenue: null,
     // updateSession gates on the session's trainer belonging to the studio.
-    trainer: { id: 't-1', organization_id: 'studio-1' },
+    // This is `gym_id`, the tenant key — NOT `organization_id`, which is
+    // nullable and null for every single-org gym, so gating on it 403'd every
+    // update for the gym's own staff.
+    trainer: { id: 't-1', gym_id: 'studio-1' },
   };
 
   const build = (bonusStructure: unknown, commissionPct = 10) => {

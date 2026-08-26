@@ -201,3 +201,69 @@ non-owner caller, and the POS screen renders ₹1,400. Regression test added to
 
 I deliberately did NOT change the wire format to a JSON number — that would be
 a broader behavioural change than the bug required.
+
+---
+
+## F-4 — Class attendance and PT-session updates were unusable (FIXED)
+
+**Severity:** high availability defect; not a data leak.
+**Found:** 2026-08-26, while building the trainer register (Phase 6).
+
+### What was wrong
+
+Four call sites gated access by comparing an **organisation** id against the
+caller's **studio** id:
+
+```ts
+if (session.branch.organization_id !== studioId) {
+  throw new ForbiddenException('Access denied to this session');
+}
+```
+
+`Branch.organization_id` and `StaffUser.organization_id` are both **nullable**,
+and are null for every single-org gym — which is the default shape. So the
+comparison was `null !== '<studio uuid>'`: always true, always Forbidden.
+
+Affected:
+- `classes/attendance.service.ts` — `markAttendance`, `getSessionAttendance`,
+  `completeSession` (all three)
+- `staff/trainer.service.ts` — `updateSession`
+
+That is the entire class-register feature and PT-session completion.
+
+### Verified, not inferred
+
+Against the seeded gym, before the fix:
+
+```
+GET /api/v1/classes/bookings/attendance/<own session>   (owner's own token)
+→ {"message":"Access denied to this session","statusCode":403}
+```
+
+After: `200` with the attendance summary.
+
+### The fix
+
+Compare `gym_id`, the tenant key this system actually scopes on
+(`backend/src/prisma/tenant-models.ts`). The check remains a real boundary —
+another gym's session is still refused, which is asserted directly in
+`test/classes/attendance-tenant-check.spec.ts`.
+
+### Why it survived
+
+`test/staff/pt-session-rate.spec.ts` mocked the trainer with
+`organization_id: 'studio-1'` — a shape the production database never produces
+for a single-org gym. **The test encoded the bug**, so the suite was green
+while the feature was unreachable. The mock now carries `gym_id`.
+
+Worth generalising: a mock whose shape cannot occur in production will happily
+prove that broken code works.
+
+### Note on a related, NOT-broken thing
+
+`classes/booking.service.ts#getSessionBookings` uses `findUnique` by id with no
+explicit gym filter, and its controller takes no `@CurrentUser`. I checked
+this and it is **safe**: the Prisma extension post-checks `findUnique` results
+against the tenant and forces `gym_id` into the projection so the guard cannot
+be skipped by a narrow `select` (`prisma.service.ts`, the R3 fail-closed path).
+Recording it so the next person does not re-open it.

@@ -1337,3 +1337,119 @@ export class SegmentCreateDto {
   @Min(1)
   endIndex!: number;
 }
+
+/* ── Personal training & nutrition (gym-less surface) ──────── */
+
+/**
+ * The global ValidationPipe runs whitelist + forbidNonWhitelisted, so anything
+ * not declared here is rejected outright rather than reaching Prisma. Bounds
+ * are deliberately tight: these endpoints need no gym, so they are the widest
+ * authenticated write surface in the product.
+ */
+export class PersonalExerciseCreateDto {
+  @IsString()
+  @MaxLength(120)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  muscleGroup?: string;
+
+  @IsOptional()
+  @IsIn(['reps', 'duration'])
+  trackingType?: string;
+}
+
+export class PersonalRoutineExerciseDto {
+  @IsUUID()
+  exerciseId!: string;
+
+  @IsOptional() @IsInt() @Min(1) @Max(50)
+  targetSets?: number;
+
+  @IsOptional() @IsInt() @Min(1) @Max(1000)
+  targetReps?: number;
+
+  @IsOptional() @IsInt() @Min(1) @Max(86400)
+  targetDurationSeconds?: number;
+
+  @IsOptional() @IsArray() @ArrayMaxSize(50) @IsInt({ each: true })
+  targetRepsPerSet?: number[];
+
+  @IsOptional() @IsArray() @ArrayMaxSize(50) @IsInt({ each: true })
+  targetSecondsPerSet?: number[];
+
+  @IsOptional() @IsArray() @ArrayMaxSize(50) @IsNumber({}, { each: true })
+  targetWeightPerSet?: number[];
+}
+
+export class PersonalRoutineCreateDto {
+  @IsString()
+  @MaxLength(120)
+  name!: string;
+
+  @IsOptional() @IsString() @MaxLength(2000)
+  notes?: string;
+
+  @IsOptional() @IsArray() @ArrayMaxSize(60)
+  @ValidateNested({ each: true })
+  @Type(() => PersonalRoutineExerciseDto)
+  exercises?: PersonalRoutineExerciseDto[];
+}
+
+export class PersonalRoutineUpdateDto {
+  @IsOptional() @IsString() @MaxLength(120)
+  name?: string;
+
+  @IsOptional() @IsString() @MaxLength(2000)
+  notes?: string;
+
+  @IsOptional() @IsArray() @ArrayMaxSize(60)
+  @ValidateNested({ each: true })
+  @Type(() => PersonalRoutineExerciseDto)
+  exercises?: PersonalRoutineExerciseDto[];
+}
+
+export class MealItemDto {
+  @IsString() @MaxLength(200)
+  name!: string;
+
+  @IsOptional() @IsNumber() @Min(0) @Max(1000)
+  quantity?: number;
+
+  @IsOptional() @IsString() @MaxLength(40)
+  unit?: string;
+
+  @IsOptional() @IsNumber() @Min(0) @Max(20000)
+  kcal?: number;
+
+  @IsOptional() @IsNumber() @Min(0) @Max(2000)
+  proteinG?: number;
+
+  @IsOptional() @IsNumber() @Min(0) @Max(2000)
+  carbsG?: number;
+
+  @IsOptional() @IsNumber() @Min(0) @Max(2000)
+  fatG?: number;
+}
+
+export class PersonalMealCreateDto {
+  @IsOptional() @IsIn(['breakfast', 'lunch', 'dinner', 'snack'])
+  mealType?: string;
+
+  @IsOptional() @IsISO8601()
+  loggedAt?: string;
+
+  @IsOptional() @IsString() @MaxLength(1000)
+  notes?: string;
+
+  @IsArray() @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => MealItemDto)
+  items!: MealItemDto[];
+
+  /** Offline-outbox idempotency key. */
+  @IsOptional() @IsString() @MaxLength(100)
+  clientKey?: string;
+}

@@ -118,82 +118,86 @@ model MemberRefreshToken {
 }
 
 model AppUser {
-  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  phone            String    @unique // E.164 — the login key (proved via OTP)
-  full_name        String?
-  email            String?
-  city             String?
-  gender           String? // male | female | other | prefer_not_to_say
-  date_of_birth    DateTime? @db.Date
-  referral_source  String? // how they found the app (organic | referral | campaign | ...)
-  referral_code    String?   @unique // this person's own code to share (Phase 5c)
-  referred_by_app_user_id String? @db.Uuid // the app_user who referred them
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phone                   String    @unique // E.164 — the login key (proved via OTP)
+  full_name               String?
+  email                   String?
+  city                    String?
+  gender                  String? // male | female | other | prefer_not_to_say
+  date_of_birth           DateTime? @db.Date
+  referral_source         String? // how they found the app (organic | referral | campaign | ...)
+  referral_code           String?   @unique // this person's own code to share (Phase 5c)
+  referred_by_app_user_id String?   @db.Uuid // the app_user who referred them
   // ── Fitness profile (Phase 7.1) — gym-less counterpart of member_profiles.
   //    Current weight is NOT stored here; it's the latest app_user_weight_logs row.
-  height_cm           Decimal? @db.Decimal(5, 1)
-  height_unit         String?  @default("cm") // cm | ft
-  weight_unit         String?  @default("kg") // kg | lb
-  primary_goal        String?
-  fitness_goals       Json     @default("[]") @map("goals") // onboarding goal multi-select; DB col is `goals`
-  activity_level      String?
-  training_experience String?
-  workout_preferences Json     @default("[]")
-  limitations         Json     @default("[]")
-  onboarding_step     String? // resume marker for the onboarding flow
-  onboarding_state String    @default("not_started") // not_started | in_progress | completed
-  status           String    @default("active") // active | inactive
-  created_at       DateTime  @default(now()) @db.Timestamptz()
-  updated_at       DateTime  @default(now()) @updatedAt @db.Timestamptz()
-  last_active_at   DateTime? @db.Timestamptz()
+  height_cm               Decimal?  @db.Decimal(5, 1)
+  height_unit             String?   @default("cm") // cm | ft
+  weight_unit             String?   @default("kg") // kg | lb
+  primary_goal            String?
+  fitness_goals           Json      @default("[]") @map("goals") // onboarding goal multi-select; DB col is `goals`
+  activity_level          String?
+  training_experience     String?
+  workout_preferences     Json      @default("[]")
+  limitations             Json      @default("[]")
+  onboarding_step         String? // resume marker for the onboarding flow
+  onboarding_state        String    @default("not_started") // not_started | in_progress | completed
+  status                  String    @default("active") // active | inactive
+  created_at              DateTime  @default(now()) @db.Timestamptz()
+  updated_at              DateTime  @default(now()) @updatedAt @db.Timestamptz()
+  last_active_at          DateTime? @db.Timestamptz()
 
-  gym_links     AppUserGymLink[]
-  weight_logs   AppUserWeightLog[]
-  water_logs    AppUserWaterLog[]
-  goals         AppUserGoal[]
-  health_daily  AppUserHealthDaily[]
-  events        AppUserEvent[]
-  device_tokens AppUserDeviceToken[]
+  gym_links          AppUserGymLink[]
+  weight_logs        AppUserWeightLog[]
+  water_logs         AppUserWaterLog[]
+  goals              AppUserGoal[]
+  // The gym-less half: routines, a personal exercise catalogue, and meals.
+  own_exercises      AppUserExercise[]
+  routines           AppUserRoutine[]
+  meal_logs          AppUserMealLog[]
+  health_daily       AppUserHealthDaily[]
+  events             AppUserEvent[]
+  device_tokens      AppUserDeviceToken[]
   /// Sharing switches. All default FALSE: accepting a friend request shares
   /// NOTHING until the member turns a category on.
-  share_sessions Boolean @default(false)
+  share_sessions     Boolean                     @default(false)
   /// everyone | followers | nobody. Defaults to followers: an open inbox is a
   /// choice someone should make deliberately, not discover after the fact.
-  message_privacy        String            @default("followers")
-  activities             AppUserActivity[]
-  follows_given          Follow[]          @relation("FollowsGiven")
-  follows_received       Follow[]          @relation("FollowsReceived")
-  blocks_given           Block[]           @relation("BlocksGiven")
-  blocks_received        Block[]           @relation("BlocksReceived")
-  activity_kudos         ActivityKudos[]
-  activity_comments      ActivityComment[]
-  clubs_owned            Club[]            @relation("ClubsOwned")
-  club_memberships       ClubMember[]
-  events_created         ClubEvent[]       @relation("EventsCreated")
-  event_rsvps            EventAttendee[]
-  conversations_a        Conversation[]     @relation("ConversationsA")
-  conversations_b        Conversation[]     @relation("ConversationsB")
-  messages_sent          DirectMessage[]
-  conversation_reads     ConversationRead[]
-  reports_made           Report[]           @relation("ReportsMade")
-  reports_against        Report[]           @relation("ReportsAgainst")
-  challenges_owned       GroupChallenge[]   @relation("ChallengesOwned")
-  challenge_entries      GroupChallengeParticipant[]
-  mentions_received      CommentMention[]
-  routes                 Route[]
-  segments_created       Segment[]         @relation("SegmentsCreated")
-  segment_efforts        SegmentEffort[]
-  segment_stars          SegmentStar[]
-  share_prs      Boolean @default(false)
-  share_streak   Boolean @default(false)
+  message_privacy    String                      @default("followers")
+  activities         AppUserActivity[]
+  follows_given      Follow[]                    @relation("FollowsGiven")
+  follows_received   Follow[]                    @relation("FollowsReceived")
+  blocks_given       Block[]                     @relation("BlocksGiven")
+  blocks_received    Block[]                     @relation("BlocksReceived")
+  activity_kudos     ActivityKudos[]
+  activity_comments  ActivityComment[]
+  clubs_owned        Club[]                      @relation("ClubsOwned")
+  club_memberships   ClubMember[]
+  events_created     ClubEvent[]                 @relation("EventsCreated")
+  event_rsvps        EventAttendee[]
+  conversations_a    Conversation[]              @relation("ConversationsA")
+  conversations_b    Conversation[]              @relation("ConversationsB")
+  messages_sent      DirectMessage[]
+  conversation_reads ConversationRead[]
+  reports_made       Report[]                    @relation("ReportsMade")
+  reports_against    Report[]                    @relation("ReportsAgainst")
+  challenges_owned   GroupChallenge[]            @relation("ChallengesOwned")
+  challenge_entries  GroupChallengeParticipant[]
+  mentions_received  CommentMention[]
+  routes             Route[]
+  segments_created   Segment[]                   @relation("SegmentsCreated")
+  segment_efforts    SegmentEffort[]
+  segment_stars      SegmentStar[]
+  share_prs          Boolean                     @default(false)
+  share_streak       Boolean                     @default(false)
 
-  deliveries    AppCampaignDelivery[]
-  friendships_sent     Friendship[]         @relation("FriendshipRequester")
-  friendships_received Friendship[]         @relation("FriendshipAddressee")
+  deliveries           AppCampaignDelivery[]
+  friendships_sent     Friendship[]          @relation("FriendshipRequester")
+  friendships_received Friendship[]          @relation("FriendshipAddressee")
   published_sessions   AppUserSession[]
   published_prs        AppUserPr[]
   kudos_given          SessionKudos[]
-  routine_shares_sent  FriendRoutineShare[] @relation("RoutineShareFrom")
-  routine_shares_recvd FriendRoutineShare[] @relation("RoutineShareTo")
+  routine_shares_sent  FriendRoutineShare[]  @relation("RoutineShareFrom")
+  routine_shares_recvd FriendRoutineShare[]  @relation("RoutineShareTo")
 
   @@index([city])
   @@index([status])
@@ -984,7 +988,7 @@ model AppUserSession {
   kudos_count      Int      @default(0)
   created_at       DateTime @default(now()) @db.Timestamptz()
 
-  app_user AppUser       @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+  app_user AppUser        @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
   kudos    SessionKudos[]
 
   @@index([app_user_id, performed_at])
@@ -1048,22 +1052,22 @@ model FriendRoutineShare {
 /// their history — so this lives in `public` beside friendships and health
 /// rollups, and never enters the tenant model set.
 model AppUserActivity {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  app_user_id      String   @db.Uuid
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id String @db.Uuid
 
   /// One of SPORT_TYPES. Text, not a pg enum: new sports get added often and
   /// ALTER TYPE ... ADD VALUE cannot run inside a transaction.
-  sport_type       String
-  title            String?
-  description      String?
+  sport_type  String
+  title       String?
+  description String?
   /// gps | manual | import | device
-  source           String   @default("manual")
+  source      String  @default("manual")
 
-  started_at       DateTime @db.Timestamptz()
-  ended_at         DateTime? @db.Timestamptz()
+  started_at      DateTime  @db.Timestamptz()
+  ended_at        DateTime? @db.Timestamptz()
   /// Wall clock. `moving_seconds` excludes auto-paused time.
-  elapsed_seconds  Int      @default(0)
-  moving_seconds   Int?
+  elapsed_seconds Int       @default(0)
+  moving_seconds  Int?
 
   distance_m       Decimal? @db.Decimal(10, 2)
   elevation_gain_m Decimal? @db.Decimal(8, 2)
@@ -1071,33 +1075,33 @@ model AppUserActivity {
   avg_speed_mps    Decimal? @db.Decimal(6, 3)
   max_speed_mps    Decimal? @db.Decimal(6, 3)
 
-  avg_heart_rate   Int?
-  max_heart_rate   Int?
-  calories         Int?
+  avg_heart_rate Int?
+  max_heart_rate Int?
+  calories       Int?
 
   /// Simplified encoded polyline for map previews only. The full track lives in
   /// the streams, so a feed of twenty cards does not load twenty rides.
-  polyline         String?
-  start_latitude   Decimal? @db.Decimal(10, 7)
-  start_longitude  Decimal? @db.Decimal(10, 7)
+  polyline        String?
+  start_latitude  Decimal? @db.Decimal(10, 7)
+  start_longitude Decimal? @db.Decimal(10, 7)
 
   /// everyone | followers | only_me. Defaults to followers: a GPS trace shows
   /// where someone lives and when they are out.
-  visibility       String   @default("followers")
-  privacy_zone_m   Int?
+  visibility     String @default("followers")
+  privacy_zone_m Int?
 
-  kudos_count      Int      @default(0)
-  comment_count    Int      @default(0)
+  kudos_count   Int @default(0)
+  comment_count Int @default(0)
 
-  created_at       DateTime @default(now()) @db.Timestamptz()
-  updated_at       DateTime @default(now()) @updatedAt @db.Timestamptz()
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
 
-  app_user AppUser                   @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
-  streams  AppUserActivityStream[]
-  laps     AppUserActivityLap[]
-  photos   AppUserActivityPhoto[]
-  kudos    ActivityKudos[]
-  comments ActivityComment[]
+  app_user        AppUser                 @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+  streams         AppUserActivityStream[]
+  laps            AppUserActivityLap[]
+  photos          AppUserActivityPhoto[]
+  kudos           ActivityKudos[]
+  comments        ActivityComment[]
   segment_efforts SegmentEffort[]
 
   @@index([app_user_id, started_at])
@@ -1218,8 +1222,8 @@ model ActivityComment {
   /// Soft delete, so removing one comment does not tear a hole in the thread.
   deleted_at  DateTime? @db.Timestamptz()
 
-  activity AppUserActivity @relation(fields: [activity_id], references: [id], onDelete: Cascade)
-  app_user AppUser         @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+  activity AppUserActivity  @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+  app_user AppUser          @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
   mentions CommentMention[]
 
   @@index([activity_id, created_at])
@@ -1312,8 +1316,8 @@ model Conversation {
   last_message_at DateTime? @db.Timestamptz()
   created_at      DateTime  @default(now()) @db.Timestamptz()
 
-  member_a AppUser             @relation("ConversationsA", fields: [member_a_id], references: [id], onDelete: Cascade)
-  member_b AppUser             @relation("ConversationsB", fields: [member_b_id], references: [id], onDelete: Cascade)
+  member_a AppUser            @relation("ConversationsA", fields: [member_a_id], references: [id], onDelete: Cascade)
+  member_b AppUser            @relation("ConversationsB", fields: [member_b_id], references: [id], onDelete: Cascade)
   messages DirectMessage[]
   reads    ConversationRead[]
 
@@ -1516,4 +1520,124 @@ model SegmentStar {
   @@unique([segment_id, app_user_id])
   @@index([app_user_id])
   @@map("segment_stars")
+}
+
+/// ────────────────────────────────────────────────────────────────
+/// PERSONAL TRAINING & NUTRITION — the gym-less half
+/// ────────────────────────────────────────────────────────────────
+///
+/// Routines, exercises and meals for someone who belongs to NO gym.
+///
+/// The gym versions of these (Exercise, MemberRoutine, MealLog) all carry a
+/// gym_id and live in a studio schema, so a member with no gym has nowhere to
+/// write and every one of those endpoints returns 403. These are the public
+/// mirrors, keyed by app_user_id exactly like AppUserActivity and
+/// AppUserWaterLog already are.
+///
+/// TENANT SAFETY: none of these has a gym_id, so there is no tenant column to
+/// scope and nothing for the gym_id injection to do. They must therefore stay
+/// OUT of TENANT_MODELS — the drift guard test asserts exactly that. A gym
+/// member's data is untouched; these tables are additive and no existing table
+/// changes.
+
+/// A global exercise catalogue plus personal additions.
+///
+/// app_user_id NULL = a system exercise everyone can see. Non-null = one this
+/// person created, visible only to them. Mirrors the tenant catalogue's
+/// created_by_member_id convention so the two behave the same way.
+model AppUserExercise {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id       String?  @db.Uuid
+  name              String
+  muscle_group      String?
+  target_muscle     String?
+  secondary_muscles String[]
+  /// 'reps' (weight x reps) or 'duration' (planks, carries, cardio).
+  tracking_type     String   @default("reps")
+  instructions      String?
+  created_at        DateTime @default(now()) @db.Timestamptz()
+  updated_at        DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  app_user          AppUser?                 @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+  routine_exercises AppUserRoutineExercise[]
+
+  @@index([app_user_id])
+  @@index([muscle_group])
+  @@map("app_user_exercises")
+}
+
+model AppUserRoutine {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id String   @db.Uuid
+  name        String
+  notes       String?
+  created_at  DateTime @default(now()) @db.Timestamptz()
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  app_user  AppUser                  @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+  exercises AppUserRoutineExercise[]
+
+  @@index([app_user_id])
+  @@map("app_user_routines")
+}
+
+model AppUserRoutineExercise {
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  routine_id              String    @db.Uuid
+  exercise_id             String    @db.Uuid
+  position                Int       @default(0)
+  target_sets             Int?
+  target_reps             Int?
+  target_duration_seconds Int?
+  /// Per-set plan. Empty = uniform target_sets x target_reps. When present the
+  /// array is authoritative and its length IS the set count.
+  target_reps_per_set     Int[]
+  target_seconds_per_set  Int[]
+  target_weight_per_set   Decimal[] @db.Decimal(6, 2)
+  created_at              DateTime  @default(now()) @db.Timestamptz()
+
+  routine  AppUserRoutine  @relation(fields: [routine_id], references: [id], onDelete: Cascade)
+  exercise AppUserExercise @relation(fields: [exercise_id], references: [id])
+
+  @@index([routine_id])
+  @@index([exercise_id])
+  @@map("app_user_routine_exercises")
+}
+
+model AppUserMealLog {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id String   @db.Uuid
+  meal_type   String   @default("snack")
+  logged_at   DateTime @default(now()) @db.Timestamptz()
+  notes       String?
+  /// Client idempotency key for the offline outbox, unique per person.
+  client_key  String?
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  app_user AppUser              @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+  items    AppUserMealLogItem[]
+
+  @@unique([app_user_id, client_key])
+  @@index([app_user_id, logged_at])
+  @@map("app_user_meal_logs")
+}
+
+model AppUserMealLogItem {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  meal_log_id String   @db.Uuid
+  /// Snapshot of what was eaten. Free text on purpose: there is no public food
+  /// catalogue yet, and waiting for one would mean no meal logging at all.
+  name        String
+  quantity    Decimal  @default(1) @db.Decimal(8, 2)
+  unit        String   @default("serving")
+  kcal        Decimal  @default(0) @db.Decimal(8, 2)
+  protein_g   Decimal  @default(0) @db.Decimal(7, 2)
+  carbs_g     Decimal  @default(0) @db.Decimal(7, 2)
+  fat_g       Decimal  @default(0) @db.Decimal(7, 2)
+  created_at  DateTime @default(now()) @db.Timestamptz()
+
+  meal_log AppUserMealLog @relation(fields: [meal_log_id], references: [id], onDelete: Cascade)
+
+  @@index([meal_log_id])
+  @@map("app_user_meal_log_items")
 }

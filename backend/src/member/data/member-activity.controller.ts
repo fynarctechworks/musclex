@@ -23,6 +23,22 @@ export class MemberActivityController {
     return this.activities.sports();
   }
 
+  /** Declared above `activities/:id` on purpose — otherwise the param route
+   *  matches "routes" and every heatmap request becomes a 404 for an activity
+   *  with the id "routes". */
+  @Get('activities/routes')
+  routes(
+    @CurrentMember() member: CurrentMemberContext,
+    @Query('days') days?: string,
+    @Query('sport') sport?: string,
+  ) {
+    const n = Number(days);
+    return this.activities.routes(member, {
+      days: Number.isFinite(n) && n > 0 ? n : undefined,
+      sport,
+    });
+  }
+
   @Get('activities')
   list(
     @CurrentMember() member: CurrentMemberContext,

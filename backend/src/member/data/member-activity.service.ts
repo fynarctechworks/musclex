@@ -5,6 +5,9 @@ import { MemberException } from '../common/member-exception';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
 import { isSportKey, SPORT_TYPES } from './sport-types';
 import type { ActivityCreateDto, ActivityStreamsDto, ActivityUpdateDto } from './dto';
+import { decodePolyline, encodePolyline } from './polyline';
+import { chartSeries, splitsFrom, zoneDistribution } from './activity-analysis';
+import { DEFAULT_HR_MAX, DEFAULT_HR_REST, zoneBands } from './training-load';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -35,6 +38,20 @@ export class MemberActivityService {
    * hostile client cannot post a hundred-megabyte array into a jsonb column.
    */
   private static readonly MAX_POINTS = 36_000;
+
+  /**
+   * Heatmap limits.
+   *
+   * 400 routes at 120 points is ~48k coordinates — around 500 KB encoded, and
+   * more than enough ink to show where somebody habitually goes. The detail
+   * lost by thinning to 120 points is detail no overlaid heatmap could show
+   * anyway: at that zoom, two runs down the same street are the same pixels.
+   */
+  private static readonly MAX_ROUTES = 400;
+
+  private static readonly ROUTE_POINTS = 120;
+
+  private static readonly MIN_ROUTE_POINTS = 8;
 
   private static readonly STREAM_TYPES = new Set([
     'latlng', 'time', 'distance', 'altitude', 'heartrate',
@@ -103,6 +120,58 @@ export class MemberActivityService {
     };
   }
 
+  /**
+   * Every route the member has recorded, thinned hard — the heatmap feed.
+   *
+   * Separate from `list` because the shapes and the numbers have opposite
+   * needs: a list page wants twenty rows with everything on them, and a
+   * heatmap wants hundreds of routes with nothing on them but geometry.
+   * Sending full activity summaries for a year of running would be megabytes
+   * to draw a picture that uses one field.
+   *
+   * Scoped to the token's appUserId and nothing else. This is the member's own
+   * map of themselves — no privacy-zone trimming, because trimming exists to
+   * hide a home address from OTHER people, and hiding it from its owner would
+   * put a hole in the middle of their own heatmap for no benefit.
+   */
+  async routes(member: CurrentMemberContext, opts: { days?: number; sport?: string } = {}) {
+    const days = Math.min(Math.max(opts.days ?? 365, 1), 1825);
+    const rows = await this.pub.appUserActivity.findMany({
+      where: {
+        app_user_id: member.appUserId,
+        started_at: { gte: new Date(Date.now() - days * 86_400_000) },
+        polyline: { not: null },
+        ...(opts.sport && isSportKey(opts.sport) ? { sport_type: opts.sport } : {}),
+      },
+      select: { id: true, sport_type: true, polyline: true, started_at: true },
+      orderBy: { started_at: 'desc' },
+      take: MemberActivityService.MAX_ROUTES,
+    });
+
+    const routes = rows
+      .map((r) => {
+        const points = decodePolyline(r.polyline ?? '');
+        // A two-point stub draws as a straight line across the whole frame and
+        // reads as a route somebody ran. Dropped rather than drawn.
+        if (points.length < MemberActivityService.MIN_ROUTE_POINTS) return null;
+        return {
+          id: r.id,
+          sportType: r.sport_type,
+          startedAt: r.started_at.toISOString(),
+          polyline: encodePolyline(thin(points, MemberActivityService.ROUTE_POINTS)),
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
+
+    return {
+      routes,
+      // Said out loud rather than silently truncating: a member with six years
+      // of running should know the picture is not all of it.
+      truncated: rows.length === MemberActivityService.MAX_ROUTES,
+      days,
+    };
+  }
+
   async get(member: CurrentMemberContext, id: string) {
     const a = await this.pub.appUserActivity.findFirst({
       where: { id, app_user_id: member.appUserId },
@@ -124,7 +193,19 @@ export class MemberActivityService {
       startLatitude: this.num(a.start_latitude),
       startLongitude: this.num(a.start_longitude),
       privacyZoneM: a.privacy_zone_m,
-      streams: Object.fromEntries(a.streams.map((s) => [s.type, s.data])),
+      /*
+        Point COUNTS, not the data.
+
+        This used to return every stream in full — up to 36,000 samples each,
+        several megabytes — and the only thing any client did with it was count
+        the points to render a label. The charts, splits and zones below are
+        computed here from the same streams and are a few kilobytes. Anything
+        that genuinely needs the raw series (GPX export) reads it server-side.
+      */
+      streams: Object.fromEntries(
+        a.streams.map((s) => [s.type, Array.isArray(s.data) ? s.data.length : (s.point_count ?? 0)]),
+      ),
+      analysis: this.analyse(a.streams),
       laps: a.laps.map((l) => ({
         lapIndex: l.lap_index,
         elapsedSeconds: l.elapsed_seconds,
@@ -134,6 +215,38 @@ export class MemberActivityService {
         maxHeartRate: l.max_heart_rate,
       })),
       photos: a.photos.map((p) => ({ id: p.id, path: p.storage_path, primary: p.is_primary })),
+    };
+  }
+
+  /**
+   * Splits, heart-rate zones and a chart-sized series, from the raw streams.
+   *
+   * Zones use the default maximum and resting heart rate — the same ones the
+   * `training/zones` endpoint assumes — because we do not store a measured
+   * maximum per member yet. That makes the BAND EDGES an estimate; the time
+   * spent between them is measured. The response says which is which so the
+   * app can say so too.
+   */
+  private analyse(streams: { type: string; data: unknown }[]) {
+    const by = Object.fromEntries(streams.map((s) => [s.type, s.data])) as Record<string, unknown>;
+
+    const { zones, unreadSeconds } = zoneDistribution(
+      by.heartrate,
+      by.time,
+      zoneBands(DEFAULT_HR_MAX, DEFAULT_HR_REST),
+    );
+    const anyHeartRate = zones.some((z) => z.seconds > 0);
+
+    return {
+      splits: splitsFrom(by.distance, by.time, {
+        heartrate: by.heartrate,
+        altitude: by.altitude,
+      }),
+      zones: anyHeartRate ? zones : [],
+      zonesUnreadSeconds: unreadSeconds,
+      /** True when the band edges came from an assumed maximum, not a measured one. */
+      zonesEstimated: anyHeartRate,
+      chart: chartSeries(by),
     };
   }
 
@@ -271,4 +384,14 @@ export class MemberActivityService {
 
     return { streams: written, laps: dto.laps?.length ?? 0 };
   }
+}
+
+/** Every nth point, always keeping the last so a route never loses its end. */
+function thin<T>(points: T[], max: number): T[] {
+  if (points.length <= max) return points;
+  const step = Math.ceil(points.length / max);
+  const out = points.filter((_, i) => i % step === 0);
+  const last = points[points.length - 1];
+  if (out[out.length - 1] !== last) out.push(last);
+  return out;
 }

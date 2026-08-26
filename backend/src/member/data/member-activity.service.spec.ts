@@ -1,5 +1,6 @@
 import { MemberActivityService } from './member-activity.service';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
+import { decodePolyline, encodePolyline } from './polyline';
 
 /**
  * Activities are the first thing this product stores that can reveal where
@@ -65,6 +66,176 @@ describe('MemberActivityService', () => {
       },
     };
     service = new MemberActivityService(pub as any);
+  });
+
+  describe('the detail payload', () => {
+    const withStreams = (streams: { type: string; data: unknown }[]) => {
+      pub.appUserActivity.findFirst.mockResolvedValue({
+        ...row(), streams, laps: [], photos: [],
+      });
+    };
+
+    it('returns point COUNTS, not the streams themselves', async () => {
+      // The whole reason this exists: the raw series is megabytes and no
+      // client ever needed more than its length.
+      withStreams([{ type: 'heartrate', data: Array.from({ length: 2600 }, () => 150) }]);
+      const res = await service.get(me, 'a1');
+      expect(res.streams).toEqual({ heartrate: 2600 });
+    });
+
+    it('computes splits from the stored streams', async () => {
+      withStreams([
+        { type: 'distance', data: [0, 1000, 2000] },
+        { type: 'time', data: [0, 300, 540] },
+      ]);
+      const res = await service.get(me, 'a1');
+      expect(res.analysis.splits).toHaveLength(2);
+      expect(res.analysis.splits[1].seconds).toBe(240);
+    });
+
+    it('reports no zones at all when nothing wore a strap', async () => {
+      withStreams([
+        { type: 'distance', data: [0, 1000] },
+        { type: 'time', data: [0, 300] },
+      ]);
+      const res = await service.get(me, 'a1');
+      expect(res.analysis.zones).toEqual([]);
+      expect(res.analysis.zonesEstimated).toBe(false);
+    });
+
+    it('flags the zone edges as estimated, because the maximum is assumed', async () => {
+      withStreams([
+        { type: 'time', data: [0, 10, 20] },
+        { type: 'heartrate', data: [150, 150, 150] },
+      ]);
+      const res = await service.get(me, 'a1');
+      expect(res.analysis.zonesEstimated).toBe(true);
+      expect(res.analysis.zones.reduce((a: number, z: any) => a + z.seconds, 0)).toBe(20);
+    });
+
+    it('survives an activity with no streams at all', async () => {
+      withStreams([]);
+      const res = await service.get(me, 'a1');
+      expect(res.analysis.splits).toEqual([]);
+      expect(res.analysis.chart).toBeNull();
+      expect(res.streams).toEqual({});
+    });
+
+    it('still refuses to serve another member\'s activity', async () => {
+      await service.get(me, 'a1');
+      expect(pub.appUserActivity.findFirst.mock.calls[0][0].where).toMatchObject({
+        app_user_id: 'au-me',
+      });
+    });
+  });
+
+  describe('routes (the heatmap feed)', () => {
+    // A real-ish loop: enough points to clear the floor, with a shape.
+    const loop = (n = 40) =>
+      encodePolyline(
+        Array.from({ length: n }, (_, i) => ({
+          lat: 17.686 + 0.004 * Math.sin((i / n) * 2 * Math.PI),
+          lng: 83.218 + 0.006 * Math.cos((i / n) * 2 * Math.PI),
+        })),
+      );
+
+    it('reads only the caller\'s routes', async () => {
+      await service.routes(me);
+      expect(pub.appUserActivity.findMany.mock.calls[0][0].where).toMatchObject({
+        app_user_id: 'au-me',
+      });
+    });
+
+    it('asks the database only for activities that have a route', async () => {
+      await service.routes(me);
+      // Without this the query drags back every gym session ever logged to
+      // throw all of them away in JS.
+      expect(pub.appUserActivity.findMany.mock.calls[0][0].where.polyline).toEqual({ not: null });
+    });
+
+    it('does not select the heavy columns', async () => {
+      await service.routes(me);
+      const select = pub.appUserActivity.findMany.mock.calls[0][0].select;
+      expect(select).toEqual({
+        id: true, sport_type: true, polyline: true, started_at: true,
+      });
+    });
+
+    it('thins a long route down', async () => {
+      const long = loop(2000);
+      pub.appUserActivity.findMany.mockResolvedValue([
+        { id: 'a1', sport_type: 'run', polyline: long, started_at: new Date() },
+      ]);
+      const res = await service.routes(me);
+      const points = decodePolyline(res.routes[0].polyline);
+      expect(points.length).toBeLessThanOrEqual(121);
+      expect(res.routes[0].polyline.length).toBeLessThan(long.length);
+    });
+
+    it('keeps the end of a route it thinned', async () => {
+      const src = Array.from({ length: 999 }, (_, i) => ({
+        lat: 17.686 + i * 0.00001,
+        lng: 83.218 + i * 0.00001,
+      }));
+      pub.appUserActivity.findMany.mockResolvedValue([
+        { id: 'a1', sport_type: 'run', polyline: encodePolyline(src), started_at: new Date() },
+      ]);
+      const res = await service.routes(me);
+      const out = decodePolyline(res.routes[0].polyline);
+      expect(out[out.length - 1].lat).toBeCloseTo(src[src.length - 1].lat, 4);
+    });
+
+    it('drops a stub too short to be a route', async () => {
+      pub.appUserActivity.findMany.mockResolvedValue([
+        { id: 'a1', sport_type: 'run', polyline: loop(40), started_at: new Date() },
+        {
+          id: 'a2', sport_type: 'run', started_at: new Date(),
+          polyline: encodePolyline([{ lat: 17.68, lng: 83.21 }, { lat: 17.69, lng: 83.22 }]),
+        },
+      ]);
+      const res = await service.routes(me);
+      expect(res.routes.map((r) => r.id)).toEqual(['a1']);
+    });
+
+    it('survives a polyline that is not decodable rather than throwing', async () => {
+      pub.appUserActivity.findMany.mockResolvedValue([
+        { id: 'a1', sport_type: 'run', polyline: '!!!not a polyline!!!', started_at: new Date() },
+      ]);
+      await expect(service.routes(me)).resolves.toBeDefined();
+    });
+
+    it('says so when it hit the ceiling instead of silently truncating', async () => {
+      const many = Array.from({ length: 400 }, (_, i) => ({
+        id: `a${i}`, sport_type: 'run', polyline: loop(), started_at: new Date(),
+      }));
+      pub.appUserActivity.findMany.mockResolvedValue(many);
+      const res = await service.routes(me);
+      expect(res.truncated).toBe(true);
+    });
+
+    it('is not truncated when everything fitted', async () => {
+      pub.appUserActivity.findMany.mockResolvedValue([
+        { id: 'a1', sport_type: 'run', polyline: loop(), started_at: new Date() },
+      ]);
+      expect((await service.routes(me)).truncated).toBe(false);
+    });
+
+    it('caps how far back it will look', async () => {
+      await service.routes(me, { days: 99999 });
+      const gte = pub.appUserActivity.findMany.mock.calls[0][0].where.started_at.gte;
+      const days = (Date.now() - gte.getTime()) / 86_400_000;
+      expect(days).toBeLessThanOrEqual(1826);
+    });
+
+    it('ignores a sport filter it does not recognise', async () => {
+      await service.routes(me, { sport: 'competitive-nonsense' });
+      expect(pub.appUserActivity.findMany.mock.calls[0][0].where.sport_type).toBeUndefined();
+    });
+
+    it('applies a sport filter it does recognise', async () => {
+      await service.routes(me, { sport: 'run' });
+      expect(pub.appUserActivity.findMany.mock.calls[0][0].where.sport_type).toBe('run');
+    });
   });
 
   describe('the cross-user gate', () => {
