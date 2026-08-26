@@ -5,7 +5,7 @@ import { buildCheckInBody, type CheckInInput } from '@/api/checkin-payload';
 import { toLocalISODate } from '@/lib/format';
 import type {
   ActivityItem, BodyStats, Branch, DashboardAlert, DashboardKpis, DashboardPulse, Member,
-  ClassSession, MemberDetail, Paginated, Payment, Product, StaffRow,
+  ClassSession, MemberDetail, Paginated, Payment, Product, StaffRow, TrainerSession,
   SessionAttendance,
   SessionRoster,
 } from '@/api/types';
@@ -365,6 +365,63 @@ export function useBulkAttendance(sessionId: string | undefined) {
       api.post(`/classes/bookings/attendance/${sessionId}/bulk`, { entries }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['class-attendance', sessionId] });
+    },
+  });
+}
+
+/**
+ * PT sessions.
+ *
+ * `trainer_id` is the STAFF row id, not the auth user id the session carries —
+ * they are different columns (`staff.id` vs `staff.user_id`). Passing the auth
+ * id makes the API throw "Trainer not found", so callers must resolve their
+ * staff row first via `useCurrentStaff`. This is the same mismatch POS already
+ * had to solve.
+ */
+export function usePtSessions(params: {
+  trainerId?: string | null;
+  status?: string;
+  limit?: number;
+  /**
+   * Hold the request until the caller knows WHICH trainer it means. Filtering
+   * by "me" before the staff row resolves would otherwise fire a query with no
+   * trainer_id and quietly show the whole gym's sessions as if they were mine.
+   */
+  enabled?: boolean;
+} = {}) {
+  const { trainerId, status, limit = 50, enabled = true } = params;
+  return useQuery({
+    enabled,
+    queryKey: ['pt-sessions', trainerId ?? 'all', status ?? 'all', limit],
+    queryFn: () =>
+      api.get<Paginated<TrainerSession>>('/trainer/sessions', {
+        params: {
+          limit,
+          ...(trainerId ? { trainer_id: trainerId } : {}),
+          ...(status ? { status } : {}),
+        },
+      }),
+  });
+}
+
+/**
+ * Change a PT session's outcome.
+ *
+ * Completing one is not merely a status flip: the server records trainer
+ * revenue and commission off it, priced from the gym's configured session
+ * rate. So this is a money-moving action, which is why it sits behind
+ * `staff.edit` rather than the trainer's own `staff.view`.
+ */
+export function useUpdatePtSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status, notes }: { id: string; status?: string; notes?: string }) =>
+      api.patch<TrainerSession>(`/trainer/sessions/${id}`, {
+        ...(status ? { status } : {}),
+        ...(notes !== undefined ? { notes } : {}),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['pt-sessions'] });
     },
   });
 }

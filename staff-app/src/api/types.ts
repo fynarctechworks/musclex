@@ -199,3 +199,21 @@ export type BodyStats = {
   thighs?: number | string | null;
   notes?: string | null;
 };
+
+/** A one-to-one PT session, as `/trainer/sessions` returns it. */
+export type TrainerSession = {
+  id: string;
+  trainer_id: string;
+  member_id: string;
+  branch_id: string;
+  session_date: string;
+  session_duration: number;
+  /** personal_training | group_training | rehab_session | assessment */
+  session_type?: string | null;
+  /** scheduled | completed | cancelled | no_show */
+  status: string;
+  notes?: string | null;
+  trainer?: { id: string; full_name: string } | null;
+  member?: { id: string; full_name: string } | null;
+  branch?: { id: string; name: string } | null;
+};

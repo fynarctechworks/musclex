@@ -94,7 +94,7 @@ async function main() {
     }
     await db.query(
       `TRUNCATE ${SCHEMA}.members, ${SCHEMA}.classes, ${SCHEMA}.class_sessions,
-                ${SCHEMA}.member_body_stats,
+                ${SCHEMA}.member_body_stats, ${SCHEMA}.trainer_sessions,
                 ${SCHEMA}.membership_plans, ${SCHEMA}.products, ${SCHEMA}.inventory,
                 ${SCHEMA}.staff, ${SCHEMA}.branches CASCADE`,
     );
@@ -372,6 +372,36 @@ async function main() {
           sessions++;
         }
       }
+    }
+
+    // ── PT sessions ──
+    // A fortnight either side of today, so the screen has both work to do and
+    // work already done. Past sessions are settled (mostly completed, a few
+    // no-shows); future ones are still scheduled.
+    if (trainerId) {
+      let pt = 0;
+      for (let d = -10; d <= 10; d += 1) {
+        // Not every day, and never more than two a day — a trainer with eight
+        // one-to-ones daily is not a gym anyone recognises.
+        if (d % 2 !== 0) continue;
+        for (let k = 0; k < 1 + rand(2); k++) {
+          const when = addDays(today, d);
+          when.setHours(7 + rand(11), k === 0 ? 0 : 30, 0, 0);
+          const settled = d < 0;
+          await db.query(
+            `INSERT INTO ${SCHEMA}.trainer_sessions
+               (id, gym_id, trainer_id, member_id, branch_id, session_date,
+                session_duration, session_type, status)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+            [randomUUID(), GYM_ID, trainerId, pick(memberIds), BRANCH_ID,
+             when.toISOString(), pick([45, 60, 60, 90]),
+             pick(['personal_training', 'personal_training', 'assessment', 'rehab_session']),
+             settled ? (rand(10) > 1 ? 'completed' : 'no_show') : 'scheduled'],
+          );
+          pt++;
+        }
+      }
+      console.log(`  ${pt} PT sessions`);
     }
 
     console.log(`\n  40 members — ${active} active, ${due} with dues`);

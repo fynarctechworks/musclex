@@ -549,3 +549,32 @@ The seeder now gives roughly a third of members a six-month history, drifting
 in a plausible direction rather than randomly. Not everybody: a gym where every
 member has six months of body-fat readings is not one anyone recognises, and
 the empty state deserves exercising too.
+
+## 2026-08-26 — PT sessions (Phase 6)
+
+**`trainer_id` is the STAFF row id, not the auth user id the session carries.**
+`staff.id` and `staff.user_id` are different columns, and passing the auth id
+makes the API answer "Trainer not found". POS had already hit this and solved
+it with `useCurrentStaff`, so PT sessions reuse that rather than inventing a
+second lookup.
+
+**The request is held until the staff row resolves.** Firing "show me mine"
+before it lands would send no `trainer_id` at all and quietly return the whole
+gym's sessions labelled as the trainer's own — a wrong answer that looks
+exactly like a right one. (I first bodged this with a `'__pending__'` sentinel
+trainer id; that sends junk to the API, so it is now a proper `enabled` flag.)
+
+**Mine-vs-Everyone is a visible toggle, not a hidden default.** A manager
+opening this screen wants the opposite of what a trainer wants, and neither
+should have to guess which list they are reading. It defaults to "Mine" for the
+trainer role and "Everyone" otherwise.
+
+**Completing a session is gated on `staff.edit`, which a trainer does NOT
+have.** That is correct rather than unfortunate: completing a session books
+trainer revenue and commission priced off the gym's configured rate, so it is a
+money-moving action. The trainer can see their schedule (`staff.view`); a
+manager settles it.
+
+**A no-show is warning-toned, never destructive-red.** A missed session is a
+normal fact of gym life that the trainer records, not a mistake they made — and
+a screen that shouts every time somebody oversleeps stops being read.

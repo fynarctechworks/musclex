@@ -3,7 +3,7 @@ import { ScrollView, View } from 'react-native';
 import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  BarChart3, CalendarDays, Boxes, Dumbbell, LogOut, Megaphone, Package, Settings, ShoppingCart,
+  BarChart3, CalendarDays, Boxes, Dumbbell, HeartPulse, LogOut, Megaphone, Package, Settings, ShoppingCart,
   Sparkles, Tablet, UserCog, Users2, type LucideIcon,
 } from 'lucide-react-native';
 
@@ -61,6 +61,9 @@ export const ENTRIES: Entry[] = [
   // Kiosk turns the device into an unattended check-in station, so it is gated
   // on being allowed to RECORD a check-in — not merely to view them.
   { href: '/kiosk/setup', label: 'Kiosk mode', icon: Tablet, module: 'check_ins', action: 'create', phase: '' },
+  // PT sessions read on staff.view, which a trainer HAS — completing one needs
+  // staff.edit and is gated inside the screen.
+  { href: '/pt-sessions', label: 'PT sessions', icon: HeartPulse, module: 'staff', phase: '' },
   { href: '/more/staff',      label: 'Staff',        icon: UserCog,   module: 'staff',     feature: 'staff_management',    phase: 'Phase 10' },
   { href: '/more/marketing',  label: 'Marketing',    icon: Megaphone, module: 'marketing', feature: 'marketing_campaigns', phase: 'Phase 9' },
   { href: '/more/inventory',  label: 'Inventory',    icon: Package,   module: 'inventory', phase: 'Phase 8' },
