@@ -824,3 +824,36 @@ neither depends on what ran before. Both pass back-to-back in either order.
 Recording it because the failure message pointed at the wrong thing twice over:
 first at the app (a screen missing), then at flakiness (it had passed minutes
 earlier). The actual cause was a modal left open by a different script.
+
+## 2026-08-26 — Visits and Branches (Phase 10 complete)
+
+**A DENIED entry attempt is shown alongside successes, not filtered out.** It
+is the more interesting row — somebody stood at the door and did not get in —
+and "27 visits today" that quietly excludes four refusals hides the thing a
+manager needs to act on. The reason is shown next to it.
+
+**"Turned away" keeps its tile even at zero.** A manager checking whether
+anyone was refused needs the answer; an absent tile reads as "not measured"
+rather than "none".
+
+**Today's visits show a clock time; older ones show "3 days ago".** Nobody
+cares that a visit was at 7:04am last Tuesday, but this morning's time is
+exactly what the desk is checking.
+
+**Branches is read-only and every line is conditional.** Most branch fields are
+optional in the schema and are commonly null; a row rendering "null · null ·
+null" is worse than one that just says the branch name. Creating branches is
+also a desktop job — addresses and opening hours get set up once.
+
+## 2026-08-26 — Harness: fail fast when signed out
+
+The access token is short-lived and there is no refresh token
+(TODO_FOR_ME item 4), so a long device run can be signed out from under it.
+`verify:screens` was grinding through every retry on every entry waiting for
+labels that could never appear — a ten-minute run ending in a pile of
+misleading "screen not found" failures. It now detects the sign-in screen up
+front and says so in two seconds.
+
+It also retries a tap once. A single tap into a just-scrolled list
+intermittently does not register, and *which* entry missed moved between runs —
+the signature of a harness problem, not a broken screen.

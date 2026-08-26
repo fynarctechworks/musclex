@@ -3,7 +3,7 @@ import { ScrollView, View } from 'react-native';
 import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  BarChart3, CalendarDays, Boxes, Dumbbell, HeartPulse, LogOut, Megaphone, Package, Receipt, Settings, ShoppingCart,
+  BarChart3, CalendarDays, Boxes, DoorOpen, Dumbbell, HeartPulse, LogOut, Megaphone, Package, Receipt, Settings, ShoppingCart,
   Sparkles, Tablet, UserCog, Users2, type LucideIcon,
 } from 'lucide-react-native';
 
@@ -75,8 +75,9 @@ export const ENTRIES: Entry[] = [
   { href: '/(tabs)/reports',  label: 'Reports',      icon: BarChart3, module: 'reports',   feature: 'basic_reports',       phase: '' },
   { href: '/more/training',   label: 'Training',     icon: Dumbbell,  module: 'members',   phase: '' },
   { href: '/more/ai',         label: 'AI advisor',   icon: Sparkles,  module: 'ai',        feature: 'ai_advisor',          phase: 'Phase 6' },
-  { href: '/more/branches',   label: 'Branches',     icon: Boxes,     module: 'branches',  feature: 'multi_branch',        phase: 'Phase 10' },
+  { href: '/more/branches',   label: 'Branches',     icon: Boxes,     module: 'branches',  feature: 'multi_branch',        phase: '' },
   { href: '/more/memberships',label: 'Memberships',  icon: Users2,    module: 'members',   phase: '' },
+  { href: '/more/visits',     label: 'Visits',       icon: DoorOpen,  module: 'check_ins',  phase: '' },
   { href: '/more/settings',   label: 'Settings',     icon: Settings,  module: 'settings',  phase: 'Phase 11' },
 ];
 

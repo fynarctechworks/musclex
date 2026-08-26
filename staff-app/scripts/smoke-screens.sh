@@ -117,6 +117,19 @@ if [ -n "$UDID" ]; then
   wait_for "MuscleX Test Gym" 24 || true
 fi
 
+# Fail FAST when the app is signed out.
+#
+# The access token is short-lived and there is no refresh token (TODO_FOR_ME
+# item 4), so a long device run can be signed out from under it. Without this
+# check the script grinds through every retry on every entry waiting for labels
+# that can never appear — a ten-minute run that ends in a misleading pile of
+# "screen not found" failures. The real answer is one line.
+if labels | grep -qF "Sign in to your gym"; then
+  echo "SIGNED OUT — the session expired (no refresh_token; TODO_FOR_ME item 4)."
+  echo "Sign in as OWNER and re-run; this script cannot see any screen while signed out."
+  exit 2
+fi
+
 echo "→ smoke: every screen mounts"
 
 tap "Home, tab" 4;      expect "Home"        "MuscleX Test Gym"
@@ -144,6 +157,8 @@ ENTRIES=(
   "Training|Plans"
   "Reports|MRR"
   "Memberships|Membership plans"
+  "Visits|TURNED AWAY"
+  "Branches|Branches"
 )
 
 for pair in "${ENTRIES[@]}"; do
@@ -157,8 +172,17 @@ for pair in "${ENTRIES[@]}"; do
     FAILED=1
     continue
   fi
+  # Retry the tap once. A single tap into a list that has just scrolled
+  # intermittently does not register, and WHICH entry misses moves between
+  # runs — the signature of a harness problem rather than a broken screen.
   tap "$entry" 1
-  wait_for "$want" || true
+  if ! wait_for "$want" 8; then
+    tap "More, tab" 1
+    wait_for "Sign out" || true
+    scroll_into_view "$entry" || true
+    tap "$entry" 1
+    wait_for "$want" 8 || true
+  fi
   expect "More → $entry" "$want"
   back
 done

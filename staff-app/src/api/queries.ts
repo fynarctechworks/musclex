@@ -5,7 +5,7 @@ import { buildCheckInBody, type CheckInInput } from '@/api/checkin-payload';
 import { toLocalISODate } from '@/lib/format';
 import type {
   ActivityItem, BodyStats, Branch, Expense, FinanceDashboard, MonthlyReport, Exercise, ExpenseSummary, ExpenseCategory, DashboardAlert, DashboardKpis, DashboardPulse, Member, MembershipPlan,
-  ClassSession, MemberDetail, Paginated, Payment, Product, StaffRow, TrainerSession, WorkoutPlan,
+  ClassSession, MemberDetail, Paginated, Payment, Product, StaffRow, Visit, TrainerSession, WorkoutPlan,
   SessionAttendance,
   SessionRoster,
 } from '@/api/types';
@@ -439,6 +439,32 @@ export function useExpenseCategories() {
     queryKey: ['expense-categories'],
     staleTime: 10 * 60 * 1000,
     queryFn: () => api.get<ExpenseCategory[]>('/expense-categories'),
+  });
+}
+
+/**
+ * Visit history.
+ *
+ * Dates are sent as LOCAL calendar days (`toLocalISODate`), not UTC slices:
+ * a 10pm check-in belongs to the day the member walked in, and slicing an ISO
+ * instant files it under tomorrow. That bug has already been fixed twice in
+ * this app — once on the schedule, once on the calendar grouping.
+ */
+export function useVisits(params: { from?: Date; to?: Date; limit?: number } = {}) {
+  const { from, to, limit = 50 } = params;
+  const fromKey = from ? toLocalISODate(from) : undefined;
+  const toKey = to ? toLocalISODate(to) : undefined;
+
+  return useQuery({
+    queryKey: ['visits', fromKey ?? '', toKey ?? '', limit],
+    queryFn: () =>
+      api.get<Paginated<Visit>>('/check-ins', {
+        params: {
+          limit,
+          ...(fromKey ? { date_from: fromKey } : {}),
+          ...(toKey ? { date_to: toKey } : {}),
+        },
+      }),
   });
 }
 

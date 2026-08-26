@@ -73,6 +73,14 @@ export type Branch = {
   name: string;
   city?: string | null;
   is_active?: boolean;
+  code?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  status?: string | null;
+  capacity?: number | null;
+  opening_time?: string | null;
+  closing_time?: string | null;
 };
 
 /** One metric from GET /dashboard/pulse. Deltas may be null on a new gym. */
@@ -360,4 +368,20 @@ export type MembershipPlan = {
   is_active?: boolean;
   features?: string[] | null;
   max_members?: number | null;
+};
+
+/** One recorded visit, as `/check-ins` returns it. */
+export type Visit = {
+  id: string;
+  member_id: string;
+  branch_id?: string | null;
+  class_id?: string | null;
+  checkin_method?: string | null;
+  checked_in_at: string;
+  check_out_at?: string | null;
+  /** success | denied | … — a denied attempt is still a recorded event. */
+  status?: string | null;
+  failure_reason?: string | null;
+  member?: { full_name?: string | null; member_code?: string | null } | null;
+  branch?: { name?: string | null } | null;
 };
