@@ -289,3 +289,73 @@ I first "confirmed" a mark had landed by asserting the string `Present` was on
 screen — but `Present` is also a segment-button label, so it was always there.
 The badge still read "Not marked". Re-checked by pairing each badge with its
 row's x-position, which is what actually showed the bug.
+
+47. **Schedule fetches the visible month**, not one day. The calendar's caption
+    promised dots for days with activity and could only ever mark the selected
+    day. Now uses `date_from`/`date_to` — less data than the old `limit: 200`,
+    and correct.
+
+---
+
+# OVERALL STATUS — end of 2026-08-26
+
+## Where the app is
+
+| Phase | State |
+|---|---|
+| 1 — Skeleton | **DONE** (code; signing/branding still outstanding, see TODO) |
+| 2 — Design system | **DONE** |
+| 3 — Auth, RBAC, shell | **DONE** |
+| 4 — Charts, lists, offline | **DONE** — offline read *and* write |
+| 5 — Front desk | **DONE** |
+| 5b — Kiosk | **DONE** |
+| 6 — Trainer | **started** — class register done; PT sessions, plans, AI advisor, member progress remain |
+| 7–12 | not started |
+
+**Tests: 269 staff-app (27 suites) · 895 backend (4 skipped) · tsc clean in both
+· `verify:ui` device harness passing.**
+
+## What is verified on a real device against the real backend
+
+Sign-in across roles · role-adaptive navigation · dashboard · members list and
+detail · **add member** · **check-in** · **collect payment** · **POS sale** ·
+schedule · money · **QR scanner UI and permissions** · **offline read through a
+full app restart with the API down** · **offline check-in queue and sync** ·
+**kiosk mode full lifecycle** · **class register with attendance persisted**.
+
+Every write above was confirmed by querying the database, not by reading the
+screen.
+
+## Bugs found and fixed today
+
+**In the product** (these affected real gyms, not just this app):
+
+1. Class attendance and PT-session completion returned **403 for every gym** —
+   four sites compared a nullable `organization_id` to `studio_id`. F-4.
+2. `StripSecretsInterceptor` flattened Prisma `Decimal`s, so the **web app**
+   rendered `₹NaN`.
+3. Two authorisation defects (F-1, F-2) fixed earlier.
+
+**In this app:** no request timeout; timeouts retried and doubled the wait;
+Schedule unreachable for front desk; scanner's dead "Search by name" button;
+back button reading "(tabs)"; register rows reshuffling between fetches;
+attendance marks saving but not showing.
+
+**In my own test data:** payments written with a status the product never
+produces; `enrolled_count` with no bookings behind it. Both made correct code
+look broken.
+
+## What still needs you
+
+`TODO_FOR_ME.md` — branding assets, Apple signing/TestFlight, one QR scan on a
+physical device, 2FA/multi-workspace unverified, login returning no
+`refresh_token`, and one product question about referral reporting scope.
+
+## Notes for picking this up
+
+- The simulator app is signed in as **Tarun (trainer)**, not the `.env` default
+  `fd@mxtest.app`. Sign out from More to switch.
+- The simulator has a **kiosk exit PIN of 2468** set from testing.
+- staff-app Metro must run on **port 8083** (`npx expo start --port 8083`).
+  member-app owns 8081, and the staff dev client will happily load member-app's
+  bundle if pointed at it — that cost me a confused ten minutes.
