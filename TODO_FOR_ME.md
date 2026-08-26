@@ -229,139 +229,51 @@ backdrop behaviour, back-button handling, and date pickers.
 **Not a blocker for an iOS TestFlight.** It becomes one the moment you want
 Android, and it is a day of work plus a build, not a rewrite.
 
-## 8. The build is in TestFlight. Two things block submission — both yours.
+## 8. ~~App Store submission~~ — SUBMITTED
 
-Build **1.0.0 (2)** is uploaded, processed `VALID`, and attached to version
-1.0.0. Metadata, screenshots, categories, age rating, content rights and
-copyright are all applied. `asc validate` is down from 29 blockers to 2.
+**MuscleX Staff 1.0.0 (build 2) is `WAITING_FOR_REVIEW`.**
+Submission `1e2c5587-a62e-46ba-a187-e5cd66766da4`, submitted 2026-08-26 23:58 UTC.
+Nothing further is required from either of us; Apple reviews in roughly 24–48
+hours and emails the outcome.
 
-### ✅ Demo account for App Review — created and verified
+Two things surfaced only when Apple actually evaluated the version — neither is
+visible to `asc validate`, because they are checked at submission time:
 
-Paste these into App Store Connect → App Review Information → **Sign-In
-Information**:
+1. **An iPad Pro 12.9" screenshot set was required.** `app.json` sets
+   `supportsTablet: true`, which is right — Kiosk mode belongs on a front-desk
+   iPad — and that obliges iPad screenshots. Captured five at 2064×2752.
+2. **App Privacy data usages had to be published**, which is web-UI only.
 
-| Field | Value |
-|---|---|
-| Username | `appreview@musclex.infynarc.com` |
-| Password | `AppReview2026!MX` |
+Worth remembering for 1.0.1: the first retry after publishing App Privacy still
+failed with "you must have published answers". It was Apple-side propagation
+lag — the same command a minute later succeeded unchanged. Do not go hunting
+for a config error if that happens again; wait and retry.
 
-Verified against the **production** API, not locally: sign-in returns a session,
-role `owner`, **no 2FA**, and **no gym-picker step** — so the reviewer lands
-straight on the dashboard with nothing to guess at.
+### If it comes back rejected
 
-**It is its own gym, not yours.** I created a separate studio, *MuscleX Demo
-Gym* (`a6dbd20a-4d7a-4008-82e3-c7576db06276`), with its own Postgres schema. A
-reviewer poking around cannot see or change anything in *Mama*, which is your
-account. There are no paying customers in production yet, so nothing else was
-exposed either.
+The likeliest reason is **Guideline 2.1, reviewer could not sign in**. The demo
+account is `appreview@musclex.infynarc.com` / `AppReview2026!MX` and was
+verified against the production API, but:
 
-It is not an empty shell — an app with no content is itself a rejection risk:
+- Do not enable 2FA on it.
+- Do not delete it, now or after approval — Apple re-checks on every update.
+- If the production API is down when a reviewer tries, that reads as a broken
+  app. Worth keeping an eye on `api.musclex.infynarc.com` over the next
+  couple of days.
 
-- 1 branch, 3 membership plans (Monthly ₹1,500 / Quarterly ₹4,000 / Annual ₹14,000)
-- 8 members with active memberships
-- 6 check-ins recorded
+Second likeliest is **3.1.3(b)** — "free to install, gym subscribes on the
+web". The review note covers it, the app never points anyone at an external
+purchase, and it is a B2B employee tool, which is the accepted case.
 
-Everything was created **through the app's own API**, not by writing rows —
-including the email verification, which used the real token from
-`pending_registrations` rather than flipping a flag. So the account went through
-the same path a real gym does.
+### Still unverified, and worth doing on the TestFlight build
 
-**Two things to leave alone:**
+Neither blocks the release; both are things only a physical device can answer.
 
-- Do not enable 2FA on this account. Review would stall at the code screen.
-- Do not delete it after submitting. Apple re-checks on updates, and a dead
-  demo account fails the next review too.
-
-One cosmetic note: onboarding stops at the `payment` step, because that step
-cannot be skipped without a card. It does not affect the staff app — that app
-is login-only and never shows onboarding — and every API call the app makes
-returns 200. If you ever open this gym in the **web** app, expect it to nudge
-you toward the payment step.
-
-### Pricing and availability — done
-
-Free, and available in **all 175 App Store territories**, with
-`availableInNewTerritories: true` so Apple adds it automatically wherever the
-store opens next. `asc validate` no longer flags availability.
-
-One thing I could not do from the CLI: write an explicit **price schedule**.
-Apple requires the first pricing interval to have *no* start date so the
-timeline is fully covered, and `asc pricing schedule create` requires
-`--start-date` — today's date is rejected as "in the future" and yesterday's as
-"in the past". It is not blocking (validation passes), but **give
-Pricing and Availability a glance in App Store Connect and confirm it reads
-Free** before you submit.
-
-### The one blocker left: App Review details
-
-You said you would fill this in. It needs your name, phone and email, plus the
-demo credentials above.
-
-### One thing to confirm by eye
-
-`asc` reports **App Privacy publish state is not verifiable** through the public
-API. The privacy *policy URL* is set; what it cannot see is whether the App
-Privacy **questionnaire** ("what data does your app collect") is published.
-Check App Store Connect → App Privacy. Based on what the apps actually do, the
-answers are: contact info and identifiers **linked to the user**, used for App
-Functionality only, and **no tracking**.
-
-### Worth knowing before review: "free to install, paid elsewhere"
-
-You described the model as: free to install, but the gym must register and
-subscribe on the MuscleX website first. That is a real App Review topic, not
-just a pricing setting — Apple's Guideline **3.1.3(b)**, "Multiplatform
-Services", and the enterprise/B2B carve-out.
-
-You are on the right side of it: this is a **business tool used by employees of
-a subscribing company**, not a consumer app selling digital content, so it does
-not need in-app purchase. Apps in this category are approved routinely.
-
-Two things make it go smoothly, and both are things reviewers look for:
-
-- **The app must not tell users to go and pay somewhere.** No pricing, no
-  "subscribe on our website", no link to a purchase page. The staff app has
-  none of that today — sign-in is the only entry point — so leave it that way.
-- **Say what it is in the review notes.** One line: *"MuscleX Staff is a
-  companion app for employees of gyms that subscribe to MuscleX. Accounts are
-  created by the gym's owner; there is no consumer sign-up and nothing is sold
-  in the app. Demo credentials are provided above."* That pre-empts the
-  reviewer's obvious question, which is otherwise a rejection and a week of
-  back-and-forth.
-
-The store description already says "Requires a MuscleX account … you will need
-credentials from your gym's administrator", which supports this.
-
-### Then
-
-```bash
-cd staff-app
-npm run release:submit             # dry run, shows the plan
-npm run release:submit -- --confirm  # submits for review
-```
-
-I have deliberately not run the second one.
-
-### What I did without you
-
-- Built `1.0.0 (2)` on EAS (credentials were already in place — distribution
-  cert valid to Aug 2027, team `64FS75NJV9`).
-- Uploaded to App Store Connect with `asc builds upload`. **EAS submit could
-  not do it**: it wants its own copy of the API key and refuses to configure
-  one non-interactively. `asc` already had the key, so it went that way.
-- Fixed a version mismatch that would have blocked submission — Apple created
-  the version record as **1.0** while the build reports **1.0.0**, and those
-  must match.
-- Removed `whatsNew` from the metadata. Apple rejects release notes on a first
-  version, which is what "the request cannot be fulfilled because of the state
-  of another resource" meant.
-- Set categories **Business** / **Health & Fitness**, content rights
-  "does not use third-party content", copyright "2026 FYNARCTECHWORKS PVT LTD".
-- **Age rating**: everything none/false except **health or wellness topics =
-  true**, because the app shows member body measurements and training data.
-  That is a legal attestation in your name — please sanity-check it. I set
-  messaging/chat false and user-generated content false, since the staff app
-  has neither (both live in the member app).
+- **Scan a real member QR code** at Check-in. The decode path has only ever met
+  a fake clock, never a camera.
+- **Confirm a push banner lands.** `PUSH_NOTIFICATIONS` is enabled on the
+  bundle ID and a signed build carries the `aps-environment` entitlement, so a
+  token should mint where the simulator could not.
 
 ## 9. ~~A production build has nowhere to send API calls~~ — resolved
 
