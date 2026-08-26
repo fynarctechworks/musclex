@@ -182,3 +182,20 @@ export type SessionRoster = {
   bookings: ClassBooking[];
   waitlist: ClassBooking[];
 };
+
+/** One body-measurement record. Everything past `id` is optional — a gym records what it records. */
+export type BodyStats = {
+  id: string;
+  member_id: string;
+  recorded_at: string;
+  weight?: number | string | null;
+  body_fat?: number | string | null;
+  muscle_mass?: number | string | null;
+  bmi?: number | string | null;
+  chest?: number | string | null;
+  waist?: number | string | null;
+  hips?: number | string | null;
+  arms?: number | string | null;
+  thighs?: number | string | null;
+  notes?: string | null;
+};

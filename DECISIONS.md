@@ -516,3 +516,36 @@ Verified on device: booked Neha Patel into Power Yoga (3 → 4, real row in
 `class_bookings`, `enrolled_count` incremented atomically), then removed her
 via swipe (4 → 3, `booking_status = 'cancelled'` — a soft delete, so the audit
 trail survives).
+
+## 2026-08-26 — Member progress (Phase 6)
+
+What a trainer opens mid-session. Weight carries the chart because it is the
+number gyms actually record every time; the rest read as latest-plus-change,
+which is how a trainer talks about them ("waist is down 3cm since March").
+
+**Every numeric field arrives as a Prisma `Decimal` serialised to a STRING**
+(the columns are `numeric`), so nothing assumes `number`. This is the same
+defect that shipped `₹NaN` to the web app — fixed server-side there, but a
+client doing arithmetic on `"72.5"` is making the same assumption from the
+other end.
+
+**A metric with one reading shows "first reading", not "0.0".** Those are
+different facts. Showing 0.0 tells a member their training achieved nothing
+when the truth is nobody has measured them twice.
+
+**Records missing a metric are dropped from its series, not zero-filled.** A
+gym that weighed somebody but did not measure their waist has no waist datum;
+plotting 0 invents a collapse that never happened.
+
+**The change tint follows the METRIC, not the sign.** Down is good for weight,
+body fat, waist and hips; up is good for muscle, chest and arms. Colouring
+every decrease green would congratulate a member on losing muscle. Verified on
+device: +9cm chest reads as progress, −3cm arms does not.
+
+**Blank inputs are omitted, not sent as 0** — recording a member as weighing
+nothing because the trainer only measured their waist.
+
+The seeder now gives roughly a third of members a six-month history, drifting
+in a plausible direction rather than randomly. Not everybody: a gym where every
+member has six months of body-fat readings is not one anyone recognises, and
+the empty state deserves exercising too.

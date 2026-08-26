@@ -4,7 +4,7 @@ import { api } from '@/api/client';
 import { buildCheckInBody, type CheckInInput } from '@/api/checkin-payload';
 import { toLocalISODate } from '@/lib/format';
 import type {
-  ActivityItem, Branch, DashboardAlert, DashboardKpis, DashboardPulse, Member,
+  ActivityItem, BodyStats, Branch, DashboardAlert, DashboardKpis, DashboardPulse, Member,
   ClassSession, MemberDetail, Paginated, Payment, Product, StaffRow,
   SessionAttendance,
   SessionRoster,
@@ -365,6 +365,35 @@ export function useBulkAttendance(sessionId: string | undefined) {
       api.post(`/classes/bookings/attendance/${sessionId}/bulk`, { entries }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['class-attendance', sessionId] });
+    },
+  });
+}
+
+/**
+ * A member's measurement history, newest first (the API's own order).
+ *
+ * Numbers arrive as Prisma `Decimal`s serialised to STRINGS, so nothing here
+ * may assume `number`. `toAmount()` in lib/format handles the same problem for
+ * money; measurements need the same care, and forgetting it is how a chart
+ * plots NaN and renders nothing.
+ */
+export function useBodyStats(memberId: string | undefined, limit = 50) {
+  return useQuery({
+    queryKey: ['body-stats', memberId, limit],
+    queryFn: () => api.get<BodyStats[]>(`/members/${memberId}/body-stats`, { params: { limit } }),
+    enabled: Boolean(memberId),
+  });
+}
+
+/** Record a new measurement. */
+export function useRecordBodyStats(memberId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (values: Record<string, number>) =>
+      api.post<BodyStats>(`/members/${memberId}/body-stats`, values),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['body-stats', memberId] });
+      void qc.invalidateQueries({ queryKey: ['member', memberId] });
     },
   });
 }

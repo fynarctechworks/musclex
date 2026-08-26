@@ -94,6 +94,7 @@ async function main() {
     }
     await db.query(
       `TRUNCATE ${SCHEMA}.members, ${SCHEMA}.classes, ${SCHEMA}.class_sessions,
+                ${SCHEMA}.member_body_stats,
                 ${SCHEMA}.membership_plans, ${SCHEMA}.products, ${SCHEMA}.inventory,
                 ${SCHEMA}.staff, ${SCHEMA}.branches CASCADE`,
     );
@@ -240,6 +241,38 @@ async function main() {
           [randomUUID(), GYM_ID, memberId, membershipId, BRANCH_ID,
            pick(['qr', 'manual']), addDays(today, -rand(14)).toISOString()],
         );
+      }
+
+      /*
+       * A measurement history for roughly a third of members.
+       *
+       * Not everybody: a gym where every member has six months of body-fat
+       * readings is not a gym anyone recognises, and the empty state is worth
+       * exercising too. Readings drift monthly in a plausible direction rather
+       * than randomly, so the progress chart shows a trend instead of noise.
+       */
+      if (i % 3 === 0) {
+        let weight = 62 + rand(30);
+        let fat = 18 + rand(12);
+        let waist = 72 + rand(20);
+        const muscle = 28 + rand(10);
+
+        for (let mth = 5; mth >= 0; mth--) {
+          await db.query(
+            `INSERT INTO ${SCHEMA}.member_body_stats
+               (id, gym_id, member_id, weight, body_fat, muscle_mass, chest, waist, hips, arms, thighs, recorded_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+            [randomUUID(), GYM_ID, memberId,
+             weight.toFixed(1), fat.toFixed(1), muscle.toFixed(1),
+             (92 + rand(12)).toFixed(1), waist.toFixed(1), (94 + rand(10)).toFixed(1),
+             (30 + rand(6)).toFixed(1), (52 + rand(8)).toFixed(1),
+             addDays(today, -mth * 30).toISOString()],
+          );
+          // Drift toward the goal so the chart reads as training, not noise.
+          weight -= 0.4 + rand(2) * 0.3;
+          fat -= 0.2 + rand(2) * 0.2;
+          waist -= 0.3 + rand(2) * 0.3;
+        }
       }
     }
 

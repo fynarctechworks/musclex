@@ -130,6 +130,17 @@ export default function MemberDetail() {
               )}
             </Section>
 
+            {/* Progress is the trainer's way in — they have members.view but
+                no payments permission, so this must not sit behind Money. */}
+            <Can module="members">
+              <RowCard
+                title="Progress & measurements"
+                subtitle="Weight, body fat and measurements over time"
+                onPress={() => router.push(`/member/progress/${member.id}`)}
+                testID="open-progress"
+              />
+            </Can>
+
             {/* Money is role-gated: a trainer has no payments permission. */}
             <Can module="payments" action="create">
               <Button onPress={() => setCollectOpen(true)} testID="collect-payment">
