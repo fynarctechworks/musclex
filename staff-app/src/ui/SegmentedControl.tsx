@@ -37,7 +37,10 @@ export function SegmentedControl<T extends string>({
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
             className={cn(
-              'flex-1 items-center rounded-sm px-3 py-1.5',
+              // min-h-11 = 44pt, Apple's minimum touch target. At the old
+              // py-1.5 these segments measured 32pt, which is a miss waiting
+              // to happen on a phone held one-handed on a gym floor.
+              'min-h-11 flex-1 items-center justify-center rounded-sm px-3 py-2',
               active && 'bg-card',
             )}>
             <Text

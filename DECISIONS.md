@@ -933,3 +933,28 @@ them: who reaches what, and what tab bar each role actually gets.
 **If the server's role definitions change, these tests SHOULD fail** and be
 re-captured deliberately. That failure is the signal — a role quietly gaining
 `payments.view` is exactly the change worth being told about.
+
+## 2026-08-26 — Touch targets raised to 44pt (Phase 12, accessibility)
+
+`npm run audit:a11y` reads the live accessibility tree and reports interactive
+elements smaller than Apple's 44pt minimum. On its first run it found eight on
+one screen:
+
+- **SegmentedControl segments: 32pt.** My own component, used on almost every
+  screen.
+- **`Button size="sm"`: 36pt.** The registry default — fine for a mouse, short
+  for a finger.
+
+Both are now 44pt on native; web keeps the tighter sizing, where a cursor is
+doing the pointing. "Small" should mean visually lighter, not harder to hit —
+this app is used standing up and one-handed on a gym floor, which is close to
+the worst case for a small target.
+
+The audit reports rather than fails, because some small elements are decorative
+and correctly not interactive; it needs a human read. Re-run across Home,
+Members, Money, Inventory and Leads: **zero** undersized targets.
+
+Also checked and found clean: no icon-only control lacks a text label (the one
+the crude scan flagged was a false positive — the button does have a `<Text>`),
+and colour contrast is already handled by the token ladder mirrored from the
+web app.
