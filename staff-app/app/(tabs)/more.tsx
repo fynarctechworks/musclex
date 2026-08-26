@@ -66,7 +66,7 @@ export const ENTRIES: Entry[] = [
   { href: '/pt-sessions', label: 'PT sessions', icon: HeartPulse, module: 'staff', phase: '' },
   { href: '/more/staff',      label: 'Staff',        icon: UserCog,   module: 'staff',     feature: 'staff_management',    phase: 'Phase 10' },
   { href: '/more/marketing',  label: 'Marketing',    icon: Megaphone, module: 'marketing', feature: 'marketing_campaigns', phase: 'Phase 9' },
-  { href: '/more/inventory',  label: 'Inventory',    icon: Package,   module: 'inventory', phase: 'Phase 8' },
+  { href: '/more/inventory',  label: 'Inventory',    icon: Package,   module: 'inventory', phase: '' },
   { href: '/more/expenses',   label: 'Expenses',     icon: Receipt,   module: 'payments',  phase: '' },
   { href: '/more/reports',    label: 'Reports',      icon: BarChart3, module: 'reports',   feature: 'basic_reports',       phase: 'Phase 8' },
   { href: '/more/training',   label: 'Training',     icon: Dumbbell,  module: 'members',   phase: '' },

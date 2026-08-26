@@ -133,6 +133,16 @@ export type Product = {
   sku?: string | null;
   brand?: string | null;
   status?: string | null;
+  /**
+   * Stock rows, one per branch. An empty array means no stock record exists —
+   * which is NOT the same as zero stock, and is exactly what made every POS
+   * sale fail with "insufficient stock" while the shop looked fully stocked.
+   */
+  inventory?: Array<{
+    stock_quantity?: number | null;
+    reserved_quantity?: number | null;
+    reorder_level?: number | null;
+  }>;
 };
 
 export type StaffRow = {

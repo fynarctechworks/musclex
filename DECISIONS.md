@@ -702,3 +702,29 @@ how confusing code gets written. The API sends snake_case enums everywhere
 (expense categories, muscle groups, session types); one helper now knows how to
 say them out loud, in sentence case rather than Title Case because these read
 inside sentences and table rows.
+
+## 2026-08-26 — Inventory (Phase 8)
+
+Read-only: `inventory.edit` is manager-level, and the accountant who most wants
+this screen has `view` + `export` only.
+
+**"Needs attention" is the default view**, because the question staff bring to
+this screen is "what am I about to run out of", not "list everything".
+
+**A product with NO inventory row is not a product with zero stock.** They are
+counted and worded separately — "Stock not tracked" versus "Out of stock". This
+is not hypothetical: the seeded shop had eight products and no inventory rows,
+so every POS sale failed with "insufficient stock" while the shop screen looked
+perfectly stocked. Conflating the two is what made that take so long to
+diagnose.
+
+**Reserved stock is subtracted from available.** Counting it is how a shop
+promises the same tub of protein to two people.
+
+**No reorder level means nothing is "low".** Inventing a threshold would nag
+about every product a gym deliberately stocks lightly.
+
+**Untracked gets a sentence, not a tile, and only when non-zero.** It is a
+setup gap rather than a sales problem, and for most gyms it is permanently
+zero — a tile that always reads 0 trains people to skip the whole row. Two
+tiles rather than three, because three across a phone wraps every label.
