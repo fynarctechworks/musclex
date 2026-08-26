@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { SessionProvider } from '@/auth/SessionProvider';
+import { OfflineCache } from '@/offline/OfflineCache';
 import { ToastProvider } from '@/ui/Toast';
 
 /**
@@ -16,7 +17,8 @@ import { ToastProvider } from '@/ui/Toast';
  *  - ToastProvider sits inside so toasts can overlay app content.
  *  - SessionProvider needs the QueryClient above it (see inline note).
  *
- * Phase 3 (auth, session, RBAC) and Phase 4 (offline persistence) land here.
+ *  - OfflineCache sits inside SessionProvider because the tenant scope it
+ *    persists under is not known until the session has been read.
  */
 function makeQueryClient(): QueryClient {
   return new QueryClient({
@@ -24,6 +26,10 @@ function makeQueryClient(): QueryClient {
       queries: {
         retry: 1,
         staleTime: 30_000,
+        // Keep hydrated data on screen instead of discarding it as too old.
+        // Offline, a 20-minute-old member list is the only list there is; the
+        // age is surfaced in the UI rather than hidden by blanking the screen.
+        gcTime: 24 * 60 * 60 * 1000,
         // Staff data changes under you — a check-in lands, a payment clears.
         refetchOnWindowFocus: true,
       },
@@ -44,7 +50,9 @@ export function Providers({ children }: { children: ReactNode }) {
               query cache on sign-out and workspace switch, which is what stops
               one gym's data surviving into another's session. */}
           <SessionProvider>
-            <ToastProvider>{children}</ToastProvider>
+            <OfflineCache>
+              <ToastProvider>{children}</ToastProvider>
+            </OfflineCache>
           </SessionProvider>
         </SafeAreaProvider>
       </QueryClientProvider>

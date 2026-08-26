@@ -1,7 +1,10 @@
 import { uuidv4 } from '../lib/uuid';
+import { buildCheckInBody } from '../api/checkin-payload';
 
 /**
- * The check-in payload contract, asserted directly.
+ * The check-in payload contract, asserted against the REAL builder the
+ * mutation uses — this file used to re-implement it, which meant it was
+ * asserting the shape of a copy.
  *
  * The confirm dialog's button cannot be driven by idb (portal content is a
  * single accessibility element), so the end-to-end tap is verified by hand.
@@ -10,18 +13,6 @@ import { uuidv4 } from '../lib/uuid';
  * was sent and the backend rejected it with "client_event_id must be a UUID".
  */
 const RFC4122_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-
-function buildCheckInBody(input: {
-  memberId: string; clientEventId: string; branchId?: string | null;
-}) {
-  return {
-    member_id: input.memberId,
-    checkin_method: 'manual',
-    client_event_id: input.clientEventId,
-    source: 'staff_mobile',
-    ...(input.branchId ? { branch_id: input.branchId } : {}),
-  };
-}
 
 describe('check-in payload', () => {
   it('sends an RFC-4122 idempotency key the backend DTO accepts', () => {
@@ -42,5 +33,31 @@ describe('check-in payload', () => {
 
   it('marks the source so desk traffic is distinguishable from kiosk/web', () => {
     expect(buildCheckInBody({ memberId: 'm1', clientEventId: uuidv4() }).source).toBe('staff_mobile');
+  });
+
+  describe('scan path', () => {
+    const SCANNED = 'mxqr.v1.eyJtaWQiOiJhIn0.c2ln';
+
+    it('sends the scanned string verbatim as qr_code', () => {
+      // Never parsed or normalised client-side — the server owns verification.
+      const body = buildCheckInBody({ qrCode: SCANNED, clientEventId: uuidv4() });
+      expect(body).toMatchObject({ qr_code: SCANNED });
+    });
+
+    it('labels the method qr, so attendance reports can tell the paths apart', () => {
+      const body = buildCheckInBody({ qrCode: SCANNED, clientEventId: uuidv4() });
+      expect(body.checkin_method).toBe('qr');
+    });
+
+    it('does NOT also send member_id', () => {
+      // Both set would leave the server choosing which identifier to trust.
+      const body = buildCheckInBody({ qrCode: SCANNED, memberId: 'm1', clientEventId: uuidv4() });
+      expect('member_id' in body).toBe(false);
+    });
+
+    it('still carries its own idempotency key', () => {
+      const body = buildCheckInBody({ qrCode: SCANNED, clientEventId: uuidv4() });
+      expect(body.client_event_id).toMatch(RFC4122_V4);
+    });
   });
 });

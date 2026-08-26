@@ -139,3 +139,33 @@ jest.mock('@gorhom/bottom-sheet', () => {
     BottomSheetView: Passthrough,
   };
 });
+
+/**
+ * expo-sqlite has no implementation under Jest (it is a native module), and the
+ * offline cache reaches for it as soon as the provider tree mounts. An
+ * in-memory double keeps `shell`/`gallery` mounting the REAL provider tree —
+ * including OfflineCache — rather than having those tests quietly skip it.
+ */
+jest.mock('expo-sqlite', () => {
+  const rows = new Map<string, { payload: string; updated_at: number }>();
+  return {
+    openDatabaseAsync: async () => ({
+      execAsync: async () => undefined,
+      getFirstAsync: async (_sql: string, params: unknown[] = []) =>
+        rows.get(String(params[0])) ?? null,
+      runAsync: async (sql: string, params: unknown[] = []) => {
+        if (/^INSERT/i.test(sql)) {
+          rows.set(String(params[0]), {
+            payload: String(params[1]),
+            updated_at: Number(params[2]),
+          });
+        } else if (/scope <> \?/.test(sql)) {
+          for (const k of [...rows.keys()]) if (k !== String(params[0])) rows.delete(k);
+        } else if (/^DELETE/i.test(sql)) {
+          rows.delete(String(params[0]));
+        }
+        return { changes: 0, lastInsertRowId: 0 };
+      },
+    }),
+  };
+});

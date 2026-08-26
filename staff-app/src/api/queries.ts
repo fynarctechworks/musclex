@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@/api/client';
+import { buildCheckInBody, type CheckInInput } from '@/api/checkin-payload';
 import { toLocalISODate } from '@/lib/format';
 import type {
   ActivityItem, Branch, DashboardAlert, DashboardKpis, DashboardPulse, Member,
@@ -212,19 +213,8 @@ export function useMember(id: string | undefined) {
 export function useCheckIn() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: {
-      memberId?: string;
-      qrCode?: string;
-      clientEventId: string;
-      branchId?: string | null;
-    }) =>
-      api.post<{ id: string; status?: string }>('/check-ins', {
-        ...(input.qrCode ? { qr_code: input.qrCode } : { member_id: input.memberId }),
-        checkin_method: input.qrCode ? 'qr' : 'manual',
-        client_event_id: input.clientEventId,
-        source: 'staff_mobile',
-        ...(input.branchId ? { branch_id: input.branchId } : {}),
-      }),
+    mutationFn: (input: CheckInInput) =>
+      api.post<{ id: string; status?: string }>('/check-ins', buildCheckInBody(input)),
     onSuccess: () => {
       // A check-in changes last_visit_at and the dashboard feed.
       void qc.invalidateQueries({ queryKey: ['members'] });

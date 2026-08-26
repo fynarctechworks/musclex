@@ -88,6 +88,7 @@ export default function Members() {
         isRefreshing={query.isRefetching}
         onRefresh={() => void query.refetch()}
         error={query.error}
+        dataUpdatedAt={query.dataUpdatedAt}
         onRetry={() => void query.refetch()}
         keyExtractor={(m) => m.id}
         emptyTitle={debounced ? 'No matches' : 'No members yet'}

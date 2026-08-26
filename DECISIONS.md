@@ -179,3 +179,88 @@ Stock lives in a separate `inventory` table keyed by product + branch. Seeding
 products alone produced a shop that looked fine but could not sell anything —
 the API correctly rejected every sale with "Insufficient stock". One product is
 seeded at zero stock deliberately, so that path stays exercised.
+
+---
+
+## 2026-08-26 — Offline cache: how tenant isolation survives a restart
+
+**Decision.** Persist the React Query cache to expo-sqlite, scoped per session,
+with THREE independent barriers between one gym's data and another's.
+
+**Why it needed a decision at all.** In memory, "clear the cache on workspace
+switch" is sufficient: the process boundary does the rest, and a missed wipe is
+a window measured in seconds. On disk the cache outlives the process, so a
+missed wipe is permanent until something overwrites it. That is a different
+risk class, and `CLAUDE.md` names cross-tenant leakage as the worst outcome in
+this system.
+
+So isolation deliberately does not rest on the wipe alone:
+
+1. **Scope key** — each session's blob is stored under a row key derived from
+   gym + branch + user. Another session reads a different row.
+2. **Buster** — react-query discards a restored cache whose buster does not
+   match, before hydrating. Same derivation, checked independently.
+3. **Sweep** — every scope change deletes every other row, so at most one blob
+   exists on disk at a time.
+
+(1) and (2) are belt-and-braces on purpose. (3) is the one that depends on app
+code running at the right moment, which is exactly what breaks quietly.
+
+**Branch is treated as a data boundary**, not just gym. A staffer switching
+from one site to another must not see the previous site's member list.
+
+**Allowlist, not denylist**, for what persists: `dashboard`, `members`,
+`schedule` — what the plan promises offline, nothing more. The default has to
+be "does not touch disk", because forgetting to EXCLUDE something fails
+silently while forgetting to INCLUDE something shows a visible, harmless
+"no connection".
+
+**12-hour max age.** Not a comfort setting: a membership that lapses overnight
+would otherwise still read "active" at the door next morning and the desk would
+wave that person through. Twelve hours spans one shift and never two.
+
+**No `@tanstack/query-async-storage-persister`.** The `Persister` interface is
+three methods; implementing it directly over expo-sqlite avoided a dependency.
+
+**No NetInfo.** Detecting "offline" properly in RN needs
+`@react-native-community/netinfo`, which was not approved. Offline is inferred
+instead from "a query is failing but we hold data" — which is the condition we
+actually care about, and needs no dependency.
+
+## 2026-08-26 — DataList precedence changed to data > error > empty
+
+Offline caching exposed a flaw in `DataList`: it rendered `ErrorState` whenever
+`error` was set, so a failed refetch on top of a hydrated cache would blank a
+list that was fine a second earlier — discarding the best information the
+building has, precisely when the network is worst.
+
+Rows now win over errors, with a `StaleBanner` saying the data is saved and how
+old it is. `error > empty` is unchanged: a failed request must never read as
+"this gym has no members".
+
+The banner is deliberately plain rather than alarming. In a basement gym this
+is a normal condition, and staff who see a red error ten times a day stop
+reading it.
+
+## 2026-08-26 — QR scanning auto-submits; manual search still confirms
+
+The asymmetry is intentional. A scanned code carries an HMAC-signed member id —
+there is nothing to disambiguate, and a confirm tap on every scan would make
+the queue slower than typing. A searched row was picked out of a list of
+similar names, where the wrong pick consumes someone's entitlement and corrupts
+attendance.
+
+**`ScanGate` is the load-bearing part.** `onBarcodeScanned` fires ~10x/second,
+so a card held in frame for two seconds is twenty check-ins. `client_event_id`
+does NOT help here — each fire is a fresh attempt with a fresh key, so
+idempotency never sees a duplicate. The duplicate has to be stopped before it
+becomes a request. Cooldown is per-code so one member's cooldown never blocks
+the next person in the queue.
+
+Failures are classified: 4xx is a verdict about the CARD and will not change on
+a re-scan (revoked, wrong gym, already used), so the code stays in cooldown.
+Anything else is about the moment, so it is immediately re-scannable.
+
+**The scanned string is never parsed client-side.** Signature, gym and replay
+nonce are all checked server-side, and the client holds no signing secret — any
+leniency invented here would silently become the real check.
