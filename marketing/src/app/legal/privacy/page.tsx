@@ -14,7 +14,10 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title="Privacy policy"
-      updated="17 August 2026"
+      updated="27 August 2026"
+      // This URL is what Apple and Google are given as the app's privacy
+      // policy. A banner calling it a non-binding draft works against that.
+      draft={false}
       intro="MuscleX is gym management software. Gyms use it to run their business, which means we process personal data about gym staff and about gym members. This page explains what is collected, why, and what happens to it."
     >
       <LegalSection heading="1. Who controls the data">
