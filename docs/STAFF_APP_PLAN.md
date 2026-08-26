@@ -1,6 +1,6 @@
 # MuscleX Staff App — Build Plan (full native)
 
-**Status:** Phases 1–5, 5b and 6 complete except the AI advisor (blocked on an LLM key) · **Date:** 2026-08-26
+**Status:** Every phase has shipped a screen except Phase 7 (push — schema approval) and the AI advisor (LLM key). Phase 12 hardening in progress · **Date:** 2026-08-26
 
 Goal: *a mobile app giving gym staff the same features and options they currently use in
 the web admin app (`frontend/`).*

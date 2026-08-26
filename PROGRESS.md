@@ -562,3 +562,35 @@ production never produces. Each looked fine until something else moved. The
 device harnesses caught what unit tests could not, and the second harness
 (`verify:screens`) earned its place by finding an unreachable screen on its
 first run.
+
+## Phases 9, 11 and 12 — the rest of the plan
+
+68. **Settings** (Phase 11) — gym details with edit, subscription read-only.
+    Seventeen web pages become one phone screen, deliberately.
+69. **Leads** (Phase 9) — funnel, next-step advance, conversion rate. Campaigns
+    stay on the web; a lead is what gets chased from a phone.
+70. **Visits** and **Branches** — completing Phase 10's data surfaces.
+71. **Fixed the tenant-isolation e2e suite** (F-6). It says "MUST pass before
+    any release" and had not compiled in a long time. Now 12 passing tests.
+
+**Tests: 376 staff-app · 895 backend unit · 12 backend e2e · tsc clean ·
+`verify:ui` PASS · `verify:screens` PASS (17 screens).**
+
+### Every More entry is now a real screen
+
+Schedule · POS · Kiosk · PT sessions · Staff · Leads · Inventory · Expenses ·
+Reports · Training · Branches · Memberships · Visits · Settings.
+
+The only remaining placeholder is **AI advisor**, blocked on an LLM key.
+
+### F-6 — the regression suite that had stopped running
+
+`tenant-isolation.e2e-spec.ts` opens with *"This test MUST pass before any
+release."* It did not compile: `TenantStore` grew three fields and the suite
+was never updated. It went unnoticed because **`.e2e-spec.ts` files are not
+collected by `npm test`** — the regex wants a literal dot, these use a hyphen —
+so `npm test` stayed green while three of four e2e suites failed to run at all.
+
+Both isolation suites now pass. One test is skipped with a reason: it asserts
+`search_path` scoping, which `CLAUDE.md` documents as inert under Prisma
+multiSchema. Making it pass would mean contradicting the architecture.
