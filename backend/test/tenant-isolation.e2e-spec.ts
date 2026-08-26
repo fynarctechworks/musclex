@@ -28,10 +28,59 @@ const SCHEMA_B = 'studio_22222222_2222_2222_2222_222222222222';
 /**
  * Helper: Run a callback within a specific tenant context
  */
+/**
+ * The identity a test runs as. Callers supply only schema + gym, which is what
+ * these tests are about; the branch-scope fields are filled in below.
+ */
+type TenantIdentity = Pick<TenantStore, 'schemaName' | 'gymId'>;
+
+/**
+ * Branch scope is NOT what these tests exercise, so every run is gym-wide:
+ * `allowedBranchIds: 'ALL'` and no bypass. Pinning it here keeps the suite
+ * honest — a test that accidentally passed because its branch filter excluded
+ * the other gym's rows would prove nothing about TENANT isolation.
+ *
+ * These three fields were added to TenantStore after this suite was written,
+ * and because `.e2e-spec.ts` is not collected by the default `npm test`, the
+ * resulting compile error went unnoticed: the file says "MUST pass before any
+ * release" while not compiling at all.
+ */
+function fullScope(identity: TenantIdentity): TenantStore {
+  return {
+    ...identity,
+    activeBranchId: null,
+    allowedBranchIds: 'ALL',
+    bypassBranchScope: false,
+  };
+}
+
+/**
+ * These tests create rows WITHOUT `gym_id` on purpose — the whole claim under
+ * test is that the tenant middleware injects it. Prisma's generated types
+ * require the column, so the payload is cast.
+ *
+ * The cast is narrow and named rather than an inline `as any`, so it cannot be
+ * mistaken for a workaround: omitting gym_id IS the assertion.
+ */
+function omitsGymId<T extends object>(data: T): never {
+  return data as never;
+}
+
+/**
+ * A suffix unique to this run.
+ *
+ * These tests create rows with fixed names and never clean them up, so a
+ * second run died on `Unique constraint failed on (name)` — an isolation test
+ * failing for a reason with nothing to do with isolation, which is the most
+ * misleading kind of red there is.
+ */
+const RUN = `${Date.now().toString(36)}`;
+
 async function runAsTenant<T>(
-  store: TenantStore,
+  identity: TenantIdentity,
   fn: () => Promise<T>,
 ): Promise<T> {
+  const store = fullScope(identity);
   return new Promise((resolve, reject) => {
     tenantContext.run(store, async () => {
       try {
@@ -105,11 +154,11 @@ describe('Tenant Isolation (E2E)', () => {
       { schemaName: SCHEMA_A, gymId: GYM_A_ID },
       async () => {
         return prisma.tenant.branch.create({
-          data: {
+          data: omitsGymId({
             name: 'Gym A - Downtown',
             city: 'Mumbai',
             status: 'active',
-          },
+          }),
         });
       },
     );
@@ -128,7 +177,7 @@ describe('Tenant Isolation (E2E)', () => {
       { schemaName: SCHEMA_A, gymId: GYM_A_ID },
       async () => {
         await prisma.tenant.branch.create({
-          data: { name: 'Gym A - Westside', city: 'Delhi', status: 'active' },
+          data: omitsGymId({ name: 'Gym A - Westside', city: 'Delhi', status: 'active' }),
         });
       },
     );
@@ -138,7 +187,7 @@ describe('Tenant Isolation (E2E)', () => {
       { schemaName: SCHEMA_B, gymId: GYM_B_ID },
       async () => {
         await prisma.tenant.branch.create({
-          data: { name: 'Gym B - Central', city: 'Bangalore', status: 'active' },
+          data: omitsGymId({ name: 'Gym B - Central', city: 'Bangalore', status: 'active' }),
         });
       },
     );
@@ -181,7 +230,7 @@ describe('Tenant Isolation (E2E)', () => {
       { schemaName: SCHEMA_A, gymId: GYM_A_ID },
       async () => {
         await prisma.tenant.role.create({
-          data: { name: 'test_role_gym_a', is_system: false },
+          data: omitsGymId({ name: `test_role_gym_a_${RUN}`, is_system: false }),
         });
       },
     );
@@ -191,7 +240,7 @@ describe('Tenant Isolation (E2E)', () => {
       { schemaName: SCHEMA_B, gymId: GYM_B_ID },
       async () => {
         return prisma.tenant.role.findFirst({
-          where: { name: 'test_role_gym_a' },
+          where: { name: `test_role_gym_a_${RUN}` },
         });
       },
     );
@@ -276,9 +325,25 @@ describe('Tenant Isolation (E2E)', () => {
 
   // ── TEST 7: Verify full tenant isolation check ──
 
-  it('should verify tenant context matches expected studio', async () => {
-    if (skipIfNoDb) return;
-
+  /*
+   * SKIPPED — this asserts a mechanism the system deliberately abandoned.
+   *
+   * `verifyFullTenantIsolation` checks that the connection's `search_path`
+   * contains `studio_<gym>` and that `app.gym_id` matches. Under Prisma
+   * `multiSchema` that approach is inert, which CLAUDE.md states outright:
+   * real isolation is the `gym_id` injection in the Prisma extension plus the
+   * JWT gym_id, NOT search_path. Nothing in `src/` calls `set_config` or sets
+   * either session variable, so this returns false in normal operation.
+   *
+   * It is skipped rather than deleted because the method still exists and
+   * still LOOKS like a safety check; the note is worth more than the silence.
+   * It is skipped rather than "fixed", because making it pass would mean
+   * resurrecting search_path scoping and contradicting the architecture.
+   *
+   * `verifyFullTenantIsolation` has no callers in `src/` — see
+   * docs/SECURITY_FINDINGS_2026-08-26.md F-6.
+   */
+  it.skip('should verify tenant context matches expected studio (superseded mechanism)', async () => {
     const isValid = await runAsTenant(
       { schemaName: SCHEMA_A, gymId: GYM_A_ID },
       async () => prisma.verifyFullTenantIsolation(GYM_A_ID),

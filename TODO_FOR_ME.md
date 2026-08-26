@@ -157,6 +157,29 @@ Full evidence in `docs/SECURITY_FINDINGS_2026-08-26.md` F-5.
 that reports dues is this one, and putting a number on screen that I know reads
 the wrong schema would be worse than leaving it off.
 
+## 11. Two small clean-ups the isolation work surfaced
+
+Neither blocks anything; both are yours to call because they touch tenant code.
+
+**a) `verifyFullTenantIsolation()` is dead code that would return false.** It
+checks `search_path` and `app.gym_id` — the mechanism `CLAUDE.md` says is inert
+under Prisma multiSchema. Nothing in `src/` calls it, and nothing sets those
+session variables. It should be deleted or rewritten to assert the `gym_id`
+injection that actually protects us. I skipped its test with a note rather than
+touch the method.
+
+**b) Comments claiming search_path protection.** `settings.service.ts` and
+`payments.service.ts` carry comments like "tenant isolation relies on
+search_path set by TenantMiddleware". Those queries ARE safe — the gym_id
+injection covers them — but for a different reason than the comment states.
+Worth correcting before somebody relies on the comment.
+
+**Also worth knowing:** `.e2e-spec.ts` files are not collected by `npm test`
+(the regex wants a literal dot; these use a hyphen). They only run under
+`npm run test:e2e`. That is standard Nest layout, but it is why the
+tenant-isolation suite could sit broken while CI stayed green — worth wiring
+`test:e2e` into whatever runs on push.
+
 ## RESOLVED since you approved the dependencies
 
 These no longer need you. Kept as a record of what changed.

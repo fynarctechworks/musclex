@@ -26,7 +26,37 @@ const GYM_B_ID = '44444444-4444-4444-4444-444444444444';
 const SCHEMA_A = 'studio_33333333_3333_3333_3333_333333333333';
 const SCHEMA_B = 'studio_44444444_4444_4444_4444_444444444444';
 
-async function runAsTenant<T>(store: TenantStore, fn: () => Promise<T>): Promise<T> {
+/**
+ * These tests create rows WITHOUT `gym_id` on purpose — the whole claim under
+ * test is that the tenant middleware injects it. Prisma's generated types
+ * require the column, so the payload is cast.
+ *
+ * The cast is narrow and named rather than an inline `as any`, so it cannot be
+ * mistaken for a workaround: omitting gym_id IS the assertion.
+ */
+function omitsGymId<T extends object>(data: T): never {
+  return data as never;
+}
+
+type TenantIdentity = Pick<TenantStore, 'schemaName' | 'gymId'>;
+
+/**
+ * Branch scope is not what this suite exercises, so every run is gym-wide.
+ * Pinning it keeps the suite honest: a test that passed because its branch
+ * filter happened to exclude the other gym's rows would prove nothing about
+ * TENANT isolation.
+ */
+function fullScope(identity: TenantIdentity): TenantStore {
+  return {
+    ...identity,
+    activeBranchId: null,
+    allowedBranchIds: 'ALL',
+    bypassBranchScope: false,
+  };
+}
+
+async function runAsTenant<T>(identity: TenantIdentity, fn: () => Promise<T>): Promise<T> {
+  const store = fullScope(identity);
   return new Promise((resolve, reject) => {
     tenantContext.run(store, async () => {
       try {
@@ -65,14 +95,14 @@ describe('Tenant Isolation — raw prisma client ($use middleware)', () => {
     // Create a branch for Gym A using the raw client (not prisma.tenant)
     await runAsTenant({ schemaName: SCHEMA_A, gymId: GYM_A_ID }, async () => {
       await prisma.branch.create({
-        data: { name: 'RawTest A-1', city: 'Mumbai', status: 'active' } as any,
+        data: omitsGymId({ name: 'RawTest A-1', city: 'Mumbai', status: 'active' }) as any,
       });
     });
 
     // Create a branch for Gym B using the raw client
     await runAsTenant({ schemaName: SCHEMA_B, gymId: GYM_B_ID }, async () => {
       await prisma.branch.create({
-        data: { name: 'RawTest B-1', city: 'Delhi', status: 'active' } as any,
+        data: omitsGymId({ name: 'RawTest B-1', city: 'Delhi', status: 'active' }) as any,
       });
     });
 
@@ -97,7 +127,7 @@ describe('Tenant Isolation — raw prisma client ($use middleware)', () => {
       async () => {
         // Deliberately omit gym_id from payload — middleware must inject it.
         return prisma.branch.create({
-          data: { name: 'Auto-injected A', city: 'Pune', status: 'active' } as any,
+          data: omitsGymId({ name: 'Auto-injected A', city: 'Pune', status: 'active' }) as any,
         });
       },
     );

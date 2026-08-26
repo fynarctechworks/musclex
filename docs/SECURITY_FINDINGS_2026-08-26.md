@@ -362,3 +362,72 @@ correct for `sample_rows`; the value needs its own `aggregate`.
 
 This one is arithmetic rather than scoping, but it lives in the same method and
 should be fixed in the same pass.
+
+---
+
+## F-6 — The tenant-isolation regression suite had not run in a long time (FIXED)
+
+**Severity:** process defect. No production code was wrong; the thing meant to
+*prove* it was right had stopped working.
+**Found:** 2026-08-26, while starting Phase 12's cross-tenant regression work.
+
+### What was wrong
+
+`test/tenant-isolation.e2e-spec.ts` opens with:
+
+> *"This test MUST pass before any release."*
+
+It did not compile. `TenantStore` had grown three fields
+(`activeBranchId`, `allowedBranchIds`, `bypassBranchScope`) and the suite was
+never updated, so every `tenantContext.run(...)` call was a type error. Same
+for `tenant-isolation-raw.e2e-spec.ts`.
+
+It went unnoticed because **`.e2e-spec.ts` files are not collected by
+`npm test`** — the default `testRegex` is `.*\.spec\.ts$`, with a literal dot,
+and these files use a hyphen. They only run under `npm run test:e2e`, which
+nothing appears to have run in a while. `npm test` was green the whole time.
+
+Three of the four e2e suites failed to run at all.
+
+### Fixed
+
+- Both isolation suites compile and **pass** (12 tests).
+- Test rows now carry a per-run suffix. A second run previously died on
+  `Unique constraint failed on (name)` — an isolation test going red for a
+  reason with nothing to do with isolation, which is the most misleading kind.
+- `omitsGymId()` names the one deliberate cast: these tests create rows
+  *without* `gym_id` precisely because the claim under test is that the
+  middleware injects it. Prisma's types demand the column, so the payload is
+  cast — narrowly and by name, so it cannot be mistaken for a workaround.
+- Branch scope is pinned to `ALL` in the helper. A test that passed because its
+  branch filter happened to exclude the other gym's rows would prove nothing
+  about TENANT isolation.
+- `test/jest-e2e.json` transforms the `@react-pdf` ESM chain.
+
+### One test skipped, deliberately
+
+`should verify tenant context matches expected studio` asserted
+`verifyFullTenantIsolation()`, which checks that the connection's `search_path`
+contains `studio_<gym>` and that `app.gym_id` matches.
+
+**That mechanism is superseded.** `CLAUDE.md` states it outright: under Prisma
+`multiSchema`, search_path scoping is inert; real isolation is the `gym_id`
+injection plus the JWT gym_id. Nothing in `src/` calls `set_config` or sets
+either session variable, so the method returns **false in normal operation**.
+
+It is skipped rather than "fixed", because making it pass would mean
+resurrecting search_path scoping and contradicting the architecture. It is
+skipped rather than deleted, because the method still exists and still *looks*
+like a safety check.
+
+**`verifyFullTenantIsolation` has no callers in `src/`** — it is dead code. It
+is worth deleting, or rewriting to assert the mechanism actually in use.
+
+### Related: comments that claim a protection which does not exist
+
+Several files carry comments like *"tenant isolation relies on search_path set
+by TenantMiddleware"* (`settings.service.ts`, `payments.service.ts`). Those
+queries are in fact safe — the `gym_id` injection covers them — but they are
+safe for a **different reason than the comment gives**, and nothing in `src/`
+sets search_path. Left alone as out of scope, but they will mislead whoever
+reads them next.
