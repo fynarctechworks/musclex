@@ -267,3 +267,98 @@ this and it is **safe**: the Prisma extension post-checks `findUnique` results
 against the tenant and forces `gym_id` into the projection so the guard cannot
 be skipped by a narrow `select` (`prisma.service.ts`, the R3 fail-closed path).
 Recording it so the next person does not re-open it.
+
+---
+
+## F-5 — Dashboard KPI inspector reads `studio_template`, not the caller's gym (NOT FIXED — gated)
+
+**Severity:** correctness defect in dashboard numbers; possible cross-tenant
+disclosure in any environment where `studio_template` is not empty.
+**Status:** **reported, deliberately not fixed** — this is gym scoping, which
+`CLAUDE.md` hard-gate #2 puts behind explicit approval.
+**Found:** 2026-08-26, while trying to surface outstanding dues in the app.
+
+### What is wrong
+
+`backend/src/dashboard/kpi-inspector.service.ts` injects the **raw**
+`PrismaService` and queries tenant models directly:
+
+```ts
+constructor(private readonly prisma: PrismaService) {}
+...
+const invoices = await this.prisma.memberInvoice.findMany({ ... });
+```
+
+Every other service that touches these models uses the tenant accessor —
+`this.tenant.client.memberInvoice` (e.g. `payments/payment-links.service.ts`).
+Tenant models are declared `@@schema("studio_template")`, so the raw client
+resolves them against **`studio_template`** rather than the caller's
+`studio_<gym_id>` schema.
+
+It is contained to this one file (9 call sites); a census of
+`this.prisma.<tenant model>` across `backend/src` found nothing else outside
+the tenant machinery itself and two test files.
+
+### Evidence, measured not inferred
+
+Three pending invoices exist for the seeded gym, totalling ₹22,400:
+
+```
+studio_a5711f00…  member_invoices pending = 3 rows, 22400.00
+studio_template   member_invoices          = 0 rows
+```
+
+Read back through the tenant-scoped path, they are all present:
+
+```
+GET /api/v1/invoices  →  total: 3   (INV-…A7DC272B 14000, …76AB3E3B 6000, …DCB9B220 2400)
+```
+
+Read through the inspector, they vanish:
+
+```
+GET /api/v1/dashboard/inspect/outstanding_dues  →  { value: 0, sample_rows: [] }
+GET /api/v1/dashboard/pulse → outstanding_dues { value: 0, invoice_count: 0 }
+```
+
+Both as the gym's **owner** (global branch access, empty branch filter) and as
+the accountant, so branch scoping is not the cause.
+
+Its other metrics look correct only by coincidence: this dev database's
+`studio_template` happens to hold a stale copy of the same fixtures
+(40 members, 30 payments, `active_members` = 24 in both), so the numbers agree
+without being read from the right place. `member_invoices` is the one table
+where the two schemas differ, which is why this surfaced there.
+
+### Why it matters beyond wrong numbers
+
+If `studio_template` is ever non-empty in a real environment — as it is here —
+then `sample_rows` returns **member ids, invoice numbers and amounts from the
+template** to whichever gym happens to be inspecting. That is a cross-tenant
+disclosure path. In a correctly-empty production template it degrades to
+"every gym sees zeroes", which is merely wrong rather than unsafe.
+
+### The fix (one line, awaiting approval)
+
+Inject `TenantPrisma` and use `this.tenant.client.*`, exactly as every other
+service does. It strictly NARROWS what the query can reach, but it changes how
+this service is gym-scoped, which is the gated class — so it is written up here
+rather than applied.
+
+### Second, independent bug in the same method
+
+`inspectOutstandingDues` computes its headline **`value` from the first 10 rows
+only**:
+
+```ts
+const invoices = await this.prisma.memberInvoice.findMany({ ..., take: 10 });
+const value = invoices.reduce((sum, i) => sum + Number(i.total_amount ?? 0), 0);
+```
+
+while advertising `formula: "SUM(total_amount) of member_invoices where status
+IN ('pending','partial')"`. A gym with 500 unpaid invoices would be shown the
+total of the 10 oldest and told it was everything they are owed. `take: 10` is
+correct for `sample_rows`; the value needs its own `aggregate`.
+
+This one is arithmetic rather than scoping, but it lives in the same method and
+should be fixed in the same pass.

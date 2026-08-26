@@ -128,6 +128,35 @@ query cache on workspace switch, so a device-token table has to be cleared on
 those paths too — otherwise a staffer who signs out keeps receiving another
 gym's notifications on that handset.
 
+## 10. Dashboard KPI inspector reads the wrong schema (needs your go-ahead)
+
+`dashboard/kpi-inspector.service.ts` injects the **raw** `PrismaService` and
+queries tenant models with it. Tenant models are `@@schema("studio_template")`,
+so it reads **`studio_template`** instead of the caller's gym.
+
+**Measured:** the seeded gym has 3 pending invoices worth ₹22,400.
+`GET /invoices` (tenant-scoped) returns all three; `GET
+/dashboard/inspect/outstanding_dues` returns `value: 0, sample_rows: []`, as
+owner *and* as accountant. `studio_template.member_invoices` is empty.
+
+Its other metrics only *look* right because this dev DB's `studio_template`
+holds a stale copy of the same fixtures.
+
+**I did not fix it.** It is one line — inject `TenantPrisma`, use
+`this.tenant.client.*` like every other service — and it strictly narrows what
+the query reaches. But it changes how a service is gym-scoped, which
+`CLAUDE.md` hard-gate #2 reserves for you.
+
+**Also in the same method:** the headline `value` is summed from the first 10
+rows (`take: 10`) while claiming to be the full SUM. A gym with 500 unpaid
+invoices would be shown the 10 oldest and told that is everything it is owed.
+
+Full evidence in `docs/SECURITY_FINDINGS_2026-08-26.md` F-5.
+
+**Consequence for the app:** I have **not** built a dues tile. The only metric
+that reports dues is this one, and putting a number on screen that I know reads
+the wrong schema would be worse than leaving it off.
+
 ## RESOLVED since you approved the dependencies
 
 These no longer need you. Kept as a record of what changed.
