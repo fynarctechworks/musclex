@@ -4,7 +4,7 @@ import { api } from '@/api/client';
 import { buildCheckInBody, type CheckInInput } from '@/api/checkin-payload';
 import { toLocalISODate } from '@/lib/format';
 import type {
-  ActivityItem, BodyStats, Branch, Expense, Exercise, ExpenseSummary, ExpenseCategory, DashboardAlert, DashboardKpis, DashboardPulse, Member,
+  ActivityItem, BodyStats, Branch, Expense, FinanceDashboard, MonthlyReport, Exercise, ExpenseSummary, ExpenseCategory, DashboardAlert, DashboardKpis, DashboardPulse, Member,
   ClassSession, MemberDetail, Paginated, Payment, Product, StaffRow, TrainerSession, WorkoutPlan,
   SessionAttendance,
   SessionRoster,
@@ -366,6 +366,37 @@ export function useBulkAttendance(sessionId: string | undefined) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['class-attendance', sessionId] });
     },
+  });
+}
+
+/** Headline finance numbers. Gym-wide; no branch needed. */
+export function useFinanceDashboard() {
+  return useQuery({
+    queryKey: ['finance-dashboard'],
+    queryFn: () => api.get<FinanceDashboard>('/financial-reports/dashboard'),
+  });
+}
+
+/**
+ * One month's P&L.
+ *
+ * `branch_id` is REQUIRED — like the expense summary, and unlike the finance
+ * dashboard above. The inconsistency is the API's, not ours; the screen copes
+ * by only asking once a branch is chosen rather than sending a request that
+ * can only 400.
+ */
+export function useMonthlyReport(branchId: string | null | undefined, month?: Date) {
+  const when = month ?? new Date();
+  const year = when.getFullYear();
+  const monthNum = when.getMonth() + 1;
+
+  return useQuery({
+    queryKey: ['monthly-report', branchId ?? '', year, monthNum],
+    enabled: Boolean(branchId),
+    queryFn: () =>
+      api.get<MonthlyReport>('/financial-reports/monthly', {
+        params: { branch_id: branchId, year, month: monthNum },
+      }),
   });
 }
 

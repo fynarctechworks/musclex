@@ -1,7 +1,6 @@
 import {
   formatCurrency, formatCurrencyCompact, formatDate, formatNumber,
-  formatRelative, formatTime, toAmount, toLocalISODate,
-} from '../lib/format';
+  formatRelative, formatTime, toAmount, toLocalISODate, titleiseSlug } from '../lib/format';
 
 /**
  * `now` is injected everywhere so these never depend on the wall clock —
@@ -122,5 +121,28 @@ describe('toAmount — the API mixes Int and Decimal-as-string', () => {
 
   it('formats a Decimal string with Indian grouping', () => {
     expect(formatCurrency('123456', 'INR')).toContain('1,23,456');
+  });
+});
+
+describe('titleiseSlug', () => {
+  it('reads a snake_case enum out loud', () => {
+    expect(titleiseSlug('staff_salaries')).toBe('Staff salaries');
+  });
+
+  it('uses sentence case, not Title Case', () => {
+    // These appear inside sentences and table rows, where Title Case shouts.
+    expect(titleiseSlug('personal_training')).toBe('Personal training');
+  });
+
+  it('leaves a single word capitalised', () => {
+    expect(titleiseSlug('rent')).toBe('Rent');
+  });
+
+  it.each([[null], [undefined], ['']])('returns the fallback for %p', (v) => {
+    expect(titleiseSlug(v, 'Other')).toBe('Other');
+  });
+
+  it('defaults the fallback to an empty string', () => {
+    expect(titleiseSlug(null)).toBe('');
   });
 });

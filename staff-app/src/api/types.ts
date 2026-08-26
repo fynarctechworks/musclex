@@ -295,3 +295,31 @@ export type ExpenseCategory = {
   icon?: string | null;
   color?: string | null;
 };
+
+/** `/financial-reports/dashboard` — the accountant's headline numbers. */
+export type FinanceDashboard = {
+  total_revenue_this_month: number;
+  total_revenue_prev_month: number;
+  revenue_growth_percent: number;
+  pending_payments: number;
+  refund_total_this_month: number;
+  refund_rate: number;
+  active_members: number;
+  active_subscriptions: number;
+  average_member_value: number;
+  monthly_recurring_revenue: number;
+};
+
+/** `/financial-reports/monthly` — one month's P&L. */
+export type MonthlyReport = {
+  period: string;
+  gross_revenue: number;
+  total_refunds: number;
+  net_revenue: number;
+  total_expenses: number;
+  profit: number;
+  transaction_count: number;
+  by_payment_method: Record<string, number>;
+  daily_revenue: Record<string, number>;
+  expenses_by_category: Record<string, number>;
+};

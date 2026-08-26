@@ -677,3 +677,28 @@ wants.
 Test data was created through the public API (6 categories, 10 expenses across
 three months) rather than raw SQL, so it went through the same validation a
 real entry does.
+
+## 2026-08-26 — Reports (Phase 8)
+
+**Headline numbers are gym-wide; the P&L needs a branch**, because that is how
+the API divides them (`/financial-reports/dashboard` takes none,
+`/financial-reports/monthly` requires `branch_id`). Rather than hide that
+inconsistency the screen shows what it can and says plainly what the branch
+switcher would unlock.
+
+**A loss is shown in plain ink, not alarm red.** The seeded gym is ₹2.38L down
+this month and that is exactly the number an accountant opened the screen to
+find. Colouring it as an error would imply they did something wrong, and a
+back office that shouts at its user stops being read.
+
+**Category bars are relative to the LARGEST category, not to total spend.**
+Against the total, everything except rent and salaries is an invisible sliver
+and the chart says nothing. Against the largest, the shape of the month is
+legible.
+
+**`titleiseSlug` extracted to lib/format.** I had reused `describeMuscleGroup`
+for expense category slugs — it produced the right string by accident, which is
+how confusing code gets written. The API sends snake_case enums everywhere
+(expense categories, muscle groups, session types); one helper now knows how to
+say them out loud, in sentence case rather than Title Case because these read
+inside sentences and table rows.

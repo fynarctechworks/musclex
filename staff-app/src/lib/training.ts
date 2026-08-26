@@ -1,3 +1,5 @@
+import { titleiseSlug } from '@/lib/format';
+
 /**
  * Training vocabulary and prescription formatting.
  *
@@ -35,8 +37,7 @@ export const MUSCLE_GROUPS = [
 ] as const;
 
 export function describeMuscleGroup(g?: string | null): string {
-  if (!g) return 'Other';
-  return g.charAt(0).toUpperCase() + g.slice(1).replace(/_/g, ' ');
+  return titleiseSlug(g, 'Other');
 }
 
 /**

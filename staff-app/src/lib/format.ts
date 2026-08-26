@@ -169,3 +169,18 @@ export function toLocalISODate(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
+
+/**
+ * Turn an API slug into a human label: `staff_salaries` → `Staff salaries`.
+ *
+ * Sentence case, not Title Case, because these are read inside sentences and
+ * in table rows where Title Case shouts. The API sends snake_case enums all
+ * over (expense categories, muscle groups, session types); this is the one
+ * place that knows how to say them out loud.
+ */
+export function titleiseSlug(slug: string | null | undefined, fallback = ''): string {
+  const text = (slug ?? '').trim();
+  if (!text) return fallback;
+  const spaced = text.replace(/_/g, ' ');
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
