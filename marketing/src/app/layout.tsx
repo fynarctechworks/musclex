@@ -59,7 +59,6 @@ export const metadata: Metadata = {
     description,
   },
   robots: { index: true, follow: true },
-  icons: { icon: '/brand/logo-mark.png' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

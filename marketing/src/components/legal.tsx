@@ -15,11 +15,22 @@ export function LegalPage({
   title,
   updated,
   intro,
+  /**
+   * Show the "pending legal review" banner. Defaults to true, because the
+   * terms and refund policy have not been through counsel and saying so is the
+   * honest thing to do.
+   *
+   * The privacy policy sets it false: it is the URL given to Apple and Google
+   * as the app's privacy policy, and a banner declaring the document "not a
+   * binding agreement" undermines the one thing the stores require it to be.
+   */
+  draft = true,
   children,
 }: {
   title: string;
   updated: string;
   intro: string;
+  draft?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -33,16 +44,18 @@ export function LegalPage({
           <p className="mt-4 text-caption text-text-4">Last updated: {updated}</p>
           <p className="mt-8 text-lead text-text-2">{intro}</p>
 
-          <div className="glass mt-10 flex gap-4 rounded-lg p-6">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
-            <p className="text-body-sm text-text-3">
-              <strong className="font-semibold text-text">Draft: pending legal review.</strong>{' '}
-              This document describes how MuscleX is intended to operate and has not yet
-              been reviewed by qualified counsel. It is not a binding agreement in its
-              current form. Please have it reviewed for your jurisdiction before relying
-              on it.
-            </p>
-          </div>
+          {draft ? (
+            <div className="glass mt-10 flex gap-4 rounded-lg p-6">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
+              <p className="text-body-sm text-text-3">
+                <strong className="font-semibold text-text">Draft: pending legal review.</strong>{' '}
+                This document describes how MuscleX is intended to operate and has not yet
+                been reviewed by qualified counsel. It is not a binding agreement in its
+                current form. Please have it reviewed for your jurisdiction before relying
+                on it.
+              </p>
+            </div>
+          ) : null}
 
           <div className="mt-16 flex flex-col gap-12">{children}</div>
         </div>
