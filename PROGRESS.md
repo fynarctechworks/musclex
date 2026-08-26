@@ -483,3 +483,18 @@ returns all three. The dashboard metric returns zero, because it reads
 `studio_template`. I could have shipped a tile that renders ₹0 and looks
 finished — a number on screen that I know is read from the wrong place is worse
 than an absent one, so it is in `TODO_FOR_ME.md` item 10 instead.
+
+## Consolidation + Phase 10 start
+
+62. **Staff list** (Phase 10) — read-only, tap-to-call, salary never rendered.
+63. **`npm run verify:screens`** — a second device harness that asserts every
+    screen MOUNTS, which `verify:ui` never checked.
+64. **Fixed: Reports was unreachable for an owner.** More's entry pointed at
+    `/more/reports`, a route that never existed. Found by the new harness on
+    its first run.
+65. **`nav.test.ts` now asserts every built More entry resolves to a real route
+    file** — the previous reachability test matched by module, so a wrong href
+    slipped through.
+
+**Tests: 349 staff-app (33 suites) · 895 backend · tsc clean ·
+`verify:ui` PASS · `verify:screens` PASS.**
