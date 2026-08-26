@@ -123,6 +123,19 @@ export default function MeScreen() {
         <View style={{ height: 1, backgroundColor: color.line }} />
         <Link icon="location" label="Find a gym" hint="Browse gyms near you"
           onPress={() => router.push('/gyms')} />
+        {/*
+          Dev-only. __DEV__ is stripped from a release bundle, so this row and
+          the route it points at cannot reach a member's phone. It is the
+          reference for this app's tokens and components while the UI is being
+          built out.
+        */}
+        {__DEV__ ? (
+          <>
+            <View style={{ height: 1, backgroundColor: color.line }} />
+            <Link icon="tools" label="Design system (dev)" hint="Tokens and components"
+              onPress={() => router.push('/gallery')} />
+          </>
+        ) : null}
       </Card>
 
       <Pressable onPress={() => router.push('/settings/profile')} accessibilityRole="button"

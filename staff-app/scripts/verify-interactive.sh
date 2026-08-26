@@ -120,9 +120,37 @@ echo "→ relaunch $BUNDLE"
 xcrun simctl terminate "$UDID" "$BUNDLE" >/dev/null 2>&1 || true
 sleep 2; xcrun simctl launch "$UDID" "$BUNDLE" >/dev/null; sleep 12
 
+# ── The gallery this harness drove no longer exists ─────────────────────────
+#
+# Every check below reaches its component through the design-system gallery,
+# and that route was removed so it could not ship to the App Store (see
+# src/ui/Gallery.tsx). Without it there is nothing here to tap.
+#
+# This exits rather than carrying on, because every step below ends in
+# `|| true`: left as it was, this script would sail past a dozen no-op taps and
+# print "PASS — interactive components verified on device" having verified
+# nothing at all. A harness that passes while doing nothing is worse than one
+# that is switched off, because only one of the two lies to you.
+#
+# To bring it back, either re-add app/gallery.tsx locally for the run, or
+# re-point each check at a real screen that uses the component.
+cat <<'EOF'
+verify:ui is out of service.
+
+  It drove the design-system gallery, and that route was deleted so it could
+  not ship in the App Store build. The overlay checks (dialog, popover,
+  accordion, toast, sheet) have no target any more.
+
+  Options:
+    1. Re-add app/gallery.tsx locally for the run, then delete it again.
+    2. Re-point each check at a real screen that uses the component.
+
+  The component-mount coverage is NOT lost: src/__tests__/gallery.test.tsx
+  still mounts every primitive in one render, and runs in `npm test`.
+EOF
+exit 2
+
 echo "→ navigate to the gallery"
-tap_until "More, tab" "Design system" || true
-tap_until "Design system" "BUTTONS" || true
 
 echo "→ portal-backed overlays"
 scroll_to "Dialog"

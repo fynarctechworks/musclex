@@ -3,9 +3,19 @@
 Captured from the live app on 2026-08-27 (iPhone Air simulator, iOS 26.5), so
 every screenshot is the real rendered component, not a mockup.
 
-Screens are in [`screens/`](screens/); the gallery itself is
-`staff-app/src/ui/Gallery.tsx`, reachable in a dev build via **More → Design
-system (dev)**.
+Screens are in [`screens/`](screens/). These screenshots are now the ONLY way
+to see the staff design system on a screen: `app/gallery.tsx` was deleted
+before the App Store build, because expo-router bundles every file under
+`app/` regardless of who links to it — a `__DEV__` guard on the *link* left the
+route itself in the release binary and reachable by deep link.
+
+`staff-app/src/ui/Gallery.tsx` survives as a **test fixture**: it mounts every
+primitive in one render (`src/__tests__/gallery.test.tsx`), which already
+caught an RNR/uniwind defect once. A test asserts no route imports it.
+
+The **live, navigable** gallery now lives in **member-app** → More → Design
+system (dev), and it documents member-app's own tokens and components — see
+below for why it is not a copy.
 
 ---
 
@@ -25,6 +35,12 @@ app), and it deliberately does **not** use MuscleX red for primary actions. From
 member-app's own system says the opposite, on purpose — one saturated brand
 accent (`#E10600`) carrying every action, on a faintly grey canvas, with a
 four-step ink ladder tuned for contrast against that canvas.
+
+**This is why member-app's gallery is not a copy of the staff one.** It could
+not be: staff is RNR + uniwind `className`, member-app is plain `StyleSheet` on
+`theme.ts`, so a verbatim port would not compile. member-app's gallery
+documents what member-app actually has today, in the same section order, which
+is what makes the two comparable when deciding what to unify.
 
 **So "use this for the member app" is a real product decision, not a copy-paste.**
 Adopting this system wholesale would take the brand red out of every primary

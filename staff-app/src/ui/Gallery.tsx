@@ -1,3 +1,26 @@
+/**
+ * ────────────────────────────────────────────────────────────────
+ * TEST FIXTURE — not a screen
+ * ────────────────────────────────────────────────────────────────
+ *
+ * There is no `/gallery` route any more. This app ships to the App Store, and
+ * a dev-only design-system screen has no business in a release bundle even
+ * behind a `__DEV__` link — the ROUTE FILE itself is bundled by expo-router
+ * regardless of who links to it, which left it reachable by deep link.
+ *
+ * The component survives because `src/__tests__/gallery.test.tsx` mounts every
+ * primitive in one render, which is the cheapest guard there is against a
+ * registry re-pull or a token change breaking a component. It already caught
+ * the RNR/uniwind `placeholderClassName` defect once. Nothing under `app/`
+ * imports this file, so it is not in the shipped bundle.
+ *
+ * The live, navigable version now lives in member-app (More → Design system),
+ * and screenshots of this one are in `docs/design-system/`.
+ *
+ * DO NOT add a route back. If you need to see it on a device, add the route
+ * locally and delete it before committing.
+ */
+
 import React from 'react';
 import { ScrollView, View } from 'react-native';
 
@@ -45,6 +68,7 @@ import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 /**
  * Design-system gallery.

@@ -28,8 +28,8 @@ const PORT = 8099;
 
 const SHOTS = [
   { path: '/', file: 'tabs.png', viewport: { width: 390, height: 844 } },
-  { path: '/gallery', file: 'gallery.png', viewport: { width: 390, height: 1400 } },
-  { path: '/gallery', file: 'gallery-ipad.png', viewport: { width: 834, height: 1112 } },
+  // The /gallery route was removed so it could not ship in the App Store
+  // build; its screenshots live in docs/design-system/ instead.
 ];
 
 mkdirSync(OUT, { recursive: true });

@@ -5,7 +5,7 @@ class H(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         p = self.translate_path(self.path)
         # SPA fallback: unknown, extension-less paths serve index.html so
-        # client-side routes like /gallery resolve.
+        # client-side routes resolve.
         if not os.path.exists(p) and not os.path.splitext(self.path)[1]:
             self.path = '/index.html'
         return super().do_GET()

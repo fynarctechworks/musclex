@@ -1525,3 +1525,62 @@ predated.
 **The banner appearing is still unverified.** An iOS simulator cannot receive
 real APNs pushes; Expo accepts the message and it lands nowhere. Everything up
 to the handoff to Apple is proven; the last hop needs a physical iPhone.
+
+---
+
+## The design-system gallery: moved to member-app, removed from the shipping app
+
+Two things had to be true: the staff app must not carry a dev screen into the
+App Store, and the design system must stay visible while member-app's UI is
+built out.
+
+**It could not be a copy.** The staff gallery renders React Native Reusables
+primitives with uniwind `className`; member-app has neither — it is plain
+`StyleSheet` on `theme.ts`. A verbatim port would not compile, and a gallery
+that documents components an app does not have is worse than none. So
+`member-app/src/ui/Gallery.tsx` documents what member-app ACTUALLY has — its
+palette (surfaces, the four-step ink ladder, accent and semantic hues), type
+ramp, Button/Card/Chip/Meter/Notice/Confirm/InfoTip/Empty/Loading, the icon
+set, and the spacing and radius scales — in the same section order as the staff
+one, so the two are comparable when deciding what to unify.
+
+**Why the route had to go, not just the link.** The staff More row was already
+`__DEV__`-guarded, so it never appeared in a release build. But expo-router
+bundles every file under `app/` regardless of who links to it: `app/gallery.tsx`
+was in the release binary and reachable by deep link. Deleting the link would
+have looked like a fix and changed nothing.
+
+**What was kept, and why.** `staff-app/src/ui/Gallery.tsx` survives as a TEST
+FIXTURE. `src/__tests__/gallery.test.tsx` mounts every primitive in one render
+— the cheapest guard there is against a registry re-pull or a token change
+breaking a component, and it already caught the RNR/uniwind
+`placeholderClassName` defect once. Throwing that away to delete a file would
+have been a bad trade. A new test asserts no file under `app/` imports it, so
+the route cannot come back by accident; confirmed the guard fails when a route
+is re-added.
+
+### `strings` on a Hermes bundle is not proof, and nearly fooled me
+
+I first checked the shipped bundle by running `strings` over the `.hbc` and
+grepping for gallery-only copy. Four markers came back absent, which looked
+conclusive. It was not: the same method also reported
+`"Dots mark days with activity"` absent — a string inside `ScheduleCalendar`,
+which `app/(tabs)/schedule.tsx` imports and which is definitely shipped.
+`strings` does not reliably surface literals from Hermes bytecode, so
+"absent" meant nothing.
+
+The real check is the **source map's module list**. Exported with
+`--dump-sourcemap`: 4,847 modules, `src/ui/Gallery.tsx` and `app/gallery.tsx`
+both absent, with `ScheduleCalendar`, `(tabs)/more`, `RowCard` and
+`more/security` present as controls. That is evidence; the first attempt was a
+coincidence that agreed with what I wanted to believe.
+
+### `verify:ui` is now out of service, deliberately loudly
+
+That harness existed ONLY to drive the gallery — dialog, popover, accordion,
+toast and sheet, all reached through it. Every step ends in `|| true`, so with
+the gallery gone it would have walked past a dozen no-op taps and printed
+**"PASS — interactive components verified on device"** having verified nothing.
+It now exits 2 with an explanation and the two ways to restore it. A harness
+that passes while doing nothing is worse than one that is switched off, because
+only one of the two lies to you.

@@ -145,13 +145,6 @@ export default function More() {
           ))}
         </View>
 
-        {/* Dev surface — not gated by role, it ships only in development. */}
-        {__DEV__ ? (
-          <Link href="/gallery" asChild>
-            <Button variant="ghost"><Text>Design system (dev)</Text></Button>
-          </Link>
-        ) : null}
-
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="outline" testID="sign-out">
