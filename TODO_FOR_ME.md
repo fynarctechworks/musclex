@@ -51,88 +51,38 @@ platform-wide aggregates to gym owners. Fixing them means deciding what a gym
 owner *should* see of their own referral funnel — a product call, not a
 mechanical one. Detail in `docs/SECURITY_FINDINGS_2026-08-26.md`.
 
-## 6. QR check-in needs `expo-camera` (new native dependency)
+## 6. One QR scan on a physical device
 
-Manual check-in is built and working (search a member, tap, confirm). **QR
-scanning is not**, because it needs `expo-camera` — a new dependency plus a
-native rebuild, which hard-gate #3 keeps behind your approval.
+The scanner is built and the plumbing is verified — permission prompt (with our
+own usage string), camera view mounting, the fallback when access is refused,
+and the escape hatch to search by name. What I **cannot** verify here is the
+one thing that matters most: that pointing it at a real member's QR code
+decodes and checks them in.
 
-`member-app` already depends on `expo-camera` and has QR helpers in
-`src/lib/qr.ts`, so the version and the pattern are both established; this is a
-one-line approval rather than a research question.
+The iOS Simulator has no camera, so the viewfinder is black by design. The
+duplicate-suppression rules (`ScanGate`) are unit-tested against a fake clock,
+but they have never met a real camera firing ten events a second.
 
-**Blocked:** QR check-in, and later the kiosk mode (which is QR-driven).
-**Workaround:** the check-in screen is built around member search and works
-end to end; adding the scanner is an additive change to the same screen.
+**What I need:** someone to open Check-in → Scan on a physical iPhone and scan
+a member's code once. If it checks them in and a second scan of the same code
+is ignored for a few seconds, the feature is done.
 
-## 7. One tap I could not automate: the check-in confirm dialog
+## RESOLVED since you approved the dependencies
 
-> **UPDATE:** the check-in MUTATION is now verified working end to end — with
-> the confirm bypassed temporarily, a tap recorded a real check-in (59 → 60 rows)
-> and the row's "last visit" updated. The earlier failure was the Hermes UUID
-> bug, now fixed. What remains unverified is only the dialog's *button tap*,
-> which is a tooling limit, not a code path. A single human tap closes it out.
+These no longer need you. Kept as a record of what changed.
 
-
-Portal/overlay content (AlertDialog, bottom sheet) is exposed to idb as a
-SINGLE accessibility element, so its buttons cannot be tapped by the automation.
-Everything either side is verified — the member search, the dialog opening, and
-the `POST /check-ins` endpoint (confirmed working via curl, returns
-`{"success":true,...}`) — but the final "Check in" tap has never been performed
-by a human on the device.
-
-**Please tap it once** (Check-in tab → search a member → Check in) to confirm
-the whole path. It should toast "<name> checked in" and clear the search.
-
-That flow did surface one real bug on the way, now fixed: `crypto.randomUUID`
-does not exist in Hermes, so a non-UUID idempotency key was sent and the backend
-rejected it with `client_event_id must be a UUID`. See `src/lib/uuid.ts`.
-
-## 8. Offline persistence needs two dependencies
-
-Plan Phase 4 includes offline read (cached dashboard/member/schedule visible
-with no signal). That needs `@tanstack/react-query-persist-client` plus a
-storage layer — `expo-sqlite` (already used by `member-app`) or
-`@react-native-async-storage/async-storage` (SDK-pinned at 2.2.0).
-
-**Blocked:** offline read. The app currently shows its error state with no
-network, which is honest but not what the plan promises.
-**Recommendation:** `expo-sqlite`, matching `member-app`, plus the persist
-client. Both are additive; no screen changes needed.
-
-Note: whichever is chosen, the cache must still be **wiped on sign-out,
-workspace switch and branch change** — a persisted cache makes that
-cross-tenant rule more important, not less, because it now survives app
-restarts. `SessionProvider` already does the wiping; it will need to clear the
-persisted store too.
-
-## 9. One flow still needs a human tap to confirm
-
-> **UPDATE:** POS checkout is now VERIFIED — a real sale was recorded from the
-> app (₹1,400 cash). The earlier failure was not the UI at all: the seeder
-> created products without `inventory` rows, so the API correctly rejected the
-> sale with "Insufficient stock". Seeder fixed. Only the check-in AlertDialog
-> tap (item 7) remains unconfirmed.
-
-
-Portal/overlay content is a single accessibility element to idb, so its buttons
-cannot be driven by automation. Both sides of each flow are verified; only the
-final tap is not:
-
-- **Check-in confirm** (Check-in tab → search → Check in). See item 7.
-- **POS checkout** (More → Shop / POS → add items → Checkout → Take ₹…).
-  Not yet exercised, though the *same kind* of bottom-sheet button was proven
-  tappable when recording a payment (below), so this is likely fine.
-
-**Resolved since:** bottom-SHEET buttons ARE reachable by automation — a real
-₹24,000 payment was recorded from the app (receipt `RCP-20260825-CDA6FB67`).
-Only **AlertDialog** buttons resist it, which narrows item 7 to just the
-check-in confirm.
-
-## 10. Minor: the "Add" button collides with the dev-client Tools bubble
-
-On the Members screen the header "Add" button sits at roughly the same spot as
-Expo dev-client's floating Tools bubble, so in a DEV build a tap can hit the
-bubble instead. Release builds have no bubble, so this is a development-only
-annoyance — but if it bothers you during testing, the button can move to the
-left of the header or become a floating action button.
+- **QR check-in** — `expo-camera` approved and shipped. Permission prompt,
+  fallback state and scanner UI verified on the simulator; **decoding a real QR
+  code is still unverified**, because the iOS Simulator has no camera. That
+  needs one scan on a physical device.
+- **Offline persistence** — `expo-sqlite` +
+  `@tanstack/react-query-persist-client` approved and shipped. Verified on
+  device with the API paused: the dashboard rendered from the persisted cache
+  through a full app restart, and a check-in taken offline queued and then
+  synced.
+- **The check-in confirm dialog is automatable after all.** It was never a
+  portal limitation. `tap-label.sh` matched labels by SUBSTRING, so "Allow"
+  found "Don't Allow" first — which is also how I silently denied the camera
+  permission and then misread it as an app bug. Exact matches now win.
+- **The Tools-bubble collision** is now only a nuisance for automation, not for
+  users; it is a dev-client overlay and does not exist in a release build.

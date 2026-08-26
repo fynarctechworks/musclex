@@ -175,3 +175,53 @@ Plus two backend authorisation vulnerabilities fixed earlier
 
 **What is NOT done:** QR check-in and offline persistence (both blocked on
 dependency approval), member edit, and Phases 6–12. See `TODO_FOR_ME.md`.
+
+---
+
+## Session 2 — 2026-08-26 (dependencies approved)
+
+28. **`expo-camera`, `expo-sqlite`, `@tanstack/react-query-persist-client`**
+    installed via `npx expo install` (versions match member-app exactly), iOS
+    prebuilt and rebuilt.
+29. **QR check-in.** Scanning auto-submits, search still confirms. `ScanGate`
+    stops a card left in frame from becoming twenty check-ins — `client_event_id`
+    cannot help there, since each camera fire is a fresh attempt.
+30. **Offline read.** Query cache persisted to SQLite, scoped per session with
+    three independent barriers against cross-tenant bleed.
+31. **`DataList` precedence fixed** to data > error > empty. It used to blank a
+    good list on any error — with a warm cache that discards the best data in
+    the building exactly when the network is worst.
+32. **Member edit**, sending only changed fields.
+33. **Offline check-in queue** against the existing `POST /check-ins/sync`.
+34. **Request timeout (12s)** — there was none, so a dead uplink hung forever.
+35. **Timeouts no longer retried** — falling back took ~35s, now ~13s.
+36. **Offline member roster** — search is server-side, so without it the queue
+    was unreachable.
+37. **Refused check-ins are announced**, not dropped silently.
+38. **Seeder wrote `status: 'completed'`** for payments; every revenue query
+    filters `'paid'`. The dashboard was right and the seed data was lying.
+
+**Tests: 225 passing (23 suites), tsc clean.**
+
+### Verified on device this session, API paused mid-flight
+
+| What | Result |
+|---|---|
+| Camera permission prompt | Shows our own usage string |
+| Scanner UI + fallback | Both render; viewfinder black (Simulator has no camera) |
+| Dashboard offline | Rendered from SQLite **through a full app restart** |
+| Member search offline | Fell back to on-device roster, found 6 Patels |
+| Check-in offline | Queued — "1 check-in waiting to sync" |
+| Queue drain | Flushed on foreground; server refused it (cooldown, correctly) |
+| Revenue KPI | ₹0 → ₹14.0k after the seeder fix, matching the DB |
+
+### Two things I got wrong, and how
+
+- I reported "camera access is off" as app behaviour. I had actually tapped
+  **"Don't Allow"** — my `tap-label.sh` matched "Allow" as a substring. The same
+  bug is why the confirm dialog looked un-automatable for a whole session.
+- I nearly went hunting for a bug in the revenue KPI query. The query was
+  correct; my seed data used a status the product never produces.
+
+Both were caught by checking the database and the coordinates rather than
+trusting the screen.
