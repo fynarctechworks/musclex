@@ -35,6 +35,7 @@ import {
   PermissionsGuard,
   Roles,
   Permissions,
+  AnyPermissions,
   CurrentUser,
   JwtPayload,
   restrictedBranchIdsForUser,
@@ -214,8 +215,26 @@ export class MembersController {
     return this.profileService.getBodyStats(id, limit ? parseInt(limit) : 50);
   }
 
+  /*
+   * RECORDING a measurement is a trainer's job, so it accepts the narrow
+   * `members.measure` OR the broad `members.edit`.
+   *
+   * Either, not just measure: `measure` is a new action, and roles whose
+   * permissions come from seeded RolePermission rows are not governed by
+   * DEFAULT_ROLE_PERMISSIONS. Swapping outright would have locked out every
+   * owner and manager on a live gym.
+   *
+   * UPDATE and DELETE below stay on `edit`/`delete` deliberately. There is no
+   * `recorded_by` or `updated_at` on member_body_stats, so an amended reading
+   * is untraceable — a mistyped 175kg is corrected by recording a new
+   * measurement, which preserves the history. That matches the append-only
+   * ledger this codebase already uses for expenses.
+   */
   @Post(':id/body-stats')
-  @Permissions({ module: 'members', action: 'edit' })
+  @AnyPermissions(
+    { module: 'members', action: 'measure' },
+    { module: 'members', action: 'edit' },
+  )
   createBodyStats(@Param('id') id: string, @Body() dto: CreateBodyStatsDto) {
     return this.profileService.createBodyStats(id, dto);
   }

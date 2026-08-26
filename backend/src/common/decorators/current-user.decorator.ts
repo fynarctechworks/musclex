@@ -1,6 +1,20 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 
-export type ModuleAction = 'view' | 'create' | 'edit' | 'delete' | 'export';
+/**
+ * `measure` is deliberately NARROWER than `edit`.
+ *
+ * Recording a member's body stats is a trainer's job, but `members.edit` also
+ * grants renaming members and changing their phone and email. Splitting the
+ * action lets a trainer take a measurement without being able to rewrite the
+ * member record.
+ */
+export type ModuleAction =
+  | 'view'
+  | 'create'
+  | 'edit'
+  | 'delete'
+  | 'export'
+  | 'measure';
 
 export type PermissionModule =
   | 'dashboard'

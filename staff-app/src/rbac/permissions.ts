@@ -21,7 +21,12 @@ export const MODULES = [
 ] as const;
 export type Module = (typeof MODULES)[number];
 
-export const ACTIONS = ['view', 'create', 'edit', 'delete', 'export'] as const;
+/**
+ * `measure` is narrower than `edit` — it records a member's body stats without
+ * granting the right to rename them or change their contact details. Mirrors
+ * MODULES_ACTIONS in the backend's rbac-seed.service.
+ */
+export const ACTIONS = ['view', 'create', 'edit', 'delete', 'export', 'measure'] as const;
 export type Action = (typeof ACTIONS)[number];
 
 /** Roles that bypass the map entirely. Mirrors the backend's owner tier. */

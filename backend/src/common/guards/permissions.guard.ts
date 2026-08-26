@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
+  ANY_PERMISSIONS_KEY,
   PERMISSIONS_KEY,
   RequiredPermission,
 } from '../decorators/permissions.decorator';
@@ -26,7 +27,21 @@ export class PermissionsGuard implements CanActivate {
         context.getClass(),
       ]);
 
-    if (!requiredPermissions || requiredPermissions.length === 0) {
+    /*
+     * `@AnyPermissions` — satisfied by ONE of the listed permissions, where
+     * `@Permissions` needs all of them. Read from a separate metadata key so
+     * the default (all) is unchanged for every route that does not opt in.
+     */
+    const anyPermissions =
+      this.reflector.getAllAndOverride<RequiredPermission[]>(ANY_PERMISSIONS_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]);
+
+    const hasAll = Boolean(requiredPermissions?.length);
+    const hasAny = Boolean(anyPermissions?.length);
+
+    if (!hasAll && !hasAny) {
       return true;
     }
 
@@ -39,7 +54,9 @@ export class PermissionsGuard implements CanActivate {
 
     // Admin roles bypass permission checks — log for audit trail
     if (ADMIN_ROLES.includes(user.role)) {
-      const permCodes = requiredPermissions.map((p) => `${p.module}.${p.action}`).join(', ');
+      const permCodes = [...(requiredPermissions ?? []), ...(anyPermissions ?? [])]
+        .map((p) => `${p.module}.${p.action}`)
+        .join(', ');
       this.logger.log(
         `ADMIN_BYPASS user=${user.user_id} role=${user.role} studio=${user.studio_id} permissions=[${permCodes}] path=${request.method} ${request.url}`,
       );
@@ -48,10 +65,12 @@ export class PermissionsGuard implements CanActivate {
 
     // Check using permission_codes (normalized RBAC)
     if (user.permission_codes && Array.isArray(user.permission_codes) && user.permission_codes.length > 0) {
-      const hasAllPermissions = requiredPermissions.every((required) => {
-        const code = `${required.module}.${required.action}`;
-        return user.permission_codes.includes(code);
-      });
+      const holdsCode = (required: RequiredPermission) =>
+        user.permission_codes.includes(`${required.module}.${required.action}`);
+
+      const hasAllPermissions =
+        (!hasAll || requiredPermissions.every(holdsCode)) &&
+        (!hasAny || anyPermissions.some(holdsCode));
 
       if (!hasAllPermissions) {
         throw new ForbiddenException('You do not have permission to perform this action');
@@ -61,10 +80,14 @@ export class PermissionsGuard implements CanActivate {
 
     // Fallback: check using legacy PermissionsMap
     const userPermissions = user.permissions || {};
-    const hasAllPermissions = requiredPermissions.every((required) => {
+    const holdsMapped = (required: RequiredPermission) => {
       const modulePerms = userPermissions[required.module];
-      return modulePerms && modulePerms.includes(required.action);
-    });
+      return Boolean(modulePerms && modulePerms.includes(required.action));
+    };
+
+    const hasAllPermissions =
+      (!hasAll || requiredPermissions.every(holdsMapped)) &&
+      (!hasAny || anyPermissions.some(holdsMapped));
 
     if (!hasAllPermissions) {
       throw new ForbiddenException('You do not have permission to perform this action');

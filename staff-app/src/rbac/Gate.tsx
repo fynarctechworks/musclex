@@ -18,15 +18,25 @@ import { featureState, requiredPlanFor, type FeatureKey } from '@/rbac/entitleme
  * protect data (plan §8).
  */
 export function Can({
-  module, action = 'view', children, fallback = null,
+  module, action = 'view', anyOf, children, fallback = null,
 }: {
   module: Module;
   action?: Action;
+  /**
+   * Satisfied by ANY of these actions, mirroring the backend's
+   * `@AnyPermissions`. Needed where a narrow action was introduced alongside a
+   * broad one: recording a measurement accepts `members.measure` OR
+   * `members.edit`, so a trainer and an owner both see the button.
+   */
+  anyOf?: Action[];
   children: React.ReactNode;
   fallback?: React.ReactNode;
 }) {
   const { session } = useSession();
-  return <>{can(session?.user, module, action) ? children : fallback}</>;
+  const allowed = anyOf?.length
+    ? anyOf.some((a) => can(session?.user, module, a))
+    : can(session?.user, module, action);
+  return <>{allowed ? children : fallback}</>;
 }
 
 /** Imperative form, for computing lists (e.g. deriving nav tabs). */

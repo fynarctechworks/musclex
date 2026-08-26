@@ -61,6 +61,32 @@ describe('what each real role can reach', () => {
     expect(can('trainer', 'members', 'edit')).toBe(false);
   });
 
+  describe('measuring a member (the narrow action)', () => {
+    it('a trainer CAN measure', () => {
+      expect(can('trainer', 'members', 'measure')).toBe(true);
+    });
+
+    it('but measuring did NOT hand them member editing', () => {
+      // The whole point of splitting the action: recording body stats must not
+      // also grant renaming a member or changing their phone number.
+      expect(can('trainer', 'members', 'edit')).toBe(false);
+      expect(can('trainer', 'members', 'delete')).toBe(false);
+      expect(can('trainer', 'members', 'create')).toBe(false);
+    });
+
+    it('an owner can measure too — nobody lost access', () => {
+      expect(can('owner', 'members', 'measure')).toBe(true);
+    });
+
+    it('front desk can measure', () => {
+      expect(can('front_desk', 'members', 'measure')).toBe(true);
+    });
+
+    it('an accountant still cannot', () => {
+      expect(can('accountant', 'members', 'measure')).toBe(false);
+    });
+  });
+
   it('an accountant has NO staff permission at all', () => {
     // Which is why Staff and PT sessions are invisible to them — something I
     // briefly mistook for a navigation bug before checking.

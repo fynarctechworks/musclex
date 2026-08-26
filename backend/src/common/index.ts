@@ -11,6 +11,8 @@ export {
   Permissions,
   RequiredPermission,
   PERMISSIONS_KEY,
+  AnyPermissions,
+  ANY_PERMISSIONS_KEY,
 } from './decorators/permissions.decorator';
 export { JwtAuthGuard } from './guards/jwt-auth.guard';
 export { RolesGuard } from './guards/roles.guard';

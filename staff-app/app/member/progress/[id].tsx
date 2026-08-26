@@ -147,7 +147,10 @@ export default function MemberProgress() {
           </>
         )}
 
-        <Can module="members" action="edit">
+        {/* measure OR edit — a trainer holds the narrow action, an owner the
+            broad one, and both should see this button. Mirrors the backend's
+            @AnyPermissions on POST /members/:id/body-stats. */}
+        <Can module="members" anyOf={['measure', 'edit']}>
           <Button onPress={() => setRecording(true)} testID="record-measurements">
             <Text>Record measurements</Text>
           </Button>

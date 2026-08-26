@@ -958,3 +958,47 @@ Also checked and found clean: no icon-only control lacks a text label (the one
 the crude scan flagged was a false positive — the button does have a `<Text>`),
 and colour contrast is already handled by the token ladder mirrored from the
 web app.
+
+## 2026-08-26 — Trainers can record measurements (TODO item 7, decided)
+
+**Decision taken by the owner:** a trainer should be able to record a member's
+measurements. Of the three options I laid out, I implemented the third — a
+narrower permission — rather than the simpler second.
+
+**Why not just grant trainers `members.edit`.** That is one line and it would
+have worked, but `edit` also grants renaming a member and changing their phone
+and email. The ask was measurements; handing over the whole member record
+because it was easier is how permission sets rot.
+
+**So `members.measure` exists**, and trainers hold `members.view` +
+`members.measure` and nothing else new. Verified against the running API: a
+trainer can now POST a measurement (201) and still cannot rename a member
+(403).
+
+**The endpoint accepts `measure` OR `edit`, via a new `@AnyPermissions`.**
+This is the part that took the most care. `measure` is a brand-new code, so no
+existing role carries it — and roles on a live gym are resolved from seeded
+`RolePermission` rows, which `DEFAULT_ROLE_PERMISSIONS` does not govern.
+Swapping the endpoint from `edit` to `measure` outright would have silently
+locked out every owner and manager in production. The OR means the new action
+only ever widens. Confirmed: owner 201, front desk 201, accountant still 403.
+
+`@AnyPermissions` is a separate metadata key, so every route that does not opt
+in keeps the existing all-of behaviour — asserted directly in
+`test/auth/any-permissions.spec.ts`, including the admin-bypass log line that
+previously read only the all-of list.
+
+**UPDATE and DELETE of a measurement stay on `edit`/`delete`.** There is no
+`recorded_by` or `updated_at` on `member_body_stats`, so an amended reading is
+untraceable. A mistyped 175kg is corrected by recording a new measurement,
+which preserves the history — the same append-only shape this codebase already
+uses for expenses.
+
+**Two dead ends worth recording**, because each cost real time:
+1. I first edited `DEFAULT_ROLE_PERMISSIONS` in `common/guards/`. That map is a
+   fallback for the JWT guard; the codes in the login response come from
+   `ENTERPRISE_ROLES` in `auth/rbac-seed.service.ts`. Editing the wrong map
+   changed nothing and looked like the change had failed.
+2. After rebuilding, the old backend process still held port 4002 and my new
+   one lost the race — so I was testing stale code and briefly concluded the
+   fix did not work.

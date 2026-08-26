@@ -8,7 +8,7 @@ import { PermissionsMap } from '../decorators/current-user.decorator';
 export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
   super_admin: {
     dashboard: ['view', 'export'],
-    members: ['view', 'create', 'edit', 'delete', 'export'],
+    members: ['view', 'create', 'edit', 'delete', 'export', 'measure'],
     check_ins: ['view', 'create', 'edit', 'delete', 'export'],
     payments: ['view', 'create', 'edit', 'delete', 'export'],
     classes: ['view', 'create', 'edit', 'delete', 'export'],
@@ -24,7 +24,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
 
   owner: {
     dashboard: ['view', 'export'],
-    members: ['view', 'create', 'edit', 'delete', 'export'],
+    members: ['view', 'create', 'edit', 'delete', 'export', 'measure'],
     check_ins: ['view', 'create', 'edit', 'delete', 'export'],
     payments: ['view', 'create', 'edit', 'delete', 'export'],
     classes: ['view', 'create', 'edit', 'delete', 'export'],
@@ -40,7 +40,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
 
   brand_owner: {
     dashboard: ['view', 'export'],
-    members: ['view', 'create', 'edit', 'delete', 'export'],
+    members: ['view', 'create', 'edit', 'delete', 'export', 'measure'],
     check_ins: ['view', 'create', 'edit', 'delete', 'export'],
     payments: ['view', 'create', 'edit', 'delete', 'export'],
     classes: ['view', 'create', 'edit', 'delete', 'export'],
@@ -56,7 +56,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
 
   regional_manager: {
     dashboard: ['view', 'export'],
-    members: ['view', 'create', 'edit', 'export'],
+    members: ['view', 'create', 'edit', 'export', 'measure'],
     check_ins: ['view', 'create', 'edit', 'export'],
     payments: ['view', 'create', 'edit', 'export'],
     classes: ['view', 'create', 'edit', 'delete', 'export'],
@@ -72,7 +72,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
 
   branch_manager: {
     dashboard: ['view', 'export'],
-    members: ['view', 'create', 'edit', 'export'],
+    members: ['view', 'create', 'edit', 'export', 'measure'],
     check_ins: ['view', 'create', 'edit', 'export'],
     payments: ['view', 'create', 'edit', 'export'],
     classes: ['view', 'create', 'edit', 'delete'],
@@ -89,7 +89,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
   // Legacy alias
   manager: {
     dashboard: ['view', 'export'],
-    members: ['view', 'create', 'edit', 'export'],
+    members: ['view', 'create', 'edit', 'export', 'measure'],
     check_ins: ['view', 'create', 'edit', 'export'],
     payments: ['view', 'create', 'edit', 'export'],
     classes: ['view', 'create', 'edit', 'delete'],
@@ -105,7 +105,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
 
   trainer: {
     dashboard: ['view'],
-    members: ['view'],
+    // 'measure' but NOT 'edit': a trainer records body stats without being
+    // able to rename a member or change their phone number.
+    members: ['view', 'measure'],
     check_ins: ['view', 'create'],
     classes: ['view', 'edit'],
     staff: ['view'],
@@ -117,7 +119,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, PermissionsMap> = {
 
   front_desk: {
     dashboard: ['view'],
-    members: ['view', 'create', 'edit'],
+    members: ['view', 'create', 'edit', 'measure'],
     check_ins: ['view', 'create'],
     payments: ['view', 'create'],
     classes: ['view'],

@@ -50,6 +50,7 @@ export const REAL_PERMISSIONS: Record<string, string[]> = {
     "members.delete",
     "members.edit",
     "members.export",
+    "members.measure",
     "members.view",
     "organizations.create",
     "organizations.delete",
@@ -84,6 +85,7 @@ export const REAL_PERMISSIONS: Record<string, string[]> = {
     "inventory.view",
     "members.create",
     "members.edit",
+    "members.measure",
     "members.view",
     "payments.create",
     "payments.view",
@@ -100,6 +102,7 @@ export const REAL_PERMISSIONS: Record<string, string[]> = {
     "classes.view",
     "dashboard.view",
     "inventory.view",
+    "members.measure",
     "members.view",
     "reports.view",
     "staff.view"

@@ -15,7 +15,18 @@ interface PermissionDef {
 const MODULES_ACTIONS: Record<string, string[]> = {
   dashboard: ['view', 'export'],
   analytics: ['view', 'export'],
-  members: ['view', 'create', 'edit', 'delete', 'export'],
+  /*
+   * `measure` is narrower than `edit` on purpose.
+   *
+   * Recording a member's body stats is a trainer's job, but `members.edit`
+   * also grants renaming a member and changing their phone and email.
+   * Splitting the action lets a trainer take a measurement without being able
+   * to rewrite the member record.
+   *
+   * Owner / brand_owner / super_admin pick this up automatically — they are
+   * granted every code in ALL_PERMISSIONS.
+   */
+  members: ['view', 'create', 'edit', 'delete', 'export', 'measure'],
   check_ins: ['view', 'create', 'edit', 'delete', 'export'],
   payments: ['view', 'create', 'edit', 'delete', 'export'],
   classes: ['view', 'create', 'edit', 'delete', 'export'],
@@ -68,7 +79,7 @@ export const ENTERPRISE_ROLES: Record<string, { description: string; permissions
     permissions: [
       'dashboard.view', 'dashboard.export',
       'analytics.view', 'analytics.export',
-      'members.view', 'members.create', 'members.edit', 'members.export',
+      'members.view', 'members.create', 'members.edit', 'members.export', 'members.measure',
       'check_ins.view', 'check_ins.create', 'check_ins.edit', 'check_ins.export',
       'payments.view', 'payments.create', 'payments.edit', 'payments.export',
       'classes.view', 'classes.create', 'classes.edit', 'classes.delete', 'classes.export',
@@ -88,7 +99,7 @@ export const ENTERPRISE_ROLES: Record<string, { description: string; permissions
     permissions: [
       'dashboard.view', 'dashboard.export',
       'analytics.view', 'analytics.export',
-      'members.view', 'members.create', 'members.edit', 'members.export',
+      'members.view', 'members.create', 'members.edit', 'members.export', 'members.measure',
       'check_ins.view', 'check_ins.create', 'check_ins.edit', 'check_ins.export',
       'payments.view', 'payments.create', 'payments.edit', 'payments.export',
       'classes.view', 'classes.create', 'classes.edit', 'classes.delete',
@@ -111,6 +122,9 @@ export const ENTERPRISE_ROLES: Record<string, { description: string; permissions
       // scoping, so the grant would expose gym-wide revenue to trainers.
       // Trainers get their own scoped surface via /dashboard/trainer-cockpit.
       'members.view',
+      // 'measure' but deliberately NOT 'edit' — a trainer records body stats
+      // without being able to rename a member or change their phone number.
+      'members.measure',
       'check_ins.view', 'check_ins.create',
       'classes.view', 'classes.edit',
       'staff.view',
@@ -124,7 +138,7 @@ export const ENTERPRISE_ROLES: Record<string, { description: string; permissions
     description: 'Front desk — member check-in and basic member management',
     permissions: [
       'dashboard.view',
-      'members.view', 'members.create', 'members.edit',
+      'members.view', 'members.create', 'members.edit', 'members.measure',
       'check_ins.view', 'check_ins.create',
       'payments.view', 'payments.create',
       'classes.view',
