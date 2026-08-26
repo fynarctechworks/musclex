@@ -229,61 +229,86 @@ backdrop behaviour, back-button handling, and date pickers.
 **Not a blocker for an iOS TestFlight.** It becomes one the moment you want
 Android, and it is a day of work plus a build, not a rewrite.
 
-## 8. One thing left: the App Store app record
+## 8. The build is in TestFlight. Two things block submission — both yours.
 
-Everything else is green. Preflight, just run:
+Build **1.0.0 (2)** is uploaded, processed `VALID`, and attached to version
+1.0.0. Metadata, screenshots, categories, age rating, content rights and
+copyright are all applied. `asc validate` is down from 29 blockers to 2.
+
+### ⚠️ FIRST, THE ONE THAT WOULD GET YOU REJECTED
+
+**Apple reviewers cannot sign in.** I tested the production API directly:
 
 ```
-✓ API base URL: https://api.musclex.infynarc.com/api/v1
-✓ EAS projectId: 5ad80e82-7758-4bb2-bfd4-a8c2cd175348
-✓ App icon
-✓ Store metadata valid (0 errors, 0 warnings)
-✓ asc credentials present
-✗ No App Store Connect app for com.infynarc.musclex.staff
+POST https://api.musclex.infynarc.com/api/v1/auth/login
+  owner@mxtest.app  -> 401 Invalid email or password
+  fd@mxtest.app     -> 401 Invalid email or password
 ```
 
-**I cannot create the app record, and it is not a permissions problem.** Apple's
-App Store Connect API has no app-creation endpoint at all — `asc` falls back to
-a **web session**, which needs your Apple ID *password* and a 2FA code from your
-device. That is a credential I should not handle even if you offered it.
+Those accounts only exist in the local seed data. The shipped build points at
+production, so a reviewer opening the app has no way past the sign-in screen —
+that is App Review Guideline **2.1**, and it is the single most common cause of
+a first-submission rejection. It is not caught by `asc validate`, because from
+Apple's side nothing is missing until a human tries to log in.
 
-Two ways, both about a minute:
+**What I need:** a real staff account on the PRODUCTION gym, with a password
+you are happy to put in App Store Connect. It should be an owner or manager so
+the reviewer can see the whole app, and it should belong to a demo gym with
+believable data rather than a live customer's.
 
-**A — in the browser.** App Store Connect → Apps → **+** → New App:
+Note it must also survive review: do not delete it after submitting, and if 2FA
+is on for it, either turn that off or Apple will be stuck at the code screen.
 
-| Field | Value |
-|---|---|
-| Platform | iOS |
-| Name | `MuscleX Staff` |
-| Primary language | English (U.S.) |
-| Bundle ID | `com.infynarc.musclex.staff` — already registered, pick it from the list |
-| SKU | `musclexstaff001` (internal only, never shown to anyone) |
-| User access | Full Access |
+### The two formal blockers
 
-**B — from the terminal**, which will prompt for your password securely:
+1. **App Review details** — first name, last name, phone, email, plus the demo
+   credentials above. Apple contacts this person if review has a question.
+2. **Pricing and Availability** — which territories, and free vs paid. A
+   business decision, not a technical one. For a staff companion app the usual
+   answer is "free, all territories".
+
+Both live in App Store Connect. Give me the details and I can set them via
+`asc`, or do them in the UI — they are two short forms.
+
+### One thing to confirm by eye
+
+`asc` reports **App Privacy publish state is not verifiable** through the public
+API. The privacy *policy URL* is set; what it cannot see is whether the App
+Privacy **questionnaire** ("what data does your app collect") is published.
+Check App Store Connect → App Privacy. Based on what the apps actually do, the
+answers are: contact info and identifiers **linked to the user**, used for App
+Functionality only, and **no tracking**.
+
+### Then
 
 ```bash
 cd staff-app
-asc web apps create --name "MuscleX Staff" \
-  --bundle-id com.infynarc.musclex.staff --sku musclexstaff001
+npm run release:submit             # dry run, shows the plan
+npm run release:submit -- --confirm  # submits for review
 ```
 
-One thing that can bite: **the app name must be unique across the whole App
-Store**. If "MuscleX Staff" is taken, Apple rejects it — "MuscleX for Gyms" or
-"MuscleX Staff App" are the usual fallbacks. The *display* name under the icon
-comes from `app.json`, not from this, so a longer store name costs nothing on
-the home screen.
+I have deliberately not run the second one.
 
-Tell me when it exists and I will run the build, upload to TestFlight and stop
-at the submission gate.
+### What I did without you
 
-### Already confirmed with your key
-
-- **Bundle ID is registered** (`AR96L46NVV`) — EAS created it during the first
-  build attempt.
-- **Push Notifications capability is already enabled on it**, which is the last
-  thing the push work was waiting on. A real signed build will get the
-  `aps-environment` entitlement and mint a token; the simulator could not.
+- Built `1.0.0 (2)` on EAS (credentials were already in place — distribution
+  cert valid to Aug 2027, team `64FS75NJV9`).
+- Uploaded to App Store Connect with `asc builds upload`. **EAS submit could
+  not do it**: it wants its own copy of the API key and refuses to configure
+  one non-interactively. `asc` already had the key, so it went that way.
+- Fixed a version mismatch that would have blocked submission — Apple created
+  the version record as **1.0** while the build reports **1.0.0**, and those
+  must match.
+- Removed `whatsNew` from the metadata. Apple rejects release notes on a first
+  version, which is what "the request cannot be fulfilled because of the state
+  of another resource" meant.
+- Set categories **Business** / **Health & Fitness**, content rights
+  "does not use third-party content", copyright "2026 FYNARCTECHWORKS PVT LTD".
+- **Age rating**: everything none/false except **health or wellness topics =
+  true**, because the app shows member body measurements and training data.
+  That is a legal attestation in your name — please sanity-check it. I set
+  messaging/chat false and user-generated content false, since the staff app
+  has neither (both live in the member app).
 
 ## 9. ~~A production build has nowhere to send API calls~~ — resolved
 

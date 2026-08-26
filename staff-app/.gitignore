@@ -48,3 +48,6 @@ dist/
 # Local tooling venvs (idb client)
 .tools/
 .expo-export/
+
+# asc metadata review artifacts — a local approval record, not source
+.asc/
