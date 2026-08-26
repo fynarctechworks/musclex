@@ -235,29 +235,48 @@ Build **1.0.0 (2)** is uploaded, processed `VALID`, and attached to version
 1.0.0. Metadata, screenshots, categories, age rating, content rights and
 copyright are all applied. `asc validate` is down from 29 blockers to 2.
 
-### ⚠️ FIRST, THE ONE THAT WOULD GET YOU REJECTED
+### ✅ Demo account for App Review — created and verified
 
-**Apple reviewers cannot sign in.** I tested the production API directly:
+Paste these into App Store Connect → App Review Information → **Sign-In
+Information**:
 
-```
-POST https://api.musclex.infynarc.com/api/v1/auth/login
-  owner@mxtest.app  -> 401 Invalid email or password
-  fd@mxtest.app     -> 401 Invalid email or password
-```
+| Field | Value |
+|---|---|
+| Username | `appreview@musclex.infynarc.com` |
+| Password | `AppReview2026!MX` |
 
-Those accounts only exist in the local seed data. The shipped build points at
-production, so a reviewer opening the app has no way past the sign-in screen —
-that is App Review Guideline **2.1**, and it is the single most common cause of
-a first-submission rejection. It is not caught by `asc validate`, because from
-Apple's side nothing is missing until a human tries to log in.
+Verified against the **production** API, not locally: sign-in returns a session,
+role `owner`, **no 2FA**, and **no gym-picker step** — so the reviewer lands
+straight on the dashboard with nothing to guess at.
 
-**What I need:** a real staff account on the PRODUCTION gym, with a password
-you are happy to put in App Store Connect. It should be an owner or manager so
-the reviewer can see the whole app, and it should belong to a demo gym with
-believable data rather than a live customer's.
+**It is its own gym, not yours.** I created a separate studio, *MuscleX Demo
+Gym* (`a6dbd20a-4d7a-4008-82e3-c7576db06276`), with its own Postgres schema. A
+reviewer poking around cannot see or change anything in *Mama*, which is your
+account. There are no paying customers in production yet, so nothing else was
+exposed either.
 
-Note it must also survive review: do not delete it after submitting, and if 2FA
-is on for it, either turn that off or Apple will be stuck at the code screen.
+It is not an empty shell — an app with no content is itself a rejection risk:
+
+- 1 branch, 3 membership plans (Monthly ₹1,500 / Quarterly ₹4,000 / Annual ₹14,000)
+- 8 members with active memberships
+- 6 check-ins recorded
+
+Everything was created **through the app's own API**, not by writing rows —
+including the email verification, which used the real token from
+`pending_registrations` rather than flipping a flag. So the account went through
+the same path a real gym does.
+
+**Two things to leave alone:**
+
+- Do not enable 2FA on this account. Review would stall at the code screen.
+- Do not delete it after submitting. Apple re-checks on updates, and a dead
+  demo account fails the next review too.
+
+One cosmetic note: onboarding stops at the `payment` step, because that step
+cannot be skipped without a card. It does not affect the staff app — that app
+is login-only and never shows onboarding — and every API call the app makes
+returns 200. If you ever open this gym in the **web** app, expect it to nudge
+you toward the payment step.
 
 ### Pricing and availability — done
 
