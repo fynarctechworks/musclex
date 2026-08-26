@@ -451,3 +451,35 @@ from ₹0 to ₹4.5k and the month from 4 to 5 entries.**
   and broke a different step. Coarser steps trade one miss for another.
 - I twice concluded a feature was broken when the harness had tapped the wrong
   x — Dialog and Popover share a row.
+
+59. **Reports** — replaced the Phase 8 placeholder with the accountant's month:
+    revenue, MRR, average member value, refunds, and a branch P&L with expense
+    breakdown.
+60. **Inventory** — stock levels with out-of-stock / low / untracked
+    distinguished. "Untracked" is a setup gap, not a sold-out product; the two
+    reading the same is what made the POS failure slow to diagnose.
+61. **Found and reported F-5** — the dashboard KPI inspector reads
+    `studio_template` instead of the caller's gym. Reported rather than fixed:
+    it is gym scoping, which hard-gate #2 reserves for you.
+
+**Tests: 339 staff-app (33 suites) · 895 backend · tsc clean · `verify:ui` PASS.**
+
+### Phase 8 scorecard
+
+| Item | State |
+|---|---|
+| Payments (Money) | **DONE** — and a real status bug fixed |
+| Expenses + categories | **DONE** |
+| Reports | **DONE** |
+| Inventory (view) | **DONE** |
+| Dues | **BLOCKED** — the only metric that reports it reads the wrong schema (F-5) |
+| Invoices / refunds list | not built — no data path worth verifying yet |
+| Receipt camera on expenses | not built |
+
+### On the dues tile I did not build
+
+Three pending invoices worth ₹22,400 exist in the seeded gym. `GET /invoices`
+returns all three. The dashboard metric returns zero, because it reads
+`studio_template`. I could have shipped a tile that renders ₹0 and looks
+finished — a number on screen that I know is read from the wrong place is worse
+than an absent one, so it is in `TODO_FOR_ME.md` item 10 instead.
