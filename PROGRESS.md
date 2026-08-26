@@ -417,3 +417,37 @@ case, and I verified the permission sets rather than assuming them.
 But it means a trainer currently cannot record a measurement, author a plan, or
 settle their own PT session. Whether that is right is a business decision, now
 `TODO_FOR_ME.md` item 7.
+
+## Phase 8 started — accountant train
+
+55. **Fixed: Money filtered on a payment status that does not exist.** The
+    screen used `status=completed`; the canonical set is
+    `pending|paid|refunded|failed`. It looked right only because my seed data
+    used the same invented value — fixing the seeder silently broke the screen
+    (0 of 30 payments, every real one warning-tinted).
+56. **Fixed: sheets rendered where they were written.** The branch switcher's
+    sheet appeared clipped at the top of the dashboard and its list was
+    unreachable. `Sheet` now portals to the app root.
+57. **Fixed the harness's scrolling** — it flicked and overshot by ~1000pt,
+    which is what broke the Dialog step after the previous "fix".
+58. **Expenses** — list, today/month tiles, category breakdown data, and
+    recording. Test data created through the public API.
+
+**Tests: 320 staff-app (31 suites) · 895 backend · tsc clean · `verify:ui` PASS.**
+
+### Verified on device as the accountant
+
+Role-adaptive nav (no Check-in, no Schedule, but Reports) · branch switcher
+opening correctly after the fix · Expenses list with lakh grouping · tiles
+reading ₹2.5L for the month, matching the API · **recording ₹4,500 moved TODAY
+from ₹0 to ₹4.5k and the month from 4 to 5 entries.**
+
+### Three mistakes worth recording
+
+- I put an early return above a `useCallback` and crashed the screen. The
+  simulator displayed the exact React error; I only saw it once I stopped
+  reading harness output and looked at the screen.
+- I "fixed" the harness earlier by widening its swipe, which made it overshoot
+  and broke a different step. Coarser steps trade one miss for another.
+- I twice concluded a feature was broken when the harness had tapped the wrong
+  x — Dialog and Popover share a row.
