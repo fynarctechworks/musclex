@@ -67,33 +67,7 @@ but they have never met a real camera firing ten events a second.
 a member's code once. If it checks them in and a second scan of the same code
 is ignored for a few seconds, the feature is done.
 
-## 7. Should a trainer be able to record measurements? (permissions question)
-
-Recording body stats requires `members.edit`. The seeded **trainer** role has
-`members.view` only, so:
-
-- the "Record measurements" button is correctly hidden from them in the app, and
-- the backend would reject the write anyway (`POST /members/:id/body-stats` is
-  `@Permissions({ module: 'members', action: 'edit' })`).
-
-The app is consistent with the server here — this is not a bug. But a trainer is
-arguably the person who *should* be taking a member's measurements, and right
-now only roles with full member-edit rights can. Granting `members.edit` to
-trainers would also let them change names, phones and emails, which may not be
-what you want.
-
-**The options**, none of which I should pick for you:
-1. Leave it — measurements are recorded by a manager/owner.
-2. Grant trainers `members.edit` (wider than measurements).
-3. Split a narrower permission (e.g. `members.measure`) — a backend change to
-   the permission set, which is gated anyway.
-
-**Verified:** the write path itself works — `POST` with the exact payload the
-app sends was accepted, and unfilled fields correctly stored as null rather
-than 0. What is *not* verified on device is the button, because no role I was
-signed in as can see it.
-
-## 8. AI advisor needs an LLM API key
+## 7. AI advisor needs an LLM API key
 
 `POST /api/v1/ai/chat` returns **500** in this environment. Neither
 `ANTHROPIC_API_KEY` nor `OPENAI_API_KEY` is set in `backend/.env`, and the
@@ -110,7 +84,7 @@ reachable as soon as a key exists.
 
 **What I need:** a key in `backend/.env`, then this is roughly a day of work.
 
-## 9. Phase 7 (push notifications) needs a schema decision
+## 8. Phase 7 (push notifications) needs a schema decision
 
 The plan marks Phase 7 as **"DB schema → approval"**, and `CLAUDE.md` hard-gate
 #1 puts any migration behind your explicit go-ahead. Staff push needs somewhere
@@ -128,7 +102,7 @@ query cache on workspace switch, so a device-token table has to be cleared on
 those paths too — otherwise a staffer who signs out keeps receiving another
 gym's notifications on that handset.
 
-## 10. Dashboard KPI inspector reads the wrong schema (needs your go-ahead)
+## 9. Dashboard KPI inspector reads the wrong schema (needs your go-ahead)
 
 `dashboard/kpi-inspector.service.ts` injects the **raw** `PrismaService` and
 queries tenant models with it. Tenant models are `@@schema("studio_template")`,
@@ -157,7 +131,7 @@ Full evidence in `docs/SECURITY_FINDINGS_2026-08-26.md` F-5.
 that reports dues is this one, and putting a number on screen that I know reads
 the wrong schema would be worse than leaving it off.
 
-## 11. Two small clean-ups the isolation work surfaced
+## 10. Two small clean-ups the isolation work surfaced
 
 Neither blocks anything; both are yours to call because they touch tenant code.
 
@@ -180,7 +154,7 @@ Worth correcting before somebody relies on the comment.
 tenant-isolation suite could sit broken while CI stayed green — worth wiring
 `test:e2e` into whatever runs on push.
 
-## 12. Sentry (or another crash reporter) — a new dependency
+## 11. Sentry (or another crash reporter) — a new dependency
 
 Phase 12 lists Sentry. It is a new package plus a native module, which
 hard-gate #3 and #4 both cover, so I have not added it.
@@ -196,7 +170,7 @@ monorepo's dependency tree — `jest.config` references `@sentry/react-native` i
 
 **What I need:** approval for the package and a DSN.
 
-## 13. Android is entirely unverified
+## 12. Android is entirely unverified
 
 The plan is iOS-first and that is what I built and tested. Everything verified
 this session was on an iOS simulator. The app has **never been run on
@@ -211,7 +185,15 @@ backdrop behaviour, back-button handling, and date pickers.
 **Not a blocker for an iOS TestFlight.** It becomes one the moment you want
 Android, and it is a day of work plus a build, not a rewrite.
 
-## RESOLVED since you approved the dependencies
+## RESOLVED
+
+- **Trainers can record measurements** (was item 7). You chose it; implemented
+  as a NARROW new permission `members.measure` rather than granting
+  `members.edit`, so a trainer records body stats without gaining the right to
+  rename members or change their phone numbers. Verified per role against the
+  running API and on device. See DECISIONS.md.
+
+### Earlier, since you approved the dependencies
 
 These no longer need you. Kept as a record of what changed.
 

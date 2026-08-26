@@ -705,3 +705,13 @@ None of those are caught by more unit tests. They were caught by running the
 thing against real data and reading what came back — which is why four
 harnesses exist now, and why the numbers above are ones I checked in the
 database rather than read off a screen.
+
+76. **Trainers can record measurements** (TODO item 7, your decision).
+    Implemented as a new NARROW permission `members.measure` rather than
+    granting `members.edit` — a trainer records body stats without gaining the
+    right to rename a member or change their phone number. The endpoint accepts
+    `measure` OR `edit` through a new `@AnyPermissions`, so no existing role
+    lost access. Verified per role against the API and on device.
+77. **Fixed: the Marketing TAB was still a placeholder** while Leads lived
+    elsewhere — a marketing manager would have seen "Not built yet" for a
+    screen that exists.
