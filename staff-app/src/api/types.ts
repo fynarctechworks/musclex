@@ -423,3 +423,26 @@ export type StudioSettings = {
   phone_verified?: boolean;
   gstin?: string | null;
 };
+
+/** A prospective member. */
+export type Lead = {
+  id: string;
+  full_name: string;
+  /** website | instagram | facebook_ads | walk_in | referral | google_ads | phone | whatsapp | other */
+  lead_source?: string | null;
+  /** new | contacted | trial_scheduled | converted | lost */
+  status?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  notes?: string | null;
+  created_at?: string | null;
+  assigned_staff_id?: string | null;
+};
+
+export type LeadFunnel = {
+  total_leads: number;
+  by_status: Record<string, number>;
+  by_source: Record<string, number>;
+  conversion_rate: number;
+  funnel?: Record<string, number>;
+};

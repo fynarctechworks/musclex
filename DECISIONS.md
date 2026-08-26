@@ -886,3 +886,31 @@ refetch cannot overwrite what the owner is halfway through typing.
 
 Verified on device: set the gym phone to 9810000123, saved, confirmed in the
 API — phone written, name untouched.
+
+## 2026-08-26 — Marketing = leads, not campaigns (Phase 9)
+
+**Leads, deliberately not campaigns.** A campaign is authored at a desk —
+audiences, copy, scheduling — while a LEAD is chased on a phone between other
+jobs, which is what this device is for. Campaign management stays on the web,
+and the plan's Phase 9 scope is narrowed accordingly rather than half-ported.
+
+**The default view is "Open" (new + contacted).** A list that leads with the
+ones already converted or lost is a report; this is a work queue.
+
+**`converted` is NEVER settable from here.** The API has a dedicated
+`POST /leads/:id/convert` that creates the member record. Flipping the status
+alone would mark somebody joined with no membership behind them — the funnel
+would look healthy and the gym would have gained nobody. So the row offers only
+the NEXT step (new → contacted → trial booked) and stops.
+
+**`lost` is neutral-toned, not red.** Most leads are lost — that is what a
+funnel is — and painting the common case as an error makes the list read as a
+wall of failures rather than a work queue.
+
+**Status filters go to the SERVER**, except "Open", which is two statuses and
+is narrowed client-side from an unfiltered fetch. A gym can have thousands of
+leads, and downloading them all to hide most is the habit that makes a list
+slow on the phones staff carry.
+
+Verified on device and in the API: advanced Sneha Iyer new → contacted, and the
+funnel recomputed.

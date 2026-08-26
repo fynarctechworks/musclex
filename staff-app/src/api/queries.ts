@@ -4,7 +4,7 @@ import { api } from '@/api/client';
 import { buildCheckInBody, type CheckInInput } from '@/api/checkin-payload';
 import { toLocalISODate } from '@/lib/format';
 import type {
-  ActivityItem, BodyStats, Branch, Expense, FinanceDashboard, MonthlyReport, Exercise, ExpenseSummary, ExpenseCategory, DashboardAlert, DashboardKpis, DashboardPulse, Member, MembershipPlan,
+  ActivityItem, BodyStats, Branch, Expense, FinanceDashboard, MonthlyReport, Exercise, ExpenseSummary, ExpenseCategory, DashboardAlert, DashboardKpis, DashboardPulse, Lead, LeadFunnel, Member, MembershipPlan,
   ClassSession, MemberDetail, Paginated, Payment, Product, StaffRow, StudioSettings, Visit, TrainerSession, WorkoutPlan,
   SessionAttendance,
   SessionRoster,
@@ -439,6 +439,51 @@ export function useExpenseCategories() {
     queryKey: ['expense-categories'],
     staleTime: 10 * 60 * 1000,
     queryFn: () => api.get<ExpenseCategory[]>('/expense-categories'),
+  });
+}
+
+/**
+ * Leads — people who have not joined yet.
+ *
+ * Status is sent to the SERVER rather than filtered here: a gym can have
+ * thousands of leads, and "fetch everything then hide most of it" is the habit
+ * that makes a list slow on the phones staff actually carry.
+ */
+export function useLeads(params: { status?: string; limit?: number } = {}) {
+  const { status, limit = 50 } = params;
+  return useQuery({
+    queryKey: ['leads', status ?? 'all', limit],
+    queryFn: () =>
+      api.get<Paginated<Lead>>('/leads', {
+        params: { limit, ...(status ? { status } : {}) },
+      }),
+  });
+}
+
+export function useLeadFunnel() {
+  return useQuery({
+    queryKey: ['lead-funnel'],
+    queryFn: () => api.get<LeadFunnel>('/leads/funnel'),
+  });
+}
+
+/**
+ * Move a lead along the funnel.
+ *
+ * `converted` is deliberately NOT settable here. The API has a dedicated
+ * `POST /leads/:id/convert` that creates the member record; flipping the
+ * status alone would mark somebody converted with no membership behind it —
+ * the funnel would look healthy and the gym would have gained nobody.
+ */
+export function useUpdateLeadStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      api.patch<Lead>(`/leads/${id}`, { status }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['leads'] });
+      void qc.invalidateQueries({ queryKey: ['lead-funnel'] });
+    },
   });
 }
 

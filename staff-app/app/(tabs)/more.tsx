@@ -65,7 +65,7 @@ export const ENTRIES: Entry[] = [
   // staff.edit and is gated inside the screen.
   { href: '/pt-sessions', label: 'PT sessions', icon: HeartPulse, module: 'staff', phase: '' },
   { href: '/more/staff',      label: 'Staff',        icon: UserCog,   module: 'staff',     feature: 'staff_management',    phase: '' },
-  { href: '/more/marketing',  label: 'Marketing',    icon: Megaphone, module: 'marketing', feature: 'marketing_campaigns', phase: 'Phase 9' },
+  { href: '/more/marketing',  label: 'Leads',        icon: Megaphone, module: 'marketing', feature: 'marketing_campaigns', phase: '' },
   { href: '/more/inventory',  label: 'Inventory',    icon: Package,   module: 'inventory', phase: '' },
   { href: '/more/expenses',   label: 'Expenses',     icon: Receipt,   module: 'payments',  phase: '' },
   // Points at the REAL tab route, not a '/more/reports' that never existed.
