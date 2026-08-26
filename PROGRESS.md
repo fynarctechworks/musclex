@@ -359,3 +359,26 @@ physical device, 2FA/multi-workspace unverified, login returning no
 - staff-app Metro must run on **port 8083** (`npx expo start --port 8083`).
   member-app owns 8081, and the staff dev client will happily load member-app's
   bundle if pointed at it — that cost me a confused ten minutes.
+
+## Phase 6 continued
+
+48. **Class bookings from the register** — book a walk-in (search), remove a
+    booking (swipe). Verified in SQL: booked 3 → 4 with `enrolled_count`
+    incremented atomically, then cancelled back to 3 as a soft delete.
+49. **Member progress & measurements** — weight chart, latest-plus-change per
+    metric, record new measurements. Reached from the member page.
+50. **Seeder records measurement history** for a third of members, drifting in
+    a plausible direction.
+51. **Metro moved to the default port 8081** now that member-app's server is
+    stopped — removes the wrong-bundle footgun entirely.
+
+**Tests: 286 staff-app (29 suites) · 895 backend · tsc clean · `verify:ui` passing.**
+
+### Honest note on what is verified for measurements
+
+The READ path is verified on device (Neha Patel, 6 readings, Mar → Aug, tints
+correct). The WRITE button is gated on `members.edit`, which the trainer role
+does not have — correctly, since the backend requires the same permission. So
+the write was verified **at the API with the exact payload the app sends**, not
+by tapping it. That is a real gap in the device coverage and it is a
+permissions question, now item 7 in `TODO_FOR_ME.md`.

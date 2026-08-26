@@ -67,6 +67,32 @@ but they have never met a real camera firing ten events a second.
 a member's code once. If it checks them in and a second scan of the same code
 is ignored for a few seconds, the feature is done.
 
+## 7. Should a trainer be able to record measurements? (permissions question)
+
+Recording body stats requires `members.edit`. The seeded **trainer** role has
+`members.view` only, so:
+
+- the "Record measurements" button is correctly hidden from them in the app, and
+- the backend would reject the write anyway (`POST /members/:id/body-stats` is
+  `@Permissions({ module: 'members', action: 'edit' })`).
+
+The app is consistent with the server here — this is not a bug. But a trainer is
+arguably the person who *should* be taking a member's measurements, and right
+now only roles with full member-edit rights can. Granting `members.edit` to
+trainers would also let them change names, phones and emails, which may not be
+what you want.
+
+**The options**, none of which I should pick for you:
+1. Leave it — measurements are recorded by a manager/owner.
+2. Grant trainers `members.edit` (wider than measurements).
+3. Split a narrower permission (e.g. `members.measure`) — a backend change to
+   the permission set, which is gated anyway.
+
+**Verified:** the write path itself works — `POST` with the exact payload the
+app sends was accepted, and unfilled fields correctly stored as null rather
+than 0. What is *not* verified on device is the button, because no role I was
+signed in as can see it.
+
 ## RESOLVED since you approved the dependencies
 
 These no longer need you. Kept as a record of what changed.
