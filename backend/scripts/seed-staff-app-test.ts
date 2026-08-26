@@ -214,8 +214,14 @@ async function main() {
       const paid = i % 4 !== 0;
       if (paid) {
         await db.query(
+          // 'paid' — NOT 'completed'. Every revenue query in the backend
+          // (dashboard KPIs, financial reports, billing) filters on
+          // status='paid', so a seeded 'completed' row is invisible to all of
+          // them and the test gym reports zero revenue while clearly holding
+          // thirty payments. 'completed' is not a payment status this system
+          // has; the set is pending | paid | refunded | failed.
           `INSERT INTO ${SCHEMA}.payments (id, gym_id, member_id, membership_id, branch_id, amount, currency, payment_method, status, receipt_number, paid_at)
-           VALUES ($1,$2,$3,$4,$5,$6,'INR',$7,'completed',$8,$9)`,
+           VALUES ($1,$2,$3,$4,$5,$6,'INR',$7,'paid',$8,$9)`,
           [randomUUID(), GYM_ID, memberId, membershipId, BRANCH_ID, plan.price,
            pick(['cash', 'card', 'upi']), `RCPT-${1000 + i}`, start.toISOString()],
         );

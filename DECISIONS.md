@@ -299,3 +299,22 @@ there.
 the phone up", which correlates with walking back into range and costs nothing
 while the phone sits on the counter. Proper connectivity detection needs
 NetInfo, which is not an approved dependency.
+
+## 2026-08-26 — Seeder wrote a payment status that does not exist
+
+The test gym's dashboard showed **Revenue this month ₹0** while holding thirty
+payments. Not an app bug and not a backend bug: my seeder wrote
+`status = 'completed'`, and every revenue query in the system — dashboard KPIs,
+financial reports, billing — filters on `status = 'paid'`.
+
+`'completed'` is not a payment status this system has. The set is
+`pending | paid | refunded | failed`, and `'completed'` appears nowhere in
+`backend/src/payments`. Every other gym in the database uses `'paid'`.
+
+Fixed in the seeder, and the thirty existing rows corrected in place (scoped to
+the test gym's own schema, behind the same name guard the seeder uses) rather
+than re-seeding, which would have truncated the check-ins recorded since.
+
+Worth recording as a pattern: seed data that uses a value the product never
+produces makes the product look broken. The dashboard was correct the whole
+time. I nearly went looking for the bug in the KPI query.

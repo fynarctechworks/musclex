@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# Tap the first on-screen element whose accessibility label CONTAINS $1.
+# Tap the on-screen element whose accessibility label matches $1.
+#
+# An EXACT label match always wins over a substring one. This is not a nicety:
+# matching "Allow" by substring picks "Don't Allow" if it comes first in the
+# tree, which is how a camera-permission prompt got silently denied and then
+# misread as an app bug.
 #
 #   scripts/tap-label.sh "Members, tab"
 #
@@ -16,14 +21,26 @@ import json, sys
 want = sys.argv[1].lower()
 try: els = json.load(sys.stdin)
 except Exception: sys.exit(0)
+exact, partial = [], []
 for e in els:
-    lab = (e.get('AXLabel') or '').lower()
+    lab = (e.get('AXLabel') or '').strip()
     f = e.get('frame') or {}
-    if want in lab and f:
-        y = f['y'] + f['height'] / 2
-        # Skip anything off-screen: it reports a real frame but will not respond.
-        if 0 <= y <= 900:
-            print(int(f['x'] + f['width'] / 2), int(y)); break
+    if not lab or not f:
+        continue
+    y = f['y'] + f['height'] / 2
+    # Skip anything off-screen: it reports a real frame but will not respond.
+    if not (0 <= y <= 900):
+        continue
+    point = (int(f['x'] + f['width'] / 2), int(y))
+    low = lab.lower()
+    if low == want:
+        exact.append(point)
+    elif want in low:
+        partial.append(point)
+
+hit = (exact or partial)
+if hit:
+    print(hit[0][0], hit[0][1])
 " "$WANT") || true
 
 if [ -z "${X:-}" ]; then echo "no visible element matching '$WANT'" >&2; exit 1; fi
