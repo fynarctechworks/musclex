@@ -74,7 +74,12 @@ unchanged.
    Connect API, App Manager role. Gives a `.p8` (downloadable once), a Key ID
    and an Issuer ID. Then:
    `asc auth login --name musclex --key-id KEY --issuer-id ISSUER --private-key AuthKey.p8`
-2. **The app record** for `com.infynarc.musclex.staff` — it does not exist yet.
+2. **The app record** for `com.infynarc.musclex.staff` — it does not exist yet,
+   and **the API key cannot create it**. Apple's App Store Connect API has no
+   app-creation endpoint, so `asc web apps create` falls back to a web session
+   needing your Apple ID password and a 2FA code. Either run that yourself (it
+   prompts securely) or create it in the App Store Connect UI. Everything after
+   this point runs on the API key alone.
 3. **Production API URL** in `eas.json` for the `production` (and `preview`)
    profile.
 4. **App icon** (1024×1024, no alpha) and splash.
