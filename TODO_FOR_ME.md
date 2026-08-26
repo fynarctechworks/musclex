@@ -21,15 +21,24 @@ group have not been set up from here — that needs your account.
 
 **Blocked:** Phase 5 testing by anyone but the developer.
 
-## 3. 2FA and multi-workspace paths are unverified
+## 3. Two auth paths still need a human pass
 
-The seeded test accounts have neither 2FA enabled nor membership of more than
-one studio, so `app/(auth)/two-factor.tsx` and `app/(auth)/workspace.tsx` are
-built and unit-tested but have never run against the real API.
+**2FA: the API is now verified, the SCREEN is not.** I drove the whole server
+flow with real TOTP codes — enrol, challenge, step-2, wrong-code rejection —
+and confirmed the important property: a challenged login returns a temp token
+and **no access token**. Details in DECISIONS.md.
 
-**Blocked:** end-to-end verification of those two screens.
-**Workaround:** left as-is; the logic follows the backend contract exactly
-(`/auth/2fa/login` takes a camelCase `tempToken`).
+What I did not do is drive `app/(auth)/two-factor.tsx` on the device, because
+that means leaving a seeded account in a 2FA state while the simulator is
+driven through it, and I would rather not hand back a fixture in a state you
+did not ask for. **One manual pass** would close it: enable 2FA on a test
+account, sign in on the phone, confirm the code screen accepts a real code and
+rejects a wrong one.
+
+**Multi-workspace is still entirely unverified.** It needs one user holding
+roles in two studios, which the seeder does not create. Say the word and I will
+extend the seeder to make a second gym and a dual-membership account — it is
+the only way to exercise `/auth/select-workspace` and the workspace picker.
 
 ## 4. Unscoped referral reporting endpoints (product question)
 

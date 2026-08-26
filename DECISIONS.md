@@ -1032,3 +1032,37 @@ match.
 Verified end to end: login returns a refresh token, `POST /auth/refresh`
 exchanges it for a new session, and `/members` still contains no occurrence of
 the field.
+
+## 2026-08-26 — 2FA verified end to end against the API (TODO item 3, partly closed)
+
+Previously listed as unverified. Verified with real TOTP codes (the repo
+already has `speakeasy`), against the running backend, using the accountant
+account:
+
+| Step | Result |
+|---|---|
+| Plain login | 201, `requires_2fa: false` |
+| `POST /auth/2fa/setup` | 201 — QR, manual key and otpauth URL |
+| `POST /auth/2fa/verify` with a real code | 201 — **8 backup codes** |
+| Login again | 201, `requires_2fa: true`, `temp_token` issued |
+| — and **no `access_token` in that response** | **confirmed absent** |
+| `POST /auth/2fa/login` step 2 | 201, access **and** refresh token |
+| Step 2 with a wrong code | **401** |
+
+The line that matters most is the middle one: a challenged login must not hand
+back a usable session, or the second factor is decoration. It does not.
+
+**The account was restored to password-only afterwards.** My first attempt to
+disable it failed — `/auth/2fa/disable` takes the **password**, not a TOTP
+code, and I sent a code (400). The retry then failed too because
+`two_factor_secret` is AES-encrypted at rest, so a code minted from the raw
+column is meaningless (401) — which is correct and reassuring. The fixture was
+restored with a guarded single-row update.
+
+**Still unverified: the app's 2FA SCREEN.** The API contract is proven; what I
+have not driven is `app/(auth)/two-factor.tsx` on the device, because doing so
+means leaving a seeded account in a 2FA state while the simulator is driven
+through it. Worth one manual pass — noted in TODO_FOR_ME.
+
+**Multi-workspace remains unverified**: it needs one user holding roles in two
+studios, which the seeder does not create.
