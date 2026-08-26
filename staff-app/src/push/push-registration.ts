@@ -1,8 +1,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
-
 import { api } from '@/api/client';
+import { getNotifications } from '@/push/notifications-module';
 import { reportHandled } from '@/observability/sentry';
 
 /**
@@ -43,6 +42,10 @@ function projectId(): string | undefined {
 async function acquireToken(): Promise<string | null> {
   try {
     if (Platform.OS === 'web') return null;
+
+    // Missing on any build made before expo-notifications was added.
+    const Notifications = getNotifications();
+    if (!Notifications) return null;
 
     const existing = await Notifications.getPermissionsAsync();
     let granted = existing.granted;

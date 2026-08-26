@@ -1,8 +1,10 @@
 /** Deep links from a push payload are untrusted input. */
-jest.mock('expo-notifications', () => ({
-  setNotificationHandler: jest.fn(),
-  getLastNotificationResponseAsync: jest.fn().mockResolvedValue(null),
-  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+jest.mock('@/push/notifications-module', () => ({
+  getNotifications: () => ({
+    setNotificationHandler: jest.fn(),
+    getLastNotificationResponseAsync: jest.fn().mockResolvedValue(null),
+    addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  }),
 }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 

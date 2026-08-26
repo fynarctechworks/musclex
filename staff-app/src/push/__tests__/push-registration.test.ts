@@ -12,12 +12,18 @@ jest.mock('expo-constants', () => ({
 const mockGetPermissions = jest.fn();
 const mockRequestPermissions = jest.fn();
 const mockGetToken = jest.fn();
-jest.mock('expo-notifications', () => ({
+const mockNotificationsModule = {
   getPermissionsAsync: (...a: unknown[]) => mockGetPermissions(...a),
   requestPermissionsAsync: (...a: unknown[]) => mockRequestPermissions(...a),
   getExpoPushTokenAsync: (...a: unknown[]) => mockGetToken(...a),
   setNotificationChannelAsync: jest.fn(),
   AndroidImportance: { DEFAULT: 3 },
+};
+/** null models a build without the native module — see notifications-module.ts. */
+let mockAvailableModule: unknown = mockNotificationsModule;
+jest.mock('@/push/notifications-module', () => ({
+  getNotifications: () => mockAvailableModule,
+  __resetNotificationsModule: jest.fn(),
 }));
 
 const mockPost = jest.fn();
@@ -37,6 +43,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   __resetPushRegistration();
   Platform.OS = 'ios';
+  mockAvailableModule = mockNotificationsModule;
   mockGetPermissions.mockResolvedValue({ granted: true, canAskAgain: true });
   mockGetToken.mockResolvedValue({ data: TOKEN });
   mockPost.mockResolvedValue({ registered: true });
@@ -82,6 +89,12 @@ describe('registerForPush', () => {
     expect(a).toBe(TOKEN);
     expect(b).toBe(TOKEN);
     expect(mockGetToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('does nothing on a build without the native module — never a red screen', async () => {
+    mockAvailableModule = null;
+    await expect(registerForPush()).resolves.toBeNull();
+    expect(mockPost).not.toHaveBeenCalled();
   });
 
   it('keeps the OS token when the server call fails, so sign-out can still clear it', async () => {

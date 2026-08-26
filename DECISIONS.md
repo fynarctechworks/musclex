@@ -1212,6 +1212,36 @@ cross-tenant leak, three things guard it:
   details that decide whether a notification lands — the `ExponentPushToken[`
   filter, Expo's 100-per-request chunking, reading tickets back — cannot drift.
 
+### expo-notifications is loaded defensively, and here is what that is worth
+
+A bare `import * as Notifications from 'expo-notifications'` throws at MODULE
+LOAD time when the native module is missing — before any try/catch inside a
+function can help. Because the import chain reaches the root layout, that throw
+is not a degraded push feature: it is a full-screen red error instead of an app.
+On the dev build that predates the dependency I measured 63 such errors and a
+red screen.
+
+A guarded `require` brings it to 2. Not 0 — the remaining pair are thrown
+*asynchronously* from inside expo-notifications' own initialisation, which a
+synchronous catch cannot reach. So the guard contains the failure to push code
+paths and lets `getNotifications()` return null cleanly, but it does **not**
+make a stale dev build usable. The rebuild does; after `expo run:ios` the app
+launches with 0 errors and the permission prompt appears with our own copy.
+
+I am recording the number because the tempting version of this comment — "the
+module is optional, so a missing native module degrades gracefully" — would
+have been the kind of claim that agrees with itself and is wrong on a real
+device.
+
+### Sign-out cannot be blocked by push, at two levels
+
+`unregisterForPush()` swallows its own network errors, and `signOut()` wraps
+the call in its own try/catch anyway. The second one is not redundant: the
+first test I wrote for this passed while asserting the OPPOSITE of its name —
+"still signs out when unregistering fails" was asserting that sign-out
+*rejected*. It did. Nothing about push may ever leave someone unable to sign
+out of a shared phone, so the guarantee is now enforced at the call site too.
+
 **Not done, deliberately: nothing sends a staff push yet.** The pipe is built
 and verified; `sendToStaff` is injectable anywhere. Which events should reach a
 staff phone (an overdue payment? a class starting unstaffed? a failed

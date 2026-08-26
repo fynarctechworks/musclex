@@ -96,7 +96,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
      * alerts. It never blocks sign-out: a failure is logged, and the server
      * re-points the device to whoever signs in next.
      */
-    await unregisterForPush();
+    try {
+      await unregisterForPush();
+    } catch {
+      // unregisterForPush already swallows its own network errors; this is the
+      // backstop that guarantees the guarantee. Nothing about push may ever
+      // leave someone unable to sign out of a shared phone.
+    }
     wipeCache();
     await store.clearSession();
   }, [wipeCache]);

@@ -1,6 +1,7 @@
 import React from 'react';
-import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
+
+import { getNotifications } from '@/push/notifications-module';
 
 /**
  * Foreground presentation + tap routing for staff notifications.
@@ -11,14 +12,22 @@ import { router } from 'expo-router';
  * looking at the app is the LEAST likely to hear about the thing that needs
  * them.
  */
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+let handlerInstalled = false;
+
+function installForegroundHandler(): void {
+  if (handlerInstalled) return;
+  const Notifications = getNotifications();
+  if (!Notifications) return;
+  handlerInstalled = true;
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 /**
  * Server-supplied deep links are treated as UNTRUSTED input: only in-app paths
@@ -36,6 +45,10 @@ function safeRoute(data: unknown): string | null {
 export function usePushRouter(enabled: boolean): void {
   React.useEffect(() => {
     if (!enabled) return;
+
+    const Notifications = getNotifications();
+    if (!Notifications) return;
+    installForegroundHandler();
 
     let cancelled = false;
 
