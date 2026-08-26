@@ -32,6 +32,8 @@ export type RequestConfig = {
   signal?: AbortSignal;
   /** Skip auth + refresh. Used by the login/refresh calls themselves. */
   anonymous?: boolean;
+  /** Override the default request timeout, in ms. 0 disables it. */
+  timeoutMs?: number;
 };
 
 export interface ApiError extends Error {
@@ -126,9 +128,25 @@ async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
+/**
+ * How long to wait before giving up on a request.
+ *
+ * A gym's "no signal" is rarely a clean failure. The usual shape is a phone
+ * still associated with the wifi while the uplink is dead, where fetch neither
+ * resolves nor rejects — it simply hangs. Without a deadline the check-in
+ * button spins forever, the staffer taps it again, and the offline queue never
+ * gets a chance to do the job it exists for.
+ *
+ * Twelve seconds is long enough for a slow-but-working connection on a
+ * mid-range Android at the counter, and short enough that a member is not left
+ * standing there.
+ */
+export const DEFAULT_TIMEOUT_MS = 12_000;
+
 export async function request<T>(endpoint: string, config: RequestConfig = {}): Promise<T> {
   const { method = 'GET', body, headers, params, signal, anonymous } = config;
   const session = getSession();
+  const timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
   const send = (token?: string | null) => {
     const h: Record<string, string> = { 'Content-Type': 'application/json', ...headers };
@@ -137,12 +155,16 @@ export async function request<T>(endpoint: string, config: RequestConfig = {}): 
     // never filter by branch itself.
     if (!anonymous && session?.activeBranchId) h['X-Active-Branch-Id'] = session.activeBranchId;
     h['X-Correlation-Id'] = headers?.['X-Correlation-Id'] ?? correlationId();
-    return fetch(buildUrl(endpoint, params), {
-      method,
-      headers: h,
-      body: body === undefined ? undefined : JSON.stringify(body),
+    return fetchWithTimeout(
+      buildUrl(endpoint, params),
+      {
+        method,
+        headers: h,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      },
+      timeoutMs,
       signal,
-    });
+    );
   };
 
   let res = await send(session?.accessToken);
@@ -170,6 +192,44 @@ export async function request<T>(endpoint: string, config: RequestConfig = {}): 
 
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
+}
+
+/**
+ * fetch with a deadline, preserving any caller-supplied signal.
+ *
+ * A timeout is surfaced as a status-less ApiError, the same shape a genuine
+ * network failure produces — deliberately, because callers that decide whether
+ * to queue treat "no response" identically either way, and inventing a
+ * distinct class here would mean two code paths for one situation.
+ */
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+  external?: AbortSignal,
+): Promise<Response> {
+  if (!timeoutMs) return fetch(url, { ...init, signal: external });
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  // A caller aborting (screen unmounted) must still cancel the request.
+  const onExternalAbort = () => controller.abort();
+  external?.addEventListener('abort', onExternalAbort);
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (e) {
+    // Distinguish OUR deadline from the caller cancelling: only the former is
+    // a network condition worth queueing over.
+    if (controller.signal.aborted && !external?.aborted) {
+      throw createApiError('The network is not responding', 0);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+    external?.removeEventListener('abort', onExternalAbort);
+  }
 }
 
 export const api = {

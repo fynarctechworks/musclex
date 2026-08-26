@@ -116,9 +116,18 @@ export function buildSyncBody(rows: OutboxRow[]) {
 export function partitionResults(
   sent: OutboxRow[],
   results: SyncResult[] | undefined,
-): { drop: string[]; retry: string[] } {
+): { drop: string[]; retry: string[]; denied: DeniedCheckIn[] } {
   const drop: string[] = [];
   const retry: string[] = [];
+  /*
+   * Rows the server REFUSED, as opposed to accepted.
+   *
+   * Both are dropped, but they are not the same event and must not be reported
+   * as one. The staffer was told this check-in would go through once the
+   * network returned. If it silently did not, the gym's attendance is wrong
+   * and the only person who could have corrected it never found out.
+   */
+  const denied: DeniedCheckIn[] = [];
 
   const byId = new Map<string, SyncResult>();
   for (const r of results ?? []) {
@@ -140,15 +149,46 @@ export function partitionResults(
     // wedge the queue behind a row that can never succeed.
     if (result.ok || !result.retryable) {
       drop.push(row.clientEventId);
+      if (!result.ok) {
+        denied.push({ memberName: row.memberName, reason: describeDenial(result.reason) });
+      }
       continue;
     }
 
     // Give up on a row that has failed far too often to be transient.
-    if (row.attempts + 1 >= MAX_ATTEMPTS) drop.push(row.clientEventId);
-    else retry.push(row.clientEventId);
+    if (row.attempts + 1 >= MAX_ATTEMPTS) {
+      drop.push(row.clientEventId);
+      denied.push({ memberName: row.memberName, reason: 'could not be synced' });
+    } else {
+      retry.push(row.clientEventId);
+    }
   }
 
-  return { drop, retry };
+  return { drop, retry, denied };
+}
+
+export type DeniedCheckIn = { memberName: string; reason: string };
+
+/**
+ * Turn a server reason code into something a staffer can act on.
+ *
+ * The raw codes are for logs. "cooldown" tells the desk nothing; "already
+ * checked in recently" tells them the visit is on record anyway and no action
+ * is needed, which is the actual question they have.
+ */
+function describeDenial(reason?: string): string {
+  switch (reason) {
+    case 'cooldown':
+      return 'already checked in recently';
+    case 'membership_expired':
+      return 'membership had expired';
+    case 'no_active_membership':
+      return 'no active membership';
+    case 'membership_frozen':
+      return 'membership was frozen';
+    default:
+      return reason ? reason.replace(/_/g, ' ') : 'refused by the gym rules';
+  }
 }
 
 /**

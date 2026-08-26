@@ -3,6 +3,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { useSession } from '@/auth/SessionProvider';
+import { useToast } from '@/ui/Toast';
 import { makeRow, type OutboxStore } from './outbox';
 import { flushOutbox, type FlushSummary } from './flush';
 import { createMemoryOutbox, createSqliteOutbox, offlineCacheSupported } from './sqlite-store';
@@ -37,6 +38,7 @@ export function useOutbox(): OutboxContextValue {
 export function OutboxProvider({ children }: { children: React.ReactNode }) {
   const { session } = useSession();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [pending, setPending] = React.useState(0);
 
   const store = React.useRef<OutboxStore | null>(null);
@@ -54,7 +56,7 @@ export function OutboxProvider({ children }: { children: React.ReactNode }) {
 
   const flush = React.useCallback(async (): Promise<FlushSummary> => {
     const s = store.current;
-    if (!s || !gymId) return { synced: 0, kept: 0, failed: false };
+    if (!s || !gymId) return { synced: 0, kept: 0, failed: false, denied: [] };
 
     const summary = await flushOutbox(s, gymId);
     await refreshCount();
@@ -64,8 +66,21 @@ export function OutboxProvider({ children }: { children: React.ReactNode }) {
       void queryClient.invalidateQueries({ queryKey: ['members'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     }
+
+    /*
+     * A refusal has to be said out loud.
+     *
+     * The staffer was told this check-in would go through once the network
+     * came back. If it quietly did not, the gym's attendance is wrong and the
+     * one person who could have fixed it — who was standing right there — never
+     * finds out. Silence here is the worst outcome the queue can produce.
+     */
+    for (const d of summary.denied) {
+      toast.show(`${d.memberName}'s saved check-in was not recorded — ${d.reason}`, 'error');
+    }
+
     return summary;
-  }, [gymId, queryClient, refreshCount]);
+  }, [gymId, queryClient, refreshCount, toast]);
 
   const enqueue = React.useCallback(
     async (input: { memberId: string; branchId: string; memberName: string }) => {

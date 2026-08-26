@@ -318,3 +318,57 @@ than re-seeding, which would have truncated the check-ins recorded since.
 Worth recording as a pattern: seed data that uses a value the product never
 produces makes the product look broken. The dashboard was correct the whole
 time. I nearly went looking for the bug in the KPI query.
+
+## 2026-08-26 — Offline check-in verified end to end, and the gap it exposed
+
+Verified on device against the real backend by pausing the API process
+(SIGSTOP, so requests hang exactly as they do on a live wifi with a dead
+uplink, rather than failing fast):
+
+- Dashboard rendered entirely from the persisted SQLite cache, **through a full
+  app restart with the API down**.
+- Member search fell back to the on-device roster and found six Patels.
+- A check-in taken offline was queued: "1 check-in waiting to sync".
+- On foreground with the API back, the queue drained and the banner cleared.
+
+The server refused that particular row with `reason: "cooldown"` — the member
+had genuinely checked in 36 minutes earlier — which is correct behaviour and
+exercised the non-retryable path properly.
+
+**But it exposed a real gap.** The staffer had been told "Saved — will sync when
+back online", and the row was then dropped silently. The gym's attendance would
+be wrong and the one person who could have corrected it, standing right there,
+would never know. Flush now returns the refused rows, `OutboxProvider`
+announces each one, and `synced` counts only rows that actually landed —
+reporting "1 synced" for a rejected row is the same silent lie.
+
+Reason codes are translated for the desk: "cooldown" is meaningless to them,
+"already checked in recently" answers the question they actually have (is the
+visit on record anyway?).
+
+## 2026-08-26 — Two fixes that only surfaced by testing offline properly
+
+**No request timeout.** `fetch` had no deadline, so the common gym failure —
+associated to the wifi, uplink dead — hung indefinitely rather than failing.
+The check-in button would spin forever and the offline queue would never get
+its chance. Added a 12s default, surfaced as status 0 so callers treat it
+identically to any other "no response".
+
+**`retry: 1` doubled every timeout.** Falling back to the offline path took ~35
+seconds with a member standing at the counter. The client has already waited
+its full deadline to conclude the network is not answering; retrying spends it
+again. Timeouts are no longer retried (~13s now). A 5xx still retries once —
+the connection worked, so another go is cheap.
+
+## 2026-08-26 — Offline search needs a cached roster
+
+Member search is server-side, so with no uplink the desk could not find the
+person in front of them — which made the offline check-in queue unreachable and
+therefore pointless. A 500-member roster (the server's own clamp) is now
+fetched and persisted deliberately, and searched locally when the server does
+not answer. The server stays authoritative whenever it responds.
+
+Local matching uses two minimums: **2 characters for names, 3 for identifiers**.
+Member codes share a prefix and a run of zeroes, so "00" is a substring of
+nearly every code and phone in the building — matching those loosely returns
+the whole roster, which looks like it worked while being useless.

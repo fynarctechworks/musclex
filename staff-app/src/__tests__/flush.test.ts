@@ -14,7 +14,7 @@ beforeEach(() => post.mockReset());
 describe('flushOutbox', () => {
   it('does nothing when the queue is empty', async () => {
     const store = createMemoryOutbox();
-    expect(await flushOutbox(store, 'gym-a')).toEqual({ synced: 0, kept: 0, failed: false });
+    expect(await flushOutbox(store, 'gym-a')).toEqual({ synced: 0, kept: 0, failed: false, denied: [] });
     expect(post).not.toHaveBeenCalled();
   });
 
@@ -34,7 +34,7 @@ describe('flushOutbox', () => {
     });
 
     const out = await flushOutbox(store, 'gym-a');
-    expect(out).toEqual({ synced: 1, kept: 0, failed: false });
+    expect(out).toEqual({ synced: 1, kept: 0, failed: false, denied: [] });
     expect(await store.count('gym-a')).toBe(0);
   });
 

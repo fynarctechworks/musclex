@@ -12,7 +12,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useCheckIn, useMembers } from '@/api/queries';
+import { ROSTER_LIMIT, useCheckIn, useMemberRoster, useMembers } from '@/api/queries';
+import { filterMembers } from '@/lib/search';
 import { QrScanner, type ScanOutcome } from '@/features/QrScanner';
 import { useOutbox } from '@/offline/OutboxProvider';
 import { isQueueableFailure } from '@/offline/outbox';
@@ -99,7 +100,32 @@ export default function CheckIn() {
   // a useful check-in screen, and it invites tapping the wrong person.
   const enabled = debounced.length >= 2;
   const query = useMembers(enabled ? { search: debounced, limit: 20 } : { limit: 0 });
-  const results = enabled ? (query.data?.data ?? []) : [];
+
+  /*
+   * Offline fallback.
+   *
+   * Search is server-side, so with no uplink the desk cannot find the person
+   * in front of them — which would make the check-in queue unreachable and
+   * therefore pointless. The roster is a persisted page of members that gets
+   * searched locally the moment the server search fails.
+   *
+   * The server stays authoritative whenever it answers: it matches on columns
+   * the phone does not hold, and a local result that disagreed with it would
+   * be the wrong answer delivered confidently.
+   */
+  const roster = useMemberRoster();
+  const searchFailed = enabled && Boolean(query.error);
+  const rosterMembers = roster.data?.data ?? [];
+
+  const results = !enabled
+    ? []
+    : searchFailed
+      ? filterMembers(rosterMembers, debounced)
+      : (query.data?.data ?? []);
+
+  // A gym bigger than the roster page has an incomplete offline list, and
+  // "not found" would otherwise read as "not a member".
+  const rosterPartial = searchFailed && (roster.data?.total ?? 0) > ROSTER_LIMIT;
 
   function ask(member: Member) {
     // One idempotency key per ATTEMPT, reused across retries, so a double-tap
@@ -177,7 +203,11 @@ export default function CheckIn() {
           testID="checkin-search"
         />
         <Text className="text-sm text-muted-foreground">
-          {enabled ? 'Tap a member to check them in.' : 'Type at least 2 characters.'}
+          {!enabled
+            ? 'Type at least 2 characters.'
+            : searchFailed
+              ? 'Offline — searching members saved on this device.'
+              : 'Tap a member to check them in.'}
         </Text>
 
         {/* Queued check-ins are money and attendance the gym cannot see yet.
@@ -200,14 +230,18 @@ export default function CheckIn() {
       <DataList<Member>
         data={results}
         isLoading={enabled && query.isLoading}
-        error={enabled ? query.error : undefined}
+        error={enabled && !searchFailed ? query.error : undefined}
         onRetry={() => void query.refetch()}
         keyExtractor={(m) => m.id}
         emptyTitle={enabled ? 'No matches' : 'Search for a member'}
         emptyBody={
-          enabled
-            ? `Nothing matched “${debounced}”.`
-            : 'Find them by name, phone or member code.'
+          !enabled
+            ? 'Find them by name, phone or member code.'
+            : searchFailed
+              ? rosterPartial
+                ? `Nothing matched “${debounced}” in the ${ROSTER_LIMIT} members saved on this device. The full list needs a connection.`
+                : `Nothing matched “${debounced}” in the members saved on this device.`
+              : `Nothing matched “${debounced}”.`
         }
         renderItem={({ item }) => {
           const state = membershipState(item);

@@ -62,6 +62,50 @@ describe('partitionResults', () => {
     expect(out.retry).toEqual([]);
   });
 
+  it('REPORTS a policy denial rather than dropping it silently', () => {
+    // The staffer was promised this would sync. If it did not, the gym's
+    // attendance is wrong and only they could have fixed it.
+    const r = row();
+    const out = partitionResults([r], [
+      { client_event_id: r.clientEventId, member_id: 'm-1', ok: false, retryable: false,
+        reason: 'cooldown' },
+    ]);
+    expect(out.denied).toEqual([
+      { memberName: 'Neha Patel', reason: 'already checked in recently' },
+    ]);
+  });
+
+  it('translates reason codes into something a staffer can act on', () => {
+    const r = row();
+    const denied = (reason: string) =>
+      partitionResults([r], [
+        { client_event_id: r.clientEventId, member_id: 'm-1', ok: false, retryable: false, reason },
+      ]).denied[0].reason;
+
+    expect(denied('membership_expired')).toBe('membership had expired');
+    expect(denied('no_active_membership')).toBe('no active membership');
+    // An unknown code still reads as prose rather than a snake_case token.
+    expect(denied('some_new_rule')).toBe('some new rule');
+  });
+
+  it('does not report an ACCEPTED row as denied', () => {
+    const r = row();
+    const out = partitionResults([r], [
+      { client_event_id: r.clientEventId, member_id: 'm-1', ok: true, retryable: false },
+    ]);
+    expect(out.denied).toEqual([]);
+  });
+
+  it('reports a row abandoned after too many attempts', () => {
+    const r = row({ attempts: MAX_ATTEMPTS - 1 });
+    const out = partitionResults([r], [
+      { client_event_id: r.clientEventId, member_id: 'm-1', ok: false, retryable: true },
+    ]);
+    expect(out.denied).toEqual([
+      { memberName: 'Neha Patel', reason: 'could not be synced' },
+    ]);
+  });
+
   it('drops a POLICY denial rather than retrying it forever', () => {
     // "Membership expired" is a final answer. Keeping it would wedge the queue
     // behind a row that can never succeed.
@@ -142,5 +186,11 @@ describe('isQueueableFailure', () => {
 
   it('does not queue a 401 — the session is the problem, not the network', () => {
     expect(isQueueableFailure({ status: 401 })).toBe(false);
+  });
+
+  it('queues a request that timed out', () => {
+    // The common gym failure: associated to the wifi, dead uplink, so fetch
+    // hangs rather than failing. The client surfaces that as status 0.
+    expect(isQueueableFailure({ status: 0 })).toBe(true);
   });
 });

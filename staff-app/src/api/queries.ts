@@ -224,6 +224,34 @@ export function useCheckIn() {
 }
 
 /**
+ * The offline roster.
+ *
+ * Member SEARCH is server-side, which means that with no uplink the front desk
+ * cannot find the person standing in front of them — and an offline check-in
+ * queue you cannot reach is worth nothing. So a page of members is fetched and
+ * persisted deliberately, to be searched locally when the server is
+ * unreachable.
+ *
+ * 500 is the server's own clamp on this endpoint. A gym larger than that has a
+ * PARTIAL offline roster, and the check-in screen says so rather than
+ * implying the member does not exist.
+ */
+export const ROSTER_LIMIT = 500;
+
+export function useMemberRoster(enabled = true) {
+  return useQuery({
+    // A key of its own, so it is not invalidated by every filtered list view
+    // and is cached as one stable entry.
+    queryKey: ['members', 'roster'],
+    queryFn: () => api.get<Paginated<Member>>('/members', { params: { limit: ROSTER_LIMIT } }),
+    enabled,
+    // The roster is a fallback, not a live view — refetching it constantly
+    // would cost a 500-row payload for data only read when the network dies.
+    staleTime: 15 * 60 * 1000,
+  });
+}
+
+/**
  * Edit a member's own details.
  *
  * PATCH, and only the fields that actually changed — a full-object PUT from a
