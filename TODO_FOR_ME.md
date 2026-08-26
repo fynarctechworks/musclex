@@ -75,40 +75,39 @@ compliance question. `app.json` already declares
 
 **Blocked until then:** anyone but this machine installing the app.
 
-## 3. Two auth paths still need a human pass
+## 3. ~~Two auth paths need a human pass~~ — done
 
-**2FA: the API is now verified, the SCREEN is not.** I drove the whole server
-flow with real TOTP codes — enrol, challenge, step-2, wrong-code rejection —
-and confirmed the important property: a challenged login returns a temp token
-and **no access token**. Details in DECISIONS.md.
+**2FA is verified end to end on the phone.** You could not find Security in
+Settings because the mobile app **had no Security screen at all** — the login
+step-2 screen existed, so a staff member could be *challenged* by a control
+they had no way to switch on. (On the web it does exist, sixth of twelve cards
+in Settings → Quick Actions, which is its own findability problem.)
 
-What I did not do is drive `app/(auth)/two-factor.tsx` on the device, because
-that means leaving a seeded account in a 2FA state while the simulator is
-driven through it, and I would rather not hand back a fixture in a state you
-did not ask for.
+Built `staff-app/app/more/security.tsx`, then drove the whole flow on the
+simulator against real TOTP codes:
 
-**You asked what is needed from your side. Two minutes, on the web app:**
+- status reads Off → **Turn on** → QR renders, manual key shown
+- a real 6-digit code is accepted; backup codes appear, and **"I've saved
+  them" stays disabled** until you save or acknowledge them
+- signed out, signed back in → the **Two-factor code** screen appears
+- a wrong code (`000000`) is rejected with "Invalid verification code" and no
+  session
+- the correct code signs in
+- **Turn off** with the account password returns it to Off
 
-1. Sign in as `owner@mxtest.app` → Settings → Security → **Enable 2FA**.
-2. Scan the QR with any authenticator (Google Authenticator, 1Password, Authy)
-   and confirm the 6-digit code it shows.
-3. Tell me it is on. I drive the phone screen from here, confirm it accepts a
-   real code and rejects a wrong one, and tell you when to turn it back off.
+The test account is back exactly as you left it — `owner@mxtest.app` no longer
+requires 2FA, confirmed against the API.
 
-That is the whole ask — I need the enrolment to exist on an account, and only
-you should be holding the authenticator secret. **Alternatively**, say "go
-ahead and enable it yourself on the test account" and I will do all three steps
-and disable it again afterwards; I avoided that only because it changes a
-fixture you did not ask me to change.
+**It found a real bug on the way.** An account with BOTH 2FA and two gyms hit
+"Session expired" on the workspace picker: the 2FA screen never forwarded the
+interim access token, so the authenticated select call went out with no
+credentials. The password path was fixed for this weeks ago and this path was
+missed — nothing exercised the combination until 2FA was driven on a device.
+Fixed and re-verified: 2FA → workspace picker → dashboard, correctly scoped.
 
-~~**Multi-workspace is still entirely unverified.**~~ **Done** — you approved
-it, and it turned out to be broken in three separate places, not merely
-untested. See DECISIONS.md. A second gym ("MuscleX Bandra") now exists via
-`backend/scripts/seed-second-gym.ts`, and `owner@mxtest.app` holds a role in
-both; the picker and the switch are verified on the simulator and in the
-browser.
+Nothing needed from you on this item any more.
 
-## 4. Referral reporting — the leak is closed; one product question is left
+## 4. ~~Referral reporting~~ — leak closed, scope decided
 
 You said you did not follow this one. Here is exactly what was happening,
 measured against the running API, not described.
@@ -159,12 +158,9 @@ gym owner. Reward rules are the offer *you publish to gyms* — what they earn
 for referring someone — and the gym-facing
 `/[gymSlug]/settings/referrals` page renders them.
 
-**The question that is actually yours** (nothing is leaking while it is open):
-a gym owner can currently see their own referral totals via `/referrals/stats`.
-Do you want them to see more — a funnel (invited → signed up → paid), the names
-of gyms *they* referred, pending vs paid reward amounts? If yes, that is a new
-gym-scoped endpoint and I need to know which of those numbers a gym should see.
-If "stats is enough", this item closes.
+**Answered: no.** You decided a gym owner should NOT see more than
+`/referrals/stats` already gives them, so no gym-scoped funnel endpoint is
+being built. This item is closed — nothing outstanding on referrals.
 
 ## 5. One QR scan on a physical device
 

@@ -1301,3 +1301,88 @@ consistent; nothing pointed at the sixteen handlers that never called it.
 
 `GET rules` stays owner-readable on purpose: reward rules are the offer we
 publish to gyms, and the gym-facing settings page renders them.
+
+---
+
+## The mobile app could be challenged by 2FA but could never turn it on
+
+You went looking for Settings → Security on the phone and it was not there.
+It was not hidden or role-gated: `staff-app` had **no Security screen at all**.
+`app/(auth)/two-factor.tsx` — the login step-2 screen — has existed since 2FA
+shipped, so the app could *demand* a code from a staff member while giving them
+no way to enrol. Enrolment lived only on the web.
+
+Built `app/more/security.tsx` against the endpoints that already existed
+(`/auth/2fa/{status,setup,verify,disable}`); no backend change.
+
+Decisions inside it:
+
+- **The row is not permission-gated.** Every other entry in More checks a
+  module permission; this one passes `module: null`. It is the signed-in
+  person's own account setting, not gym configuration. Gating it on
+  `settings.view` would mean the roles most likely to be sharing a handset —
+  front desk, trainers — are exactly the ones who cannot secure it.
+- **Only your own account.** `/auth/2fa/admin-reset/:userId` exists and is
+  owner-only; resetting a colleague's 2FA is a support conversation after they
+  lose a phone, not a two-tap flow on whichever iPad is at the desk.
+- **"I've saved them" is disabled until the backup codes are saved or
+  explicitly acknowledged.** They are shown once and the server keeps only
+  hashes. The natural build — a Done button live from the first render — makes
+  losing them the default.
+- **No new dependency for copying.** `expo-clipboard` is a native module and
+  would force another dev-build rebuild. React Native's built-in `Share` sheet
+  offers Copy alongside Notes, Files and a password manager, which is where
+  backup codes actually belong, and the codes are `selectable` so long-press →
+  Copy works without leaving the screen.
+- **Disable takes the PASSWORD, not a code** — which is the server's rule, and
+  the screen says why: whoever is holding an unlocked phone already has the
+  authenticator on it, so accepting a code would let a thief switch off the
+  control protecting the account.
+
+### It found a real bug, which is the point of driving it on a device
+
+An account with BOTH 2FA and more than one gym hit **"Session expired"** on the
+workspace picker. The 2FA screen navigated to the picker without forwarding the
+interim access token, so `/auth/select-workspace` — which is authenticated —
+went out with no credentials. The user typed a correct password AND a correct
+2FA code and was told their session had expired.
+
+The password path was fixed for exactly this weeks ago. `two-factor.tsx` was
+missed, and nothing caught it: they are separate screens, and only an account
+with both 2FA and two gyms ever reaches the second one. A test now asserts both
+screens forward `result.interim`, because the failure mode is divergence
+between two files that each look correct alone.
+
+---
+
+## The schema-split generator could not run on this machine
+
+`backend/scripts/_phase2_split.js` hardcoded `e:/Projects/musclex/backend/prisma`
+— an absolute path from another developer's machine. So the script that
+generates `schema.public.prisma` and `schema.tenant.prisma` had been unrunnable
+here for the whole project, and both files were hand-edited for months under a
+header reading "do not hand-edit yet".
+
+That is worse than untidy: the two files back two SEPARATE Prisma clients, and
+when they drift the symptom is not a build error — it is a client missing a
+model or a column at runtime, in whichever half nobody updated.
+
+Rewritten to resolve `prisma/` from `__dirname`, plus:
+
+- **`--check` mode** that exits non-zero naming the drifted files, wired to
+  `npm run schema:check` and to a Jest test so CI catches it.
+- The comparison is **whitespace-insensitive**. The committed files are
+  `prisma format`-ed and the generator is not, so a byte comparison would
+  report drift on every run and teach everyone to ignore the check — which is
+  how the files came to be hand-edited in the first place.
+- **Preconditions are checked, not assumed.** The original comment said
+  "verified: 0 cross-schema relations, 0 enums" — true when written, and a
+  schema that has since grown either would be split into two files that
+  generate but do not work. Both now refuse the split with the offending names.
+- **Doc comments are carried over.** The original dropped them, which would
+  have silently deleted the paragraph explaining why `StaffDeviceToken` is
+  deliberately outside TENANT_MODELS.
+
+Regenerating produced **zero semantic difference** from the hand-edited files —
+they had been kept faithfully by hand, which is luck, not a system. Confirmed
+the guard bites by adding a field to `schema.prisma` and watching the test fail.

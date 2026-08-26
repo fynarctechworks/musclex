@@ -4,7 +4,7 @@ import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   BarChart3, CalendarDays, Boxes, DoorOpen, Dumbbell, HeartPulse, LogOut, Megaphone, Package, Receipt, Settings, ShoppingCart,
-  Sparkles, Tablet, UserCog, Users2, type LucideIcon,
+  ShieldCheck, Sparkles, Tablet, UserCog, Users2, type LucideIcon,
 } from 'lucide-react-native';
 
 import { Text } from '@/components/ui/text';
@@ -38,7 +38,12 @@ type Entry = {
   href: string;
   label: string;
   icon: LucideIcon;
-  module: Module;
+  /**
+   * The permission module this entry needs, or `null` for an entry that is
+   * about the SIGNED-IN PERSON rather than about the gym. Every role can reach
+   * a `null` entry.
+   */
+  module: Module | null;
   action?: Action;
   feature?: FeatureKey;
   phase: string;
@@ -86,6 +91,16 @@ export const ENTRIES: Entry[] = [
   { href: '/more/memberships',label: 'Memberships',  icon: Users2,    module: 'members',   phase: '' },
   { href: '/more/visits',     label: 'Visits',       icon: DoorOpen,  module: 'check_ins',  phase: '' },
   { href: '/more/settings',   label: 'Settings',     icon: Settings,  module: 'settings',  phase: '' },
+  /*
+   * NOT gated on a module permission, unlike everything above it.
+   *
+   * This is the signed-in person's own two-factor setting, not gym
+   * configuration — a front-desk staffer with no settings.view has exactly as
+   * much right to protect their own account as an owner does. Gating it would
+   * mean the roles most likely to be sharing a handset are the ones who
+   * cannot secure it.
+   */
+  { href: '/more/security',   label: 'Security',     icon: ShieldCheck, module: null, phase: '' },
 ];
 
 export default function More() {
@@ -125,7 +140,7 @@ export default function More() {
         <BranchSwitcher />
 
         <View className="gap-2">
-          {ENTRIES.filter((e) => can(e.module, e.action ?? 'view')).map((e) => (
+          {ENTRIES.filter((e) => e.module === null || can(e.module, e.action ?? 'view')).map((e) => (
             <MoreRow key={e.href} entry={e} />
           ))}
         </View>

@@ -138,3 +138,52 @@ export type Branch = { id: string; name: string; is_active?: boolean };
 export function listBranches() {
   return api.get<Branch[] | { data: Branch[] }>('/branches');
 }
+
+// ── Two-factor enrolment ────────────────────────────────────────────────────
+//
+// Login step-2 lives above (`verifyTwoFactor`). These are the ENROLMENT calls,
+// and unlike step-2 they all require a live session — you can only turn 2FA on
+// for yourself, while signed in as yourself.
+
+export interface TwoFactorStatus {
+  enabled: boolean;
+  method: string | null;
+}
+
+export interface TwoFactorSetup {
+  /** data:image/png;base64,… — renderable directly by <Image source={{ uri }} />. */
+  qr_code: string;
+  /** Typed by hand when a camera cannot see the screen it is showing. */
+  manual_key: string;
+  otpauth_url: string;
+}
+
+export interface TwoFactorEnabled {
+  enabled: boolean;
+  /** Shown ONCE. The server does not store them in a readable form. */
+  backup_codes: string[];
+}
+
+export function twoFactorStatus(): Promise<TwoFactorStatus> {
+  return api.get<TwoFactorStatus>('/auth/2fa/status');
+}
+
+export function twoFactorSetup(): Promise<TwoFactorSetup> {
+  return api.post<TwoFactorSetup>('/auth/2fa/setup');
+}
+
+export function twoFactorVerifySetup(code: string): Promise<TwoFactorEnabled> {
+  return api.post<TwoFactorEnabled>('/auth/2fa/verify', { code });
+}
+
+/**
+ * Turn 2FA off. Takes the account PASSWORD, not a code.
+ *
+ * That is deliberate on the server's side and worth stating here, because the
+ * obvious assumption is the opposite: a stolen unlocked phone already has the
+ * authenticator on it, so a code would let a thief disable the very control
+ * that was protecting the account.
+ */
+export function twoFactorDisable(password: string): Promise<{ disabled: boolean }> {
+  return api.post<{ disabled: boolean }>('/auth/2fa/disable', { password });
+}

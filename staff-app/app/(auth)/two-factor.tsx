@@ -29,7 +29,23 @@ export default function TwoFactor() {
       if (result.kind === 'workspace') {
         router.replace({
           pathname: '/(auth)/workspace',
-          params: { workspaces: JSON.stringify(result.workspaces) },
+          params: {
+            workspaces: JSON.stringify(result.workspaces),
+            /*
+             * The interim access token MUST be carried, exactly as the
+             * password path does.
+             *
+             * /auth/select-workspace is authenticated, and the only
+             * credentials that exist at this point are the ones returned
+             * alongside `requires_workspace_selection`. Dropping them here is
+             * why an account with BOTH 2FA and two gyms showed "Session
+             * expired" on the picker: the code was accepted, and then the
+             * very next call went out unauthenticated. The password path was
+             * fixed for this; this path was missed, and nothing exercised the
+             * combination until 2FA was driven on the device.
+             */
+            ...(result.interim ? { interim: JSON.stringify(result.interim) } : {}),
+          },
         });
         return;
       }
