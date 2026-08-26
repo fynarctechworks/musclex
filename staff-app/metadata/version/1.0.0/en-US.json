@@ -2,6 +2,7 @@
   "description": "MuscleX Staff is the companion app for gym teams running MuscleX.\n\nCheck members in from the floor instead of the front desk. Scan a member's QR code or search by name, and see instantly whether their membership is active, expiring, or overdue.\n\nWHAT YOU CAN DO\n\n\u2022 Check-in \u2014 scan a QR code or search, with duplicate scans suppressed automatically\n\u2022 Members \u2014 look up anyone, see their plan, visits, dues and progress\n\u2022 Money \u2014 take a payment, record an expense, see the day's takings\n\u2022 Schedule \u2014 today's classes, who is booked, who turned up\n\u2022 PT sessions \u2014 start, complete and log personal training\n\u2022 Measurements \u2014 trainers can record body stats against a member's profile\n\u2022 Kiosk mode \u2014 turn a spare device into an unattended check-in station\n\nBUILT FOR A GYM FLOOR\n\nThe app keeps working when the WiFi does not. Check-ins taken offline are queued and sync as soon as you are back, so a dead spot by the squat racks never stops the queue at the door.\n\nEveryone sees only what their role allows. A trainer sees their clients and classes; the front desk sees check-ins and payments; an owner sees everything. Staff working across more than one location can switch between them without signing out.\n\nREQUIRES A MUSCLEX ACCOUNT\n\nThis app is for staff at gyms that use MuscleX. You will need credentials from your gym's administrator to sign in.",
   "keywords": "gym,fitness,staff,check-in,member,management,studio,trainer,attendance,pt",
   "promotionalText": "Check members in from anywhere on the floor \u2014 and keep working when the WiFi drops.",
-  "supportUrl": "REPLACE_ME_https://example.com/support",
-  "whatsNew": "First release."
+  "supportUrl": "https://musclex.infynarc.com/support",
+  "whatsNew": "First release.",
+  "marketingUrl": "https://musclex.infynarc.com"
 }

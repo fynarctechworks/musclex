@@ -94,15 +94,26 @@ preflight() {
   if [ -n "$icon" ] && [ -f "$icon" ]; then ok "App icon: $icon"
   else fail "No app icon declared in app.json — Expo's default placeholder would ship."; fi
 
-  # 5. Store metadata. --strict makes WARNINGS fatal, which is what turns a
-  #    placeholder privacy URL into a blocked release instead of a rejection
-  #    two days later.
+  # 5. Store metadata.
+  #
+  #    Parses the "Errors: N  Warnings: M" line and fails on either. The first
+  #    version passed `--strict`, believing it promoted warnings to errors.
+  #    There is no such flag — the non-zero exit was the CLI rejecting an
+  #    unknown argument, so the check failed identically whether the metadata
+  #    was perfect or full of placeholders. It looked like it worked because
+  #    the metadata happened to be bad at the time.
   if [ -d ./metadata ]; then
-    if asc metadata validate --dir ./metadata --strict >/dev/null 2>&1; then
-      ok "Store metadata valid (strict)"
+    local md
+    md="$(asc metadata validate --dir ./metadata --output table 2>&1 || true)"
+    local counts
+    counts="$(printf '%s' "$md" | sed -n 's/.*Errors: \([0-9]*\)  *Warnings: \([0-9]*\).*/\1 \2/p' | head -1)"
+    if [ -z "$counts" ]; then
+      fail "Could not read metadata validation output — is \`asc\` on PATH?"
+    elif [ "$counts" = "0 0" ]; then
+      ok "Store metadata valid (0 errors, 0 warnings)"
     else
-      bad "Store metadata not release-ready:"
-      asc metadata validate --dir ./metadata --output table 2>&1 | sed 's/^/      /'
+      bad "Store metadata not release-ready ($counts errors/warnings):"
+      printf '%s\n' "$md" | sed 's/^/      /'
       FAILED=1
     fi
   else

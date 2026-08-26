@@ -79,8 +79,35 @@ unchanged.
    profile.
 4. **App icon** (1024×1024, no alpha) and splash.
 5. **Privacy policy URL** and **support URL**.
-6. **Screenshots** — 6.7" (1290×2796) and 6.5" (1242×2688), 3–5 each. These
-   can be captured from the simulator once the icon exists.
+## Screenshots
 
-Items 1, 2, 3 and 5 can only come from you. Given 3 and 4, the rest is one
+Five per size, in `staff-app/metadata/screenshots/`:
+
+- `APP_IPHONE_65/` — 1242×2688, the size App Store Connect **requires**
+- `APP_IPHONE_69/` — 1320×2868, the larger modern size
+
+Both validate clean (`asc screenshots validate --path … --device-type
+IPHONE_65` → 5 ready, 0 errors, 0 warnings).
+
+They are captured from a **Release** build, not a dev build. A dev build paints
+expo-dev-client's floating tools bubble over the top right, and no amount of
+tapping makes it go away — it would have been in every store image.
+
+To recapture after a UI change:
+
+```bash
+# Release build so there is no dev-client chrome in the frame
+EXPO_PUBLIC_API_BASE_URL=http://localhost:4002/api/v1 SENTRY_DISABLE_AUTO_UPLOAD=true \
+  npx expo run:ios --configuration Release --device "iPhone 17 Pro Max"
+```
+
+Then sign in and step through Home → Check-in → Members → Money → More. Two
+traps: the Check-in tab auto-focuses its search field and the keyboard then
+covers the tab bar (send Return first), and iOS shows a one-time
+"Type English and Hindi" keyboard tutorial that swallows taps until dismissed.
+
+`asc screenshots upload --version-localization ID --path … --device-type
+IPHONE_65` puts them on the listing once the app record exists.
+
+Items 1, 2 and 3 can only come from you. After those, the rest is one
 `npm run release:build` away.
