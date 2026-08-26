@@ -110,6 +110,24 @@ reachable as soon as a key exists.
 
 **What I need:** a key in `backend/.env`, then this is roughly a day of work.
 
+## 9. Phase 7 (push notifications) needs a schema decision
+
+The plan marks Phase 7 as **"DB schema → approval"**, and `CLAUDE.md` hard-gate
+#1 puts any migration behind your explicit go-ahead. Staff push needs somewhere
+to store device tokens (per staff user, per device, revocable on sign-out),
+which is a new table.
+
+I have **not** designed or written that migration. It is skipped, not
+forgotten, and Phase 8 was built instead.
+
+**What I need:** approval to add a staff device-token table, or a steer that
+push should reuse an existing mechanism I have not found.
+
+Worth noting: the app already signs users out on token expiry and wipes the
+query cache on workspace switch, so a device-token table has to be cleared on
+those paths too — otherwise a staffer who signs out keeps receiving another
+gym's notifications on that handset.
+
 ## RESOLVED since you approved the dependencies
 
 These no longer need you. Kept as a record of what changed.

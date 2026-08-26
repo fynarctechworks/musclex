@@ -131,12 +131,29 @@ jest.mock('@gorhom/bottom-sheet', () => {
   const { View } = require('react-native');
   const Passthrough = ({ children }: { children?: React.ReactNode }) =>
     React.createElement(View, null, children);
+  /*
+   * BottomSheetModal is imperative: content mounts on .present(). The double
+   * renders it inline instead, and forwards a ref whose present/dismiss are
+   * no-ops, so a screen calling them in an effect does not crash.
+   */
+  const Modal = React.forwardRef(
+    ({ children }: { children?: React.ReactNode }, ref: React.Ref<unknown>) => {
+      React.useImperativeHandle(ref, () => ({
+        present: () => {}, dismiss: () => {}, expand: () => {}, close: () => {},
+      }));
+      return React.createElement(View, null, children);
+    },
+  );
+  Modal.displayName = 'BottomSheetModal';
+
   return {
     __esModule: true,
     default: Passthrough,
     BottomSheetBackdrop: () => null,
     BottomSheetScrollView: Passthrough,
     BottomSheetView: Passthrough,
+    BottomSheetModal: Modal,
+    BottomSheetModalProvider: Passthrough,
   };
 });
 

@@ -618,3 +618,62 @@ is unverified code that looks finished, and this one's whole behaviour is the
 model's response — there is nothing meaningful to check without a key. Logged
 as TODO_FOR_ME item 8 instead. `GET /ai/conversations` works and returns empty,
 so the surface is otherwise reachable when a key exists.
+
+## 2026-08-26 — Sheets are portalled (a real bug, and a wrong first fix)
+
+**The bug.** The branch switcher's sheet rendered clipped against the TOP of
+the dashboard, leaving the branch list unreachable. A bottom sheet lays out
+where it is *written*, and `BranchSwitcher` renders its sheet inside the
+dashboard's ScrollView — so it appeared at the component's scroll offset rather
+than the bottom of the window. Every other sheet in the app worked only because
+I had mounted each one as a screen-root sibling, a constraint I had written
+down as a caveat rather than removed.
+
+**The fix.** `Sheet` now portals to the app root via `@rn-primitives/portal` —
+the same host that already carries dialogs and popovers, proven working on
+every `verify:ui` run. Callers no longer have to remember where to mount a
+sheet, so the whole class is gone.
+
+**The wrong first attempt, recorded because it cost real time.** I first
+reached for `BottomSheetModal` + `BottomSheetModalProvider`, which is the
+library's own answer to this. It never presented — no error, just nothing.
+Rather than keep guessing at it I switched to the portal host that was already
+demonstrably working here.
+
+**And a self-inflicted crash on the way.** I put `if (!open) return null;`
+ABOVE a `useCallback`, which threw "Rendered more hooks than during the
+previous render" and took the screen down. The early return now sits below
+every hook, with a comment saying why. Two lessons: the device told me exactly
+what was wrong the moment I actually looked at the screen instead of the
+harness output, and a red error screen reads identically to "the sheet didn't
+open" if you only check whether an element exists.
+
+## 2026-08-26 — Harness: drag, do not flick
+
+`verify:ui`'s scroll used a fast 500pt swipe, which imparts momentum and
+travels ~1000pt — sailing past its target so the search loop oscillates. That
+is what broke the Dialog step: widening the flick earlier to reach the filter
+sheet traded one miss for another.
+
+It now drags over 1.1s, which moves roughly the gesture distance and no more.
+`find_center` also prefers an EXACT label match, the same fix `tap-label.sh`
+needed — otherwise 'Dialog' can find 'Alert Dialog'.
+
+## 2026-08-26 — Expenses (Phase 8)
+
+**The summary endpoint requires a branch and 400s without one**, while the list
+spans branches happily. On "All branches" the tiles are hidden and the screen
+says why, rather than firing a request that can only fail — an error card where
+a number should be teaches staff to ignore the row.
+
+**Recording refuses without a single branch selected.** The DTO requires
+`branch_id`; guessing one would file a Bandra expense against Andheri, which is
+worse than refusing.
+
+**No edit, by design.** Expenses are append-only server-side (modelled as
+events), so a correction is a new entry — which is what an auditable ledger
+wants.
+
+Test data was created through the public API (6 categories, 10 expenses across
+three months) rather than raw SQL, so it went through the same validation a
+real entry does.

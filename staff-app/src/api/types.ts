@@ -256,3 +256,42 @@ export type WorkoutPlan = {
   /** Present on the detail endpoint; absent from the list. */
   exercises?: PlanExercise[];
 };
+
+/** An expense. `amount` is a Prisma Decimal serialised to a string. */
+export type Expense = {
+  id: string;
+  branch_id: string;
+  category?: string | null;
+  category_id?: string | null;
+  description: string;
+  amount: number | string;
+  currency?: string | null;
+  expense_date: string;
+  vendor?: string | null;
+  notes?: string | null;
+  payment_method?: string | null;
+  status?: string | null;
+  receipt_url?: string | null;
+  branch?: { id: string; name: string } | null;
+  category_ref?: { id: string; name: string; slug?: string | null } | null;
+};
+
+export type ExpenseSummary = {
+  today: { date: string; total: number; count: number };
+  month: { month: string; total: number; count: number };
+  by_category: Array<{
+    category_id: string;
+    name: string;
+    slug?: string | null;
+    total: number;
+    count: number;
+  }>;
+};
+
+export type ExpenseCategory = {
+  id: string;
+  name: string;
+  slug?: string | null;
+  icon?: string | null;
+  color?: string | null;
+};

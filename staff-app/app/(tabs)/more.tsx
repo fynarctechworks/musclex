@@ -3,7 +3,7 @@ import { ScrollView, View } from 'react-native';
 import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  BarChart3, CalendarDays, Boxes, Dumbbell, HeartPulse, LogOut, Megaphone, Package, Settings, ShoppingCart,
+  BarChart3, CalendarDays, Boxes, Dumbbell, HeartPulse, LogOut, Megaphone, Package, Receipt, Settings, ShoppingCart,
   Sparkles, Tablet, UserCog, Users2, type LucideIcon,
 } from 'lucide-react-native';
 
@@ -67,6 +67,7 @@ export const ENTRIES: Entry[] = [
   { href: '/more/staff',      label: 'Staff',        icon: UserCog,   module: 'staff',     feature: 'staff_management',    phase: 'Phase 10' },
   { href: '/more/marketing',  label: 'Marketing',    icon: Megaphone, module: 'marketing', feature: 'marketing_campaigns', phase: 'Phase 9' },
   { href: '/more/inventory',  label: 'Inventory',    icon: Package,   module: 'inventory', phase: 'Phase 8' },
+  { href: '/more/expenses',   label: 'Expenses',     icon: Receipt,   module: 'payments',  phase: '' },
   { href: '/more/reports',    label: 'Reports',      icon: BarChart3, module: 'reports',   feature: 'basic_reports',       phase: 'Phase 8' },
   { href: '/more/training',   label: 'Training',     icon: Dumbbell,  module: 'members',   phase: '' },
   { href: '/more/ai',         label: 'AI advisor',   icon: Sparkles,  module: 'ai',        feature: 'ai_advisor',          phase: 'Phase 6' },

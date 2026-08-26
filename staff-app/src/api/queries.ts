@@ -4,7 +4,7 @@ import { api } from '@/api/client';
 import { buildCheckInBody, type CheckInInput } from '@/api/checkin-payload';
 import { toLocalISODate } from '@/lib/format';
 import type {
-  ActivityItem, BodyStats, Branch, Exercise, DashboardAlert, DashboardKpis, DashboardPulse, Member,
+  ActivityItem, BodyStats, Branch, Expense, Exercise, ExpenseSummary, ExpenseCategory, DashboardAlert, DashboardKpis, DashboardPulse, Member,
   ClassSession, MemberDetail, Paginated, Payment, Product, StaffRow, TrainerSession, WorkoutPlan,
   SessionAttendance,
   SessionRoster,
@@ -365,6 +365,77 @@ export function useBulkAttendance(sessionId: string | undefined) {
       api.post(`/classes/bookings/attendance/${sessionId}/bulk`, { entries }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['class-attendance', sessionId] });
+    },
+  });
+}
+
+/**
+ * Expenses — what the gym spent.
+ *
+ * `amount` arrives as a Decimal string like every other money field here, so
+ * callers must coerce before arithmetic (`toAmount` in lib/format).
+ */
+export function useExpenses(params: { branchId?: string | null; limit?: number } = {}) {
+  const { branchId, limit = 50 } = params;
+  return useQuery({
+    queryKey: ['expenses', branchId ?? 'all', limit],
+    queryFn: () =>
+      api.get<Paginated<Expense>>('/expenses', {
+        params: { limit, ...(branchId ? { branch_id: branchId } : {}) },
+      }),
+  });
+}
+
+/**
+ * Today, this month, and a category breakdown.
+ *
+ * `branch_id` is REQUIRED by this endpoint — it 400s without one — unlike the
+ * list, which happily spans branches. So the caller must resolve a branch
+ * before asking, and the summary is skipped on "All branches" rather than
+ * firing a request that can only fail.
+ */
+export function useExpenseSummary(branchId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['expense-summary', branchId ?? ''],
+    enabled: Boolean(branchId),
+    queryFn: () =>
+      api.get<ExpenseSummary>('/expenses/summary', { params: { branch_id: branchId } }),
+  });
+}
+
+export function useExpenseCategories() {
+  return useQuery({
+    queryKey: ['expense-categories'],
+    staleTime: 10 * 60 * 1000,
+    queryFn: () => api.get<ExpenseCategory[]>('/expense-categories'),
+  });
+}
+
+/** Record an expense. Append-only: the API models these as events. */
+export function useCreateExpense() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      branchId: string;
+      categoryId: string;
+      amount: number;
+      description: string;
+      expenseDate: string;
+      vendor?: string;
+      paymentMethod?: string;
+    }) =>
+      api.post<Expense>('/expenses', {
+        branch_id: input.branchId,
+        category_id: input.categoryId,
+        amount: input.amount,
+        description: input.description,
+        expense_date: input.expenseDate,
+        ...(input.vendor ? { vendor: input.vendor } : {}),
+        ...(input.paymentMethod ? { payment_method: input.paymentMethod } : {}),
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['expenses'] });
+      void qc.invalidateQueries({ queryKey: ['expense-summary'] });
     },
   });
 }
