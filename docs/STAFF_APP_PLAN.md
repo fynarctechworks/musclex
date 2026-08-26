@@ -1,6 +1,6 @@
 # MuscleX Staff App — Build Plan (full native)
 
-**Status:** Phases 1–5 and 5b complete; Phase 6 (trainer) not started · **Date:** 2026-08-26
+**Status:** Phases 1–5 and 5b complete; Phase 6 (trainer) started — class register done · **Date:** 2026-08-26
 
 Goal: *a mobile app giving gym staff the same features and options they currently use in
 the web admin app (`frontend/`).*

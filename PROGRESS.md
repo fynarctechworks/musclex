@@ -253,3 +253,39 @@ trusting the screen.
 The session signs out mid-testing because login returns no `refresh_token`, so
 a 401 cannot be refreshed silently. Already logged in `TODO_FOR_ME.md`; it
 surfaced repeatedly today whenever a token aged out during a long device run.
+
+---
+
+## Phase 6 started — class register
+
+42. **Class register** (`app/class/[id].tsx`) — roster, per-member Present /
+    Late / No show, "mark remaining N present". Reached by tapping a class on
+    the Schedule.
+43. **Fixed: Schedule was unreachable for front desk.** Only 4 tabs fit and
+    Schedule sits 5th, so the role had the permission and no route. Now in
+    More, with a test asserting the property for every tab rather than the two
+    known cases.
+44. **Fixed (backend): class attendance and PT sessions were 403 for every
+    gym.** Four sites compared a nullable `organization_id` against
+    `studio_id`; both are null for single-org gyms, so the check was always
+    true. See `docs/SECURITY_FINDINGS_2026-08-26.md` F-4.
+45. **Fixed: seeder wrote `enrolled_count` with no bookings behind it.**
+46. **Fixed: register rows jumped between fetches** — the API's `booked_at`
+    ordering has arbitrary tie-breaks. Sorted by name client-side.
+
+**Tests: 264 staff-app (26 suites) · 895 backend (4 skipped) · tsc clean both ·
+`verify:ui` passing.**
+
+### Verified on device
+
+Signed in as the trainer: register opens from the schedule, shows 10 real
+booked members, marking persists (confirmed by SQL, not by the screen), the
+badge reflects the saved state, and the count drops 10 → 9. Signed in as front
+desk: the same screen correctly shows **no** marking controls.
+
+### A false positive I caught in my own checking
+
+I first "confirmed" a mark had landed by asserting the string `Present` was on
+screen — but `Present` is also a segment-button label, so it was always there.
+The badge still read "Not marked". Re-checked by pairing each badge with its
+row's x-position, which is what actually showed the bug.
