@@ -784,3 +784,29 @@ taught the script something:
 FIRST entry after opening More fail intermittently, and *which* entry failed
 moved between runs. A moving failure is almost always the harness. It now waits
 for a label rather than guessing a duration.
+
+## 2026-08-26 — Membership plans (Phase 10)
+
+Opened mid-conversation with somebody deciding whether to join, so it answers
+the question actually asked: **not just the headline price, but what that works
+out to per month.** A desk comparing ₹2,400 monthly against ₹24,000 annual
+should not be doing division in front of the customer. Gold reads "1 year ·
+₹1,973/mo".
+
+**The per-month figure is suppressed when it equals the headline** — "₹2,400 ·
+₹2,400/mo" on a monthly plan is noise.
+
+**"365 days" is never shown.** Nobody sells an annual membership that way, so
+clean multiples convert to weeks, months and years; awkward lengths stay in
+days rather than being rounded into a lie.
+
+**No duration means no monthly figure**, rather than an invented one.
+
+**Retired plans sort last but are not hidden.** A member may still be on one,
+so the desk needs to see it — but it must never be the thing offered to
+somebody joining today.
+
+**`/membership-plans` returns a bare ARRAY**, not the `{ data, total }`
+envelope most list endpoints use. Unwrapping it like the others yields
+`undefined` and an empty screen that reads as "this gym sells nothing" — noted
+in the hook so the next caller does not repeat it.

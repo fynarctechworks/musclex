@@ -348,3 +348,16 @@ export type MonthlyReport = {
   daily_revenue: Record<string, number>;
   expenses_by_category: Record<string, number>;
 };
+
+/** A membership plan the gym sells. `price` is a Decimal — may arrive as a string. */
+export type MembershipPlan = {
+  id: string;
+  name: string;
+  description?: string | null;
+  price: number | string;
+  duration_days?: number | null;
+  duration_months?: number | null;
+  is_active?: boolean;
+  features?: string[] | null;
+  max_members?: number | null;
+};

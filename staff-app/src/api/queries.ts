@@ -4,7 +4,7 @@ import { api } from '@/api/client';
 import { buildCheckInBody, type CheckInInput } from '@/api/checkin-payload';
 import { toLocalISODate } from '@/lib/format';
 import type {
-  ActivityItem, BodyStats, Branch, Expense, FinanceDashboard, MonthlyReport, Exercise, ExpenseSummary, ExpenseCategory, DashboardAlert, DashboardKpis, DashboardPulse, Member,
+  ActivityItem, BodyStats, Branch, Expense, FinanceDashboard, MonthlyReport, Exercise, ExpenseSummary, ExpenseCategory, DashboardAlert, DashboardKpis, DashboardPulse, Member, MembershipPlan,
   ClassSession, MemberDetail, Paginated, Payment, Product, StaffRow, TrainerSession, WorkoutPlan,
   SessionAttendance,
   SessionRoster,
@@ -439,6 +439,22 @@ export function useExpenseCategories() {
     queryKey: ['expense-categories'],
     staleTime: 10 * 60 * 1000,
     queryFn: () => api.get<ExpenseCategory[]>('/expense-categories'),
+  });
+}
+
+/**
+ * The membership plans this gym sells.
+ *
+ * Returns a bare ARRAY, not the `{ data, total }` envelope most list endpoints
+ * use — so it must not be unwrapped like the others. Assuming the envelope
+ * yields `undefined` and an empty screen that looks like "this gym sells
+ * nothing".
+ */
+export function useMembershipPlans() {
+  return useQuery({
+    queryKey: ['membership-plans'],
+    staleTime: 5 * 60_000,
+    queryFn: () => api.get<MembershipPlan[]>('/membership-plans'),
   });
 }
 

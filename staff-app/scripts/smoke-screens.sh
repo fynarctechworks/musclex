@@ -130,6 +130,7 @@ ENTRIES=(
   "Inventory|Needs attention"
   "Training|Plans"
   "Reports|MRR"
+  "Memberships|Membership plans"
 )
 
 for pair in "${ENTRIES[@]}"; do
