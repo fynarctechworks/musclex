@@ -5,8 +5,8 @@
   "private": true,
   "scripts": {
     "start": "expo start",
-    "ios": "expo run:ios",
-    "android": "expo run:android",
+    "ios": "SENTRY_DISABLE_AUTO_UPLOAD=true expo run:ios",
+    "android": "SENTRY_DISABLE_AUTO_UPLOAD=true expo run:android",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "test": "jest",
@@ -14,7 +14,11 @@
     "verify:ui": "scripts/verify-interactive.sh",
     "verify:screens": "scripts/smoke-screens.sh",
     "audit:a11y": "scripts/audit-a11y.sh",
-    "verify:bundle": "expo export --platform ios --output-dir .expo-export"
+    "verify:bundle": "expo export --platform ios --output-dir .expo-export",
+    "release:preflight": "scripts/release-ios.sh preflight",
+    "release:build": "scripts/release-ios.sh build",
+    "release:testflight": "scripts/release-ios.sh testflight",
+    "release:submit": "scripts/release-ios.sh submit"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.14",

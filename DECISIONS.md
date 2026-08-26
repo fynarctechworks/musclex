@@ -1455,3 +1455,73 @@ stack traces in Sentry will be minified once a DSN exists. That is the right
 trade for now — an unbuildable app helps nobody, and crash reporting is inert
 until a DSN is set anyway — but it is a real cost and it should not be
 discovered later as a surprise.
+
+---
+
+## App Store submission: automated to the last irreversible step, and no further
+
+You installed `asc` and asked for the submission process to be automated
+entirely, using an MCP if the repo had one. It does not have one — it ships an
+**agent skill pack** instead, which `asc install-skills` places in
+`~/.agents/skills/` (23 skills, from a commit pinned in the CLI source so
+upgrading is a reviewed change rather than a silent one). Those are reference
+documents, not callable tools, so the pipeline calls the CLI directly. Usefully,
+the pack's own house style is dry-run-then-`--confirm`, which is the same
+discipline this repo already requires.
+
+`staff-app/scripts/release-ios.sh` is the pipeline: `preflight → build →
+testflight → submit`. Two decisions worth recording.
+
+**Everything is automated except the one irreversible action.** `submit`
+without `--confirm` is a dry run; with `--confirm` it also requires you to type
+the version number back. Submitting puts the app in front of Apple's reviewers
+under your developer account — that is an external, hard-to-reverse action, and
+CLAUDE.md gate #5 covers it. Automating up to that line and stopping is not
+timidity; it is the difference between a pipeline and a loaded gun.
+
+**Preflight encodes failures we have already had.** Each check exists because
+the thing it catches actually happened: the localhost API URL, the Sentry build
+phase with no org, the missing projectId, Expo's placeholder icon. Metadata is
+validated with `--strict`, which promotes *warnings* to failures, so the
+placeholder privacy-policy URL blocks the release here rather than coming back
+as an Apple rejection days later. Preflight also never stops at the first
+failure — someone fixing five things wants all five named now.
+
+### My own preflight had exactly the bug it was written to prevent
+
+The first version reported `✓ asc credentials present` on a machine with no
+credentials at all. The check was:
+
+```bash
+if asc auth doctor 2>&1 | grep -q "No stored credentials found"; then
+```
+
+Under `set -o pipefail` that pipeline reports FAILURE **on a match**: `grep -q`
+exits at the first hit, `asc` dies of SIGPIPE, and the non-zero pipeline status
+inverts the test. A safety check that silently passes is worse than no check —
+it converts "you have no credentials" into "you are ready to ship". Now the
+output is captured to a variable and matched with `case`, with no pipe in the
+condition.
+
+### The Sentry fix did not cover local builds
+
+Disabling source-map upload in `eas.json` fixed EAS. It did nothing for
+`expo run:ios`, which does not read `eas.json` — and running `expo prebuild`
+had just added the Sentry build phases to the local project, so local builds
+started failing where they previously had no Sentry step at all. `npm run ios`
+and `npm run android` now set `SENTRY_DISABLE_AUTO_UPLOAD=true` themselves, so
+the fix travels with the repo instead of living in one machine's environment.
+
+### Push notifications now mint a real token
+
+With `extra.eas.projectId` present, the client registered
+`ExponentPushToken[O8Li…]` against MuscleX Test Gym, and `sendToStaff`
+delivered to it: Expo accepted the message and returned no `DeviceNotRegistered`
+ticket, so the token survived. Getting there needed one more thing than the
+projectId — the `aps-environment` entitlement, which the expo-notifications
+config plugin writes during prebuild and which the previously-installed build
+predated.
+
+**The banner appearing is still unverified.** An iOS simulator cannot receive
+real APNs pushes; Expo accepts the message and it lands nowhere. Everything up
+to the handoff to Apple is proven; the last hop needs a physical iPhone.

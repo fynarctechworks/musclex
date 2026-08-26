@@ -235,7 +235,43 @@ backdrop behaviour, back-button handling, and date pickers.
 **Not a blocker for an iOS TestFlight.** It becomes one the moment you want
 Android, and it is a day of work plus a build, not a rewrite.
 
-## 8. A production build has nowhere to send API calls (blocks TestFlight)
+## 8. App Store submission is automated — it needs credentials and 3 facts
+
+`asc` is wired into a full pipeline: `staff-app/scripts/release-ios.sh`, with
+`npm run release:{preflight,build,testflight,submit}`. Full write-up in
+`docs/APP_STORE_RELEASE.md`. It has **no MCP server**; it ships an agent skill
+pack, which I installed (`asc install-skills` → 23 skills in `~/.agents/skills/`).
+
+Preflight runs today and names exactly what is missing:
+
+```
+✗ eas.json profile 'production' has no EXPO_PUBLIC_API_BASE_URL
+✗ No app icon declared in app.json — Expo's default placeholder would ship
+✗ Store metadata not release-ready (privacy policy URL, support URL)
+✗ asc has no credentials
+✓ EAS projectId: 5ad80e82-7758-4bb2-bfd4-a8c2cd175348
+```
+
+**What only you can give me:**
+
+1. **App Store Connect API key** — Users and Access → Integrations → App Store
+   Connect API, **App Manager** role. You get a `.p8` (downloadable once), a
+   Key ID and an Issuer ID. Save the `.p8` outside the repo and run
+   `asc auth login --name musclex --key-id KEY --issuer-id ISSUER --private-key /path/AuthKey.p8`.
+   **Do not paste it here** — it would land in the transcript.
+2. **The production API URL** (and staging, if `preview` differs).
+3. **Privacy policy URL** and **support URL** — Apple rejects without the
+   first.
+4. **The app record** for `com.infynarc.musclex.staff` in App Store Connect —
+   it does not exist yet. I can create it via `asc` once authenticated, if you
+   would rather I did.
+5. **The logo** (see item 1) so I can generate the icon and splash.
+
+Store copy is already written and validates within Apple's limits — you should
+read it and change anything you disagree with:
+`staff-app/metadata/version/1.0.0/en-US.json`.
+
+## 9. A production build has nowhere to send API calls (blocks TestFlight)
 
 Found while checking the build command. `eas.json` sets
 `EXPO_PUBLIC_API_BASE_URL` on the **development** profile only:
