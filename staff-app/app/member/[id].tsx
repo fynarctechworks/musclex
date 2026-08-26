@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollView, View } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { MessageCircle, Phone } from 'lucide-react-native';
 
 import { Text } from '@/components/ui/text';
@@ -40,7 +40,27 @@ export default function MemberDetail() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: member?.full_name ?? 'Member' }} />
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: member?.full_name ?? 'Member',
+          // Edit lives in the header rather than among the actions below: it
+          // corrects a record, while the buttons in the body DO something to
+          // the membership. Mixing them invites the wrong tap.
+          headerRight: () =>
+            member ? (
+              <Can module="members" action="edit">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onPress={() => router.push(`/member/edit/${member.id}`)}
+                  testID="member-edit">
+                  <Text>Edit</Text>
+                </Button>
+              </Can>
+            ) : null,
+        }}
+      />
       <ScrollView
         className="flex-1 bg-background"
         contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 16 }}>

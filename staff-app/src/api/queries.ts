@@ -224,6 +224,26 @@ export function useCheckIn() {
 }
 
 /**
+ * Edit a member's own details.
+ *
+ * PATCH, and only the fields that actually changed — a full-object PUT from a
+ * short mobile form would blank the columns the phone never showed (date of
+ * birth, address, emergency contact), silently destroying data the web app
+ * collected.
+ */
+export function useUpdateMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, changes }: { id: string; changes: Record<string, unknown> }) =>
+      api.patch<Member>(`/members/${id}`, changes),
+    onSuccess: (member) => {
+      void qc.invalidateQueries({ queryKey: ['members'] });
+      void qc.invalidateQueries({ queryKey: ['member', member?.id] });
+    },
+  });
+}
+
+/**
  * Create a member.
  *
  * `branch_id` is required by the DTO. When the user is on "All branches" we
