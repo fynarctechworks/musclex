@@ -292,7 +292,24 @@ this same bug.
 
 - **Sentry** (was item 8). Approved and shipped, DSN-gated so it is inert until
   `EXPO_PUBLIC_SENTRY_DSN` is set. Scrubbing is unit-tested: no PII, no request
-  bodies, URLs redacted and UUIDs masked. **Still needs from you:** the DSN.
+  bodies, URLs redacted and UUIDs masked. **Still needs from you:** the DSN —
+  and see the note on source maps below.
+
+  **Source-map upload is switched OFF** (`SENTRY_DISABLE_AUTO_UPLOAD=true` in
+  all three `eas.json` profiles). It has to be: the Sentry Expo plugin uploads
+  source maps during the iOS build and fails the whole build without an
+  organisation slug, which is what broke your first EAS build. Cost of having
+  it off: when you do add a DSN, JS stack traces in Sentry will be **minified**
+  — you will see `t.a is not a function` at `index.bundle:1:284913`, not a file
+  and line. Crashes are still captured and still grouped; they are just harder
+  to read.
+
+  **To turn it back on** once you have a Sentry account: add `organization` and
+  `project` to the plugin entry in `app.json`, create a Sentry auth token with
+  `project:releases` scope, store it as an EAS secret
+  (`eas secret:create --name SENTRY_AUTH_TOKEN`), and delete the three
+  `SENTRY_DISABLE_AUTO_UPLOAD` lines. I can do all of that in one pass — I just
+  need the org slug and project name.
 
 - **AI advisor reads "coming soon"** in both apps, as you asked, and the
   fallback no longer names our environment variables to a paying gym. See

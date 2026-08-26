@@ -1414,3 +1414,44 @@ screenshot becomes diagnostic instead of another "Network request failed".
 I did **not** invent a production hostname. A wrong URL fails in exactly the
 same way as no URL, so guessing would have converted a loud, specific failure
 back into a mystery — while looking fixed. That is TODO_FOR_ME.md item 8.
+
+---
+
+## The first EAS build failed on Sentry, and the warning had already said so
+
+`eas build` failed in the Xcode step with *"An organization ID or slug is
+required (provide with --org)"*. The `@sentry/react-native` Expo plugin injects
+two build phases — `sentry-xcode.sh` and `sentry-xcode-debug-files.sh` — that
+upload source maps and debug files to Sentry during the build, and both fail
+the build when no organisation is configured.
+
+**This was foreseeable and I did not act on it.** When I installed
+`expo-notifications`, the installer printed:
+
+> `[@sentry/react-native/expo] Missing config for organization, project.
+> Environment variables will be used as a fallback during the build.`
+
+I read that as noise and moved on. It was a precise prediction of this failure.
+
+Fix: `SENTRY_DISABLE_AUTO_UPLOAD=true` in the `env` of all three `eas.json`
+profiles — the switch named by the error message itself, and honoured at
+`sentry-xcode.sh:52` and `sentry-xcode-debug-files.sh:63`.
+
+**Verified locally, both directions**, rather than reasoned about. The local
+`ios/` project predated the plugin — its bundle phase called
+`react-native-xcode.sh` directly, with no Sentry step at all — which is exactly
+why this only failed on EAS, where every build starts from a fresh prebuild. So
+I ran `expo prebuild -p ios` to bring the local project to the same shape
+(confirmed both `sentry-xcode*.sh` phases present), then:
+
+- **Control**, Release build without the variable → `exit=65`, and the same
+  error string the EAS log showed.
+- **Fix**, identical build with `SENTRY_DISABLE_AUTO_UPLOAD=true` → `exit=0`,
+  `** BUILD SUCCEEDED **`, with `skipping sourcemaps upload` and
+  `skipping debug files upload` in the log.
+
+The cost is stated in TODO_FOR_ME.md rather than buried: with upload off, JS
+stack traces in Sentry will be minified once a DSN exists. That is the right
+trade for now — an unbuildable app helps nobody, and crash reporting is inert
+until a DSN is set anyway — but it is a real cost and it should not be
+discovered later as a surprise.

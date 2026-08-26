@@ -16,7 +16,10 @@
     },
     "android": {
       "package": "com.infynarc.musclex.staff",
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "bundler": "metro"
@@ -43,7 +46,10 @@
       "@sentry/react-native"
     ],
     "extra": {
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "5ad80e82-7758-4bb2-bfd4-a8c2cd175348"
+      }
     },
     "runtimeVersion": {
       "policy": "appVersion"
