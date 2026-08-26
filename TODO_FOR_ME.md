@@ -229,41 +229,61 @@ backdrop behaviour, back-button handling, and date pickers.
 **Not a blocker for an iOS TestFlight.** It becomes one the moment you want
 Android, and it is a day of work plus a build, not a rewrite.
 
-## 8. App Store submission is automated — it needs credentials and 3 facts
+## 8. One thing left: the App Store app record
 
-`asc` is wired into a full pipeline: `staff-app/scripts/release-ios.sh`, with
-`npm run release:{preflight,build,testflight,submit}`. Full write-up in
-`docs/APP_STORE_RELEASE.md`. It has **no MCP server**; it ships an agent skill
-pack, which I installed (`asc install-skills` → 23 skills in `~/.agents/skills/`).
-
-Preflight runs today and names exactly what is missing:
+Everything else is green. Preflight, just run:
 
 ```
-✗ eas.json profile 'production' has no EXPO_PUBLIC_API_BASE_URL
-✗ No app icon declared in app.json — Expo's default placeholder would ship
-✗ Store metadata not release-ready (privacy policy URL, support URL)
-✗ asc has no credentials
+✓ API base URL: https://api.musclex.infynarc.com/api/v1
 ✓ EAS projectId: 5ad80e82-7758-4bb2-bfd4-a8c2cd175348
+✓ App icon
+✓ Store metadata valid (0 errors, 0 warnings)
+✓ asc credentials present
+✗ No App Store Connect app for com.infynarc.musclex.staff
 ```
 
-**What only you can give me:**
+**I cannot create the app record, and it is not a permissions problem.** Apple's
+App Store Connect API has no app-creation endpoint at all — `asc` falls back to
+a **web session**, which needs your Apple ID *password* and a 2FA code from your
+device. That is a credential I should not handle even if you offered it.
 
-1. **App Store Connect API key** — Users and Access → Integrations → App Store
-   Connect API, **App Manager** role. You get a `.p8` (downloadable once), a
-   Key ID and an Issuer ID. Save the `.p8` outside the repo and run
-   `asc auth login --name musclex --key-id KEY --issuer-id ISSUER --private-key /path/AuthKey.p8`.
-   **Do not paste it here** — it would land in the transcript.
-2. **The production API URL** (and staging, if `preview` differs).
-3. **Privacy policy URL** and **support URL** — Apple rejects without the
-   first.
-4. **The app record** for `com.infynarc.musclex.staff` in App Store Connect —
-   it does not exist yet. I can create it via `asc` once authenticated, if you
-   would rather I did.
-5. **The logo** (see item 1) so I can generate the icon and splash.
+Two ways, both about a minute:
 
-Store copy is already written and validates within Apple's limits — you should
-read it and change anything you disagree with:
-`staff-app/metadata/version/1.0.0/en-US.json`.
+**A — in the browser.** App Store Connect → Apps → **+** → New App:
+
+| Field | Value |
+|---|---|
+| Platform | iOS |
+| Name | `MuscleX Staff` |
+| Primary language | English (U.S.) |
+| Bundle ID | `com.infynarc.musclex.staff` — already registered, pick it from the list |
+| SKU | `musclexstaff001` (internal only, never shown to anyone) |
+| User access | Full Access |
+
+**B — from the terminal**, which will prompt for your password securely:
+
+```bash
+cd staff-app
+asc web apps create --name "MuscleX Staff" \
+  --bundle-id com.infynarc.musclex.staff --sku musclexstaff001
+```
+
+One thing that can bite: **the app name must be unique across the whole App
+Store**. If "MuscleX Staff" is taken, Apple rejects it — "MuscleX for Gyms" or
+"MuscleX Staff App" are the usual fallbacks. The *display* name under the icon
+comes from `app.json`, not from this, so a longer store name costs nothing on
+the home screen.
+
+Tell me when it exists and I will run the build, upload to TestFlight and stop
+at the submission gate.
+
+### Already confirmed with your key
+
+- **Bundle ID is registered** (`AR96L46NVV`) — EAS created it during the first
+  build attempt.
+- **Push Notifications capability is already enabled on it**, which is the last
+  thing the push work was waiting on. A real signed build will get the
+  `aps-environment` entitlement and mint a token; the simulator could not.
 
 ## 9. ~~A production build has nowhere to send API calls~~ — resolved
 
