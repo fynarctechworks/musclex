@@ -10,7 +10,7 @@ import { EmptyState, ErrorState } from '@/ui/States';
 import { Loading } from '@/ui/Loading';
 import { ScheduleCalendar, type DayMark } from '@/ui/ScheduleCalendar';
 import { Meter } from '@/ui/Meter';
-import { useSessionsForDay } from '@/api/queries';
+import { groupSessionsByDay, useSessionsInMonth } from '@/api/queries';
 import { formatDate, formatTime, toLocalISODate } from '@/lib/format';
 import type { ClassSession } from '@/api/types';
 import { tokens } from '@/ui/tokens';
@@ -23,16 +23,19 @@ import { tokens } from '@/ui/tokens';
  */
 export default function Schedule() {
   const [day, setDay] = React.useState(() => new Date());
-  const query = useSessionsForDay(day);
-  const sessions = query.data ?? [];
+  // The month being LOOKED at, which is not always the month of the selected
+  // day — paging ahead should load that month without moving the selection.
+  const [month, setMonth] = React.useState(() => new Date());
 
-  // Mark the selected day only. Marking a whole month would need a range
-  // endpoint the API does not expose (see queries.ts).
+  const query = useSessionsInMonth(month);
+  const byDay = React.useMemo(() => groupSessionsByDay(query.data ?? []), [query.data]);
+  const sessions = byDay[toLocalISODate(day)] ?? [];
+
+  // Every day in the fetched month that has classes, not just the selected
+  // one — which is what the caption under the calendar has always claimed.
   const marks: DayMark[] = React.useMemo(
-    () => (sessions.length > 0
-      ? [{ date: toLocalISODate(day), count: sessions.length }]
-      : []),
-    [sessions.length, day],
+    () => Object.entries(byDay).map(([date, list]) => ({ date, count: list.length })),
+    [byDay],
   );
 
   return (
@@ -40,7 +43,7 @@ export default function Schedule() {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 16 }}>
         <Text className="text-2xl font-semibold text-foreground">Schedule</Text>
 
-        <ScheduleCalendar selected={day} onSelect={setDay} marks={marks} />
+        <ScheduleCalendar selected={day} onSelect={setDay} onMonthChange={setMonth} marks={marks} />
 
         <View className="gap-2">
           <View className="flex-row items-baseline justify-between">

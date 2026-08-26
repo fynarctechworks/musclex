@@ -467,3 +467,24 @@ working code look broken. The seeder now books real members and derives the
 count from them; existing sessions were backfilled non-destructively (394
 bookings, 230 attendance rows) rather than re-seeding, which would have
 truncated the check-ins recorded by hand during testing.
+
+## 2026-08-26 — Schedule fetches a month, not a day
+
+The calendar's caption said "Dots mark days with activity", and it could only
+ever dot the selected day — whose dot is hidden under the selection highlight
+anyway. So a gym with classes every weekday showed a calendar with no dots.
+
+The old query asked for `limit: 200` and filtered client-side to one day,
+throwing the rest away. Two problems: the caption was a promise the data could
+not keep, and a busy gym would silently fall off the end of the 200.
+
+`/classes/sessions` takes `date_from` / `date_to`, so the month on screen is
+now exactly what is fetched, and both the day's list and the whole month's dots
+come from that one response — strictly less data than before, and correct.
+
+The visible month is tracked separately from the selected day: paging ahead
+loads that month without moving the selection, which is what a calendar is for.
+
+Grouping is by LOCAL day on both sides. `start_time` is a UTC instant, and
+slicing its ISO string files a 10pm class under tomorrow — the same bug already
+fixed once in this screen.

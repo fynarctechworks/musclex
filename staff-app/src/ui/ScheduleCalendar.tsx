@@ -24,10 +24,16 @@ export type DayMark = { date: string; count: number; tone?: 'default' | 'warning
 const toISO = toLocalISODate;
 
 export function ScheduleCalendar({
-  selected, onSelect, marks = [], testID,
+  selected, onSelect, onMonthChange, marks = [], testID,
 }: {
   selected: Date;
   onSelect: (d: Date) => void;
+  /**
+   * The visible month changed (arrows or swipe). The caller needs this to
+   * fetch that month's data — without it the dots can only ever describe the
+   * month the screen happened to open on.
+   */
+  onMonthChange?: (firstOfMonth: Date) => void;
   marks?: DayMark[];
   testID?: string;
 }) {
@@ -56,6 +62,7 @@ export function ScheduleCalendar({
         current={selectedISO}
         markedDates={marked}
         onDayPress={(day: DateData) => onSelect(new Date(day.year, day.month - 1, day.day))}
+        onMonthChange={(m: DateData) => onMonthChange?.(new Date(m.year, m.month - 1, 1))}
         firstDay={1}
         enableSwipeMonths
         theme={{

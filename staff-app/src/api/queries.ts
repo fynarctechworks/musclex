@@ -88,21 +88,51 @@ export function useActivityFeed() {
  * a day, so this is cheap — but if a studio ever runs hundreds, this needs a
  * server-side date filter rather than a bigger page.
  */
-export function useSessionsForDay(day: Date) {
-  const key = toLocalISODate(day);
+/**
+ * A month of class sessions.
+ *
+ * Fetched as a RANGE rather than "everything, then filter". The previous
+ * version asked for `limit: 200` and threw away every session but the selected
+ * day's — so the calendar could only ever dot one day (the caption promised
+ * dots for days with activity, and a gym with classes every day showed none),
+ * and a busy gym would silently fall off the end of the 200.
+ *
+ * The endpoint takes `date_from` / `date_to`, so the month the user is looking
+ * at is exactly what gets fetched, and both the day's list and the whole
+ * month's marks come out of the one response.
+ */
+export function useSessionsInMonth(month: Date) {
+  const from = new Date(month.getFullYear(), month.getMonth(), 1);
+  // Day 0 of the NEXT month is the last day of this one.
+  const to = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+  const fromKey = toLocalISODate(from);
+  const toKey = toLocalISODate(to);
+
   return useQuery({
-    queryKey: ['class-sessions', key],
+    queryKey: ['class-sessions', fromKey, toKey],
     queryFn: async () => {
       const res = await api.get<Paginated<ClassSession>>('/classes/sessions', {
-        params: { limit: 200 },
+        params: { date_from: fromKey, date_to: toKey, limit: 500 },
       });
-      // Compare in LOCAL time on both sides: start_time is a UTC instant, and
-      // slicing its ISO string would bucket an evening class into the next day.
-      return res.data.filter(
-        (s) => s.start_time && toLocalISODate(new Date(s.start_time)) === key,
-      );
+      return res.data ?? [];
     },
   });
+}
+
+/**
+ * Bucket sessions by LOCAL calendar day.
+ *
+ * Local on both sides: `start_time` is a UTC instant, and slicing its ISO
+ * string would file an evening class under the next day.
+ */
+export function groupSessionsByDay(sessions: ClassSession[]): Record<string, ClassSession[]> {
+  const out: Record<string, ClassSession[]> = {};
+  for (const s of sessions) {
+    if (!s.start_time) continue;
+    const key = toLocalISODate(new Date(s.start_time));
+    (out[key] ??= []).push(s);
+  }
+  return out;
 }
 
 export function useProducts() {
