@@ -13,11 +13,15 @@ import { EmptyState } from '@/ui/States';
 import { useDashboardKpis, usePayments } from '@/api/queries';
 import { useSession } from '@/auth/SessionProvider';
 import { formatCurrency, formatCurrencyCompact, formatRelative } from '@/lib/format';
+import {
+  PAYMENT_PAID, PAYMENT_PENDING, paymentVariant, statusParam,
+  type PaymentFilter,
+} from '@/lib/payment-status';
 import type { Payment } from '@/api/types';
 import { tokens } from '@/ui/tokens';
 
 type Row = Payment & { member?: { full_name?: string } | null };
-type Filter = 'all' | 'completed' | 'pending';
+type Filter = PaymentFilter;
 
 /**
  * Money — payments taken, and what is outstanding.
@@ -32,7 +36,7 @@ export default function Money() {
   const currency = session?.studio?.currency ?? 'INR';
 
   const kpis = useDashboardKpis();
-  const query = usePayments({ status: filter === 'all' ? undefined : filter, limit: 20 });
+  const query = usePayments({ status: statusParam(filter), limit: 20 });
   const rows = query.data?.data ?? [];
 
   return (
@@ -69,8 +73,10 @@ export default function Money() {
             onChange={setFilter}
             segments={[
               { value: 'all', label: 'All' },
-              { value: 'completed', label: 'Completed' },
-              { value: 'pending', label: 'Pending' },
+              // 'paid' — NOT 'completed'. See lib/payment-status.ts: the old
+              // value matched no row the product has ever written.
+              { value: PAYMENT_PAID, label: 'Paid' },
+              { value: PAYMENT_PENDING, label: 'Pending' },
             ]}
           />
         </View>
@@ -94,7 +100,7 @@ export default function Money() {
                 item.paid_at ? formatRelative(item.paid_at) : null,
               ].filter(Boolean).join(' · ')}
               trailing={
-                <Badge variant={item.status === 'completed' ? 'success' : 'warning'}>
+                <Badge variant={paymentVariant(item.status)}>
                   <Text>{item.status}</Text>
                 </Badge>
               }
