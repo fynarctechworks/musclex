@@ -201,7 +201,12 @@ dependency approval), member edit, and Phases 6–12. See `TODO_FOR_ME.md`.
 38. **Seeder wrote `status: 'completed'`** for payments; every revenue query
     filters `'paid'`. The dashboard was right and the seed data was lying.
 
-**Tests: 225 passing (23 suites), tsc clean.**
+**Tests: 234 staff-app passing (24 suites) · 891 backend passing (4 skipped) ·
+`verify:ui` device harness passing · tsc clean in both.**
+
+*Correction to an earlier line in this file:* I previously wrote "backend 53
+tests". That was the subset of suites covering what I had touched, not the
+backend suite. The full suite is 891 passing.
 
 ### Verified on device this session, API paused mid-flight
 
@@ -225,3 +230,26 @@ dependency approval), member edit, and Phases 6–12. See `TODO_FOR_ME.md`.
 
 Both were caught by checking the database and the coordinates rather than
 trusting the screen.
+
+39. **Kiosk mode (Phase 5b)** — unattended lobby tablet. Branch pinned to the
+    device in the Keychain, PIN-gated exit with an attempt limit, offline queue
+    banner, no staff context on screen. Full lifecycle verified on device.
+40. **`headerBackTitle`** — iOS was labelling the back button with the
+    expo-router group, so it read a literal "(tabs)".
+41. **Fixed a dead button**: `QrScanner`'s `onClose` was mandatory, so kiosk
+    passed a no-op and rendered "Search by name" doing nothing.
+
+### Phase status after this session
+
+| Phase | State |
+|---|---|
+| 4 — Charts, lists & offline | **DONE** (offline read + write both shipped) |
+| 5 — Front desk | **DONE** (QR, member edit, offline write were the remainder) |
+| 5b — Kiosk | **DONE** (core; verified end to end on device) |
+| 6 — Trainer | not started |
+
+### Known, and not a code problem
+
+The session signs out mid-testing because login returns no `refresh_token`, so
+a 401 cannot be refreshed silently. Already logged in `TODO_FOR_ME.md`; it
+surfaced repeatedly today whenever a token aged out during a long device run.
