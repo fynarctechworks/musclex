@@ -382,3 +382,38 @@ does not have — correctly, since the backend requires the same permission. So
 the write was verified **at the API with the exact payload the app sends**, not
 by tapping it. That is a real gap in the device coverage and it is a
 permissions question, now item 7 in `TODO_FOR_ME.md`.
+
+## Phase 6 — trainer train (substantially complete)
+
+52. **PT sessions** — Mine/Everyone scope, Upcoming/Done/All filter, settle
+    buttons gated on `staff.edit`. Resolves the staff row before filtering by
+    "mine", because asking with no `trainer_id` returns the whole gym's list
+    labelled as yours.
+53. **Training** — plan library and exercise library, with a plan detail that
+    reads in performance order with prescriptions.
+54. **Seeder + API test data** — PT sessions, 50 exercises (via the product's
+    own `seed-defaults`), 3 plans, 9 assignments, measurement histories.
+
+**Tests: 312 staff-app (33 suites) · 895 backend · tsc clean in both.**
+
+### Phase 6 scorecard
+
+| Item | State |
+|---|---|
+| Classes — sessions, attendance, bookings | **DONE** |
+| PT sessions | **DONE** |
+| Training plans & exercises | **DONE** (read-only — see below) |
+| Member progress | **DONE** |
+| AI advisor | **BLOCKED** — no LLM key (TODO item 8) |
+| Class *editing* (create/edit a class) | not built — `classes.create` is owner-level |
+
+### The permissions thread running through Phase 6
+
+Three separate features landed read-only for the trainer role, all for the same
+reason: the write needs `members.edit` or `staff.edit`, and a trainer has
+neither. That is **not a bug** — the app matches the server exactly in each
+case, and I verified the permission sets rather than assuming them.
+
+But it means a trainer currently cannot record a measurement, author a plan, or
+settle their own PT session. Whether that is right is a business decision, now
+`TODO_FOR_ME.md` item 7.
