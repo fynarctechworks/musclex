@@ -914,3 +914,22 @@ slow on the phones staff carry.
 
 Verified on device and in the API: advanced Sneha Iyer new → contacted, and the
 funnel recomputed.
+
+## 2026-08-26 — RBAC tested against REAL permission sets (Phase 12)
+
+Every RBAC test in this app used permission sets I invented. That proves the
+gating *logic* is right and says nothing about whether my assumptions match
+what the server grants — and those assumptions had already been wrong twice:
+
+- a trainer cannot record a member's measurements (`members.edit`), and
+- an accountant has no `staff.*` at all, so Staff and PT sessions are invisible
+  to them, which I briefly mistook for a navigation bug.
+
+`src/__tests__/fixtures/real-permissions.ts` now holds the actual
+`permission_codes` returned by `POST /auth/login` for each of the four seeded
+role accounts, and `rbac-real.test.ts` asserts the app's behaviour against
+them: who reaches what, and what tab bar each role actually gets.
+
+**If the server's role definitions change, these tests SHOULD fail** and be
+re-captured deliberately. That failure is the signal — a role quietly gaining
+`payments.view` is exactly the change worth being told about.
