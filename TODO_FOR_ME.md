@@ -259,16 +259,24 @@ believable data rather than a live customer's.
 Note it must also survive review: do not delete it after submitting, and if 2FA
 is on for it, either turn that off or Apple will be stuck at the code screen.
 
-### The two formal blockers
+### Pricing and availability — done
 
-1. **App Review details** — first name, last name, phone, email, plus the demo
-   credentials above. Apple contacts this person if review has a question.
-2. **Pricing and Availability** — which territories, and free vs paid. A
-   business decision, not a technical one. For a staff companion app the usual
-   answer is "free, all territories".
+Free, and available in **all 175 App Store territories**, with
+`availableInNewTerritories: true` so Apple adds it automatically wherever the
+store opens next. `asc validate` no longer flags availability.
 
-Both live in App Store Connect. Give me the details and I can set them via
-`asc`, or do them in the UI — they are two short forms.
+One thing I could not do from the CLI: write an explicit **price schedule**.
+Apple requires the first pricing interval to have *no* start date so the
+timeline is fully covered, and `asc pricing schedule create` requires
+`--start-date` — today's date is rejected as "in the future" and yesterday's as
+"in the past". It is not blocking (validation passes), but **give
+Pricing and Availability a glance in App Store Connect and confirm it reads
+Free** before you submit.
+
+### The one blocker left: App Review details
+
+You said you would fill this in. It needs your name, phone and email, plus the
+demo credentials above.
 
 ### One thing to confirm by eye
 
@@ -278,6 +286,32 @@ Privacy **questionnaire** ("what data does your app collect") is published.
 Check App Store Connect → App Privacy. Based on what the apps actually do, the
 answers are: contact info and identifiers **linked to the user**, used for App
 Functionality only, and **no tracking**.
+
+### Worth knowing before review: "free to install, paid elsewhere"
+
+You described the model as: free to install, but the gym must register and
+subscribe on the MuscleX website first. That is a real App Review topic, not
+just a pricing setting — Apple's Guideline **3.1.3(b)**, "Multiplatform
+Services", and the enterprise/B2B carve-out.
+
+You are on the right side of it: this is a **business tool used by employees of
+a subscribing company**, not a consumer app selling digital content, so it does
+not need in-app purchase. Apps in this category are approved routinely.
+
+Two things make it go smoothly, and both are things reviewers look for:
+
+- **The app must not tell users to go and pay somewhere.** No pricing, no
+  "subscribe on our website", no link to a purchase page. The staff app has
+  none of that today — sign-in is the only entry point — so leave it that way.
+- **Say what it is in the review notes.** One line: *"MuscleX Staff is a
+  companion app for employees of gyms that subscribe to MuscleX. Accounts are
+  created by the gym's owner; there is no consumer sign-up and nothing is sold
+  in the app. Demo credentials are provided above."* That pre-empts the
+  reviewer's obvious question, which is otherwise a rejection and a week of
+  back-and-forth.
+
+The store description already says "Requires a MuscleX account … you will need
+credentials from your gym's administrator", which supports this.
 
 ### Then
 
