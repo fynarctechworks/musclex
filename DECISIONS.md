@@ -1002,3 +1002,33 @@ uses for expenses.
 2. After rebuilding, the old backend process still held port 4002 and my new
    one lost the race — so I was testing stale code and briefly concluded the
    fix did not work.
+
+## 2026-08-26 — Login now returns a refresh token (TODO item 4, fixed)
+
+**The cause was not Supabase.** `refresh_token` sat in
+`StripSecretsInterceptor`'s global `ALWAYS_STRIP` list, so it was removed from
+every response — including the login response whose entire job is to hand back
+a session. Supabase was returning it the whole time; the interceptor was
+deleting it on the way out.
+
+That is why the mobile client could never refresh silently and had to sign the
+user out on every 401. It cost me real time repeatedly during device testing:
+long runs kept dying mid-way, and one such sign-out was what made me briefly
+suspect a session-persistence bug that did not exist.
+
+**The fix is deliberately narrow.** Stripping `refresh_token` is right almost
+everywhere — a member or staff row that happens to carry one must never go out.
+So the exemption is a short allowlist of endpoints whose response IS a
+credential, handed to the person who just proved they own it:
+
+`/auth/login`, `/auth/refresh`, `/auth/2fa/login`, `/auth/2fa/verify`,
+`/auth/select-workspace`, `/auth/oauth/sync`.
+
+Matched on the path SUFFIX, and only for `refresh_token` — every other secret
+is still stripped on those routes, which is asserted directly. `login-history`
+is in the tests specifically because it contains the word "login" and must NOT
+match.
+
+Verified end to end: login returns a refresh token, `POST /auth/refresh`
+exchanges it for a new session, and `/members` still contains no occurrence of
+the field.

@@ -31,27 +31,14 @@ built and unit-tested but have never run against the real API.
 **Workaround:** left as-is; the logic follows the backend contract exactly
 (`/auth/2fa/login` takes a camelCase `tempToken`).
 
-## 4. Login returns no `refresh_token`
-
-Verified against the live API: `POST /auth/login` returns `access_token` and
-`session_id` but no `refresh_token`, so the app cannot silently refresh and
-signs out on 401 instead. The backend code path *does* return one
-(`refresh_token: session?.refresh_token`), so Supabase returned no session
-object for these admin-created users.
-
-**Needs a decision:** is this expected for admin-created accounts only, or a
-real gap for normal sign-ups? If the latter, sessions expire far sooner than
-intended on mobile.
-**Workaround:** `Session.refreshToken` is optional; refresh is skipped when absent.
-
-## 5. Unscoped referral reporting endpoints (product question)
+## 4. Unscoped referral reporting endpoints (product question)
 
 `GET /admin/referrals/{,overview,analytics,fraud-queue}` still return
 platform-wide aggregates to gym owners. Fixing them means deciding what a gym
 owner *should* see of their own referral funnel — a product call, not a
 mechanical one. Detail in `docs/SECURITY_FINDINGS_2026-08-26.md`.
 
-## 6. One QR scan on a physical device
+## 5. One QR scan on a physical device
 
 The scanner is built and the plumbing is verified — permission prompt (with our
 own usage string), camera view mounting, the fallback when access is refused,
@@ -67,7 +54,7 @@ but they have never met a real camera firing ten events a second.
 a member's code once. If it checks them in and a second scan of the same code
 is ignored for a few seconds, the feature is done.
 
-## 7. AI advisor needs an LLM API key
+## 6. AI advisor needs an LLM API key
 
 `POST /api/v1/ai/chat` returns **500** in this environment. Neither
 `ANTHROPIC_API_KEY` nor `OPENAI_API_KEY` is set in `backend/.env`, and the
@@ -84,7 +71,7 @@ reachable as soon as a key exists.
 
 **What I need:** a key in `backend/.env`, then this is roughly a day of work.
 
-## 8. Phase 7 (push notifications) needs a schema decision
+## 7. Phase 7 (push notifications) needs a schema decision
 
 The plan marks Phase 7 as **"DB schema → approval"**, and `CLAUDE.md` hard-gate
 #1 puts any migration behind your explicit go-ahead. Staff push needs somewhere
@@ -102,59 +89,7 @@ query cache on workspace switch, so a device-token table has to be cleared on
 those paths too — otherwise a staffer who signs out keeps receiving another
 gym's notifications on that handset.
 
-## 9. Dashboard KPI inspector reads the wrong schema (needs your go-ahead)
-
-`dashboard/kpi-inspector.service.ts` injects the **raw** `PrismaService` and
-queries tenant models with it. Tenant models are `@@schema("studio_template")`,
-so it reads **`studio_template`** instead of the caller's gym.
-
-**Measured:** the seeded gym has 3 pending invoices worth ₹22,400.
-`GET /invoices` (tenant-scoped) returns all three; `GET
-/dashboard/inspect/outstanding_dues` returns `value: 0, sample_rows: []`, as
-owner *and* as accountant. `studio_template.member_invoices` is empty.
-
-Its other metrics only *look* right because this dev DB's `studio_template`
-holds a stale copy of the same fixtures.
-
-**I did not fix it.** It is one line — inject `TenantPrisma`, use
-`this.tenant.client.*` like every other service — and it strictly narrows what
-the query reaches. But it changes how a service is gym-scoped, which
-`CLAUDE.md` hard-gate #2 reserves for you.
-
-**Also in the same method:** the headline `value` is summed from the first 10
-rows (`take: 10`) while claiming to be the full SUM. A gym with 500 unpaid
-invoices would be shown the 10 oldest and told that is everything it is owed.
-
-Full evidence in `docs/SECURITY_FINDINGS_2026-08-26.md` F-5.
-
-**Consequence for the app:** I have **not** built a dues tile. The only metric
-that reports dues is this one, and putting a number on screen that I know reads
-the wrong schema would be worse than leaving it off.
-
-## 10. Two small clean-ups the isolation work surfaced
-
-Neither blocks anything; both are yours to call because they touch tenant code.
-
-**a) `verifyFullTenantIsolation()` is dead code that would return false.** It
-checks `search_path` and `app.gym_id` — the mechanism `CLAUDE.md` says is inert
-under Prisma multiSchema. Nothing in `src/` calls it, and nothing sets those
-session variables. It should be deleted or rewritten to assert the `gym_id`
-injection that actually protects us. I skipped its test with a note rather than
-touch the method.
-
-**b) Comments claiming search_path protection.** `settings.service.ts` and
-`payments.service.ts` carry comments like "tenant isolation relies on
-search_path set by TenantMiddleware". Those queries ARE safe — the gym_id
-injection covers them — but for a different reason than the comment states.
-Worth correcting before somebody relies on the comment.
-
-**Also worth knowing:** `.e2e-spec.ts` files are not collected by `npm test`
-(the regex wants a literal dot; these use a hyphen). They only run under
-`npm run test:e2e`. That is standard Nest layout, but it is why the
-tenant-isolation suite could sit broken while CI stayed green — worth wiring
-`test:e2e` into whatever runs on push.
-
-## 11. Sentry (or another crash reporter) — a new dependency
+## 8. Sentry (or another crash reporter) — a new dependency
 
 Phase 12 lists Sentry. It is a new package plus a native module, which
 hard-gate #3 and #4 both cover, so I have not added it.
@@ -170,7 +105,7 @@ monorepo's dependency tree — `jest.config` references `@sentry/react-native` i
 
 **What I need:** approval for the package and a DSN.
 
-## 12. Android is entirely unverified
+## 9. Android is entirely unverified
 
 The plan is iOS-first and that is what I built and tested. Everything verified
 this session was on an iOS simulator. The app has **never been run on
@@ -186,6 +121,16 @@ backdrop behaviour, back-button handling, and date pickers.
 Android, and it is a day of work plus a build, not a rewrite.
 
 ## RESOLVED
+
+- **Login returns a refresh token again** (was item 4). It was not Supabase —
+  `StripSecretsInterceptor` was deleting it from every response, including the
+  one whose job is to return it. Now exempted on session-minting auth routes
+  only.
+- **F-5: the KPI inspector reads the caller's gym** (was item 9). Dues went
+  0 → ₹22,400, matching the database. `mrr` and `check_ins_today` also changed,
+  confirming they had been reading `studio_template` too.
+- **The dead isolation check is a real one** (was item 10), and seven files'
+  misleading `search_path` comments now name the actual mechanism.
 
 - **Trainers can record measurements** (was item 7). You chose it; implemented
   as a NARROW new permission `members.measure` rather than granting

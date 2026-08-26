@@ -26,6 +26,35 @@ const OWNER_ONLY: ReadonlySet<string> = new Set([
 const OWNER_ROLES: ReadonlySet<string> = new Set(['owner', 'brand_owner']);
 
 /**
+ * Routes where `refresh_token` is the POINT of the response, not a leak.
+ *
+ * Stripping it globally is right almost everywhere — a member or staff row
+ * that happens to carry one must never go out. But these endpoints exist to
+ * MINT a session, and the client cannot refresh without it. The mobile app
+ * therefore had to sign the user out on every 401, which is why long sessions
+ * kept dying mid-shift.
+ *
+ * Matched on the path SUFFIX so a global prefix change cannot silently widen
+ * this, and kept deliberately short: every entry is an auth endpoint whose
+ * response is a credential handed to the person who just proved they own it.
+ */
+const SESSION_MINTING_ROUTES: readonly string[] = [
+  '/auth/login',
+  '/auth/refresh',
+  '/auth/2fa/login',
+  '/auth/2fa/verify',
+  '/auth/select-workspace',
+  '/auth/oauth/sync',
+];
+
+function mintsSession(path: string | undefined): boolean {
+  if (!path) return false;
+  // Ignore any query string; compare the route only.
+  const clean = path.split('?')[0].replace(/\/+$/, '');
+  return SESSION_MINTING_ROUTES.some((route) => clean.endsWith(route));
+}
+
+/**
  * True only for OBJECT LITERALS — not class instances.
  *
  * The previous version excluded Date and Buffer by name, which missed every
@@ -44,18 +73,21 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return proto === Object.prototype || proto === null;
 }
 
-function strip(value: unknown, isOwner: boolean): unknown {
+function strip(value: unknown, isOwner: boolean, allowRefreshToken = false): unknown {
   if (Array.isArray(value)) {
-    return value.map((v) => strip(v, isOwner));
+    return value.map((v) => strip(v, isOwner, allowRefreshToken));
   }
   if (!isPlainObject(value)) {
     return value;
   }
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(value)) {
-    if (ALWAYS_STRIP.has(k)) continue;
+    if (ALWAYS_STRIP.has(k)) {
+      // The single exemption, and only on a session-minting route.
+      if (!(allowRefreshToken && k === 'refresh_token')) continue;
+    }
     if (!isOwner && OWNER_ONLY.has(k)) continue;
-    out[k] = strip(v, isOwner);
+    out[k] = strip(v, isOwner, allowRefreshToken);
   }
   return out;
 }
@@ -68,6 +100,7 @@ export class StripSecretsInterceptor implements NestInterceptor {
     const res = http.getResponse();
     const user = req?.user as JwtPayload | undefined;
     const isOwner = !!user && OWNER_ROLES.has(user.role);
+    const allowRefreshToken = mintsSession(req?.originalUrl ?? req?.url);
 
     return next.handle().pipe(
       map((data) => {
@@ -76,7 +109,7 @@ export class StripSecretsInterceptor implements NestInterceptor {
         if (data && typeof (data as any).send === 'function' && typeof (data as any).setHeader === 'function') {
           return data;
         }
-        return strip(data, isOwner);
+        return strip(data, isOwner, allowRefreshToken);
       }),
     );
   }
