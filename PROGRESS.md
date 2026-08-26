@@ -594,3 +594,30 @@ so `npm test` stayed green while three of four e2e suites failed to run at all.
 Both isolation suites now pass. One test is skipped with a reason: it asserts
 `search_path` scoping, which `CLAUDE.md` documents as inert under Prisma
 multiSchema. Making it pass would mean contradicting the architecture.
+
+## Phase 12 — hardening
+
+72. **RBAC tested against REAL permission sets** — captured from the API for
+    all four seeded roles. Every previous RBAC test used sets I invented, and
+    those assumptions had already been wrong twice.
+73. **`npm run audit:a11y`** — reads the live accessibility tree and reports
+    touch targets under Apple's 44pt minimum.
+74. **Fixed 8 undersized touch targets**: SegmentedControl segments (32pt) and
+    `size="sm"` buttons (36pt), both now 44pt on native. Re-audited across five
+    screens: zero.
+
+**Tests: 390 staff-app · 895 backend unit · 12 backend e2e · tsc clean ·
+`verify:ui` PASS · `verify:screens` PASS · `audit:a11y` clean.**
+
+### Four verification harnesses now exist
+
+| Command | Answers |
+|---|---|
+| `npm test` | Does the logic hold? |
+| `npm run verify:ui` | Do interactive components work on a device? |
+| `npm run verify:screens` | Does every screen actually mount? |
+| `npm run audit:a11y` | Can a finger hit everything? |
+
+Each found something the others could not: `verify:screens` found an
+unreachable Reports screen, `audit:a11y` found eight undersized targets, and
+the RBAC fixture caught assumptions about roles that were wrong.
