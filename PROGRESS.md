@@ -715,3 +715,26 @@ database rather than read off a screen.
 77. **Fixed: the Marketing TAB was still a placeholder** while Leads lived
     elsewhere — a marketing manager would have seen "Not built yet" for a
     screen that exists.
+
+## TODO clean-up pass — four items closed
+
+78. **F-5 fixed** — the KPI inspector reads the caller's gym. Dues 0 →
+    ₹22,400, matching the DB. `mrr` and `check_ins_today` also changed, which
+    confirmed they had been reading `studio_template` all along. The second bug
+    in that method (total summed from 10 rows while claiming to be the full
+    SUM) fixed in the same pass.
+79. **Login returns a refresh token again.** Not Supabase —
+    `StripSecretsInterceptor` was deleting it from every response, including
+    the one whose job is to return it. Now exempted on session-minting auth
+    routes only, verified end to end.
+80. **The dead isolation check is a real one.** `verifyFullTenantIsolation()`
+    now asserts the tenant context the Prisma extension reads, with three live
+    e2e cases. Seven files' misleading `search_path` comments corrected after
+    verifying each query model-by-model.
+81. **2FA verified against the API** with real TOTP codes — including that a
+    challenged login returns no access token. Test account restored.
+82. **`verify:screens` is role-aware** — it reported "Settings not present"
+    when signed in as front desk, which was RBAC working correctly and read
+    exactly like a missing screen.
+
+**Tests: 395 staff-app · 915 backend unit · 15 backend e2e · both harnesses PASS.**

@@ -130,6 +130,24 @@ if labels | grep -qF "Sign in to your gym"; then
   exit 2
 fi
 
+# Which entries exist in More depends on the ROLE, so this script only makes
+# sense signed in as an owner — the one role that can see every screen. Signed
+# in as front desk it reported "Settings not present in More at all", which is
+# correct RBAC and reads exactly like a missing screen.
+if ! labels | grep -qF "Sign out"; then
+  "$HERE/tap-label.sh" "More, tab" >/dev/null 2>&1 || true
+  sleep 3
+fi
+if labels | grep -qF "Sign out" && ! labels | grep -qiE "^owner$"; then
+  ROLE=$(labels | grep -iE "^(owner|front desk|trainer|accountant)$" | head -1)
+  if [ -n "$ROLE" ] && [ "$ROLE" != "owner" ]; then
+    echo "SIGNED IN AS '$ROLE' — this script needs OWNER."
+    echo "Every other role legitimately lacks some screens, so failures here would"
+    echo "be RBAC working, not screens missing. Sign in as owner@mxtest.app and re-run."
+    exit 2
+  fi
+fi
+
 echo "→ smoke: every screen mounts"
 
 tap "Home, tab" 4;      expect "Home"        "MuscleX Test Gym"
