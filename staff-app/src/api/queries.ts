@@ -5,7 +5,7 @@ import { buildCheckInBody, type CheckInInput } from '@/api/checkin-payload';
 import { toLocalISODate } from '@/lib/format';
 import type {
   ActivityItem, BodyStats, Branch, Expense, FinanceDashboard, MonthlyReport, Exercise, ExpenseSummary, ExpenseCategory, DashboardAlert, DashboardKpis, DashboardPulse, Member, MembershipPlan,
-  ClassSession, MemberDetail, Paginated, Payment, Product, StaffRow, Visit, TrainerSession, WorkoutPlan,
+  ClassSession, MemberDetail, Paginated, Payment, Product, StaffRow, StudioSettings, Visit, TrainerSession, WorkoutPlan,
   SessionAttendance,
   SessionRoster,
 } from '@/api/types';
@@ -439,6 +439,38 @@ export function useExpenseCategories() {
     queryKey: ['expense-categories'],
     staleTime: 10 * 60 * 1000,
     queryFn: () => api.get<ExpenseCategory[]>('/expense-categories'),
+  });
+}
+
+/** The studio's settings. */
+export function useStudioSettings() {
+  return useQuery({
+    queryKey: ['studio-settings'],
+    queryFn: () => api.get<StudioSettings>('/settings/studio'),
+  });
+}
+
+/**
+ * Update the studio's profile.
+ *
+ * Note the field name: the API takes `studio_name`, not `name`, while the GET
+ * returns `name`. Sending `name` is silently accepted and changes nothing —
+ * `forbidNonWhitelisted` strips it — so the screen looks like it saved and did
+ * not. Mapped here rather than in the screen so there is one place to be wrong.
+ */
+export function useUpdateStudio() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (changes: Record<string, string>) => {
+      const { name, ...rest } = changes;
+      return api.patch<StudioSettings>('/settings/studio', {
+        ...rest,
+        ...(name !== undefined ? { studio_name: name } : {}),
+      });
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['studio-settings'] });
+    },
   });
 }
 

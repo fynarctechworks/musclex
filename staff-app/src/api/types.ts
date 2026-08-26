@@ -385,3 +385,41 @@ export type Visit = {
   member?: { full_name?: string | null; member_code?: string | null } | null;
   branch?: { name?: string | null } | null;
 };
+
+/**
+ * The studio's own settings, from `/settings/studio`.
+ *
+ * A superset of `Studio` (which is what the session carries). Most fields are
+ * optional and commonly null on a young gym.
+ */
+export type StudioSettings = {
+  id: string;
+  name: string;
+  slug?: string | null;
+  tagline?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  postal_code?: string | null;
+  business_name?: string | null;
+  business_type?: string | null;
+  timezone?: string | null;
+  currency?: string | null;
+  logo_url?: string | null;
+  /** Billing / plan — READ ONLY here; changing a plan is a web/gateway flow. */
+  subscription_plan?: string | null;
+  subscription_status?: string | null;
+  subscription_expires_at?: string | null;
+  trial_ends_at?: string | null;
+  next_billing_date?: string | null;
+  billing_cycle?: string | null;
+  lifecycle_status?: string | null;
+  two_factor_enabled?: boolean;
+  email_verified?: boolean;
+  phone_verified?: boolean;
+  gstin?: string | null;
+};

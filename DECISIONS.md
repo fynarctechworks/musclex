@@ -857,3 +857,32 @@ front and says so in two seconds.
 It also retries a tap once. A single tap into a just-scrolled list
 intermittently does not register, and *which* entry missed moved between runs —
 the signature of a harness problem, not a broken screen.
+
+## 2026-08-26 — Settings (Phase 11): seventeen web pages, one phone screen
+
+The web app has seventeen settings pages. This is deliberately **not** a port
+of them. On a phone the ones that matter are the gym's contact details — which
+change when a gym moves or gets a new number — and a readable statement of what
+plan it is on. Roles, permissions, integrations, payment gateways and tax
+templates are long forms configured once from a desk; porting them would
+produce screens nobody opens on a phone, and the screen says so rather than
+leaving the absence unexplained.
+
+**Subscription is READ-ONLY.** Changing a plan is a payment-gateway flow with
+the Apple-IAP implications the plan flags in §10 R5. Showing the state without
+offering to change it is honest and keeps that decision on the web.
+
+**The API takes `studio_name`; the GET returns `name`.** Sending `name` is
+silently accepted and changes nothing — `forbidNonWhitelisted` strips it — so
+the screen would look like it saved and would not have. Mapped inside the
+mutation rather than in the screen, so there is one place to be wrong.
+
+**Only changed fields are sent**, reusing `changedFields` from the member
+editor: a seven-field phone form must not blank the twenty-odd studio columns
+it never showed.
+
+**The form seeds when the sheet OPENS**, not on every render, so a background
+refetch cannot overwrite what the owner is halfway through typing.
+
+Verified on device: set the gym phone to 9810000123, saved, confirmed in the
+API — phone written, name untouched.

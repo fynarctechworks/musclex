@@ -78,7 +78,7 @@ export const ENTRIES: Entry[] = [
   { href: '/more/branches',   label: 'Branches',     icon: Boxes,     module: 'branches',  feature: 'multi_branch',        phase: '' },
   { href: '/more/memberships',label: 'Memberships',  icon: Users2,    module: 'members',   phase: '' },
   { href: '/more/visits',     label: 'Visits',       icon: DoorOpen,  module: 'check_ins',  phase: '' },
-  { href: '/more/settings',   label: 'Settings',     icon: Settings,  module: 'settings',  phase: 'Phase 11' },
+  { href: '/more/settings',   label: 'Settings',     icon: Settings,  module: 'settings',  phase: '' },
 ];
 
 export default function More() {
