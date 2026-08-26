@@ -280,6 +280,46 @@ export function useSessionRoster(id: string | undefined) {
 }
 
 /**
+ * Book a member into a class.
+ *
+ * The seat claim is atomic server-side: a guarded `updateMany` that only
+ * increments when a seat is genuinely free, so two staff booking the last
+ * place at once cannot overbook — the loser goes to the waitlist. Nothing here
+ * should second-guess that by pre-checking capacity, because a check on the
+ * client is exactly the race the server already closed.
+ */
+export function useBookMember(sessionId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (memberId: string) =>
+      api.post<{ booking_status?: string; waitlist_position?: number }>('/classes/bookings', {
+        session_id: sessionId,
+        member_id: memberId,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['class-roster', sessionId] });
+      void qc.invalidateQueries({ queryKey: ['class-session', sessionId] });
+      // The schedule's capacity bars are now stale too.
+      void qc.invalidateQueries({ queryKey: ['class-sessions'] });
+    },
+  });
+}
+
+/** Cancel a booking — frees the seat and may promote somebody off the waitlist. */
+export function useCancelBooking(sessionId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ bookingId, reason }: { bookingId: string; reason?: string }) =>
+      api.post(`/classes/bookings/${bookingId}/cancel`, reason ? { reason } : {}),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['class-roster', sessionId] });
+      void qc.invalidateQueries({ queryKey: ['class-session', sessionId] });
+      void qc.invalidateQueries({ queryKey: ['class-sessions'] });
+    },
+  });
+}
+
+/**
  * Who actually turned up.
  *
  * A THIRD call, because bookings and attendance are separate tables and the

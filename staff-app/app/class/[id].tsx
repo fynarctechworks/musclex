@@ -12,9 +12,12 @@ import { Meter } from '@/ui/Meter';
 import { SegmentedControl } from '@/ui/SegmentedControl';
 import { Can } from '@/rbac/Gate';
 import {
-  useBulkAttendance, useClassSession, useMarkAttendance, useSessionAttendance,
-  useSessionRoster,
+  useBookMember, useBulkAttendance, useCancelBooking, useClassSession,
+  useMarkAttendance, useSessionAttendance, useSessionRoster,
 } from '@/api/queries';
+import { BookMemberSheet } from '@/features/BookMemberSheet';
+import { SwipeActions } from '@/ui/SwipeActions';
+import type { Member } from '@/api/types';
 import { mergeAttendance, sortRegister, stillUnmarked } from '@/lib/register';
 import { useToast } from '@/ui/Toast';
 import { initialsOf } from '@/features/MemberRow';
@@ -52,6 +55,10 @@ export default function ClassRegister() {
   const register = useSessionAttendance(id);
   const mark = useMarkAttendance(id);
   const bulk = useBulkAttendance(id);
+  const book = useBookMember(id);
+  const cancel = useCancelBooking(id);
+
+  const [booking, setBooking] = React.useState(false);
 
   /*
    * Bookings and attendance are separate tables behind separate endpoints, so
@@ -71,6 +78,40 @@ export default function ClassRegister() {
       // Say so loudly. A mark that silently failed is worse than no mark:
       // the register looks complete and the attendance is wrong.
       toast.show(e instanceof Error ? e.message : 'Could not save that mark', 'error');
+    }
+  }
+
+  async function bookMember(member: Member) {
+    setBooking(false);
+    try {
+      const res = await book.mutateAsync(member.id);
+      // The server sends a full class to the waitlist rather than refusing, so
+      // say which happened — "booked" and "waitlisted" are different news for
+      // somebody standing in the doorway.
+      const waitlisted = res?.booking_status === 'waitlisted' || res?.waitlist_position != null;
+      toast.show(
+        waitlisted
+          ? `${member.full_name} added to the waitlist — class is full`
+          : `${member.full_name} booked in`,
+      );
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Could not book that member', 'error');
+    }
+  }
+
+  async function removeBooking(item: ClassBooking) {
+    if (item.attendance_status && item.attendance_status !== 'registered') {
+      toast.show(
+        `${item.member?.full_name ?? 'They'} is already marked ${labelFor(item.attendance_status).toLowerCase()} — change the mark first`,
+        'error',
+      );
+      return;
+    }
+    try {
+      await cancel.mutateAsync({ bookingId: item.id });
+      toast.show(`${item.member?.full_name ?? 'Booking'} removed`);
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Could not cancel', 'error');
     }
   }
 
@@ -124,6 +165,12 @@ export default function ClassRegister() {
                 </View>
               </View>
 
+              <Can module="classes" action="edit">
+                <Button variant="outline" onPress={() => setBooking(true)} testID="book-member">
+                  <Text>Book a member in</Text>
+                </Button>
+              </Can>
+
               {unmarked.length > 0 ? (
                 <Can module="classes" action="edit">
                   <Button onPress={markRestPresent} disabled={bulk.isPending}
@@ -146,6 +193,14 @@ export default function ClassRegister() {
           }
           renderItem={({ item }) => (
             <View className="gap-2">
+              {/* Swipe to remove a booking — but only while UNMARKED. Once the
+                  trainer has recorded that somebody attended, cancelling would
+                  drop that fact from attendance. Refusing SILENTLY would be
+                  worse than refusing, so it says why. */}
+              <SwipeActions
+                actionLabel="Remove"
+                destructive
+                onAction={() => void removeBooking(item)}>
               <RowCard
                 initials={initialsOf(item.member?.full_name ?? '?')}
                 title={item.member?.full_name ?? 'Member'}
@@ -161,6 +216,7 @@ export default function ClassRegister() {
                   )
                 }
               />
+              </SwipeActions>
               <Can module="classes" action="edit">
                 <View className="px-1 pb-1">
                   <SegmentedControl
@@ -173,6 +229,15 @@ export default function ClassRegister() {
               </Can>
             </View>
           )}
+        />
+
+        {/* Sibling of the list, not a child: a bottom sheet nested inside a
+            scrolling container renders off-screen. */}
+        <BookMemberSheet
+          open={booking}
+          onClose={() => setBooking(false)}
+          onPick={(m) => void bookMember(m)}
+          busy={book.isPending}
         />
       </SafeAreaView>
     </>

@@ -488,3 +488,31 @@ loads that month without moving the selection, which is what a calendar is for.
 Grouping is by LOCAL day on both sides. `start_time` is a UTC instant, and
 slicing its ISO string files a 10pm class under tomorrow — the same bug already
 fixed once in this screen.
+
+## 2026-08-26 — Class bookings from the register
+
+Walk-ins are the common case: somebody turns up who is not on the list.
+
+**No client-side capacity check before booking.** The server claims a seat with
+a guarded `updateMany` that only increments when a place is genuinely free, so
+two staff booking the last spot at once cannot overbook — the loser falls to
+the waitlist. A capacity check here would re-open exactly the race the server
+already closed, and would be wrong the moment somebody books from the web.
+
+**"Booked" and "waitlisted" are reported differently.** The server sends a full
+class to the waitlist rather than refusing, and those are different news for
+somebody standing in the doorway.
+
+**Members already booked are NOT filtered out of the search.** The server
+rejects a duplicate with a clear conflict; hiding them would mean a trainer
+searching for someone finds nothing and concludes they are not a member —
+a worse answer than "already booked".
+
+**Removing a booking is refused once attendance is marked, and says why.**
+Cancelling would drop the recorded fact that the member attended. Refusing
+silently would have been worse than refusing.
+
+Verified on device: booked Neha Patel into Power Yoga (3 → 4, real row in
+`class_bookings`, `enrolled_count` incremented atomically), then removed her
+via swipe (4 → 3, `booking_status = 'cancelled'` — a soft delete, so the audit
+trail survives).
