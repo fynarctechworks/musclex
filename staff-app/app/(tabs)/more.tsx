@@ -68,7 +68,11 @@ export const ENTRIES: Entry[] = [
   { href: '/more/marketing',  label: 'Marketing',    icon: Megaphone, module: 'marketing', feature: 'marketing_campaigns', phase: 'Phase 9' },
   { href: '/more/inventory',  label: 'Inventory',    icon: Package,   module: 'inventory', phase: '' },
   { href: '/more/expenses',   label: 'Expenses',     icon: Receipt,   module: 'payments',  phase: '' },
-  { href: '/more/reports',    label: 'Reports',      icon: BarChart3, module: 'reports',   feature: 'basic_reports',       phase: 'Phase 8' },
+  // Points at the REAL tab route, not a '/more/reports' that never existed.
+  // Reports is 8th in CANDIDATE_TABS, so only a role whose earlier candidates
+  // are filtered out (the accountant) gets it as a tab; for an owner this
+  // entry is the only way in, and it was pointing at nothing.
+  { href: '/(tabs)/reports',  label: 'Reports',      icon: BarChart3, module: 'reports',   feature: 'basic_reports',       phase: '' },
   { href: '/more/training',   label: 'Training',     icon: Dumbbell,  module: 'members',   phase: '' },
   { href: '/more/ai',         label: 'AI advisor',   icon: Sparkles,  module: 'ai',        feature: 'ai_advisor',          phase: 'Phase 6' },
   { href: '/more/branches',   label: 'Branches',     icon: Boxes,     module: 'branches',  feature: 'multi_branch',        phase: 'Phase 10' },

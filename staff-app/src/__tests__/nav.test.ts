@@ -111,3 +111,44 @@ describe('every candidate tab is reachable', () => {
     expect(moreModules.has('classes.view')).toBe(true);
   });
 });
+
+/**
+ * Every BUILT More entry must point at a route that exists.
+ *
+ * The Reports entry pointed at `/more/reports`, a route that was never
+ * created, while the real screen lives at `/(tabs)/reports`. For an owner —
+ * whose four tab slots are taken by earlier candidates — that entry was the
+ * only way in, so Reports was unreachable. The reachability test above did not
+ * catch it because it matches by MODULE: the module was listed, the href was
+ * just wrong.
+ */
+describe('every built More entry points at a real route', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const { ENTRIES } = require('../../app/(tabs)/more');
+
+  const appDir = path.join(__dirname, '..', '..', 'app');
+
+  const routeExists = (href: string) => {
+    // '/(tabs)/reports' → app/(tabs)/reports.tsx ; '/more/staff' → app/more/staff.tsx
+    const rel = href.replace(/^\//, '');
+    return (
+      fs.existsSync(path.join(appDir, `${rel}.tsx`)) ||
+      fs.existsSync(path.join(appDir, rel, 'index.tsx'))
+    );
+  };
+
+  const built = ENTRIES.filter((e: { phase: string }) => !e.phase);
+
+  it('has at least one built entry to check', () => {
+    expect(built.length).toBeGreaterThan(0);
+  });
+
+  // A plain loop rather than it.each: the tuple typing fights jest's overloads
+  // and the extra ceremony buys nothing here.
+  for (const entry of built as Array<{ label: string; href: string }>) {
+    it(`${entry.label} → ${entry.href} exists`, () => {
+      expect(routeExists(entry.href)).toBe(true);
+    });
+  }
+});

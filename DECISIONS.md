@@ -749,3 +749,38 @@ payroll in Phase 11.
 Worth noting: Staff and PT sessions are correctly INVISIBLE to the accountant,
 who holds no `staff.*` permission at all. I briefly mistook that for a
 navigation bug before checking the permission set.
+
+## 2026-08-26 — A second harness: does every screen actually mount?
+
+`verify:ui` proves dialogs, sheets and toasts work. It says nothing about
+whether a screen mounts at all — and when a rules-of-hooks mistake took the
+Sheet down, it reported "sheet did not open" while the device was showing a
+full-screen red **Render Error**. A missing element and a crashed screen looked
+identical to it.
+
+`npm run verify:screens` closes that: it walks every screen and asserts, first,
+that the tree contains no render-error text, and second, that something only
+that screen renders is present. Order matters — a crashed screen can still
+contain the label you were looking for.
+
+**It found a real bug on its first run.** The More entry for Reports pointed at
+`/more/reports`, a route that was never created, while the real screen lives at
+`/(tabs)/reports`. Reports is 8th in `CANDIDATE_TABS`, so an owner — whose four
+tab slots are taken by earlier candidates — had **no way to open Reports at
+all**. The existing reachability test missed it because it matches by MODULE:
+the module was listed, the href was simply wrong. `nav.test.ts` now also
+asserts that every built entry points at a route file that exists.
+
+**Three of its early "failures" were my assertions, not the app**, and each
+taught the script something:
+- A generic "Back" fails for Schedule and POS, which are TAB routes reached
+  through More and have no back button.
+- Placeholders surface as `AXValue`, not `AXLabel`, so asserting on placeholder
+  text never matches.
+- Asserting a fixed tab bar tests the fixture, not the app — which tabs exist
+  depends on the role.
+
+**And one was genuine flakiness worth fixing properly.** Fixed sleeps made the
+FIRST entry after opening More fail intermittently, and *which* entry failed
+moved between runs. A moving failure is almost always the harness. It now waits
+for a label rather than guessing a duration.
