@@ -13,7 +13,8 @@
     "screenshot": "expo export --platform web --output-dir dist && node scripts/screenshot.mjs",
     "verify:ui": "scripts/verify-interactive.sh",
     "verify:screens": "scripts/smoke-screens.sh",
-    "audit:a11y": "scripts/audit-a11y.sh"
+    "audit:a11y": "scripts/audit-a11y.sh",
+    "verify:bundle": "expo export --platform ios --output-dir .expo-export"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.14",

@@ -180,6 +180,22 @@ Worth correcting before somebody relies on the comment.
 tenant-isolation suite could sit broken while CI stayed green — worth wiring
 `test:e2e` into whatever runs on push.
 
+## 12. Sentry (or another crash reporter) — a new dependency
+
+Phase 12 lists Sentry. It is a new package plus a native module, which
+hard-gate #3 and #4 both cover, so I have not added it.
+
+**Worth knowing before you decide:** the app currently has no crash reporting
+at all. Everything I found this session was found by looking at a simulator or
+querying the database. On a real device in a real gym, a crash is silent — the
+staffer force-quits and carries on, and you never hear about it.
+
+`@sentry/react-native` is the obvious choice (already used elsewhere in this
+monorepo's dependency tree — `jest.config` references `@sentry/react-native` in
+`transformIgnorePatterns`), so it is likely already an approved vendor here.
+
+**What I need:** approval for the package and a DSN.
+
 ## RESOLVED since you approved the dependencies
 
 These no longer need you. Kept as a record of what changed.

@@ -47,3 +47,4 @@ dist/
 
 # Local tooling venvs (idb client)
 .tools/
+.expo-export/
