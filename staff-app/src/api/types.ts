@@ -141,3 +141,44 @@ export type StaffRow = {
   full_name: string;
   role?: string | null;
 };
+
+/** One booked member on a class session, as `/classes/bookings/session/:id` returns. */
+export type ClassBooking = {
+  id: string;
+  member_id: string;
+  booking_status: string;
+  /** present | late | no_show | cancelled — absent until a trainer marks it. */
+  attendance_status?: string | null;
+  member?: {
+    id: string;
+    full_name: string;
+    member_code?: string | null;
+    phone?: string | null;
+  } | null;
+};
+
+/**
+ * The register, as `/classes/bookings/attendance/:id` returns it.
+ *
+ * A SEPARATE table from bookings: `class_bookings` records who signed up,
+ * `class_attendance` records who actually turned up. The roster endpoint does
+ * not carry attendance, so a screen showing both has to merge them.
+ */
+export type SessionAttendance = {
+  session_id: string;
+  attendance: Array<{
+    member_id: string;
+    attendance_status: string;
+    check_in_time?: string | null;
+  }>;
+  summary?: Record<string, number>;
+};
+
+export type SessionRoster = {
+  session_id: string;
+  capacity: number;
+  enrolled_count?: number | null;
+  waitlist_count?: number | null;
+  bookings: ClassBooking[];
+  waitlist: ClassBooking[];
+};

@@ -22,14 +22,14 @@ function Link({
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
       <Row style={{ paddingVertical: space.md, gap: space.md }}>
-        <Icon name={icon} size={20} tone="t3" />
+        <Icon name={icon} size={20} tone="t3" decorative />
         <View style={{ flex: 1 }}>
           <Txt variant="body">{label}</Txt>
           {hint ? (
             <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>{hint}</Txt>
           ) : null}
         </View>
-        <Icon name="chevron" size={16} tone="t4" />
+        <Icon name="chevron" size={16} tone="t4" decorative />
       </Row>
     </Pressable>
   );
@@ -104,6 +104,12 @@ export default function MeScreen() {
         <View style={{ height: 1, backgroundColor: color.line }} />
         <Link icon="body" label="Body" hint="Weight and trend" onPress={() => router.push('/body')} />
         <View style={{ height: 1, backgroundColor: color.line }} />
+        <Link icon="progress" label="Training" hint="Fitness, fatigue and projections"
+          onPress={() => router.push('/training')} />
+        <View style={{ height: 1, backgroundColor: color.line }} />
+        <Link icon="location" label="Heatmap" hint="Everywhere you have been"
+          onPress={() => router.push('/heatmap')} />
+        <View style={{ height: 1, backgroundColor: color.line }} />
         <Link icon="goals" label="Goals" hint="Set and track your own targets"
           onPress={() => router.push('/settings/goals')} />
         <View style={{ height: 1, backgroundColor: color.line }} />
@@ -124,7 +130,7 @@ export default function MeScreen() {
         <Card>
           <Row>
             <Label>Profile</Label>
-            <Row style={{ gap: 4 }}><Txt variant="caption" tone="t3">Edit</Txt><Icon name="chevron" size={13} tone="t4" /></Row>
+            <Row style={{ gap: 4 }}><Txt variant="caption" tone="t3">Edit</Txt><Icon name="chevron" size={13} tone="t4" decorative /></Row>
           </Row>
           {line('Phone', me.phone)}
           {line('Height', me.heightCm ? `${me.heightCm} cm` : null)}
@@ -137,7 +143,7 @@ export default function MeScreen() {
         <Card>
           <Row>
             <Label>Membership</Label>
-            <Row style={{ gap: 4 }}><Txt variant="caption" tone="t3">Plans</Txt><Icon name="chevron" size={13} tone="t4" /></Row>
+            <Row style={{ gap: 4 }}><Txt variant="caption" tone="t3">Plans</Txt><Icon name="chevron" size={13} tone="t4" decorative /></Row>
           </Row>
           {home?.membership ? (
             <>

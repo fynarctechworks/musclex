@@ -6,6 +6,7 @@ import { font, color, radius, space } from '../src/ui/theme';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { Notice } from '../src/ui/Notice';
 import { useFoods, useLogMeal, useLogWater, useNutrition, useSetNutritionGoal } from '../src/api/queries';
+import { useWho } from '../src/lib/use-capabilities';
 import {
   applySettings,
   computeTimes,
@@ -30,6 +31,7 @@ function Macro({ label, value, goal, tint }: { label: string; value: number; goa
 }
 
 export default function NutritionScreen() {
+  const who = useWho();
   const insets = useSafeAreaInsets();
   const { data, isLoading } = useNutrition();
   const water = useLogWater();
@@ -97,16 +99,21 @@ export default function NutritionScreen() {
         <Card>
           <Row>
             <Label>Calories</Label>
-            <Button
-              title={editingGoal ? 'Cancel' : 'Edit targets'}
-              variant="secondary"
-              size="sm"
-              onPress={() => {
-                setGKcal(String(goal.kcal));
-                setGProtein(String(goal.proteinG));
-                setEditingGoal((v) => !v);
-              }}
-            />
+            {/* Editing a target writes to /nutrition/goal, which is gym-only.
+                Offering the button to someone with no gym would open an editor
+                that 403s on save — worse than not offering it. */}
+            {who.hasGym ? (
+              <Button
+                title={editingGoal ? 'Cancel' : 'Edit targets'}
+                variant="secondary"
+                size="sm"
+                onPress={() => {
+                  setGKcal(String(goal.kcal));
+                  setGProtein(String(goal.proteinG));
+                  setEditingGoal((v) => !v);
+                }}
+              />
+            ) : null}
           </Row>
           <Row style={{ alignItems: 'baseline', marginTop: space.sm }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7 }}>
@@ -118,6 +125,15 @@ export default function NutritionScreen() {
             </Txt>
           </Row>
           <Meter value={totals.kcal} max={goal.kcal} tint={color.accent} />
+          {/* Say whose target this is. Without a gym there is nowhere to store a
+              personal one yet, so the bar is drawn against a general default —
+              and a default presented as "your goal" is the app inventing a
+              number and attributing it to the member. */}
+          {!who.hasGym ? (
+            <Txt variant="caption" tone="t3" style={{ marginTop: space.sm }}>
+              Measured against a general daily target, not one you have set.
+            </Txt>
+          ) : null}
           {editingGoal ? (
             <View style={{ marginTop: space.md, gap: space.sm }}>
               <Txt variant="caption" tone="t3">Daily calories</Txt>

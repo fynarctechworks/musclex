@@ -6,15 +6,21 @@ import { Notice } from '../src/ui/Notice';
 import { color, space } from '../src/ui/theme';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { useBadges, useChallenges, useJoinChallenge, useLeaderboard } from '../src/api/queries';
+import { Icon } from '../src/ui/Icon';
 
 /**
- * COMMUNITY — the Strava layer, scoped to one gym.
+ * GYM CHALLENGES — badges and leaderboards inside one gym.
+ *
+ * Renamed from "Community", which it never was: this screen is challenges,
+ * badges and a gym leaderboard, and it took the name that the app's actual
+ * social surface needed. The Community TAB is the social layer; this is one
+ * card inside it.
  *
  * Deliberately not a following graph or a public feed: a member competes with
  * people they actually see on the floor, which is the part of Strava that
  * transfers to a gym and the part that needs no moderation.
  */
-export default function CommunityScreen() {
+export default function GymChallengesScreen() {
   const insets = useSafeAreaInsets();
   const { data: challenges, isLoading } = useChallenges();
   const { data: badges } = useBadges();
@@ -29,7 +35,7 @@ export default function CommunityScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
-      <ScreenHeader title="Community" />
+      <ScreenHeader title="Gym challenges" />
       <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}>
         {error ? (
           <Notice title="Could not join" body={error} onDismiss={() => setError(null)} />
@@ -110,7 +116,14 @@ export default function CommunityScreen() {
                   <Txt variant="bodyStrong" tone={b.earned ? 't1' : 't2'}>{b.label}</Txt>
                   <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>{b.description}</Txt>
                 </View>
-                <Txt style={{ fontSize: 20 }}>{b.earned ? '🏅' : '🔒'}</Txt>
+                {/* Meaningful, and NOT restated in visible text — so it keeps
+                    a label rather than being hidden. */}
+                <Icon
+                  name={b.earned ? 'badge' : 'locked'}
+                  size={22}
+                  tone={b.earned ? 'accent' : 't4'}
+                  accessibilityLabel={b.earned ? 'Earned' : 'Not earned yet'}
+                />
               </Row>
             ))}
           </View>

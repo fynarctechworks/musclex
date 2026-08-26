@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -29,6 +29,7 @@ import {
 } from '../src/lib/background-location';
 import { useCreateActivity, usePutActivityStreams, useSports } from '../src/api/queries';
 import type { SportType } from '../src/api/types';
+import { RouteShape } from '../src/features/RouteShape';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -221,6 +222,18 @@ export default function RecordScreen() {
   const distanceKm = s ? s.distanceM / 1000 : 0;
   const pace = s ? pacePerKm(s.distanceM, s.movingMs) : null;
 
+  /*
+    Thinned before encoding for the same reason the saved track is: the preview
+    is a couple of hundred points wide, and re-encoding 11,000 of them on every
+    GPS fix would stutter the one screen that must not stutter.
+  */
+  const livePolyline = useMemo(
+    () => (s && s.points.length > 1
+      ? encodePolyline(simplify(s.points.map((p) => ({ lat: p.lat, lng: p.lng })), 300))
+      : ''),
+    [s],
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
       <ScreenHeader
@@ -315,6 +328,15 @@ export default function RecordScreen() {
                 <Txt variant="caption" tone="t3">m climb</Txt>
               </View>
             </Row>
+          ) : null}
+
+          {/* The track as it is being drawn. Re-encoded from the live points
+              on every fix — cheap at a few hundred points, and it is the only
+              way to see that GPS is actually working before you finish. */}
+          {s && gpsSport && s.points.length > 1 ? (
+            <View style={{ marginTop: space.lg }}>
+              <RouteShape polyline={livePolyline} height={170} />
+            </View>
           ) : null}
 
           {s ? (

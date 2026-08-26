@@ -67,7 +67,7 @@ export default function GymsScreen() {
           gyms.map((g, i) => (
             <Card key={g.tenantId ?? i}>
               <Row style={{ alignItems: 'flex-start', gap: space.md }}>
-                <Icon name="location" size={20} tone="t3" />
+                <Icon name="location" size={20} tone="t3" decorative />
                 <View style={{ flex: 1 }}>
                   <Txt variant="bodyStrong">{g.gymName ?? g.branchName}</Txt>
                   <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>

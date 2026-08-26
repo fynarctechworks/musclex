@@ -30,20 +30,63 @@ import { otpConfigured, supabase } from './supabase';
 const ACCESS = 'musclex.member.access';
 const REFRESH = 'musclex.member.refresh';
 const TENANT = 'musclex.member.tenant';
+/**
+ * Whether this install has already shown the welcome screen.
+ *
+ * Kept alongside the tokens rather than in the API, because it is a property of
+ * this PHONE, not of the person: someone who signs out should not be introduced
+ * to the app a second time, and someone installing on a new device should.
+ */
+const WELCOMED = 'musclex.member.welcomed';
 
-async function put(key: string, value: string | null) {
-  if (Platform.OS === 'web') {
-    if (value) globalThis.localStorage?.setItem(key, value);
-    else globalThis.localStorage?.removeItem(key);
-    return;
+/**
+ * Neither of these may THROW.
+ *
+ * The keychain is not guaranteed to be available. It fails when the device is
+ * locked and the item needs unlock, after a restore from backup, and — as this
+ * was found — in any build whose entitlements are missing. Every one of those
+ * used to surface as an unhandled promise rejection from `restoreSession`,
+ * which left the Gate waiting on a value that never arrived and pinned the app
+ * on the "Signing in" spinner. A member in that state cannot even reach the
+ * sign-in screen to recover.
+ *
+ * So a failed READ means "no value stored", which sends them to sign in — the
+ * worst case is signing in again, not a dead app.
+ *
+ * A failed WRITE is genuinely lossy: the session will not survive a restart and
+ * they will sign in every launch. That is still better than crashing, and it is
+ * returned rather than swallowed so a caller can say something if it matters.
+ */
+async function put(key: string, value: string | null): Promise<boolean> {
+  try {
+    if (Platform.OS === 'web') {
+      if (value) globalThis.localStorage?.setItem(key, value);
+      else globalThis.localStorage?.removeItem(key);
+      return true;
+    }
+    if (value) await SecureStore.setItemAsync(key, value);
+    else await SecureStore.deleteItemAsync(key);
+    return true;
+  } catch {
+    return false;
   }
-  if (value) await SecureStore.setItemAsync(key, value);
-  else await SecureStore.deleteItemAsync(key);
 }
 
 async function read(key: string): Promise<string | null> {
-  if (Platform.OS === 'web') return globalThis.localStorage?.getItem(key) ?? null;
-  return SecureStore.getItemAsync(key);
+  try {
+    if (Platform.OS === 'web') return globalThis.localStorage?.getItem(key) ?? null;
+    return await SecureStore.getItemAsync(key);
+  } catch {
+    return null;
+  }
+}
+
+export async function hasSeenWelcome(): Promise<boolean> {
+  return (await read(WELCOMED)) === '1';
+}
+
+export async function markWelcomeSeen(): Promise<void> {
+  await put(WELCOMED, '1');
 }
 
 export interface Tokens {

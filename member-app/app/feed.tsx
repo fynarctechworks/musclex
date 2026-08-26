@@ -20,6 +20,8 @@ import {
   useToggleKudos,
 } from '../src/api/queries';
 import type { CommentSegment, FeedActivity, SportType } from '../src/api/types';
+import { RouteShape } from '../src/features/RouteShape';
+import { Icon } from '../src/ui/Icon';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -120,6 +122,14 @@ function FeedCard({
           <Txt variant="heading" style={{ marginTop: space.md }}>{a.title}</Txt>
         ) : null}
 
+        {a.polyline ? (
+          <View style={{ marginTop: space.md }}>
+            {/* Safe to draw: the server has already trimmed this to the
+                owner's privacy zone when the activity is not yours. */}
+            <RouteShape polyline={a.polyline} height={120} showEnds={false} />
+          </View>
+        ) : null}
+
         <Row style={{ marginTop: space.md, justifyContent: 'flex-start', gap: space.xl }}>
           {distanceBased && km != null ? <Stat value={km.toFixed(2)} unit="km" /> : null}
           <Stat value={clock(a.elapsedSeconds * 1000)} unit="time" />
@@ -138,9 +148,19 @@ function FeedCard({
           accessibilityState={{ selected: a.kudosedByMe }}
           hitSlop={8}
         >
-          <Txt variant="small" tone={a.kudosedByMe ? 'accent' : 't2'} style={{ fontWeight: '600' }}>
-            {a.kudosedByMe ? '👏 ' : ''}Kudos{a.kudosCount > 0 ? ` ${a.kudosCount}` : ''}
-          </Txt>
+          <Row style={{ gap: 6, justifyContent: 'flex-start' }}>
+            {/* Decorative: the word "Kudos" is right beside it, so the icon is
+                hidden from the screen reader rather than announced twice. */}
+            <Icon
+              name="kudos"
+              size={16}
+              tone={a.kudosedByMe ? 'accent' : 't2'}
+              decorative
+            />
+            <Txt variant="small" tone={a.kudosedByMe ? 'accent' : 't2'} style={{ fontWeight: '600' }}>
+              Kudos{a.kudosCount > 0 ? ` ${a.kudosCount}` : ''}
+            </Txt>
+          </Row>
         </Pressable>
 
         <Pressable

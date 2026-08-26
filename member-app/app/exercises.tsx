@@ -184,8 +184,12 @@ function ExerciseRow({
               {[e.muscleGroup, e.equipment].filter(Boolean).join(' · ') || 'Exercise'}
             </Txt>
           </View>
-          {e.favorited ? <Txt style={{ fontSize: 15 }}>★</Txt> : null}
-          <View style={{ marginLeft: space.sm }}><Icon name="chevron" size={16} tone="t4" /></View>
+          {e.favorited ? (
+            <Icon name="star" size={16} tone="accent" filled accessibilityLabel="Favourite" />
+          ) : null}
+          <View style={{ marginLeft: space.sm }}>
+            <Icon name="chevron" size={16} tone="t4" decorative />
+          </View>
         </Row>
       </Card>
     </Pressable>

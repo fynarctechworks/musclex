@@ -25,6 +25,39 @@ describe('Txt', () => {
     await render(<Txt>Hello</Txt>);
     expect(screen.getByText('Hello')).toBeTruthy();
   });
+
+  /*
+    Dynamic Type. Text must scale for people who need it, and the layouts that
+    carry numbers must survive it — these pin both halves. They live inside
+    this block rather than at the end of the file for the ordering reason
+    above: mounted after Button/Notice they cannot be queried at all.
+  */
+  it('lets body text scale substantially', async () => {
+    await render(<Txt variant="body">Scales</Txt>);
+    expect(screen.getByText('Scales').props.maxFontSizeMultiplier).toBeGreaterThanOrEqual(1.8);
+  });
+
+  it('never refuses to scale', async () => {
+    await render(<Txt variant="display">Big</Txt>);
+    expect(screen.getByText('Big').props.maxFontSizeMultiplier).toBeGreaterThan(1);
+  });
+
+  it('gives big display numbers less room than captions, so stats do not clip', async () => {
+    await render(
+      <>
+        <Txt variant="display">42</Txt>
+        <Txt variant="caption">reps</Txt>
+      </>,
+    );
+    expect(screen.getByText('42').props.maxFontSizeMultiplier).toBeLessThan(
+      screen.getByText('reps').props.maxFontSizeMultiplier,
+    );
+  });
+
+  it('can still be capped tighter per usage', async () => {
+    await render(<Txt variant="body" maxFontSizeMultiplier={1.2}>Tight</Txt>);
+    expect(screen.getByText('Tight').props.maxFontSizeMultiplier).toBe(1.2);
+  });
 });
 
 describe('Button', () => {
@@ -66,14 +99,27 @@ describe('Button', () => {
 });
 
 describe('Chip', () => {
-  it('marks a completed chip with a tick', async () => {
+  /*
+    These assert the ANNOUNCED state, not the glyph. The previous version
+    matched the literal "✓" character, so it passed for a tick that a screen
+    reader could not see — which is exactly the bug that swapping the emoji for
+    an icon introduced and this test caught.
+  */
+  it('announces a completed chip as done', async () => {
     await render(<Chip label="Workout" on />);
-    expect(screen.getByText(/✓/)).toBeTruthy();
+    expect(screen.getByLabelText('done')).toBeTruthy();
   });
 
   it('leaves an incomplete chip unmarked', async () => {
     await render(<Chip label="Meal" />);
-    expect(screen.queryByText(/✓/)).toBeNull();
+    expect(screen.queryByLabelText('done')).toBeNull();
+  });
+
+  it('does not rely on colour alone to say a chip is done', async () => {
+    await render(<Chip label="Workout" on />);
+    // Something non-colour must distinguish it, or the state is invisible to
+    // anyone who cannot see the green fill.
+    expect(screen.queryByLabelText('done')).not.toBeNull();
   });
 });
 
@@ -127,4 +173,3 @@ describe('Confirm', () => {
     expect(onConfirm).toHaveBeenCalled();
   });
 });
-

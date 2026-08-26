@@ -66,3 +66,48 @@ describe('POS requires the ability to SELL, not just view stock', () => {
     expect(titles(user('accountant'))).not.toContain('POS');
   });
 });
+
+/**
+ * Reachability: every tab a role can see must be OPENABLE.
+ *
+ * Only `MAX_PRIMARY_TABS` candidates fit in the tab bar, so anything further
+ * down `CANDIDATE_TABS` is silently cut for a role that has the permission for
+ * it. That is fine — provided there is another way in. It was not fine for
+ * Schedule, which sits 5th: a front desk user had `classes.view` and no route
+ * to the schedule at all. POS had the same problem and had been fixed by hand;
+ * nothing stopped the next tab repeating it.
+ *
+ * This asserts the property rather than the two known cases, so adding a tab
+ * without an escape hatch fails here instead of in somebody's gym.
+ */
+describe('every candidate tab is reachable', () => {
+  // Imported lazily: the More screen pulls in native modules that the pure
+  // nav tests above do not need.
+  const { ENTRIES } = require('../../app/(tabs)/more');
+
+  /*
+   * Matched by MODULE, not by href. Marketing and Reports are reachable
+   * through their own `/more/*` routes rather than the tab route, so
+   * comparing paths would report them missing when they are not.
+   */
+  const moreModules = new Set<string>(
+    ENTRIES.map((e: { module: string; action?: string }) => `${e.module}.${e.action ?? 'view'}`),
+  );
+
+  it.each(CANDIDATE_TABS.map((t) => [t.title, t.name] as const))(
+    '%s is either a primary tab or reachable from More',
+    (_title, name) => {
+      const index = CANDIDATE_TABS.findIndex((t) => t.name === name);
+      const tab = CANDIDATE_TABS[index];
+      const alwaysPrimary = index < MAX_PRIMARY_TABS;
+      const key = `${tab.module}.${tab.action ?? 'view'}`;
+      expect(alwaysPrimary || moreModules.has(key)).toBe(true);
+    },
+  );
+
+  it('covers the case that actually broke — Schedule past the tab limit', () => {
+    const scheduleIndex = CANDIDATE_TABS.findIndex((t) => t.name === 'schedule');
+    expect(scheduleIndex).toBeGreaterThanOrEqual(MAX_PRIMARY_TABS);
+    expect(moreModules.has('classes.view')).toBe(true);
+  });
+});

@@ -46,7 +46,7 @@ export function InfoDot({
     >
       {/* Darker when open rather than accent: red is this app's alert colour,
           and an "i" that turns red beside a streak reads as a problem. */}
-      <Icon name="info" size={15} tone={open ? 't2' : 't4'} />
+      <Icon name="info" size={15} tone={open ? 't2' : 't4'} decorative />
     </Pressable>
   );
 }

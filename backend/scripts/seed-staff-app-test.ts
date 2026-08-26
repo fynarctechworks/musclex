@@ -184,8 +184,13 @@ async function main() {
     const today = new Date();
     let due = 0, active = 0;
 
+    // Collected so class bookings below reference real members rather than
+    // inventing ids that resolve to nobody.
+    const memberIds: string[] = [];
+
     for (let i = 0; i < 40; i++) {
       const memberId = randomUUID();
+      memberIds.push(memberId);
       const name = `${pick(FIRST)} ${pick(LAST)}`;
       const plan = plans[i % plans.length];
       // A third are expiring/lapsed so the app has non-uniform states to show.
@@ -273,6 +278,26 @@ async function main() {
           const start = new Date(day);
           start.setHours(c.hour, 0, 0, 0);
           const end = new Date(start.getTime() + c.mins * 60000);
+          const sessionId = randomUUID();
+
+          /*
+           * Book REAL members, and derive enrolled_count from them.
+           *
+           * This used to write a random enrolled_count with no booking rows
+           * behind it, so the schedule claimed "10 of 20 booked" while the
+           * class register showed nobody — the app looked broken when the data
+           * was simply lying. A seeded counter must never disagree with the
+           * rows it is supposed to be counting.
+           */
+          const wanted = Math.min(rand(c.cap), memberIds.length);
+          // Rotate the roster rather than shuffling, so each session gets a
+          // different, reproducible set instead of the same first N members.
+          const offset = (sessions * 7) % memberIds.length;
+          const booked = Array.from(
+            { length: wanted },
+            (_, k) => memberIds[(offset + k) % memberIds.length],
+          );
+
           await db.query(
             `INSERT INTO ${SCHEMA}.class_sessions
                (id, gym_id, branch_id, trainer_id, name, category,
@@ -280,11 +305,37 @@ async function main() {
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
             // template_id is left NULL: it references class_templates (a
             // separate table), not `classes`. Sessions stand alone here.
-            [randomUUID(), GYM_ID, BRANCH_ID, trainerId, c.name, c.category,
+            [sessionId, GYM_ID, BRANCH_ID, trainerId, c.name, c.category,
              start.toISOString(), end.toISOString(), c.cap,
-             // Partial fill so capacity bars are not all empty or all full.
-             rand(c.cap), d < 0 ? 'completed' : 'scheduled'],
+             booked.length, d < 0 ? 'completed' : 'scheduled'],
           );
+
+          for (const memberId of booked) {
+            await db.query(
+              `INSERT INTO ${SCHEMA}.class_bookings
+                 (id, gym_id, session_id, member_id, booking_status, booked_at)
+               VALUES ($1,$2,$3,$4,'booked',$5)`,
+              [randomUUID(), GYM_ID, sessionId, memberId,
+               new Date(start.getTime() - 86400000).toISOString()],
+            );
+          }
+
+          // Past sessions have a register that was actually taken; today's and
+          // future ones are deliberately left unmarked so the trainer screen
+          // has real work to do.
+          if (d < 0) {
+            for (const memberId of booked) {
+              const status = rand(10) > 1 ? 'present' : 'no_show';
+              await db.query(
+                `INSERT INTO ${SCHEMA}.class_attendance
+                   (id, gym_id, session_id, member_id, attendance_status, check_in_time)
+                 VALUES ($1,$2,$3,$4,$5,$6)`,
+                [randomUUID(), GYM_ID, sessionId, memberId, status,
+                 status === 'present' ? start.toISOString() : null],
+              );
+            }
+          }
+
           sessions++;
         }
       }

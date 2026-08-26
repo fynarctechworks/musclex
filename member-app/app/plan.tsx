@@ -5,6 +5,7 @@ import { color, space } from '../src/ui/theme';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { dayOf } from '../src/lib/datetime';
 import { useMyPlan } from '../src/api/queries';
+import { Icon } from '../src/ui/Icon';
 
 /**
  * MY PLAN — what the trainer has set: the diet plan, and the workouts scheduled
@@ -43,9 +44,12 @@ export default function PlanScreen() {
                       {w.plan.difficulty ? ` · ${w.plan.difficulty}` : ''}
                     </Txt>
                   </View>
-                  <Txt variant="caption" tone={done ? 'good' : 't3'} style={{ fontWeight: '600' }}>
-                    {done ? '✓ done' : w.status}
-                  </Txt>
+                  <Row style={{ gap: 4, justifyContent: 'flex-start' }}>
+                    {done ? <Icon name="check" size={13} tone="good" decorative /> : null}
+                    <Txt variant="caption" tone={done ? 'good' : 't3'} style={{ fontWeight: '600' }}>
+                      {done ? 'done' : w.status}
+                    </Txt>
+                  </Row>
                 </Row>
               );
             })

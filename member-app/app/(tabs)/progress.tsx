@@ -154,9 +154,17 @@ export default function ProgressScreen() {
             })()}
           </Card>
 
+          {/*
+            "Workout streak", not "Streak". This counts consecutive days with a
+            LOGGED WORKOUT; the streak on Home counts a check-in, a workout OR a
+            meal. Both are useful and neither is wrong, but sharing one label
+            made two screens appear to contradict each other — a member who
+            checks in daily without logging sees a number here and a different
+            one on Home.
+          */}
           <Card>
             <Row>
-              <Label>Streak</Label>
+              <Label>Workout streak</Label>
               <Pressable
                 onPress={() => router.push('/calendar')}
                 accessibilityRole="button"

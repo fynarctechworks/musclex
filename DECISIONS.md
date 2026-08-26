@@ -421,3 +421,49 @@ The scanner's `onClose` was mandatory, so the kiosk passed a no-op — rendering
 a **"Search by name" button that visibly did nothing**, and offering a staff
 action to a member. `onClose` is now optional and the button is omitted
 entirely when there is no way out.
+
+## 2026-08-26 — Class register (Phase 6 start)
+
+The trainer's core daily task. Three decisions worth recording:
+
+**Every mark saves immediately; there is no submit button.** A trainer marks
+the register while people walk in, putting the phone down between arrivals. A
+batched form that lost its marks when the app was backgrounded mid-class would
+lose them silently, and the class is over by the time anyone notices.
+
+**Bookings and attendance are separate tables behind separate endpoints, so the
+client joins them.** `class_bookings` is who signed up; `class_attendance` is
+who turned up, and `/classes/bookings/session/:id` carries only the former. I
+built the screen without the join first and caught it on device: the mark
+reached the database correctly while the row still read "Not marked". A
+trainer would mark the same person twice, or conclude the app is broken.
+
+**The register is sorted by name, client-side.** The API orders by `booked_at`,
+and a class booked in one batch has ties Postgres breaks arbitrarily — so the
+same roster came back in a different order each fetch and rows jumped under the
+trainer's finger. Name is also simply how you find somebody; nobody looks a
+member up by when they signed up.
+
+`'registered'` counts as UNMARKED. The server writes it at booking time, so
+treating it as a decision would show a complete register before the class
+started.
+
+### Two bugs this found
+
+**Schedule was unreachable for front desk.** Only `MAX_PRIMARY_TABS` (4)
+candidates fit in the tab bar; Schedule sits 5th, so a front-desk user had
+`classes.view` and no route to the screen at all. POS had the identical problem
+and had been fixed by hand with a comment explaining it — but nothing stopped
+the next tab repeating it. `src/__tests__/nav.test.ts` now asserts the
+*property*: every candidate tab is either primary or reachable from More.
+Matching is by MODULE, not href — Marketing and Reports live at their own
+`/more/*` routes and a path comparison reported them as missing when they were
+not.
+
+**The seeder wrote `enrolled_count` with no bookings behind it**, so the
+schedule claimed "10 of 20 booked" while the register showed nobody. Same class
+of defect as the payment-status one: seed data that disagrees with itself makes
+working code look broken. The seeder now books real members and derives the
+count from them; existing sessions were backfilled non-destructively (394
+bookings, 230 attendance rows) rather than re-seeding, which would have
+truncated the check-ins recorded by hand during testing.

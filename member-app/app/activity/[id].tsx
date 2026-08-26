@@ -5,12 +5,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Label, Loading, Row, Txt } from '../../src/ui';
 import { Chip } from '../../src/ui/Chip';
 import { Confirm, Notice } from '../../src/ui/Notice';
+import { InfoDot, InfoNote, InfoBullet } from '../../src/ui/InfoTip';
 import { ScreenHeader } from '../../src/ui/ScreenHeader';
 import { color, space } from '../../src/ui/theme';
 import { whenOf } from '../../src/lib/datetime';
 import { clock, pacePerKm } from '../../src/lib/recorder';
 import { useActivity, useDeleteActivity, useSports, useUpdateActivity } from '../../src/api/queries';
 import { backOrHome } from '../../src/lib/nav';
+import { RouteShape, routeSpanLabel } from '../../src/features/RouteShape';
+import { ActivityChart, Splits, ZoneBars } from '../../src/features/ActivityChart';
 
 /**
  * ACTIVITY — one recorded workout.
@@ -36,11 +39,14 @@ export default function ActivityScreen() {
   const { data: sportData } = useSports();
 
   const [confirming, setConfirming] = useState(false);
+  const [zoneTip, setZoneTip] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'error' | 'success'; title: string } | null>(null);
 
   if (isLoading || !data) return <Loading label="Loading activity" />;
 
   const sport = (sportData?.sports ?? []).find((s) => s.key === data.sportType);
+  const analysis = data.analysis;
+  const chart = analysis?.chart ?? null;
   const km = data.distanceM != null ? data.distanceM / 1000 : null;
   const pace =
     data.distanceM != null && data.movingSeconds
@@ -67,6 +73,22 @@ export default function ActivityScreen() {
           ) : null}
         </Card>
 
+        {data.polyline ? (
+          <Card>
+            <Row>
+              <Label>Route</Label>
+              <Txt variant="caption" tone="t3">{routeSpanLabel(data.polyline)}</Txt>
+            </Row>
+            <View style={{ marginTop: space.md }}>
+              <RouteShape polyline={data.polyline} height={220} map />
+            </View>
+            <Row style={{ marginTop: space.sm, justifyContent: 'flex-start', gap: space.lg }}>
+              <Dot tint={color.good} label="Start" />
+              <Dot tint={color.accent} label="Finish" />
+            </Row>
+          </Card>
+        ) : null}
+
         <Card>
           <Label>Numbers</Label>
           <Row style={{ marginTop: space.md, justifyContent: 'flex-start', gap: space.xl, flexWrap: 'wrap' }}>
@@ -85,17 +107,89 @@ export default function ActivityScreen() {
           </Row>
         </Card>
 
-        {Object.keys(data.streams ?? {}).length ? (
+        {chart && chart.heartrate.some((v) => v != null) ? (
           <Card>
-            <Label>Recorded</Label>
-            <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
-              {Object.entries(data.streams)
-                .map(([k, v]) => `${k} (${Array.isArray(v) ? v.length : 0})`)
-                .join(' · ')}
-            </Txt>
-            <Txt variant="caption" tone="t3" style={{ marginTop: space.sm }}>
-              The map arrives with the next app update.
-            </Txt>
+            <Label>Heart rate</Label>
+            <View style={{ marginTop: space.md }}>
+              <ActivityChart
+                values={chart.heartrate}
+                distanceM={chart.distanceM}
+                tint={color.accent}
+                format={(v) => `${Math.round(v)} bpm`}
+              />
+            </View>
+          </Card>
+        ) : null}
+
+        {chart && chart.pacePerKm.some((v) => v != null) ? (
+          <Card>
+            <Label>Pace</Label>
+            <View style={{ marginTop: space.md }}>
+              {/* Inverted: faster is up, which is the only way people read it. */}
+              <ActivityChart
+                values={chart.pacePerKm}
+                distanceM={chart.distanceM}
+                tint={color.water}
+                invert
+                format={(v) => `${clock(v * 1000)}/km`}
+              />
+            </View>
+          </Card>
+        ) : null}
+
+        {chart && chart.altitude.some((v) => v != null) ? (
+          <Card>
+            <Label>Elevation</Label>
+            <View style={{ marginTop: space.md }}>
+              <ActivityChart
+                values={chart.altitude}
+                distanceM={chart.distanceM}
+                tint={color.t3}
+                fill
+                format={(v) => `${Math.round(v)} m`}
+              />
+            </View>
+          </Card>
+        ) : null}
+
+        {analysis.splits.length > 0 ? (
+          <Card>
+            <Row>
+              <Label>Splits</Label>
+              <Txt variant="caption" tone="t3">per km · avg bpm</Txt>
+            </Row>
+            <View style={{ marginTop: space.md }}>
+              <Splits splits={analysis.splits} format={(p) => clock(p * 1000)} />
+            </View>
+          </Card>
+        ) : null}
+
+        {analysis.zones.length > 0 ? (
+          <Card>
+            <Row style={{ alignItems: 'center' }}>
+              <Label>Time in zones</Label>
+              <InfoDot open={zoneTip} onPress={() => setZoneTip((v) => !v)} label="How are zones worked out?" />
+            </Row>
+            <View style={{ marginTop: space.md }}>
+              <ZoneBars zones={analysis.zones} clock={clock} />
+            </View>
+            {analysis.zonesUnreadSeconds > 0 ? (
+              <Txt variant="caption" tone="t3" style={{ marginTop: space.md }}>
+                {clock(analysis.zonesUnreadSeconds * 1000)} with no reading — the strap dropped out.
+              </Txt>
+            ) : null}
+            {zoneTip ? (
+              <InfoNote>
+                <InfoBullet>
+                  The time in each band is measured from your recording.
+                </InfoBullet>
+                <InfoBullet>
+                  The band edges are not: they assume a maximum of 190 and a resting rate
+                  of 60, because we do not have yours yet. Treat which zone as a guide and
+                  the shape over time as the real signal.
+                </InfoBullet>
+              </InfoNote>
+            ) : null}
           </Card>
         ) : null}
 
@@ -163,5 +257,14 @@ function Stat({ value, unit }: { value: string; unit: string }) {
       <Txt variant="heading">{value}</Txt>
       <Txt variant="caption" tone="t3">{unit}</Txt>
     </View>
+  );
+}
+
+function Dot({ tint, label }: { tint: string; label: string }) {
+  return (
+    <Row style={{ gap: 6, justifyContent: 'flex-start' }}>
+      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tint }} />
+      <Txt variant="caption" tone="t3">{label}</Txt>
+    </Row>
   );
 }

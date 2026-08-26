@@ -8,6 +8,7 @@ import { Confirm, Notice } from '../src/ui/Notice';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { color, font, radius, space } from '../src/ui/theme';
 import { useUnits } from '../src/lib/use-units';
+import { Icon } from '../src/ui/Icon';
 import {
   useAcceptSentRoutine,
   useFriendFeed,
@@ -184,10 +185,18 @@ export default function FriendsScreen() {
                     backgroundColor: s.kudosedByMe ? color.accentSoft : 'transparent',
                   }}
                 >
-                  <Txt variant="caption" tone={s.kudosedByMe ? 't1' : 't2'}>
-                    {s.kudosedByMe ? '👏 Kudos given' : '👏 Kudos'}
-                    {s.kudosCount > 0 ? ` · ${s.kudosCount}` : ''}
-                  </Txt>
+                  <Row style={{ gap: 6, justifyContent: 'flex-start' }}>
+                    <Icon
+                      name="kudos"
+                      size={14}
+                      tone={s.kudosedByMe ? 't1' : 't2'}
+              decorative
+                    />
+                    <Txt variant="caption" tone={s.kudosedByMe ? 't1' : 't2'}>
+                      {s.kudosedByMe ? 'Kudos given' : 'Kudos'}
+                      {s.kudosCount > 0 ? ` · ${s.kudosCount}` : ''}
+                    </Txt>
+                  </Row>
                 </Pressable>
                 <View style={{ flex: 1 }} />
                 <Button

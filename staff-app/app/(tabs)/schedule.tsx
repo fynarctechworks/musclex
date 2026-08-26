@@ -1,5 +1,6 @@
 import React from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
+import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/ui/text';
@@ -75,7 +76,10 @@ function SessionRow({ session }: { session: ClassSession }) {
   const full = enrolled >= session.capacity;
 
   return (
-    <View className="gap-2 rounded-lg border border-border bg-card px-4 py-3">
+    <Pressable
+      onPress={() => router.push(`/class/${session.id}`)}
+      className="gap-2 rounded-lg border border-border bg-card px-4 py-3"
+      testID={`session-${session.id}`}>
       <View className="flex-row items-center gap-3">
         <View className="min-w-0 flex-1">
           <Text numberOfLines={1} className="text-base font-medium text-foreground">
@@ -99,6 +103,6 @@ function SessionRow({ session }: { session: ClassSession }) {
           {session.waitlist_count ? ` · ${session.waitlist_count} waiting` : ''}
         </Text>
       </View>
-    </View>
+    </Pressable>
   );
 }

@@ -6,6 +6,7 @@ import { useExerciseHistory } from '../api/queries';
 import { useUnits } from '../lib/use-units';
 
 import type { WorkingSet } from './sets';
+import { Icon } from '../ui/Icon';
 export type { WorkingSet };
 
 /**
@@ -194,9 +195,7 @@ export function ExerciseBlock({
               accessibilityLabel={`Complete set ${i + 1}`}
               style={[st.tick, st.cTick, s.done && st.tickDone]}
             >
-              <Txt variant="small" style={{ color: s.done ? color.goodInk : color.t4, fontWeight: '700' }}>
-                ✓
-              </Txt>
+              <Icon name="check" size={15} tone={s.done ? 'inverse' : 't4'} decorative />
             </Pressable>
           </View>
         );

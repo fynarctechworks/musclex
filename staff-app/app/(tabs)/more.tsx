@@ -3,7 +3,7 @@ import { ScrollView, View } from 'react-native';
 import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  BarChart3, Boxes, Dumbbell, LogOut, Megaphone, Package, Settings, ShoppingCart,
+  BarChart3, CalendarDays, Boxes, Dumbbell, LogOut, Megaphone, Package, Settings, ShoppingCart,
   Sparkles, Tablet, UserCog, Users2, type LucideIcon,
 } from 'lucide-react-native';
 
@@ -44,9 +44,19 @@ type Entry = {
   phase: string;
 };
 
-const ENTRIES: Entry[] = [
-  // POS is a REAL route, not a placeholder: front desk has inventory.create but
-  // POS sits 6th in tab priority, so without this entry the till is unreachable.
+export const ENTRIES: Entry[] = [
+  /*
+   * These two are REAL routes, not placeholders.
+   *
+   * Only MAX_PRIMARY_TABS candidates fit in the tab bar, so anything further
+   * down CANDIDATE_TABS is cut for a role that can otherwise see it — and is
+   * then reachable ONLY from here. Schedule sits 5th and POS 6th, so a front
+   * desk user had the classes permission and no way to open the schedule.
+   *
+   * `src/__tests__/nav.test.ts` asserts every candidate tab is reachable one
+   * way or the other, so adding a tab without an escape hatch now fails.
+   */
+  { href: '/(tabs)/schedule', label: 'Schedule', icon: CalendarDays, module: 'classes', phase: '' },
   { href: '/(tabs)/pos', label: 'Shop / POS', icon: ShoppingCart, module: 'inventory', action: 'create', phase: '' },
   // Kiosk turns the device into an unattended check-in station, so it is gated
   // on being allowed to RECORD a check-in — not merely to view them.

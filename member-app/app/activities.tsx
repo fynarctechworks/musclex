@@ -10,6 +10,7 @@ import { shortDate } from '../src/lib/datetime';
 import { clock } from '../src/lib/recorder';
 import { useActivities, useSports } from '../src/api/queries';
 import type { ActivitySummary, SportType } from '../src/api/types';
+import { RouteShape } from '../src/features/RouteShape';
 
 /**
  * ACTIVITIES — everything recorded, any sport.
@@ -112,6 +113,14 @@ function ActivityRow({
             <Txt variant="caption" tone="t4">by hand</Txt>
           ) : null}
         </Row>
+        {a.polyline ? (
+          <View style={{ marginTop: space.md }}>
+            {/* Short and without end markers: at thumbnail size the dots
+                crowd the line, and the shape alone is what identifies the
+                run in a list. */}
+            <RouteShape polyline={a.polyline} height={92} showEnds={false} />
+          </View>
+        ) : null}
         <Row style={{ marginTop: space.md, justifyContent: 'flex-start', gap: space.xl }}>
           {distanceBased && km != null ? (
             <Stat value={`${km.toFixed(2)}`} unit="km" />

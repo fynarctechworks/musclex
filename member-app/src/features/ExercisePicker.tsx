@@ -89,7 +89,7 @@ function ExerciseRow({
             justifyContent: 'center',
           }}
         >
-          <Icon name="gym" size={18} tone="t4" />
+          <Icon name="gym" size={18} tone="t4" decorative />
         </View>
       )}
 
@@ -110,7 +110,7 @@ function ExerciseRow({
           accessibilityRole="button"
           accessibilityLabel={`How to do ${item.name}`}
         >
-          <Icon name="alert" size={17} tone="t3" />
+          <Icon name="alert" size={17} tone="t3" decorative />
         </Pressable>
       ) : null}
 
@@ -121,9 +121,13 @@ function ExerciseRow({
         accessibilityRole="button"
         accessibilityLabel={item.favorited ? `Unfavourite ${item.name}` : `Favourite ${item.name}`}
       >
-        <Txt style={{ fontSize: 19, color: item.favorited ? color.accent : color.t4 }}>
-          {item.favorited ? '★' : '☆'}
-        </Txt>
+        <Icon
+          name="star"
+          size={19}
+          tone={item.favorited ? 'accent' : 't3'}
+          filled={item.favorited}
+          decorative
+        />
       </Pressable>
 
       <View
@@ -138,7 +142,7 @@ function ExerciseRow({
           borderColor: color.lineStrong,
         }}
       >
-        {selected ? <Txt style={{ color: color.accentInk, fontWeight: '700', fontSize: 14 }}>✓</Txt> : null}
+        {selected ? <Icon name="check" size={14} tone="inverse" decorative /> : null}
       </View>
     </Pressable>
   );
@@ -285,7 +289,8 @@ export function ExercisePicker({
               contentContainerStyle={{ gap: space.sm, paddingRight: space.lg }}
             >
               <Chip
-                label="★ Favourites"
+                label="Favourites"
+                icon="star"
                 active={favoritesOnly}
                 onPress={() => setFavoritesOnly((v) => !v)}
               />
@@ -319,7 +324,8 @@ export function ExercisePicker({
                       key={sec.head.key}
                       // The tick repeats the section heading so the member can
                       // see what is already covered without clearing the filter.
-                      label={`${sec.head.label}${covered.has(sec.head.key) ? ' ✓' : ''} ${sec.list.length}`}
+                      label={`${sec.head.label} ${sec.list.length}`}
+                      done={covered.has(sec.head.key)}
                       active={head === sec.head.key}
                       onPress={() => setHead(head === sec.head.key ? null : sec.head.key)}
                     />
@@ -353,9 +359,12 @@ export function ExercisePicker({
                         <Row style={{ justifyContent: 'flex-start', gap: space.sm }}>
                           <Txt variant="label" tone="t3">{sec.head.label}</Txt>
                           {covered.has(sec.head.key) ? (
-                            <Txt variant="caption" tone="good" style={{ fontWeight: '700' }}>
-                              ✓ covered
-                            </Txt>
+                            <Row style={{ gap: 4, justifyContent: 'flex-start' }}>
+                              <Icon name="check" size={12} tone="good" decorative />
+                              <Txt variant="caption" tone="good" style={{ fontWeight: '700' }}>
+                                covered
+                              </Txt>
+                            </Row>
                           ) : null}
                         </Row>
                         <Txt variant="caption" tone="t4" style={{ marginTop: 2 }}>

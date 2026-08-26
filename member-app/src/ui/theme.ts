@@ -26,11 +26,27 @@ export const color = {
   line: '#E3E3E9',
   lineStrong: '#D2D2DA',
 
-  /** Four-step ink ladder. Never introduce a fifth. */
+  /*
+    Four-step ink ladder. Never introduce a fifth.
+
+    Every step is tuned against the PAGE background (#F5F5F7), not the card,
+    because the page is the harder of the two and a token that only passes on
+    white is a token that fails half the time it is used.
+
+      t1  17.4:1  headings and body
+      t2   7.8:1  secondary body
+      t3   4.6:1  captions and metadata — the AA floor for normal text
+      t4   3.1:1  DECORATIVE AND DISABLED ONLY
+
+    t4 is the one to be careful with. It cannot be both a distinct fourth step
+    and pass 4.5:1 — solving for that collapses it onto t3. So it keeps its
+    role instead: it clears the 3:1 non-text threshold and must never carry
+    information. If a label matters enough to read, it is t3.
+  */
   t1: '#101014',
   t2: '#4C4C57',
-  t3: '#70707C',
-  t4: '#A0A0AA',
+  t3: '#6F6F7B',
+  t4: '#8C8C98',
 
   accent: '#E10600',
   accentInk: '#FFFFFF',
@@ -40,18 +56,23 @@ export const color = {
   /** Accent text on a white card needs to be darker than the fill to stay legible. */
   accentText: '#C10500',
 
-  /** Greens darkened from the dark theme's #22C55E, which fails contrast on white. */
-  good: '#15A34A',
+  /*
+    Semantic hues, darkened until they pass 4.5:1 as TEXT on the page
+    background. The earlier values (#15A34A, #C2740A, #0284C7) were picked to
+    read well as fills and were then reused for labels, where they sat at
+    3.0–3.8:1 — legible to most people, and not to everyone.
+  */
+  good: '#11823B',
   goodInk: '#FFFFFF',
   goodSoft: 'rgba(21,163,74,0.09)',
   goodEdge: 'rgba(21,163,74,0.30)',
-  warn: '#C2740A',
+  warn: '#A36108',
 
   /** Macro/metric hues, darkened for a light background. */
   protein: '#2563EB',
   carbs: '#B45309',
   fat: '#7C3AED',
-  water: '#0284C7',
+  water: '#0276B3',
 
   /** Scrim behind modal sheets. */
   scrim: 'rgba(16,16,20,0.35)',

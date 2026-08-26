@@ -69,7 +69,7 @@ export default function MessagesScreen() {
                       </Txt>
                     ) : null}
                   </View>
-                  <Icon name="chevron" size={16} tone="t4" />
+                  <Icon name="chevron" size={16} tone="t4" decorative />
                 </Row>
               </Card>
             </Pressable>

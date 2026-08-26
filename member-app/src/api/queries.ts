@@ -1,7 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './endpoints';
 import { write, flush, pendingCount } from '../offline/outbox';
-import type { ActivityInput, BodyMetricInput, RoutineExerciseInput, SetLog } from './types';
+import type {
+  ActivityInput,
+  BodyMetricInput,
+  ExerciseListItem,
+  NutritionToday,
+  Routine,
+  RoutineExerciseInput,
+  SetLog,
+} from './types';
 
 export const qk = {
   home: ['home'] as const,
@@ -16,7 +24,14 @@ export const qk = {
   challenges: ['challenges'] as const,
   badges: ['badges'] as const,
   coach: ['coach'] as const,
+  context: ['me', 'context'] as const,
+  water: ['me', 'water'] as const,
   progress: ['progress'] as const,
+  activityRoutes: (days: number, sport: string | null) =>
+    ['activities', 'routes', days, sport] as const,
+  trainingLoad: (days: number) => ['training', 'load', days] as const,
+  racePredictions: ['training', 'races'] as const,
+  strengthPredictions: ['training', 'strength'] as const,
   weekly: ['weekly'] as const,
   todayWorkout: ['workout', 'today'] as const,
   exercise: (id: string) => ['exercise', id] as const,
@@ -53,8 +68,16 @@ export const qk = {
   pending: ['outbox', 'pending'] as const,
 };
 
-export function useHome() {
-  return useQuery({ queryKey: qk.home, queryFn: api.home });
+/**
+ * The gym dashboard.
+ *
+ * `enabled` because this endpoint is gym-only and returns a clean 403 to an
+ * independent user. Firing it unconditionally meant every gym-less member's
+ * home screen opened with a failed request and an error state — the app asking
+ * a question it already had the answer to.
+ */
+export function useHome(enabled = true) {
+  return useQuery({ queryKey: qk.home, queryFn: api.home, enabled });
 }
 
 /**
@@ -92,13 +115,25 @@ export function useLeaderboard() {
   return useQuery({ queryKey: qk.leaderboard, queryFn: api.leaderboard });
 }
 
+/**
+ * The exercise catalogue, from whichever surface this member has.
+ *
+ * A gym's catalogue is a tenant table, so someone with no gym gets a 403 and
+ * would see NO exercises at all — which makes building a routine impossible.
+ * They get the global catalogue instead, plus anything they added themselves.
+ *
+ * The personal source has no equipment tags, no media and no favourites yet,
+ * so those filters are simply not applied rather than silently returning
+ * nothing: an empty picker reads as "no exercises exist".
+ */
 export function useExercises(
   query: string,
   muscle: string | null = null,
   favoritesOnly = false,
   equipment: string | null = null,
-) {
-  return useQuery({
+): { data: { exercises: ExerciseListItem[] } | undefined; isLoading: boolean } {
+  const who = useHasGym();
+  const gym = useQuery({
     queryKey: ['exercises', query, muscle ?? '', favoritesOnly, equipment ?? ''] as const,
     queryFn: () =>
       api.exercises({
@@ -108,13 +143,52 @@ export function useExercises(
         favorites: favoritesOnly,
       }),
     staleTime: 5 * 60_000,
+    enabled: !who.loading && who.hasGym,
   });
+  const personal = useQuery({
+    queryKey: ['exercises', 'personal', query] as const,
+    queryFn: () => api.personalExercises(query || undefined),
+    staleTime: 5 * 60_000,
+    enabled: !who.loading && !who.hasGym,
+  });
+
+  if (who.hasGym) return gym;
+
+  const rows = personal.data?.exercises ?? [];
+  const filtered = muscle ? rows.filter((e) => e.muscle_group === muscle) : rows;
+  return {
+    isLoading: who.loading || personal.isLoading,
+    data: personal.data
+      ? {
+          exercises: filtered.map((e): ExerciseListItem => ({
+            id: e.id,
+            name: e.name,
+            muscleGroup: e.muscle_group,
+            trackingType: e.tracking_type === 'duration' ? 'duration' : 'reps',
+            // app_user_id set = they added it themselves.
+            isCustom: e.app_user_id != null,
+          })),
+        }
+      : undefined,
+  };
 }
 
 export function useCreateCustomExercise() {
   const qc = useQueryClient();
+  const who = useHasGym();
   return useMutation({
-    mutationFn: api.createCustomExercise,
+    mutationFn: async (
+      body: Parameters<typeof api.createCustomExercise>[0],
+    ): Promise<{ id: string; name: string; isCustom: boolean }> => {
+      if (who.hasGym) return api.createCustomExercise(body);
+      const made = await api.createPersonalExercise({
+        name: body.name,
+        muscleGroup: body.muscleGroup ?? undefined,
+        trackingType: body.trackingType,
+      });
+      // Always custom on this surface — the global catalogue is read-only.
+      return { id: made.id, name: made.name, isCustom: true };
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['exercises'] }),
   });
 }
@@ -210,6 +284,9 @@ export function useLogWorkout(workoutId?: string | null) {
       qc.invalidateQueries({ queryKey: ['history'] });
       qc.invalidateQueries({ queryKey: qk.visitSummary });
       qc.invalidateQueries({ queryKey: qk.pending });
+      // A new heavy set can move a projected 1RM, and that projection is the
+      // first thing a lifter checks after a session.
+      qc.invalidateQueries({ queryKey: qk.strengthPredictions });
     },
   });
 }
@@ -272,16 +349,90 @@ export function useCancelBooking() {
 
 /* ── Nutrition ─────────────────────────────────────────────── */
 
-export function useNutrition() {
-  return useQuery({ queryKey: qk.nutrition, queryFn: api.nutritionToday });
+/**
+ * Today's food, from whichever surface this member has.
+ *
+ * Gym members log against their gym's food catalogue (/nutrition/today);
+ * everyone else logs free-text items to /me/meals, which needs no gym and no
+ * catalogue. Normalised to one shape so the nutrition screen stays one screen.
+ */
+export function useNutrition(): {
+  data: NutritionToday | undefined;
+  isLoading: boolean;
+  isError: boolean;
+} {
+  const who = useHasGym();
+  const gym = useQuery({
+    queryKey: qk.nutrition,
+    queryFn: api.nutritionToday,
+    enabled: !who.loading && who.hasGym,
+  });
+  const personal = useQuery({
+    queryKey: ['nutrition', 'personal'],
+    queryFn: () => api.personalMeals(),
+    enabled: !who.loading && !who.hasGym,
+  });
+  const water = useQuery({
+    queryKey: qk.water,
+    queryFn: () => api.water(),
+    enabled: !who.loading && !who.hasGym,
+  });
+
+  if (who.hasGym) return gym;
+  return {
+    isLoading: who.loading || personal.isLoading,
+    isError: personal.isError,
+    data: personal.data
+      ? {
+          date: new Date().toISOString().slice(0, 10),
+          /*
+            There is no personal nutrition GOAL yet — the gym one lives on a
+            gym table. These are the widely used defaults, and they are here so
+            the screen can draw a bar at all; they are NOT this member's own
+            targets and the screen says so.
+          */
+          goal: { kcal: 2000, proteinG: 120, carbsG: 250, fatG: 65, waterMl: 2500 },
+          totals: personal.data.totals,
+          waterMl: water.data?.amountMl ?? 0,
+          meals: personal.data.meals.map((m) => ({
+            id: m.id,
+            mealType: m.mealType,
+            loggedAt: m.loggedAt,
+            items: m.items.map((i) => ({ name: i.name, kcal: i.kcal })),
+          })),
+        }
+      : undefined,
+  };
 }
 
+/**
+ * Log a meal to whichever surface this member has.
+ *
+ * The gym path goes through the offline OUTBOX (`write`), because a gym member
+ * logging lunch in a basement gym with no signal must not lose it. The personal
+ * path posts directly but carries a clientKey, which the server treats as
+ * idempotent — same protection, without teaching the outbox a second shape.
+ */
 export function useLogMeal() {
   const qc = useQueryClient();
+  const who = useHasGym();
   return useMutation({
-    mutationFn: (body: { items: unknown[]; mealType: string }) => write('meal', body),
+    mutationFn: async (
+      body: { items: unknown[]; mealType: string },
+    ): Promise<{ queued: boolean }> => {
+      if (who.hasGym) return write('meal', body);
+      await api.logPersonalMeal({
+        mealType: body.mealType,
+        items: body.items as { name: string }[],
+      });
+      // Normalised to the outbox's shape. The personal path posts straight
+      // through, so it is never "queued" — but the screen should not have to
+      // know which surface it is talking to.
+      return { queued: false };
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.nutrition });
+      qc.invalidateQueries({ queryKey: ['nutrition', 'personal'] });
       qc.invalidateQueries({ queryKey: qk.home });
       qc.invalidateQueries({ queryKey: qk.pending });
     },
@@ -324,6 +475,73 @@ export function useAskCoach() {
 
 export function useProgress() {
   return useQuery({ queryKey: qk.progress, queryFn: api.progress });
+}
+
+/**
+ * Who this member is and what they may do.
+ *
+ * Long staleTime because it changes only when a membership does — but it is
+ * NOT infinite: a membership can lapse or be suspended mid-session, and a UI
+ * still offering class booking after that is worse than one extra request.
+ */
+/**
+ * Whether this member has a gym, for hooks in THIS file that must pick a
+ * surface. Deliberately not `useWho` from lib/use-capabilities — that module
+ * imports from here, and importing it back would make the cycle real.
+ */
+function useHasGym(): { loading: boolean; hasGym: boolean } {
+  const { data, isLoading } = useMemberContext();
+  return {
+    loading: isLoading,
+    hasGym: data?.userType === 'member' && !!data.memberships?.some((m) => m.active),
+  };
+}
+
+export function useMemberContext() {
+  return useQuery({
+    queryKey: qk.context,
+    queryFn: api.context,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useActivityRoutes(days = 365, sport: string | null = null) {
+  return useQuery({
+    queryKey: qk.activityRoutes(days, sport),
+    queryFn: () => api.activityRoutes(days, sport ?? undefined),
+    // Half a megabyte of geometry that only changes when a run is recorded,
+    // and recording invalidates the whole ['activities'] prefix anyway.
+    staleTime: 10 * 60_000,
+  });
+}
+
+/* ── Training science ─────────────────────────────────────── */
+
+export function useTrainingLoad(days = 90) {
+  return useQuery({
+    queryKey: qk.trainingLoad(days),
+    queryFn: () => api.trainingLoad(days),
+    // Recomputed from scratch server-side on every call, so it is never stale
+    // in the wrong direction — but it also cannot change without a new
+    // activity, and those invalidate it explicitly.
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useRacePredictions() {
+  return useQuery({
+    queryKey: qk.racePredictions,
+    queryFn: api.racePredictions,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useStrengthPredictions() {
+  return useQuery({
+    queryKey: qk.strengthPredictions,
+    queryFn: api.strengthPredictions,
+    staleTime: 5 * 60_000,
+  });
 }
 
 export function useWeekly() {
@@ -723,6 +941,10 @@ export function useCreateActivity() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['activities'] });
       qc.invalidateQueries({ queryKey: qk.home });
+      // Fitness, form and race predictions are all functions of the activity
+      // list. Leaving them cached shows a curve that ignores the session the
+      // member just finished — the one moment they are most likely to look.
+      qc.invalidateQueries({ queryKey: ['training'] });
     },
   });
 }
@@ -742,6 +964,7 @@ export function useUpdateActivity() {
     onSuccess: (_d, v) => {
       qc.invalidateQueries({ queryKey: qk.activity(v.id) });
       qc.invalidateQueries({ queryKey: ['activities'] });
+      qc.invalidateQueries({ queryKey: ['training'] });
     },
   });
 }
@@ -750,7 +973,10 @@ export function useDeleteActivity() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.deleteActivity(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['activities'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['activities'] });
+      qc.invalidateQueries({ queryKey: ['training'] });
+    },
   });
 }
 
@@ -956,8 +1182,60 @@ export function useAddExploreWorkout() {
 
 /* ── Routines ──────────────────────────────────────────────── */
 
-export function useRoutines() {
-  return useQuery({ queryKey: ['routines'], queryFn: api.routines });
+/**
+ * Routines, from whichever surface this member actually has.
+ *
+ * A gym member's routines live in their gym's schema and come from /routines.
+ * Someone with no gym gets a 403 there, so theirs come from /me/routines — a
+ * public table keyed by app_user_id.
+ *
+ * The branch lives HERE rather than in the screens, so every routine screen
+ * stays one screen. The personal shape is normalised to `Routine` on the way
+ * out: the two are near-identical, and letting a second shape reach the UI
+ * would mean every consumer growing a fork.
+ */
+export function useRoutines(): {
+  data: { routines: Routine[] } | undefined;
+  isLoading: boolean;
+  isError: boolean;
+} {
+  const who = useHasGym();
+  const gym = useQuery({
+    queryKey: ['routines'],
+    queryFn: api.routines,
+    enabled: !who.loading && who.hasGym,
+  });
+  const personal = useQuery({
+    queryKey: ['routines', 'personal'],
+    queryFn: api.personalRoutines,
+    enabled: !who.loading && !who.hasGym,
+  });
+
+  if (who.hasGym) return gym;
+  return {
+    isLoading: who.loading || personal.isLoading,
+    isError: personal.isError,
+    data: personal.data
+      ? {
+          routines: personal.data.routines.map((r): Routine => ({
+            id: r.id,
+            name: r.name,
+            notes: r.notes,
+            // A personal routine has no share links yet, so it is never a copy.
+            importedFromLink: false,
+            updatedAt: r.updatedAt,
+            exercises: r.exercises.map((e) => ({
+              exerciseId: e.exerciseId,
+              name: e.name,
+              trackingType: e.trackingType === 'duration' ? 'duration' : 'reps',
+              targetSets: e.targetSets ?? undefined,
+              targetReps: e.targetReps ?? undefined,
+              targetDurationSeconds: e.targetDurationSeconds ?? undefined,
+            })),
+          })),
+        }
+      : undefined,
+  };
 }
 
 export function useRoutine(id: string | null) {
@@ -970,8 +1248,40 @@ export function useRoutine(id: string | null) {
 
 export function useCreateRoutine() {
   const qc = useQueryClient();
+  const who = useHasGym();
   return useMutation({
-    mutationFn: api.createRoutine,
+    mutationFn: async (
+      body: Parameters<typeof api.createRoutine>[0],
+    ): Promise<Routine> => {
+      if (who.hasGym) return api.createRoutine(body);
+      const made = await api.createPersonalRoutine({
+        name: body.name,
+        notes: body.notes ?? undefined,
+        exercises: (body.exercises ?? []).map((e) => ({
+          exerciseId: e.exerciseId,
+          targetSets: e.targetSets,
+          targetReps: e.targetReps,
+          targetDurationSeconds: e.targetDurationSeconds,
+        })),
+      });
+      // Same normalisation as useRoutines, so callers see one shape.
+      return {
+        id: made.id,
+        name: made.name,
+        notes: made.notes,
+        importedFromLink: false,
+        updatedAt: made.updatedAt,
+        exercises: made.exercises.map((e) => ({
+          exerciseId: e.exerciseId,
+          name: e.name,
+          trackingType: e.trackingType === 'duration' ? 'duration' : 'reps',
+          targetSets: e.targetSets ?? undefined,
+          targetReps: e.targetReps ?? undefined,
+          targetDurationSeconds: e.targetDurationSeconds ?? undefined,
+        })),
+      };
+    },
+    // One prefix covers both surfaces: personal lives at ['routines','personal'].
     onSuccess: () => qc.invalidateQueries({ queryKey: ['routines'] }),
   });
 }

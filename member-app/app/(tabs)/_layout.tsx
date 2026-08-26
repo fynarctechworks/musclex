@@ -26,7 +26,7 @@ function TabItem({
       <View style={st.glyphBox}>
         {/* Filled when active, outline otherwise — the whole selected state,
             so the bar never needs a pill or an underline to say where you are. */}
-        <Icon name={name} size={23} tone={active ? 't1' : 't3'} filled={active} />
+        <Icon name={name} size={23} tone={active ? 't1' : 't3'} filled={active} decorative />
       </View>
       <Txt variant="caption" tone={active ? 't1' : 't3'} style={{ fontWeight: '600' }}>
         {label}
@@ -47,7 +47,7 @@ function StartButton() {
       }}
       style={({ pressed }) => [st.fab, pressed && { opacity: 0.88 }]}
     >
-      <Icon name="add" size={26} tone="inverse" />
+      <Icon name="add" size={26} tone="inverse" decorative />
     </Pressable>
   );
 }
@@ -63,6 +63,22 @@ export default function TabLayout() {
           sceneStyle: { backgroundColor: color.bg },
         }}
       >
+        {/*
+          FIVE TABS, and each one answers a different question.
+
+            Today      what should I do now?
+            Train      the workout — the most repeated action in the product
+            [+]        log something quickly (the floating button)
+            Community  the whole social and endurance half, formerly scattered
+            You        how am I doing, and my account
+
+          What changed: "Gym" mixed check-in and the exercise library with the
+          feed, activities, clubs and challenges — core gym next to Strava, in
+          one undifferentiated list. "Me" had become a nineteen-item sitemap
+          holding nutrition, routines, classes and the exercise library. Both
+          are gone; their contents moved to whichever of these five answers the
+          question the member was actually asking.
+        */}
         <Tabs.Screen
           name="index"
           options={{
@@ -70,25 +86,30 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="gym"
+          name="train"
           options={{
-            tabBarIcon: ({ focused }) => <TabItem name="gym" label="Gym" active={focused} />,
+            tabBarIcon: ({ focused }) => <TabItem name="gym" label="Train" active={focused} />,
           }}
         />
         <Tabs.Screen
-          name="progress"
+          name="community"
           options={{
             tabBarIcon: ({ focused }) => (
-              <TabItem name="progress" label="Progress" active={focused} />
+              <TabItem name="community" label="Community" active={focused} />
             ),
           }}
         />
         <Tabs.Screen
-          name="me"
+          name="you"
           options={{
-            tabBarIcon: ({ focused }) => <TabItem name="me" label="Me" active={focused} />,
+            tabBarIcon: ({ focused }) => <TabItem name="me" label="You" active={focused} />,
           }}
         />
+        {/* Kept as routes so existing deep links and pushes still resolve, but
+            no longer their own tabs. */}
+        <Tabs.Screen name="gym" options={{ href: null }} />
+        <Tabs.Screen name="progress" options={{ href: null }} />
+        <Tabs.Screen name="me" options={{ href: null }} />
       </Tabs>
       <StartButton />
     </>

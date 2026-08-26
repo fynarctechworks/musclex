@@ -320,7 +320,12 @@ export interface ActivityDetail extends ActivitySummary {
   startLatitude: number | null;
   startLongitude: number | null;
   privacyZoneM: number | null;
-  streams: Record<string, unknown[]>;
+  /**
+   * Point counts per stream type — NOT the samples. The server computes the
+   * charts, splits and zones below; the raw series stays on the server.
+   */
+  streams: Record<string, number>;
+  analysis: ActivityAnalysis;
   laps: {
     lapIndex: number;
     elapsedSeconds: number;
@@ -822,4 +827,245 @@ export interface RoutineShare {
   from: string;
   sentAt: string;
   importedAt: string | null;
+}
+
+/* ── Training science ─────────────────────────────────────── */
+
+export interface FormPoint {
+  date: string;
+  /** The day's own load — 0 on a rest day. */
+  load: number;
+  fitness: number;
+  fatigue: number;
+  form: number;
+}
+
+export interface TrainingLoad {
+  series: FormPoint[];
+  today: FormPoint & { label: string; detail: string };
+  /**
+   * How much of the above was measured rather than guessed. Shown to the
+   * member, because a fitness curve built from duration alone deserves less
+   * trust than one built from heart rate.
+   */
+  basis: { activities: number; withHeartRate: number; estimated: number };
+}
+
+export interface RacePrediction {
+  distanceM: number;
+  seconds: number;
+  pacePerKm: number;
+}
+
+export interface RacePredictions {
+  from: { distanceM: number; seconds: number; at: string } | null;
+  predictions: RacePrediction[];
+}
+
+export interface LiftPrediction {
+  exerciseId: string;
+  name: string;
+  oneRepMax: number;
+  fromWeight: number;
+  fromReps: number;
+  /** False above ~12 reps, where every 1RM formula starts inventing. */
+  confident: boolean;
+  setsConsidered: number;
+}
+
+export interface HeartRateZones {
+  hrMax: number;
+  hrRest: number;
+  zones: { zone: number; name: string; fromBpm: number; toBpm: number }[];
+}
+
+/* ── Heatmap ──────────────────────────────────────────────── */
+
+export interface RouteShapeSummary {
+  id: string;
+  sportType: string;
+  startedAt: string;
+  /** Thinned to ~120 points server-side — enough ink, small enough to send. */
+  polyline: string;
+}
+
+export interface RoutesResponse {
+  routes: RouteShapeSummary[];
+  /** True when the server hit its ceiling and this is not all of them. */
+  truncated: boolean;
+  days: number;
+}
+
+/* ── Activity analysis ────────────────────────────────────── */
+
+export interface Split {
+  index: number;
+  distanceM: number;
+  seconds: number;
+  pacePerKm: number;
+  avgHeartRate: number | null;
+  elevationGainM: number | null;
+  /** False for a trailing part-kilometre, which is not comparable to the rest. */
+  complete: boolean;
+}
+
+export interface ZoneSlice {
+  zone: number;
+  name: string;
+  fromBpm: number;
+  toBpm: number;
+  seconds: number;
+}
+
+export interface ActivityChart {
+  distanceM: number[];
+  heartrate: (number | null)[];
+  altitude: (number | null)[];
+  pacePerKm: (number | null)[];
+}
+
+export interface ActivityAnalysis {
+  splits: Split[];
+  /** Empty when nothing wore a heart-rate strap. */
+  zones: ZoneSlice[];
+  zonesUnreadSeconds: number;
+  /** True when the band edges came from an assumed maximum, not a measured one. */
+  zonesEstimated: boolean;
+  chart: ActivityChart | null;
+}
+
+/* ── Who is using the app ─────────────────────────────────── */
+
+/**
+ * Per-feature permissions, straight from the server.
+ *
+ * The app used to hard-code which screens exist, which meant a gym-less member
+ * saw doors that opened onto a 403 and a suspended member saw a booking button
+ * that could not work. Navigation is built from this instead: if the server
+ * says a capability is off, the entry point is not rendered at all.
+ */
+export interface MemberCapabilities {
+  membershipCard: boolean;
+  gymSuspended: boolean;
+  attendance: boolean;
+  classBooking: boolean;
+  gymSchedule: boolean;
+  gymAnnouncements: boolean;
+  trainerChat: boolean;
+  subscriptionDetails: boolean;
+  memberBenefits: boolean;
+  renewMembership: boolean;
+  healthDashboard: boolean;
+  weightTracking: boolean;
+  waterTracking: boolean;
+  goalTracking: boolean;
+  bmiCalculator: boolean;
+  calorieCalculator: boolean;
+  fitnessTips: boolean;
+  nearbyGyms: boolean;
+  referralProgram: boolean;
+}
+
+export interface MemberContext {
+  appUserId: string;
+  /** `member` belongs to at least one gym; `public` belongs to none. */
+  userType: 'member' | 'public';
+  onboardingState: string;
+  fullName: string | null;
+  phone: string | null;
+  city: string | null;
+  referralCode: string | null;
+  capabilities: MemberCapabilities;
+  memberships: {
+    tenantId: string;
+    gymName: string | null;
+    memberId: string;
+    status: string;
+    active: boolean;
+    suspended: boolean;
+    planName: string | null;
+    expiresAt: string | null;
+  }[];
+}
+
+/* ── Personal (gym-less) training & nutrition ─────────────── */
+
+export interface PersonalExercise {
+  id: string;
+  name: string;
+  muscle_group: string | null;
+  tracking_type: string;
+  /** NULL for a global catalogue entry; your id for one you added. */
+  app_user_id: string | null;
+}
+
+export interface PersonalRoutine {
+  id: string;
+  name: string;
+  notes: string | null;
+  updatedAt: string;
+  exercises: {
+    id: string;
+    exerciseId: string;
+    name: string;
+    trackingType: string;
+    position: number;
+    targetSets: number | null;
+    targetReps: number | null;
+    targetDurationSeconds: number | null;
+  }[];
+}
+
+export interface PersonalMealDay {
+  meals: {
+    id: string;
+    mealType: string;
+    loggedAt: string;
+    notes: string | null;
+    items: {
+      id: string;
+      name: string;
+      quantity: number;
+      unit: string;
+      kcal: number;
+      proteinG: number;
+      carbsG: number;
+      fatG: number;
+    }[];
+  }[];
+  totals: { kcal: number; proteinG: number; carbsG: number; fatG: number };
+}
+
+export interface PersonalRoutineInput {
+  name: string;
+  notes?: string;
+  exercises?: {
+    exerciseId: string;
+    targetSets?: number;
+    targetReps?: number;
+    targetDurationSeconds?: number;
+  }[];
+}
+
+export interface PersonalMealInput {
+  mealType?: string;
+  loggedAt?: string;
+  notes?: string;
+  items: {
+    name: string;
+    quantity?: number;
+    unit?: string;
+    kcal?: number;
+    proteinG?: number;
+    carbsG?: number;
+    fatG?: number;
+  }[];
+  clientKey?: string;
+}
+
+export interface WaterDay {
+  date: string;
+  amountMl: number;
+  /** Null when the member has not set one — a default is NOT their target. */
+  goalMl: number | null;
 }

@@ -1,0 +1,1 @@
+"{\n \"svgBox\": [\n  348,\n  340\n ],\n \"routePaths\": 53,\n \"strokeOpacity\": \"0.1509433962264151\",\n \"tileRect\": [\n  210,\n  210\n ],\n \"attribution\": true\n}"

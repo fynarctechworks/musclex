@@ -13,6 +13,7 @@ import { backOrHome } from '../src/lib/nav';
 import { RestTimer } from '../src/features/RestTimer';
 import { ExercisePicker } from '../src/features/ExercisePicker';
 import type { WorkoutLogResult } from '../src/api/types';
+import { Icon } from '../src/ui/Icon';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -216,7 +217,14 @@ export default function SessionScreen() {
       <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
         <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md }}>
           <View style={{ alignItems: 'center', paddingVertical: space['2xl'] }}>
-            <Txt style={{ fontSize: 48 }}>{done.prs.length ? '🏆' : done.queued ? '📥' : '✅'}</Txt>
+            {/* The heading underneath already says what happened, so this is
+                decorative — announcing it would repeat the sentence. */}
+            <Icon
+              name={done.prs.length ? 'goals' : done.queued ? 'import' : 'check'}
+              size={48}
+              tone={done.queued ? 't3' : 'accent'}
+              decorative
+            />
             <Txt variant="title" style={{ marginTop: space.lg }}>
               {done.queued ? 'Saved offline' : 'Workout saved'}
             </Txt>

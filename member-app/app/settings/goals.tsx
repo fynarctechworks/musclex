@@ -6,6 +6,7 @@ import { Notice } from '../../src/ui/Notice';
 import { font, color, radius, space } from '../../src/ui/theme';
 import { ScreenHeader } from '../../src/ui/ScreenHeader';
 import { useAddGoal, useGoals, useUpdateGoal } from '../../src/api/queries';
+import { Icon } from '../../src/ui/Icon';
 
 const TYPES = [
   { key: 'weight', label: 'Body weight', unit: 'kg' },
@@ -152,7 +153,10 @@ export default function GoalsScreen() {
             {closed.map((g) => (
               <Row key={g.id} style={{ marginTop: space.md, opacity: 0.6 }}>
                 <Txt variant="body">{g.title}</Txt>
-                <Txt variant="caption" tone="good">✓ {g.status}</Txt>
+                <Row style={{ gap: 4, justifyContent: 'flex-start' }}>
+                  <Icon name="check" size={13} tone="good" decorative />
+                  <Txt variant="caption" tone="good">{g.status}</Txt>
+                </Row>
               </Row>
             ))}
           </Card>

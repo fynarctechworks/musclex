@@ -8,6 +8,7 @@ import { BarChart } from '../../src/features/Sparkline';
 import { shortDate } from '../../src/lib/datetime';
 import { useExerciseDetail, useExerciseHistory, useToggleFavorite } from '../../src/api/queries';
 import { useUnits } from '../../src/lib/use-units';
+import { Icon } from '../../src/ui/Icon';
 
 /**
  * EXERCISE DETAIL — form cues plus this member's own record on the lift.
@@ -67,9 +68,16 @@ export default function ExerciseDetailScreen() {
               accessibilityRole="button"
               accessibilityLabel={ex.favorited ? 'Remove from favourites' : 'Add to favourites'}
             >
-              <Txt style={{ fontSize: 22, color: ex.favorited ? color.accent : color.t4 }}>
-                {ex.favorited ? '★' : '☆'}
-              </Txt>
+              {/* The Pressable already carries the label, so the glyph is
+                  decorative — otherwise it is announced twice. Filled vs
+                  outline carries the state visually. */}
+              <Icon
+                name="star"
+                size={22}
+                tone={ex.favorited ? 'accent' : 't3'}
+                filled={ex.favorited}
+                decorative
+              />
             </Pressable>
           </Row>
         </Card>

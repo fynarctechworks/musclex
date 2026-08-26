@@ -56,7 +56,19 @@ import type {
   PrComparison,
   Routine,
   RoutineExerciseInput,
+  MemberContext,
+  PersonalExercise,
+  PersonalMealDay,
+  PersonalMealInput,
+  PersonalRoutine,
+  PersonalRoutineInput,
   RoutineShare,
+  WaterDay,
+  RoutesResponse,
+  TrainingLoad,
+  RacePredictions,
+  LiftPrediction,
+  HeartRateZones,
   SharePrefs,
   RoutineImportResult,
   SharedRoutinePreview,
@@ -474,6 +486,58 @@ export const api = {
   /* ── Progress ────────────────────────────────────────────── */
   progress: () => request<ProgressData>('/progress'),
   weekly: () => request<Weekly>('/me/weekly'),
+
+  /* ── Personal training & nutrition (works with no gym) ───── */
+  personalExercises: (q?: string) =>
+    request<{ exercises: PersonalExercise[] }>(
+      `/me/exercises${q ? `?q=${encodeURIComponent(q)}` : ''}`,
+    ),
+  createPersonalExercise: (body: { name: string; muscleGroup?: string; trackingType?: string }) =>
+    request<PersonalExercise>('/me/exercises', { method: 'POST', body }),
+
+  personalRoutines: () => request<{ routines: PersonalRoutine[] }>('/me/routines'),
+  personalRoutine: (id: string) => request<PersonalRoutine>(`/me/routines/${id}`),
+  createPersonalRoutine: (body: PersonalRoutineInput) =>
+    request<PersonalRoutine>('/me/routines', { method: 'POST', body }),
+  updatePersonalRoutine: (id: string, body: Partial<PersonalRoutineInput>) =>
+    request<PersonalRoutine>(`/me/routines/${id}`, { method: 'PATCH', body }),
+  deletePersonalRoutine: (id: string) =>
+    request<{ deleted: boolean }>(`/me/routines/${id}`, { method: 'DELETE' }),
+
+  water: (day?: string) =>
+    request<WaterDay>(`/me/water${day ? `?date=${day}` : ''}`),
+
+  personalMeals: (day?: string) =>
+    request<PersonalMealDay>(`/me/meals?tz=${tz()}${day ? `&day=${day}` : ''}`),
+  logPersonalMeal: (body: PersonalMealInput, key = uuid()) =>
+    request<{ id: string; duplicate: boolean }>('/me/meals', {
+      method: 'POST',
+      body: { ...body, clientKey: body.clientKey ?? key },
+    }),
+  deletePersonalMeal: (id: string) =>
+    request<{ deleted: boolean }>(`/me/meals/${id}`, { method: 'DELETE' }),
+
+  /* ── Who is using the app ────────────────────────────────── */
+  context: () => request<MemberContext>('/me/context'),
+
+  /* ── Heatmap ─────────────────────────────────────────────── */
+  activityRoutes: (days = 365, sport?: string) =>
+    request<RoutesResponse>(
+      `/activities/routes?days=${days}${sport ? `&sport=${encodeURIComponent(sport)}` : ''}`,
+    ),
+
+  /* ── Training science ────────────────────────────────────── */
+  trainingLoad: (days = 90) =>
+    request<TrainingLoad>(`/training/load?days=${days}&tz=${tz()}`),
+  racePredictions: () => request<RacePredictions>('/training/races'),
+  strengthPredictions: () => request<{ lifts: LiftPrediction[] }>('/training/strength'),
+  heartRateZones: (hrMax?: number, hrRest?: number) => {
+    const q = new URLSearchParams();
+    if (hrMax) q.set('hrMax', String(hrMax));
+    if (hrRest) q.set('hrRest', String(hrRest));
+    const s = q.toString();
+    return request<HeartRateZones>(`/training/zones${s ? `?${s}` : ''}`);
+  },
 
   logWater: (amountMl: number, key = uuid()) =>
     request<unknown>('/nutrition/water', {

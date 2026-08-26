@@ -99,7 +99,11 @@ export default function SignInScreen() {
           </Row>
           <Txt variant="body" tone="t2" style={{ marginTop: space.sm }}>
             {step === 'phone'
-              ? 'Sign in with the number your gym has on file.'
+              // Was "the number your gym has on file", which stopped being
+              // true when the gym-less surface shipped: an account is created
+              // for any verified number. It was the first sentence a new
+              // person read, and it told half of them to leave.
+              ? 'Enter your mobile number to get started.'
               : step === 'code'
                 ? `We sent a code to ${phone}.`
                 : 'Your number is registered at more than one gym.'}
@@ -195,8 +199,11 @@ export default function SignInScreen() {
           </Card>
         )}
 
-        <Txt variant="caption" tone="t4" style={{ textAlign: 'center' }}>
-          Your gym issues your account. If your number is not recognised, ask at the front desk.
+        {/* t3, not t4: t4 is the decorative step of the ink ladder and does not
+            meet the contrast floor for text that carries information. */}
+        <Txt variant="caption" tone="t3" style={{ textAlign: 'center' }}>
+          New here? An account is created for you. If your gym uses MuscleX, use the
+          number they have on file to link it automatically.
         </Txt>
       </ScrollView>
     </KeyboardAvoidingView>

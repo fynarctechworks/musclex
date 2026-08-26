@@ -6,6 +6,8 @@ import { toLocalISODate } from '@/lib/format';
 import type {
   ActivityItem, Branch, DashboardAlert, DashboardKpis, DashboardPulse, Member,
   ClassSession, MemberDetail, Paginated, Payment, Product, StaffRow,
+  SessionAttendance,
+  SessionRoster,
 } from '@/api/types';
 
 /**
@@ -219,6 +221,80 @@ export function useCheckIn() {
       // A check-in changes last_visit_at and the dashboard feed.
       void qc.invalidateQueries({ queryKey: ['members'] });
       void qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+/**
+ * One class session, and who is on it.
+ *
+ * Two calls because the API keeps them apart: the session carries the class
+ * itself (name, time, capacity) and the roster carries the bookings. Fetched
+ * separately so the header still renders if the roster is slow, rather than
+ * the whole screen waiting on the longer of the two.
+ */
+export function useClassSession(id: string | undefined) {
+  return useQuery({
+    queryKey: ['class-session', id],
+    queryFn: () => api.get<ClassSession>(`/classes/sessions/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
+export function useSessionRoster(id: string | undefined) {
+  return useQuery({
+    queryKey: ['class-roster', id],
+    queryFn: () => api.get<SessionRoster>(`/classes/bookings/session/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
+/**
+ * Who actually turned up.
+ *
+ * A THIRD call, because bookings and attendance are separate tables and the
+ * roster endpoint carries only the former. Merging them is the client's job —
+ * without it a mark saves correctly and the row still reads "Not marked",
+ * which is the one thing a register must never do.
+ */
+export function useSessionAttendance(id: string | undefined) {
+  return useQuery({
+    queryKey: ['class-attendance', id],
+    queryFn: () => api.get<SessionAttendance>(`/classes/bookings/attendance/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
+/**
+ * Mark one member's attendance.
+ *
+ * Deliberately per-member rather than a save-at-the-end form. A trainer marks
+ * the register while people walk in, and a screen that loses the marks when
+ * the app is backgrounded mid-class is worse than useless — the class is over
+ * by the time anyone notices.
+ */
+export function useMarkAttendance(sessionId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { memberId: string; status: string }) =>
+      api.post(`/classes/bookings/attendance/${sessionId}`, {
+        member_id: input.memberId,
+        attendance_status: input.status,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['class-attendance', sessionId] });
+    },
+  });
+}
+
+/** Mark everyone still unmarked in one call — the common end-of-class action. */
+export function useBulkAttendance(sessionId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (entries: { member_id: string; attendance_status: string }[]) =>
+      api.post(`/classes/bookings/attendance/${sessionId}/bulk`, { entries }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['class-attendance', sessionId] });
     },
   });
 }
