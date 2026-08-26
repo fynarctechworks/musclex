@@ -810,3 +810,17 @@ somebody joining today.
 envelope most list endpoints use. Unwrapping it like the others yields
 `undefined` and an empty screen that reads as "this gym sells nothing" — noted
 in the hook so the next caller does not repeat it.
+
+## 2026-08-26 — Harnesses must not inherit each other's state
+
+Running `verify:screens` straight after `verify:ui` failed with "entry not
+present in More at all" — which sounded like a missing screen. It was not:
+`verify:ui` finishes with the filter sheet OPEN, and its backdrop swallowed
+every tap the next script made.
+
+`verify:screens` now relaunches the app first, like `verify:ui` already did, so
+neither depends on what ran before. Both pass back-to-back in either order.
+
+Recording it because the failure message pointed at the wrong thing twice over:
+first at the app (a screen missing), then at flakiness (it had passed minutes
+earlier). The actual cause was a modal left open by a different script.

@@ -104,6 +104,19 @@ for e in els:
 
 back() { tap "Back" 2; }
 
+# Relaunch first, so this script does not inherit whatever the last one left
+# behind. Running it straight after verify:ui failed exactly that way: that
+# harness ends with the filter sheet OPEN, and its backdrop swallowed every tap
+# here — reported as "entry not present in More at all", which sounded like a
+# missing screen rather than a modal in the way.
+BUNDLE="com.infynarc.musclex.staff"
+UDID=$(xcrun simctl list devices booted | grep -oE '\(([0-9A-F-]{36})\)' | head -1 | tr -d '()')
+if [ -n "$UDID" ]; then
+  xcrun simctl terminate "$UDID" "$BUNDLE" >/dev/null 2>&1 || true
+  xcrun simctl launch "$UDID" "$BUNDLE" >/dev/null 2>&1 || true
+  wait_for "MuscleX Test Gym" 24 || true
+fi
+
 echo "→ smoke: every screen mounts"
 
 tap "Home, tab" 4;      expect "Home"        "MuscleX Test Gym"
