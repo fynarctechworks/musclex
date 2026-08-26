@@ -442,6 +442,21 @@ export function useExpenseCategories() {
   });
 }
 
+/**
+ * The gym's staff.
+ *
+ * Note the shape difference from `useCurrentStaff` below: this is the LIST for
+ * a manager to read, while that one exists only to resolve the signed-in
+ * user's staff row id. They hit the same endpoint; keeping them separate stops
+ * a screen filter from invalidating the id lookup POS and PT sessions depend on.
+ */
+export function useStaff(limit = 100) {
+  return useQuery({
+    queryKey: ['staff', 'list', limit],
+    queryFn: () => api.get<Paginated<StaffRow>>('/staff', { params: { limit } }),
+  });
+}
+
 /** Record an expense. Append-only: the API models these as events. */
 export function useCreateExpense() {
   const qc = useQueryClient();

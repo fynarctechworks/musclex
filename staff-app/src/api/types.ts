@@ -150,6 +150,21 @@ export type StaffRow = {
   user_id?: string | null;
   full_name: string;
   role?: string | null;
+  employee_code?: string | null;
+  job_title?: string | null;
+  employment_type?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  status?: string | null;
+  is_active?: boolean;
+  joined_at?: string | null;
+  branch?: { id: string; name: string } | null;
+  /**
+   * Owner/brand_owner ONLY — StripSecretsInterceptor removes it for every
+   * other role, so it is absent rather than null in most sessions. Verified:
+   * owner receives it, accountant and trainer do not.
+   */
+  salary?: number | string | null;
 };
 
 /** One booked member on a class session, as `/classes/bookings/session/:id` returns. */

@@ -728,3 +728,24 @@ about every product a gym deliberately stocks lightly.
 setup gap rather than a sales problem, and for most gyms it is permanently
 zero — a tile that always reads 0 trains people to skip the whole row. Two
 tiles rather than three, because three across a phone wraps every label.
+
+## 2026-08-26 — Staff list (Phase 10 start)
+
+**Salary is never rendered, even to an owner who is entitled to receive it.**
+`StripSecretsInterceptor` correctly sends `salary` to owner/brand_owner and
+withholds it from everyone else — verified per role against the running API
+(owner: present; accountant and trainer: absent; `face_descriptor` and
+`face_vec` absent for all). But a manager glancing at a shared phone in a staff
+room should not be how a gym's pay scale gets around. Payroll is its own
+permissioned screen in Phase 11.
+
+**Tapping a row calls the person.** On a gym floor the reason you open the
+staff list is almost always to reach somebody. A row with no number is
+deliberately not pressable, so it does not look tappable and then do nothing.
+
+**Read-only.** Hiring and editing are `staff.create`/`edit` and belong with
+payroll in Phase 11.
+
+Worth noting: Staff and PT sessions are correctly INVISIBLE to the accountant,
+who holds no `staff.*` permission at all. I briefly mistook that for a
+navigation bug before checking the permission set.
