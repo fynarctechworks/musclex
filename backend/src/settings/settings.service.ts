@@ -48,7 +48,8 @@ export class SettingsService {
 
     const planConfig = PLAN_CONFIGS[studio.subscription_plan] || PLAN_CONFIGS.free;
 
-    // Fetch usage counts — tenant isolation relies on search_path set by TenantMiddleware
+    // Fetch usage counts — gym-scoped by the Prisma extension's gym_id injection.
+    // NOT search_path: that is inert under multiSchema (see CLAUDE.md).
     const [branchCount, memberCount, staffCount] = await Promise.all([
       this.tenant.client.branch.count({ where: { is_active: true } }),
       this.tenant.client.member.count({ where: { status: 'active' } }),
@@ -138,7 +139,8 @@ export class SettingsService {
   }
 
   async getBranchSummary(studioId?: string) {
-    // Tenant isolation via search_path. organization_id adds a secondary guard.
+    // Gym-scoped by the gym_id injection; organization_id adds a secondary guard.
+    // NOT search_path, which is inert under Prisma multiSchema.
     const branches = await this.tenant.client.branch.findMany({
       where: studioId ? { organization_id: studioId } : undefined,
       include: {

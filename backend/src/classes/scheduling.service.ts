@@ -60,7 +60,8 @@ export class SchedulingService {
     excludeSessionId?: string,
   ) {
     const where: any = {
-      // Tenant isolation via search_path — no studio_id filter needed
+      // Gym-scoped by the gym_id injection — no studio_id filter needed.
+      // NOT search_path, which is inert under Prisma multiSchema.
       status: { not: 'cancelled' },
       start_time: { lt: endTime },
       end_time: { gt: startTime },
@@ -83,13 +84,13 @@ export class SchedulingService {
 
     // Validate trainer exists and belongs to studio
     const trainer = await this.tenant.client.staff.findFirst({
-      where: { id: dto.trainer_id } // tenant isolation via search_path,
+      where: { id: dto.trainer_id } // gym-scoped: findFirst on a tenant model gets gym_id injected,
     });
     if (!trainer) throw new NotFoundException('Trainer not found in studio');
 
     // Verify branch belongs to studio
     const branch = await this.tenant.client.branch.findFirst({
-      where: { id: dto.branch_id } // tenant isolation via search_path,
+      where: { id: dto.branch_id } // gym-scoped: findFirst on a tenant model gets gym_id injected,
     });
     if (!branch) throw new NotFoundException('Branch not found in studio');
 
@@ -539,7 +540,8 @@ export class SchedulingService {
 
   async getRoomSchedule(studioId: string, dateFrom?: string, dateTo?: string) {
     const where: any = {
-      // Tenant isolation via search_path — no studio_id filter needed
+      // Gym-scoped by the gym_id injection — no studio_id filter needed.
+      // NOT search_path, which is inert under Prisma multiSchema.
       status: { not: 'cancelled' },
     };
     if (dateFrom || dateTo) {

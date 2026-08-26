@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit, ForbiddenException } from '@nestjs/common';
 import { PrismaClient, Prisma } from '@prisma/client';
-import { getTenantSchema, getTenantGymId } from '../common/tenant-context';
+import { getTenantSchema, getTenantGymId, tenantContext } from '../common/tenant-context';
 import { createTenantExtension, TenantPrismaClient } from './tenant-prisma.extension';
 import { createBranchScopeExtension } from './branch-scope.extension';
 // Single source of truth for gym_id models — shared with the $extends tenant
@@ -300,28 +300,55 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
    * Verify BOTH search_path AND app.gym_id match for critical operations.
    * Call this before payments, PII exports, or data deletions.
    */
-  async verifyFullTenantIsolation(expectedStudioId: string): Promise<boolean> {
-    const result = await this.$queryRaw<
-      Array<{ search_path: string; gym_id: string }>
-    >`
-      SELECT
-        current_setting('search_path') as search_path,
-        current_setting('app.gym_id', true) as gym_id
-    `;
-    const row = result?.[0];
-    if (!row) return false;
+  /**
+   * Assert that the current request really is scoped to `expectedStudioId`.
+   *
+   * REWRITTEN 2026-08-26. This used to check that the connection's
+   * `search_path` contained `studio_<gym>` and that `app.gym_id` matched —
+   * the pre-multiSchema design. Under Prisma `multiSchema` that scoping is
+   * inert, nothing in `src/` calls `set_config`, and so this returned **false
+   * in normal operation** while looking like a safety check. It had no callers
+   * outside one e2e test.
+   *
+   * It now checks the mechanism that actually protects us: the tenant context
+   * the Prisma extension reads when injecting `gym_id`
+   * (see `prisma/tenant-models.ts`). If the request has no tenant context, or
+   * it names a different studio, this returns false — which is the real
+   * failure worth detecting.
+   *
+   * See docs/SECURITY_FINDINGS_2026-08-26.md F-6.
+   */
+  verifyFullTenantIsolation(expectedStudioId: string): boolean {
+    const store = tenantContext.getStore();
 
-    const expectedSchema = `studio_${expectedStudioId.replace(/-/g, '_')}`;
-    const pathOk = row.search_path.includes(expectedSchema);
-    const gymOk = row.gym_id === expectedStudioId;
-
-    if (!pathOk || !gymOk) {
+    if (!store?.gymId) {
       this.logger.error(
-        `TENANT ISOLATION FAILURE: expected studio=${expectedStudioId}, ` +
-        `got search_path="${row.search_path}", app.gym_id="${row.gym_id}"`,
+        `TENANT ISOLATION FAILURE: no tenant context on this request ` +
+          `(expected studio=${expectedStudioId})`,
       );
+      return false;
     }
 
-    return pathOk && gymOk;
+    if (store.gymId !== expectedStudioId) {
+      this.logger.error(
+        `TENANT ISOLATION FAILURE: expected studio=${expectedStudioId}, ` +
+          `context carries gym_id=${store.gymId}`,
+      );
+      return false;
+    }
+
+    const expectedSchema = `studio_${expectedStudioId.replace(/-/g, '_')}`;
+    if (store.schemaName && store.schemaName !== expectedSchema) {
+      // The schema is read from the studio registry, never derived from
+      // gym_id — so a mismatch here means the two disagree, which is worth
+      // shouting about.
+      this.logger.error(
+        `TENANT ISOLATION FAILURE: gym_id=${store.gymId} but schema=${store.schemaName}`,
+      );
+      return false;
+    }
+
+    return true;
   }
+
 }

@@ -83,7 +83,7 @@ export class ResourceLimitService {
   async checkMemberLimit(studioId: string, organizationId?: string): Promise<void> {
     const limits = await this.getPlanLimits(studioId);
 
-    // Tenant isolation via search_path; optionally filter by org
+    // Gym-scoped by the gym_id injection, not search_path (inert under multiSchema); optionally filter by org
     const currentCount = await this.tenant.client.member.count({
       where: {
         ...(organizationId ? { organization_id: organizationId } : {}),
@@ -109,7 +109,7 @@ export class ResourceLimitService {
       where: {
         ...(organizationId ? { organization_id: organizationId } : {}),
         status: 'active',
-      }, // tenant isolation via search_path — only count active branches
+      }, // gym-scoped by the gym_id injection — only count active branches
     });
 
     if (currentCount >= limits.max_branches) {
@@ -186,10 +186,10 @@ export class ResourceLimitService {
 
     const [memberCount, branchCount, staffCount] = await Promise.all([
       this.tenant.client.member.count({
-        where: { ...orgWhere, status: { not: 'deleted' } }, // tenant isolation via search_path
+        where: { ...orgWhere, status: { not: 'deleted' } }, // gym-scoped by the gym_id injection, not search_path
       }),
       this.tenant.client.branch.count({
-        where: { ...orgWhere, status: 'active' }, // tenant isolation via search_path — only count active
+        where: { ...orgWhere, status: 'active' }, // gym-scoped by the gym_id injection — only count active
       }),
       this.tenant.client.staff.count({
         where: { ...orgWhere, status: 'active' },

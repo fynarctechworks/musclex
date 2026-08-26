@@ -326,29 +326,39 @@ describe('Tenant Isolation (E2E)', () => {
   // ── TEST 7: Verify full tenant isolation check ──
 
   /*
-   * SKIPPED — this asserts a mechanism the system deliberately abandoned.
-   *
-   * `verifyFullTenantIsolation` checks that the connection's `search_path`
-   * contains `studio_<gym>` and that `app.gym_id` matches. Under Prisma
-   * `multiSchema` that approach is inert, which CLAUDE.md states outright:
-   * real isolation is the `gym_id` injection in the Prisma extension plus the
-   * JWT gym_id, NOT search_path. Nothing in `src/` calls `set_config` or sets
-   * either session variable, so this returns false in normal operation.
-   *
-   * It is skipped rather than deleted because the method still exists and
-   * still LOOKS like a safety check; the note is worth more than the silence.
-   * It is skipped rather than "fixed", because making it pass would mean
-   * resurrecting search_path scoping and contradicting the architecture.
-   *
-   * `verifyFullTenantIsolation` has no callers in `src/` — see
-   * docs/SECURITY_FINDINGS_2026-08-26.md F-6.
+   * `verifyFullTenantIsolation` was rewritten (F-6) to check the tenant
+   * CONTEXT the Prisma extension actually reads, instead of `search_path`,
+   * which is inert under multiSchema and made this return false in normal
+   * operation. So the test is live again.
    */
-  it.skip('should verify tenant context matches expected studio (superseded mechanism)', async () => {
+  it('confirms the request is scoped to the expected studio', async () => {
+    if (skipIfNoDb) return;
+
     const isValid = await runAsTenant(
       { schemaName: SCHEMA_A, gymId: GYM_A_ID },
       async () => prisma.verifyFullTenantIsolation(GYM_A_ID),
     );
 
     expect(isValid).toBe(true);
+  });
+
+  it('rejects a context belonging to a DIFFERENT studio', async () => {
+    if (skipIfNoDb) return;
+
+    // The failure this exists to catch: running as gym B while believing the
+    // request is gym A's.
+    const isValid = await runAsTenant(
+      { schemaName: SCHEMA_B, gymId: GYM_B_ID },
+      async () => prisma.verifyFullTenantIsolation(GYM_A_ID),
+    );
+
+    expect(isValid).toBe(false);
+  });
+
+  it('rejects a request with no tenant context at all', async () => {
+    if (skipIfNoDb) return;
+
+    // Outside runAsTenant there is no store — which must fail closed, not pass.
+    expect(prisma.verifyFullTenantIsolation(GYM_A_ID)).toBe(false);
   });
 });

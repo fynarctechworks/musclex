@@ -74,7 +74,7 @@ export class PaymentsService {
     notes?: string;
   }) {
     const member = await this.tenant.client.member.findFirst({
-      where: { id: data.member_id } // tenant isolation via search_path,
+      where: { id: data.member_id } // gym-scoped: findFirst on a tenant model gets gym_id injected,
     });
     if (!member) throw new NotFoundException('Member not found');
 
@@ -204,7 +204,7 @@ export class PaymentsService {
     gateway?: 'razorpay';
   }) {
     const member = await this.tenant.client.member.findFirst({
-      where: { id: data.member_id } // tenant isolation via search_path,
+      where: { id: data.member_id } // gym-scoped: findFirst on a tenant model gets gym_id injected,
     });
     if (!member) throw new NotFoundException('Member not found');
 
@@ -483,7 +483,8 @@ export class PaymentsService {
     const safeLimit = Math.min(limit, 500);
     const skip = (page - 1) * safeLimit;
 
-    // Tenant isolation via search_path in TenantMiddleware
+    // Gym-scoped by the Prisma extension's gym_id injection (see
+    // prisma/tenant-models.ts) — NOT by search_path, which is inert under multiSchema.
     const where: any = {};
     if (branch_id) {
       if (user_branch_ids && !user_branch_ids.includes(branch_id)) {

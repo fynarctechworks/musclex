@@ -167,7 +167,8 @@ export class ClassesService {
     const skip = (page - 1) * limit;
 
     const where: any = {
-      // Tenant isolation handled by SET search_path in TenantMiddleware
+      // Gym-scoped by the Prisma extension's gym_id injection (prisma/tenant-models.ts).
+      // NOT search_path: inert under multiSchema.
     };
     if (branch_id) {
       if (user_branch_ids && !user_branch_ids.includes(branch_id)) {
@@ -261,7 +262,7 @@ export class ClassesService {
     },
   ) {
     const existing = await this.tenant.client.class.findFirst({
-      where: { id }, // Tenant isolation via search_path
+      where: { id }, // Gym-scoped by the gym_id injection, not search_path (inert under multiSchema)
     });
     if (!existing) throw new NotFoundException('Class not found');
 
@@ -307,7 +308,7 @@ export class ClassesService {
     // Wrap entire enrollment in a transaction for atomicity
     return this.tenant.client.$transaction(async (tx) => {
       const classItem = await tx.class.findFirst({
-        where: { id: classId }, // Tenant isolation via search_path
+        where: { id: classId }, // Gym-scoped by the gym_id injection, not search_path (inert under multiSchema)
       });
       if (!classItem) throw new NotFoundException('Class not found');
 

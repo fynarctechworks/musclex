@@ -417,7 +417,7 @@ Three of the four e2e suites failed to run at all.
   about TENANT isolation.
 - `test/jest-e2e.json` transforms the `@react-pdf` ESM chain.
 
-### One test skipped, deliberately
+### One test was skipped, then fixed properly (2026-08-26)
 
 `should verify tenant context matches expected studio` asserted
 `verifyFullTenantIsolation()`, which checks that the connection's `search_path`
@@ -444,3 +444,32 @@ queries are in fact safe — the `gym_id` injection covers them — but they are
 safe for a **different reason than the comment gives**, and nothing in `src/`
 sets search_path. Left alone as out of scope, but they will mislead whoever
 reads them next.
+
+
+---
+
+## F-6 follow-up — the dead isolation check is now a real one (FIXED)
+
+`verifyFullTenantIsolation()` checked `search_path` and `app.gym_id`, the
+pre-multiSchema design. It returned **false in normal operation** and had no
+callers in `src/` — a method that looked like a safety check and was not one.
+
+It now asserts the mechanism that actually protects us: the tenant context the
+Prisma extension reads when injecting `gym_id`. Three cases, each covered by a
+live e2e test:
+
+- context matches the expected studio → **true**
+- context carries a DIFFERENT gym_id → **false**, logged
+- no tenant context at all → **false**, logged (fails closed)
+
+The e2e test that was skipped for asserting a superseded mechanism is live
+again, with two negative cases added.
+
+### Comments corrected in the same pass
+
+Seven files carried comments claiming *"tenant isolation via search_path"*.
+Those queries are safe — every one is a `findFirst` on a model listed in
+`tenant-models.ts`, so the extension injects `gym_id` — but they were safe for
+a **different reason than the comment gave**, and nothing in `src/` sets
+search_path. Each was verified model-by-model before the comment was changed to
+name the real mechanism.

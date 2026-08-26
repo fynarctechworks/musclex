@@ -38,7 +38,7 @@ export class AttendanceService {
 
     // Verify member belongs to studio
     const member = await this.tenant.client.member.findFirst({
-      where: { id: dto.member_id } // tenant isolation via search_path,
+      where: { id: dto.member_id } // gym-scoped: findFirst on a tenant model gets gym_id injected,
     });
     if (!member) throw new NotFoundException('Member not found in studio');
 
@@ -153,7 +153,7 @@ export class AttendanceService {
   ) {
     // Verify member belongs to studio
     const member = await this.tenant.client.member.findFirst({
-      where: { id: memberId } // tenant isolation via search_path,
+      where: { id: memberId } // gym-scoped: findFirst on a tenant model gets gym_id injected,
     });
     if (!member) throw new NotFoundException('Member not found in studio');
 

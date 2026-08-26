@@ -57,7 +57,8 @@ export class StaffService {
     const safeLimit = Math.min(limit, 500);
     const skip = (page - 1) * safeLimit;
 
-    const where: any = {}; // Tenant isolation handled by SET search_path in TenantMiddleware
+    const where: any = {}; // Gym-scoped by the Prisma extension's gym_id injection (prisma/tenant-models.ts).
+      // NOT search_path: inert under multiSchema.
     if (role) where.role = role;
     if (status) where.status = status;
     if (organization_id) where.organization_id = organization_id;
