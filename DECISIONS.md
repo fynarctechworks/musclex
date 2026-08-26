@@ -1386,3 +1386,31 @@ Rewritten to resolve `prisma/` from `__dirname`, plus:
 Regenerating produced **zero semantic difference** from the hand-edited files —
 they had been kept faithfully by hand, which is luck, not a system. Confirmed
 the guard bites by adding a field to `schema.prisma` and watching the test fail.
+
+---
+
+## `npx eas` is the wrong package, and a production build had no API URL
+
+I told you to run `npx eas login`. That was wrong: the published CLI is
+**`eas-cli`**, and plain `eas` on npm is an unrelated stub at v0.1.0 with no
+executable — hence "could not determine executable to run". Correct form is
+`npx --yes eas-cli@latest login` (verified here: `eas-cli/22.5.0`), or a global
+`npm i -g eas-cli`. It is deliberately NOT a local devDependency: f50efb2
+removed it because EAS warns when its own CLI is a project dependency.
+
+Checking that turned up something worse. `eas.json` sets
+`EXPO_PUBLIC_API_BASE_URL` on the **development** profile only, and `app.json`
+has no `extra.apiBaseUrl`, so a `preview` or `production` build fell through to
+the hardcoded `http://localhost:4002/api/v1` in `src/api/client.ts`. On a
+tester's iPhone that is the phone itself. Sign-in fails, every screen fails,
+and it reads as "the app is broken" rather than "the build is misconfigured" —
+the worst kind of bug to hand to a first round of testers.
+
+**The fallback is now `__DEV__`-only.** In a release build with no configured
+URL, `request()` refuses immediately with `EXPO_PUBLIC_API_BASE_URL is not set
+in this build`, and a `console.error` names it at startup. A tester's
+screenshot becomes diagnostic instead of another "Network request failed".
+
+I did **not** invent a production hostname. A wrong URL fails in exactly the
+same way as no URL, so guessing would have converted a loud, specific failure
+back into a mystery — while looking fixed. That is TODO_FOR_ME.md item 8.

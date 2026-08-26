@@ -17,10 +17,29 @@ import { uuidv4 } from '@/lib/uuid';
  *  - sign-out raises a callback instead of window.location
  */
 
-const API_BASE_URL =
+const CONFIGURED_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL ??
   (Constants.expoConfig?.extra as { apiBaseUrl?: string } | undefined)?.apiBaseUrl ??
-  'http://localhost:4002/api/v1';
+  null;
+
+/**
+ * Falling back to localhost is right in development and CATASTROPHIC in a
+ * release build: on a tester's phone `localhost` is the phone itself, so every
+ * request fails and the app looks broken rather than misconfigured.
+ *
+ * This is not hypothetical — `eas.json` sets EXPO_PUBLIC_API_BASE_URL on the
+ * `development` profile only, so a `preview` or `production` build today has
+ * no URL at all. Fail loudly and name the missing variable instead of quietly
+ * pointing at a machine that is not there.
+ */
+const API_BASE_URL = CONFIGURED_BASE_URL ?? (__DEV__ ? 'http://localhost:4002/api/v1' : '');
+
+if (!CONFIGURED_BASE_URL && !__DEV__) {
+  console.error(
+    '[api] EXPO_PUBLIC_API_BASE_URL is not set in this build. ' +
+      'Set it in eas.json for this build profile — every request will fail until you do.',
+  );
+}
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -144,6 +163,16 @@ async function refreshAccessToken(): Promise<string | null> {
 export const DEFAULT_TIMEOUT_MS = 12_000;
 
 export async function request<T>(endpoint: string, config: RequestConfig = {}): Promise<T> {
+  // Refuse rather than issue a request that cannot possibly land. The error
+  // names the actual cause, so a tester's screenshot is diagnostic instead of
+  // yet another "Network request failed".
+  if (!API_BASE_URL) {
+    throw createApiError(
+      'EXPO_PUBLIC_API_BASE_URL is not set in this build.',
+      0,
+    );
+  }
+
   const { method = 'GET', body, headers, params, signal, anonymous } = config;
   const session = getSession();
   const timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;

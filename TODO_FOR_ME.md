@@ -43,14 +43,31 @@ Keychain or the developer portal.
 
 ```bash
 cd staff-app
-npx eas login          # your Expo account
-npx eas build --platform ios --profile production
+npx --yes eas-cli@latest login      # your Expo account
+npx --yes eas-cli@latest init       # creates the EAS project + projectId
+npx --yes eas-cli@latest build --platform ios --profile production
 ```
+
+**The package is `eas-cli`, not `eas`.** I gave you `npx eas login` earlier and
+that was wrong — plain `eas` on npm is an unrelated stub at v0.1.0 with no
+executable, which is exactly the "could not determine executable to run" you
+hit. `eas-cli` is not a local devDependency here on purpose (it was removed in
+f50efb2 because EAS warns when its own CLI is a project dependency), so it has
+to come from `npx` or a global `npm i -g eas-cli`. Verified working here:
+`eas-cli/22.5.0`.
+
+`init` is worth running on its own because it writes `extra.eas.projectId` into
+`app.json` — which is also the missing piece stopping push notifications from
+minting a token.
 
 It will prompt for your **Apple ID**, then generate the distribution
 certificate and provisioning profile on your behalf and store them in your Expo
 account. Then `npx eas submit --platform ios --latest` pushes it to TestFlight.
 Once that has run once, I can trigger every later build without your Apple ID.
+
+**Before you ship that build, see item 8** — `preview` and `production` have no
+API URL configured, so the app would talk to `localhost` on the tester's own
+phone and every screen would fail.
 
 **Option B — you delegate it.** Add me (or a build account) to your Expo
 organisation with the right role, and add that same Apple ID to your Apple
@@ -217,6 +234,34 @@ backdrop behaviour, back-button handling, and date pickers.
 
 **Not a blocker for an iOS TestFlight.** It becomes one the moment you want
 Android, and it is a day of work plus a build, not a rewrite.
+
+## 8. A production build has nowhere to send API calls (blocks TestFlight)
+
+Found while checking the build command. `eas.json` sets
+`EXPO_PUBLIC_API_BASE_URL` on the **development** profile only:
+
+| profile | API URL |
+|---|---|
+| development | `http://localhost:4002/api/v1` |
+| preview | **not set** |
+| production | **not set** |
+
+`app.json` has no `extra.apiBaseUrl` either, so both fall through to the
+hardcoded default in `src/api/client.ts` — `http://localhost:4002/api/v1`. On a
+tester's iPhone that is **the phone itself**. Sign-in would fail, every screen
+would fail, and it would look like the app is broken rather than misconfigured.
+
+I have made it fail LOUDLY instead of silently: a release build with no
+configured URL now refuses the request with
+`EXPO_PUBLIC_API_BASE_URL is not set in this build`, and logs it at startup.
+That turns a mystery into one obvious message — but it does not make the build
+usable.
+
+**What I need from you: the public URL of the production backend** (and the
+staging one, if `preview` should point somewhere different). Something like
+`https://api.musclex.app/api/v1`. One line each in `eas.json` and it is done —
+I did not guess at a hostname, because a wrong one is indistinguishable from
+this same bug.
 
 ## RESOLVED
 
