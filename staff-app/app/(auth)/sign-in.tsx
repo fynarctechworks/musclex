@@ -45,7 +45,13 @@ export default function SignIn() {
       if (result.kind === 'workspace') {
         router.push({
           pathname: '/(auth)/workspace',
-          params: { workspaces: JSON.stringify(result.workspaces) },
+          params: {
+            workspaces: JSON.stringify(result.workspaces),
+            // Carried so the picker can authenticate its select call. Not
+            // stored as a session: that would make the app briefly signed in
+            // to the default gym and skip the picker entirely.
+            ...(result.interim ? { interim: JSON.stringify(result.interim) } : {}),
+          },
         });
         return;
       }

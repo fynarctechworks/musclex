@@ -19,7 +19,7 @@ import { tokens } from '@/ui/tokens';
  * data in memory.
  */
 export default function WorkspaceSelect() {
-  const params = useLocalSearchParams<{ workspaces?: string }>();
+  const params = useLocalSearchParams<{ workspaces?: string; interim?: string }>();
   const { switchWorkspace } = useSession();
   const [busy, setBusy] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -29,10 +29,22 @@ export default function WorkspaceSelect() {
     catch { return []; }
   }, [params.workspaces]);
 
+  /**
+   * Credentials from the login that raised this challenge.
+   *
+   * `/auth/select-workspace` is authenticated, and at this point nothing is in
+   * the session store yet — so without these the call goes out with no token
+   * and returns 401, which this screen showed as "Session expired".
+   */
+  const interim = React.useMemo(() => {
+    try { return params.interim ? JSON.parse(params.interim) : undefined; }
+    catch { return undefined; }
+  }, [params.interim]);
+
   async function choose(w: Workspace) {
     setBusy(w.studio_id); setError(null);
     try {
-      const session = await selectWorkspace(w.studio_id);
+      const session = await selectWorkspace(w.studio_id, undefined, interim);
       await switchWorkspace(session);
       router.replace('/(tabs)');
     } catch (e) {

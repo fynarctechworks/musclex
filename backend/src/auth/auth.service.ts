@@ -908,7 +908,12 @@ export class AuthService {
 
   // ── Workspace Selection (multi-studio users) ──
 
-  async selectWorkspace(userId: string, studioId: string, branchId?: string) {
+  async selectWorkspace(
+    userId: string,
+    studioId: string,
+    branchId?: string,
+    refreshToken?: string,
+  ) {
     // Verify user has a role in this studio
     const userRoles = await this.rbacService.getUserRoles(userId, studioId);
     if (userRoles.length === 0) {
@@ -945,6 +950,77 @@ export class AuthService {
       throw new BadRequestException('Studio not found');
     }
 
+    /*
+     * PERSIST the choice, or the switch does not happen.
+     *
+     * `JwtAuthGuard` resolves the active studio from Supabase
+     * `user_metadata.studio_id` — not from the JWT claims and not from a
+     * header. Without this write, selecting a workspace validated access,
+     * returned the new studio's name, and then every subsequent request
+     * carried on serving the PREVIOUS gym. Measured before the fix: a
+     * two-workspace owner selected "MuscleX Bandra" (12 members), got 201 and
+     * the right studio name back, and `GET /members` still returned the other
+     * gym's 40.
+     *
+     * Safe to write here: `getUserRoles` above already refused any studio this
+     * user has no role in, so this can only ever move them between studios
+     * they already belong to.
+     *
+     * KNOWN CONSEQUENCE, by design of the metadata approach: the active studio
+     * is a property of the ACCOUNT, not of one session. A user signed in on
+     * both web and phone who switches on one will switch on the other. That is
+     * how this system already works for onboarding, and changing it means
+     * moving the studio into the token — a larger change than this fix.
+     */
+    const { data: authUser } = await this.supabase.auth.admin.getUserById(userId);
+    const existingMetadata = authUser?.user?.user_metadata ?? {};
+    if (existingMetadata.studio_id !== studioId) {
+      await this.supabase.auth.admin.updateUserById(userId, {
+        user_metadata: {
+          ...existingMetadata,
+          studio_id: studioId,
+          role,
+          branch_ids: branchIds,
+        },
+      });
+      this.logger.log(
+        `Workspace switched: user=${userId} studio=${studioId} (${studio.name})`,
+      );
+    }
+
+    /*
+     * Mint a session already scoped to the chosen studio, when we can.
+     *
+     * The access token embeds `user_metadata` at mint time, so the caller's
+     * CURRENT token still points at the previous gym even after the write
+     * above. Refreshing re-reads the user and issues a token carrying the new
+     * studio. Callers that pass their refresh token therefore get a session
+     * that works immediately; callers that do not must refresh themselves,
+     * which is the trap that made this endpoint look functional while doing
+     * nothing.
+     *
+     * A failed refresh is NOT fatal — the switch itself has already been
+     * persisted, so the caller can recover by refreshing or signing in again.
+     */
+    let session: { access_token: string; refresh_token?: string } | undefined;
+    if (refreshToken) {
+      try {
+        const { data, error } = await this.supabase.auth.refreshSession({
+          refresh_token: refreshToken,
+        });
+        if (!error && data.session?.access_token) {
+          session = {
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+          };
+        }
+      } catch (e) {
+        this.logger.warn(
+          `Workspace switch persisted but session refresh failed for user=${userId}: ${(e as Error).message}`,
+        );
+      }
+    }
+
     return {
       user: {
         role,
@@ -959,6 +1035,7 @@ export class AuthService {
         permission_codes: permissionCodes,
       },
       studio,
+      ...(session ?? {}),
     };
   }
 

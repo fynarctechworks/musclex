@@ -1066,3 +1066,49 @@ through it. Worth one manual pass — noted in TODO_FOR_ME.
 
 **Multi-workspace remains unverified**: it needs one user holding roles in two
 studios, which the seeder does not create.
+
+## 2026-08-26 — Multi-workspace: built the fixture, found it broken, fixed it
+
+Asked to add multi-workspace and test it. Adding the fixture immediately showed
+the feature did not work — in **three** separate places, none of which had ever
+been exercised because no seeded account had two studios.
+
+**Fixture.** `scripts/seed-second-gym.ts` provisions "MuscleX Bandra" the way
+the product does (clone `studio_template`), and grants the existing owner a
+role in it. Gym 1 has 40 members, gym 2 has 12 — deliberately different, so a
+switch that silently keeps showing the previous gym is visible at a glance
+rather than being invisible.
+
+**Bug 1 — the switch did not switch.** `selectWorkspace` validated access and
+returned the new studio's name, but never persisted the choice.
+`JwtAuthGuard` resolves the active studio from Supabase
+`user_metadata.studio_id`, so every request afterwards carried on serving the
+previous gym. Measured: selected "MuscleX Bandra" (12 members), got 201 and the
+right name back, and `GET /members` still returned 40.
+
+**Bug 2 — persisting was not enough.** The access token EMBEDS `user_metadata`
+at mint time, so a token issued before the switch keeps pointing at the old gym
+regardless. `/auth/select-workspace` now optionally takes the caller's refresh
+token and returns a session already scoped to the chosen studio, so one call
+does the whole job. A failed refresh is not fatal — the switch is already
+persisted, and the caller can recover by refreshing.
+
+**Bug 3 — the app threw its own tokens away.** On `requires_workspace_selection`
+the client returned only the workspace list and discarded the interim
+`access_token` that came with it. `/auth/select-workspace` is authenticated, so
+the next call went out with no token and came back 401 — which the picker
+displayed as **"Session expired"**. The tokens were in the response all along.
+
+They are now carried to the picker in memory and used for exactly one call —
+deliberately NOT written to the session store, because storing them would make
+the app briefly signed in to whichever gym the account defaults to, and
+`AuthGate` would send the user straight past the picker.
+
+**A design consequence worth knowing:** the active studio is a property of the
+ACCOUNT, not of a session. A user signed in on web and phone who switches on
+one will switch on the other. That is how this system already works for
+onboarding; changing it means moving the studio into the token, which is a
+larger change than this fix.
+
+Verified on device: picker lists both gyms, selecting Bandra lands on a
+dashboard headed "MuscleX Bandra" showing **12** active members rather than 40.

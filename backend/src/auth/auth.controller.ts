@@ -173,6 +173,8 @@ export class AuthController {
     @CurrentUser() user: JwtPayload,
     @Body() body: SelectWorkspaceDto,
   ) {
-    return this.authService.selectWorkspace(user.user_id, body.studio_id, body.branch_id);
+    return this.authService.selectWorkspace(
+      user.user_id, body.studio_id, body.branch_id, body.refresh_token,
+    );
   }
 }
