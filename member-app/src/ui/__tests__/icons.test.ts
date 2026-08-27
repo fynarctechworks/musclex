@@ -3,9 +3,9 @@
   is a mapping literal and a set of JSX props — neither is reachable from a
   rendered component without mounting every screen.
 
-  Node's types are declared locally instead of pulling in @types/node: this is
-  the only file in the app that touches the filesystem, and one extra dev
-  dependency for three symbols is not a good trade.
+  Node's types are declared locally instead of pulling in @types/node: barely
+  anything in the app touches the filesystem (this and the gallery reachability
+  test), and one extra dev dependency for three symbols is not a good trade.
 */
 declare const __dirname: string;
 declare function require(id: string): any;

@@ -52,6 +52,14 @@ export default function YouScreen() {
     !who.hasGym && { icon: 'location', label: 'Find a gym', hint: 'Browse gyms near you', href: '/gyms' },
   ].filter(Boolean) as Entry[];
 
+  // Dev-only, and its own group rather than a row inside Account: it is a
+  // reference for building the UI, not something that belongs to the member.
+  // __DEV__ is stripped from a release bundle, so neither this row nor the
+  // route behind it can reach a member's phone.
+  const developer: Entry[] = __DEV__
+    ? [{ icon: 'info', label: 'Design system', hint: 'Tokens and components', href: '/gallery' }]
+    : [];
+
   return (
     <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
       <ScrollView contentContainerStyle={{ padding: space.lg, paddingBottom: 140, gap: space.lg }}>
@@ -77,6 +85,9 @@ export default function YouScreen() {
 
         <Group title="Your body" entries={body} onGo={(h) => router.push(h as never)} />
         <Group title="Account" entries={account} onGo={(h) => router.push(h as never)} />
+        {developer.length ? (
+          <Group title="Developer" entries={developer} onGo={(h) => router.push(h as never)} />
+        ) : null}
       </ScrollView>
     </View>
   );
