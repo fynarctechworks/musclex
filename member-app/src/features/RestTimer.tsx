@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Button, Txt } from '../ui';
-import { color, radius, space } from '../ui/theme';
 
 /**
  * Rest timer. Ambient by design: it pins above the tab bar, keeps counting
@@ -54,37 +53,24 @@ export function RestTimer({
   const ss = String(left % 60).padStart(2, '0');
 
   return (
-    <View style={[st.wrap, bottomOffset ? { bottom: space.lg + bottomOffset } : null]}>
+    <View
+      // Position stays inline: `bottom` is computed from the caller's action
+      // bar, so it cannot be a static class.
+      style={{ position: 'absolute', left: 12, right: 12, bottom: 16 + bottomOffset }}
+      className="border-border bg-card flex-row items-center justify-between rounded-lg border px-4 py-3 shadow-sm shadow-black/5">
       <View>
-        <Txt variant="caption" tone="t3" style={{ letterSpacing: 1, textTransform: 'uppercase' }}>
+        <Txt variant="label" tone="t3">
           Rest
         </Txt>
-        <Txt variant="title" style={{ marginTop: 2 }}>
+        {/* tabular-nums so the row does not jitter as the digits change. */}
+        <Txt variant="title" className="mt-0.5 tabular-nums">
           {mm}:{ss}
         </Txt>
       </View>
-      <View style={{ flexDirection: 'row', gap: space.sm }}>
+      <View className="flex-row gap-2">
         <Button title="+30s" variant="secondary" size="sm" onPress={() => setExtra((e) => e + 30)} />
         <Button title="Skip" variant="secondary" size="sm" onPress={() => setExtra(-99999)} />
       </View>
     </View>
   );
 }
-
-const st = StyleSheet.create({
-  wrap: {
-    position: 'absolute',
-    left: space.md,
-    right: space.md,
-    bottom: space.lg,
-    backgroundColor: color.surface2,
-    borderColor: color.line,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: space.md,
-    paddingHorizontal: space.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-});

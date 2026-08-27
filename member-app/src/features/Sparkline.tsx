@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 import { Txt } from '../ui';
-import { color, radius, space } from '../ui/theme';
+import { cn } from '@/lib/utils';
 
 /**
  * Bar chart drawn with plain Views. A charting library would be a dependency
@@ -14,7 +14,8 @@ import { color, radius, space } from '../ui/theme';
  */
 export function BarChart({
   data,
-  tint = color.accent,
+  /** Raw colour, not a class: callers pass per-macro hues chosen from data. */
+  tint,
   height = 76,
 }: {
   data: { label: string; value: number }[];
@@ -25,44 +26,60 @@ export function BarChart({
   const peak = data.reduce((best, d, i) => (d.value > data[best].value ? i : best), 0);
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.sm, height: height + 40 }}>
+    <View className="flex-row items-end gap-2" style={{ height: height + 40 }}>
       {data.map((d, i) => (
-        <View key={i} style={{ flex: 1, alignItems: 'center', gap: 5 }}>
-          <Txt variant="caption" tone={i === peak ? 't1' : 't3'} style={{ fontWeight: '600' }}>
+        <View key={i} className="flex-1 items-center gap-1.5">
+          <Txt variant="caption" tone={i === peak ? 't1' : 't3'} className="font-semibold">
             {d.value}
           </Txt>
           <View
+            // Height is the datum and `tint` is chosen from data, so both stay
+            // inline; only the flat tokens live in classes.
             style={{
-              width: '76%',
               height: Math.max(4, (d.value / max) * height),
-              borderRadius: radius.sm,
-              backgroundColor: i === peak ? tint : color.surface2,
-              borderWidth: i === peak ? 0 : 1,
-              borderColor: color.line,
+              ...(i === peak && tint ? { backgroundColor: tint } : null),
             }}
+            className={cn(
+              'w-[76%] rounded-sm',
+              i === peak
+                ? !tint && 'bg-primary'
+                : 'border-border bg-secondary border'
+            )}
           />
-          <Txt variant="caption" tone="t4">{d.label}</Txt>
+          <Txt variant="caption" tone="t4">
+            {d.label}
+          </Txt>
         </View>
       ))}
     </View>
   );
 }
 
-/** Week strip: seven dots, filled on days the member was active. */
+/**
+ * Week strip: seven dots, filled on days the member was active.
+ *
+ * The dot is decorative and the state is announced on the group instead —
+ * "active" is carried by fill alone visually, so without a label a screen
+ * reader would read seven identical day initials and convey nothing.
+ */
 export function WeekDots({ points }: { points: { day: string; active: boolean }[] }) {
+  const dayName = (d: string) =>
+    new Date(d).toLocaleDateString(undefined, { weekday: 'long' });
+
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: space.md }}>
+    <View className="mt-3 flex-row justify-between">
       {points.map((p) => (
-        <View key={p.day} style={{ alignItems: 'center', gap: 6 }}>
+        <View
+          key={p.day}
+          className="items-center gap-1.5"
+          accessible
+          accessibilityLabel={`${dayName(p.day)}: ${p.active ? 'trained' : 'no session'}`}>
           <View
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 15,
-              backgroundColor: p.active ? color.accent : color.surface2,
-              borderWidth: p.active ? 0 : 1,
-              borderColor: color.line,
-            }}
+            className={
+              p.active
+                ? 'bg-primary h-[30px] w-[30px] rounded-full'
+                : 'border-border bg-secondary h-[30px] w-[30px] rounded-full border'
+            }
           />
           <Txt variant="caption" tone="t4">
             {new Date(p.day).toLocaleDateString(undefined, { weekday: 'narrow' })}
