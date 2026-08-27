@@ -30,6 +30,13 @@ import { Icon, Txt, type IconName } from '../../src/ui';
  * never to transparent text on a moving background.
  */
 
+/**
+ * Half the bar's height, so the ends are true semicircles rather than merely
+ * rounded corners. A percentage or a `rounded-full` class will not do it:
+ * these are native views and the radius has to be a concrete number.
+ */
+const CAPSULE = 34;
+
 const TABS = [
   { name: 'index', icon: 'today', label: 'Today' },
   { name: 'train', icon: 'gym', label: 'Train' },
@@ -47,9 +54,19 @@ const TABS = [
  */
 function TabItem({ icon, label, active }: { icon: IconName; label: string; active: boolean }) {
   return (
-    <View className="w-16 items-center gap-1">
+    <View className="w-[68px] items-center gap-1">
       <Icon name={icon} size={22} tone={active ? 't1' : 't3'} filled={active} decorative />
-      <Txt variant="caption" tone={active ? 't1' : 't3'} className={active ? 'font-semibold' : ''}>
+      {/*
+        One line, always. "Community" is a hair wider than the others and used
+        to wrap mid-word, which made that tab a different HEIGHT from its
+        neighbours and pushed the whole row off centre. numberOfLines pins it;
+        the width above is sized to the longest label so nothing is clipped.
+      */}
+      <Txt
+        variant="caption"
+        tone={active ? 't1' : 't3'}
+        numberOfLines={1}
+        className={active ? 'font-semibold' : ''}>
         {label}
       </Txt>
     </View>
@@ -74,7 +91,10 @@ function StartButton() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
         router.push('/session');
       }}
-      className="bg-primary h-12 w-12 items-center justify-center rounded-full active:opacity-85">
+      // Its own margin rather than a gap on the row: this is the one control
+      // in the bar that is not a tab, and the space either side of it is what
+      // says so.
+      className="bg-primary mx-2 h-12 w-12 items-center justify-center rounded-full active:opacity-85">
       <Icon name="add" size={24} tone="inverse" decorative />
     </Pressable>
   );
@@ -89,7 +109,7 @@ function Bar() {
   const current = segments[1] ?? 'index';
 
   const items = (
-    <View className="flex-row items-center justify-between px-3 py-2">
+    <View className="flex-row items-center justify-center px-2 py-2">
       {TABS.slice(0, 2).map((t) => (
         <Pressable
           key={t.name}
@@ -122,30 +142,52 @@ function Bar() {
     <View
       pointerEvents="box-none"
       className="absolute inset-x-0 bottom-0 items-center"
-      style={{ paddingBottom: insets.bottom || 12 }}>
-      <View className="mx-3 w-full max-w-md px-3">
+      // Clear of the home indicator, not resting on it. A capsule flush with
+      // the bottom edge is just a bar with rounded corners; the gap beneath is
+      // what makes it read as floating above the content.
+      style={{ paddingBottom: (insets.bottom || 12) + 8 }}>
+      {/*
+        The capsule hugs its contents. It used to be `w-full`, which stretched
+        it edge to edge — a full-width bar with rounded ends reads as a slab,
+        not the floating pill this is meant to be, and it left the four tabs
+        marooned at the extremes with the action stranded in the middle.
+      */}
+      <View className="max-w-full px-3">
         {isLiquidGlassAvailable() ? (
           <GlassView
             glassEffectStyle="regular"
             isInteractive
-            className="overflow-hidden rounded-full"
-            // A hairline keeps the capsule's edge readable against a light
-            // scroll; clear glass over #fafaf9 is otherwise almost invisible.
-            style={{ borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.06)' }}>
+            // The radius is a STYLE, not a class. GlassView and BlurView are
+            // native views, and a className corner radius never reaches them —
+            // which is why this rendered as a square-cornered slab.
+            style={{
+              borderRadius: CAPSULE,
+              overflow: 'hidden',
+              // A hairline keeps the capsule's edge readable against a light
+              // scroll; clear glass over #fafaf9 is otherwise almost invisible.
+              borderWidth: 0.5,
+              borderColor: 'rgba(0,0,0,0.06)',
+            }}>
             {items}
           </GlassView>
         ) : Platform.OS === 'ios' ? (
           <BlurView
             intensity={80}
             tint="systemThickMaterialLight"
-            className="overflow-hidden rounded-full"
-            style={{ borderWidth: 0.5, borderColor: 'rgba(0,0,0,0.06)' }}>
+            style={{
+              borderRadius: CAPSULE,
+              overflow: 'hidden',
+              borderWidth: 0.5,
+              borderColor: 'rgba(0,0,0,0.06)',
+            }}>
             {items}
           </BlurView>
         ) : (
           // No material at all: a solid surface, because a transparent bar over
           // scrolling content is unreadable, not merely less pretty.
-          <View className="bg-card border-border overflow-hidden rounded-full border shadow-lg shadow-black/10">
+          <View
+            className="bg-card border-border border shadow-lg shadow-black/10"
+            style={{ borderRadius: CAPSULE, overflow: 'hidden' }}>
             {items}
           </View>
         )}
