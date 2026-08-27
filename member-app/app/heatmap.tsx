@@ -5,7 +5,6 @@ import { Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
 import { Chip } from '../src/ui/Chip';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { Heatmap, heatmapSpanLabel } from '../src/features/Heatmap';
-import { color, space } from '../src/ui/theme';
 import { useActivityRoutes, useSports } from '../src/api/queries';
 
 const RANGES = [
@@ -45,12 +44,12 @@ export default function HeatmapScreen() {
   if (isLoading) return <Loading label="Loading routes" />;
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Heatmap" />
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
+        contentContainerClassName="gap-3 px-4 pb-32"
       >
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+        <View className="flex-row flex-wrap gap-2">
           {RANGES.map((r) => (
             <Chip key={r.days} label={r.label} active={days === r.days} onPress={() => setDays(r.days)} />
           ))}
@@ -68,16 +67,16 @@ export default function HeatmapScreen() {
                 <Label>{polylines.length} {polylines.length === 1 ? 'route' : 'routes'}</Label>
                 {span ? <Txt variant="caption" tone="t3">{span}</Txt> : null}
               </Row>
-              <View style={{ marginTop: space.md }}>
+              <View className="mt-3">
                 <Heatmap polylines={polylines} height={340} map />
               </View>
-              <Txt variant="caption" tone="t3" style={{ marginTop: space.md }}>
+              <Txt variant="caption" tone="t3" className="mt-3">
                 The brighter a line, the more often you have been down it.
               </Txt>
             </Card>
 
             {used.length > 1 ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+              <View className="flex-row flex-wrap gap-2">
                 <Chip label="All sports" active={sport === null} onPress={() => setSport(null)} />
                 {used.map((s) => (
                   <Chip
@@ -93,7 +92,7 @@ export default function HeatmapScreen() {
             {data?.truncated ? (
               <Card tone="accent">
                 <Label>Not everything</Label>
-                <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+                <Txt variant="small" tone="t2" className="mt-2">
                   You have more routes than this picture can carry, so it shows your most
                   recent ones. Narrow the range to see a specific period.
                 </Txt>
@@ -102,12 +101,12 @@ export default function HeatmapScreen() {
 
             <Card>
               <Label>About this picture</Label>
-              <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+              <Txt variant="small" tone="t2" className="mt-2">
                 Routes far from everything else are left outside the frame so the rest
                 stays readable — a single run on holiday would otherwise shrink a year of
                 training to a dot.
               </Txt>
-              <Txt variant="caption" tone="t3" style={{ marginTop: space.md }}>
+              <Txt variant="caption" tone="t3" className="mt-3">
                 Only your own activities are ever drawn here.
               </Txt>
             </Card>

@@ -31,7 +31,7 @@ export default function ThreadScreen() {
   const messages = data?.messages ?? [];
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Messages" />
       <ScrollView
         contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 40, gap: space.sm }}
@@ -56,7 +56,7 @@ export default function ThreadScreen() {
               }}
             >
               <Txt variant="body" tone="t1">{m.body}</Txt>
-              <Txt variant="caption" tone="t4" style={{ marginTop: 2 }}>{timeOf(m.at)}</Txt>
+              <Txt variant="caption" tone="t4" className="mt-0.5">{timeOf(m.at)}</Txt>
             </View>
           ))
         )}
@@ -72,7 +72,7 @@ export default function ThreadScreen() {
           gap: space.sm,
         }}
       >
-        <Row style={{ gap: space.sm }}>
+        <Row className="gap-2">
           <TextInput
             value={draft}
             onChangeText={setDraft}

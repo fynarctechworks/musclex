@@ -49,10 +49,10 @@ export default function FeedScreen() {
   const sports = new Map((sportData?.sports ?? []).map((s: SportType) => [s.key, s]));
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Feed" />
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
+        contentContainerClassName="gap-3 px-4 pb-32"
       >
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
@@ -106,12 +106,12 @@ function FeedCard({
   return (
     <Card>
       <Pressable onPress={onOpen} accessibilityRole={a.mine ? 'button' : 'none'}>
-        <Row style={{ alignItems: 'flex-start' }}>
-          <View style={{ flex: 1, paddingRight: space.md }}>
+        <Row className="items-start">
+          <View className="flex-1 pr-3">
             <Txt variant="bodyStrong">
               {a.mine ? 'You' : a.athlete?.name || 'Someone'}
             </Txt>
-            <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>
+            <Txt variant="caption" tone="t3" className="mt-0.5">
               {sportLabel} · {whenOf(a.startedAt)}
             </Txt>
           </View>
@@ -119,11 +119,11 @@ function FeedCard({
         </Row>
 
         {a.title ? (
-          <Txt variant="heading" style={{ marginTop: space.md }}>{a.title}</Txt>
+          <Txt variant="heading" className="mt-3">{a.title}</Txt>
         ) : null}
 
         {a.polyline ? (
-          <View style={{ marginTop: space.md }}>
+          <View className="mt-3">
             {/* Safe to draw: the server has already trimmed this to the
                 owner's privacy zone when the activity is not yours. */}
             <RouteShape polyline={a.polyline} height={120} showEnds={false} />
@@ -157,7 +157,7 @@ function FeedCard({
               tone={a.kudosedByMe ? 'accent' : 't2'}
               decorative
             />
-            <Txt variant="small" tone={a.kudosedByMe ? 'accent' : 't2'} style={{ fontWeight: '600' }}>
+            <Txt variant="small" tone={a.kudosedByMe ? 'accent' : 't2'} className="font-semibold">
               Kudos{a.kudosCount > 0 ? ` ${a.kudosCount}` : ''}
             </Txt>
           </Row>
@@ -169,7 +169,7 @@ function FeedCard({
           accessibilityLabel="Comments"
           hitSlop={8}
         >
-          <Txt variant="small" tone="t2" style={{ fontWeight: '600' }}>
+          <Txt variant="small" tone="t2" className="font-semibold">
             Comments{a.commentCount > 0 ? ` ${a.commentCount}` : ''}
           </Txt>
         </Pressable>
@@ -216,7 +216,7 @@ function CommentBody({ segments }: { segments: CommentSegment[] }) {
             key={i}
             variant="small"
             tone="accent"
-            style={{ fontWeight: '600' }}
+            className="font-semibold"
             onPress={() => router.push(`/person/${seg.id}`)}
           >
             @{seg.name}
@@ -257,8 +257,8 @@ function Comments({ activityId }: { activityId: string }) {
         <Txt variant="small" tone="t3">No comments yet.</Txt>
       ) : (
         comments.map((c) => (
-          <Row key={c.id} style={{ alignItems: 'flex-start' }}>
-            <View style={{ flex: 1, paddingRight: space.sm }}>
+          <Row key={c.id} className="items-start">
+            <View className="flex-1 pr-2">
               <Txt variant="caption" tone="t3">{c.mine ? 'You' : c.author.name || 'Someone'}</Txt>
               <CommentBody segments={c.segments} />
             </View>
@@ -304,7 +304,7 @@ function Comments({ activityId }: { activityId: string }) {
         </View>
       ) : null}
 
-      <Row style={{ marginTop: space.sm, gap: space.sm }}>
+      <Row className="mt-2 gap-2">
         <TextInput
           value={draft}
           onChangeText={(t) => {

@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
 import { Chip } from '../src/ui/Chip';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
-import { color, space } from '../src/ui/theme';
 import { shortDate } from '../src/lib/datetime';
 import { clock } from '../src/lib/recorder';
 import { useActivities, useSports } from '../src/api/queries';
@@ -38,10 +37,10 @@ export default function ActivitiesScreen() {
     .filter(Boolean) as SportType[];
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Activities" />
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
+        contentContainerClassName="gap-3 px-4 pb-32"
       >
         <Button title="Record an activity" onPress={() => router.push('/record')} />
         <Button
@@ -52,7 +51,7 @@ export default function ActivitiesScreen() {
         />
 
         {used.length > 1 ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+          <View className="flex-row flex-wrap gap-2">
             <Chip label="All" active={sport === null} onPress={() => setSport(null)} />
             {used.map((s) => (
               <Chip
@@ -100,12 +99,12 @@ function ActivityRow({
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={a.title ?? sport?.label ?? 'Activity'}>
       <Card>
-        <Row style={{ alignItems: 'flex-start' }}>
-          <View style={{ flex: 1, paddingRight: space.md }}>
+        <Row className="items-start">
+          <View className="flex-1 pr-3">
             <Txt variant="bodyStrong" numberOfLines={1}>
               {a.title || sport?.label || 'Activity'}
             </Txt>
-            <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>
+            <Txt variant="caption" tone="t3" className="mt-0.5">
               {sport?.label ?? a.sportType} · {shortDate(a.startedAt)}
             </Txt>
           </View>
@@ -114,14 +113,14 @@ function ActivityRow({
           ) : null}
         </Row>
         {a.polyline ? (
-          <View style={{ marginTop: space.md }}>
+          <View className="mt-3">
             {/* Short and without end markers: at thumbnail size the dots
                 crowd the line, and the shape alone is what identifies the
                 run in a list. */}
             <RouteShape polyline={a.polyline} height={92} showEnds={false} />
           </View>
         ) : null}
-        <Row style={{ marginTop: space.md, justifyContent: 'flex-start', gap: space.xl }}>
+        <Row className="mt-3 justify-start gap-6">
           {distanceBased && km != null ? (
             <Stat value={`${km.toFixed(2)}`} unit="km" />
           ) : null}

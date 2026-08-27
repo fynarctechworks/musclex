@@ -73,10 +73,10 @@ export default function FriendsScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Friends" />
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
+        contentContainerClassName="gap-3 px-4 pb-32"
         keyboardShouldPersistTaps="handled"
       >
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
@@ -86,15 +86,15 @@ export default function FriendsScreen() {
           <Card>
             <Label>Friend requests</Label>
             {incoming.map((r) => (
-              <Row key={r.requestId} style={{ marginTop: space.md }}>
-                <Txt variant="body" style={{ flex: 1 }}>{r.name}</Txt>
+              <Row key={r.requestId} className="mt-3">
+                <Txt variant="body" className="flex-1">{r.name}</Txt>
                 <Button
                   title="Accept"
                   size="sm"
                   loading={respond.isPending}
                   onPress={() => respond.mutate({ requestId: r.requestId, accept: true })}
                 />
-                <View style={{ width: space.sm }} />
+                <View className="w-2" />
                 <Button
                   title="Ignore"
                   size="sm"
@@ -110,8 +110,8 @@ export default function FriendsScreen() {
           <Card>
             <Label>Routines sent to you</Label>
             {pendingRoutines.map((s) => (
-              <Row key={s.id} style={{ marginTop: space.md }}>
-                <View style={{ flex: 1 }}>
+              <Row key={s.id} className="mt-3">
+                <View className="flex-1">
                   <Txt variant="body">{s.name}</Txt>
                   <Txt variant="caption" tone="t3">from {s.from}</Txt>
                 </View>
@@ -153,10 +153,10 @@ export default function FriendsScreen() {
         ) : (
           sessions.map((s) => (
             <Card key={s.id}>
-              <Row style={{ alignItems: 'flex-start' }}>
-                <View style={{ flex: 1 }}>
-                  <Txt variant="body" style={{ fontWeight: '600' }}>{s.name}</Txt>
-                  <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>
+              <Row className="items-start">
+                <View className="flex-1">
+                  <Txt variant="body" className="font-semibold">{s.name}</Txt>
+                  <Txt variant="caption" tone="t3" className="mt-0.5">
                     {when(s.performedAt)} · {s.exerciseCount} exercises · {s.setCount} sets
                     {s.totalVolumeKg ? ` · ${u.fv(s.totalVolumeKg)}` : ''}
                   </Txt>
@@ -164,13 +164,13 @@ export default function FriendsScreen() {
               </Row>
 
               {s.exerciseNames.length > 0 ? (
-                <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+                <Txt variant="small" tone="t2" className="mt-2">
                   {s.exerciseNames.slice(0, 4).join(' · ')}
                   {s.exerciseNames.length > 4 ? ` +${s.exerciseNames.length - 4}` : ''}
                 </Txt>
               ) : null}
 
-              <Row style={{ marginTop: space.md }}>
+              <Row className="mt-3">
                 <Pressable
                   onPress={() => onKudos(s.id)}
                   accessibilityRole="button"
@@ -198,7 +198,7 @@ export default function FriendsScreen() {
                     </Txt>
                   </Row>
                 </Pressable>
-                <View style={{ flex: 1 }} />
+                <View className="flex-1" />
                 <Button
                   title="Compare"
                   size="sm"
@@ -213,7 +213,7 @@ export default function FriendsScreen() {
         {/* ── Add someone ── */}
         <Card>
           <Label>Add a friend</Label>
-          <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+          <Txt variant="small" tone="t2" className="mt-2">
             By phone number only. There is no search by name, so nobody can find
             you unless they already have your number.
           </Txt>
@@ -246,15 +246,15 @@ export default function FriendsScreen() {
             <Label>Your friends</Label>
             {list.map((f) => (
               <View key={f.appUserId}>
-                <Row style={{ marginTop: space.md }}>
-                  <Txt variant="body" style={{ flex: 1 }}>{f.name}</Txt>
+                <Row className="mt-3">
+                  <Txt variant="body" className="flex-1">{f.name}</Txt>
                   <Button
                     title="Compare"
                     size="sm"
                     variant="secondary"
                     onPress={() => router.push(`/friend/${f.appUserId}`)}
                   />
-                  <View style={{ width: space.sm }} />
+                  <View className="w-2" />
                   <Button
                     title="Remove"
                     size="sm"
@@ -263,7 +263,7 @@ export default function FriendsScreen() {
                   />
                 </Row>
                 {confirmRemove === f.appUserId ? (
-                  <View style={{ marginTop: space.md }}>
+                  <View className="mt-3">
                     <Confirm
                       title={`Remove ${f.name}?`}
                       body="They stop seeing your workouts and you stop seeing theirs. Nothing either of you logged is deleted."
@@ -284,7 +284,7 @@ export default function FriendsScreen() {
         {/* ── Sharing ── */}
         <Card>
           <Label>What friends can see</Label>
-          <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+          <Txt variant="small" tone="t2" className="mt-2">
             Off by default. Turning something off also removes what you already
             shared. Your weight, measurements and food are never shared.
           </Txt>
@@ -318,12 +318,12 @@ function SearchResults({
   const digits = phone.replace(/\D/g, '');
 
   if (digits.length < 6) return null;
-  if (isFetching) return <Txt variant="caption" tone="t3" style={{ marginTop: space.md }}>Searching…</Txt>;
+  if (isFetching) return <Txt variant="caption" tone="t3" className="mt-3">Searching…</Txt>;
 
   const results = data?.results ?? [];
   if (results.length === 0) {
     return (
-      <Txt variant="small" tone="t3" style={{ marginTop: space.md }}>
+      <Txt variant="small" tone="t3" className="mt-3">
         Nobody with that number uses MuscleX yet.
       </Txt>
     );
@@ -332,8 +332,8 @@ function SearchResults({
   return (
     <>
       {results.map((r) => (
-        <Row key={r.appUserId} style={{ marginTop: space.md }}>
-          <Txt variant="body" style={{ flex: 1 }}>{r.name}</Txt>
+        <Row key={r.appUserId} className="mt-3">
+          <Txt variant="body" className="flex-1">{r.name}</Txt>
           {r.status === 'accepted' ? (
             <Txt variant="caption" tone="t3">Already friends</Txt>
           ) : r.status === 'pending' ? (
@@ -373,8 +373,8 @@ function Toggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <Row style={{ marginTop: space.md }}>
-      <Txt variant="body" style={{ flex: 1 }}>{label}</Txt>
+    <Row className="mt-3">
+      <Txt variant="body" className="flex-1">{label}</Txt>
       <Button
         title={value ? 'On' : 'Off'}
         size="sm"

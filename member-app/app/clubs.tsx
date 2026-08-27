@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
 import { Chip } from '../src/ui/Chip';
 import { Notice } from '../src/ui/Notice';
+import { Field } from '../src/ui/Field';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
-import { color, font, radius, space } from '../src/ui/theme';
 import { useCreateClub, useDiscoverClubs, useMyClubs } from '../src/api/queries';
 import type { Club } from '../src/api/types';
 
@@ -36,10 +36,10 @@ export default function ClubsScreen() {
   const discover = (found?.clubs ?? []).filter((c) => !joinedIds.has(c.id));
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Clubs" />
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
+        contentContainerClassName="gap-3 px-4 pb-32"
       >
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
@@ -51,27 +51,14 @@ export default function ClubsScreen() {
             ) : null}
           </Row>
           {making ? (
-            <Row style={{ marginTop: space.md, gap: space.sm }}>
-              <TextInput
+            <Row className="mt-3 gap-2">
+              <Field
                 value={name}
                 onChangeText={setName}
                 placeholder="Club name"
-                placeholderTextColor={color.t4}
                 accessibilityLabel="Club name"
                 autoFocus
-                style={{
-                  flex: 1,
-                  height: 46,
-                  borderRadius: radius.md,
-                  backgroundColor: color.surface2,
-                  borderWidth: 1,
-                  borderColor: color.line,
-                  color: color.t1,
-                  paddingHorizontal: space.lg,
-                  fontFamily: font,
-                  fontSize: 16,
-                }}
-              />
+                className="flex-1" />
               <Button
                 title="Create"
                 size="sm"
@@ -94,7 +81,7 @@ export default function ClubsScreen() {
               />
             </Row>
           ) : (
-            <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+            <Txt variant="small" tone="t2" className="mt-2">
               A club is a group of people, not a gym — yours can span any number of them.
             </Txt>
           )}
@@ -126,10 +113,10 @@ function ClubRow({ club, onPress }: { club: Club; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={club.name}>
       <Card>
-        <Row style={{ alignItems: 'flex-start' }}>
-          <View style={{ flex: 1, paddingRight: space.md }}>
+        <Row className="items-start">
+          <View className="flex-1 pr-3">
             <Txt variant="bodyStrong">{club.name}</Txt>
-            <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>
+            <Txt variant="caption" tone="t3" className="mt-0.5">
               {[club.city, `${club.memberCount} ${club.memberCount === 1 ? 'member' : 'members'}`]
                 .filter(Boolean)
                 .join(' · ')}

@@ -3,7 +3,7 @@ import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Label, Loading, Meter, Row, Txt } from '../src/ui';
 import { Notice } from '../src/ui/Notice';
-import { color, space } from '../src/ui/theme';
+import { chart } from '../src/ui/chart-colors';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { useBadges, useChallenges, useJoinChallenge, useLeaderboard } from '../src/api/queries';
 import { Icon } from '../src/ui/Icon';
@@ -34,9 +34,9 @@ export default function GymChallengesScreen() {
   const locked = (badges?.badges ?? []).filter((b) => !b.earned);
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Gym challenges" />
-      <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}>
+      <ScrollView contentContainerClassName="gap-3 px-4 pb-32">
         {error ? (
           <Notice title="Could not join" body={error} onDismiss={() => setError(null)} />
         ) : null}
@@ -45,8 +45,8 @@ export default function GymChallengesScreen() {
             Leaderboard · {board?.metric ?? 'check-ins'} · {board?.periodDays ?? 30} days
           </Label>
           {(board?.entries ?? []).slice(0, 10).map((e) => (
-            <Row key={e.rank} style={{ marginTop: space.md }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, flex: 1 }}>
+            <Row key={e.rank} className="mt-3">
+              <View className="flex-1 flex-row items-center gap-3">
                 <Txt variant="small" tone="t4" style={{ width: 20 }}>{e.rank}</Txt>
                 <Txt variant="body" tone={e.isMe ? 'accent' : 't1'}
                   style={{ fontWeight: e.isMe ? '700' : '400' }}>
@@ -57,7 +57,7 @@ export default function GymChallengesScreen() {
             </Row>
           ))}
           {board && board.myRank === null ? (
-            <Txt variant="caption" tone="t3" style={{ marginTop: space.md }}>
+            <Txt variant="caption" tone="t3" className="mt-3">
               You are not on the board yet. Check in to join it.
             </Txt>
           ) : null}
@@ -66,17 +66,17 @@ export default function GymChallengesScreen() {
         <Card>
           <Label>Challenges</Label>
           {(challenges?.challenges ?? []).length === 0 ? (
-            <Txt variant="small" tone="t2" style={{ marginTop: space.md }}>
+            <Txt variant="small" tone="t2" className="mt-3">
               No challenges running at your gym right now.
             </Txt>
           ) : (
             (challenges?.challenges ?? []).map((c) => (
-              <View key={c.id} style={{ marginTop: space.lg }}>
-                <Row style={{ alignItems: 'flex-start' }}>
-                  <View style={{ flex: 1, paddingRight: space.md }}>
+              <View key={c.id} className="mt-4">
+                <Row className="items-start">
+                  <View className="flex-1 pr-3">
                     <Txt variant="bodyStrong">{c.title}</Txt>
                     {c.description ? (
-                      <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>{c.description}</Txt>
+                      <Txt variant="caption" tone="t3" className="mt-0.5">{c.description}</Txt>
                     ) : null}
                   </View>
                   <Button
@@ -96,8 +96,8 @@ export default function GymChallengesScreen() {
                 </Row>
                 {c.target ? (
                   <>
-                    <Meter value={c.progress ?? 0} max={c.target} tint={color.accent} />
-                    <Txt variant="caption" tone="t3" style={{ marginTop: space.sm }}>
+                    <Meter value={c.progress ?? 0} max={c.target} tint={chart.accent} />
+                    <Txt variant="caption" tone="t3" className="mt-2">
                       {c.progress ?? 0} / {c.target} {c.metric ?? ''}
                     </Txt>
                   </>
@@ -109,12 +109,12 @@ export default function GymChallengesScreen() {
 
         <Card>
           <Label>Badges · {earned.length} earned</Label>
-          <View style={{ marginTop: space.md, gap: space.md }}>
+          <View className="mt-3 gap-3">
             {[...earned, ...locked].map((b) => (
               <Row key={b.key} style={{ opacity: b.earned ? 1 : 0.45 }}>
-                <View style={{ flex: 1, paddingRight: space.md }}>
+                <View className="flex-1 pr-3">
                   <Txt variant="bodyStrong" tone={b.earned ? 't1' : 't2'}>{b.label}</Txt>
-                  <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>{b.description}</Txt>
+                  <Txt variant="caption" tone="t3" className="mt-0.5">{b.description}</Txt>
                 </View>
                 {/* Meaningful, and NOT restated in visible text — so it keeps
                     a label rather than being hidden. */}

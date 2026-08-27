@@ -6,7 +6,6 @@ import { Button, Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
 import QRCode from 'react-native-qrcode-svg';
 import { Notice } from '../src/ui/Notice';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
-import { color, radius, space } from '../src/ui/theme';
 import { contactsSupported, hashedContacts, requestContactsPermission } from '../src/lib/contacts';
 import {
   useFollowing,
@@ -79,31 +78,31 @@ export default function PeopleScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Find people" />
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
+        contentContainerClassName="gap-3 px-4 pb-32"
       >
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
         <Card>
           <Label>Suggested</Label>
           {(suggested?.people ?? []).length === 0 ? (
-            <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+            <Txt variant="small" tone="t2" className="mt-2">
               Nobody to suggest yet. Suggestions come from clubs you are in and people you
               already know here.
             </Txt>
           ) : (
             (suggested?.people ?? []).map((p) => (
-              <Row key={p.id} style={{ marginTop: space.md }}>
+              <Row key={p.id} className="mt-3">
                 <Pressable
-                  style={{ flex: 1, paddingRight: space.md }}
+                  className="flex-1 pr-3"
                   onPress={() => router.push(`/person/${p.id}`)}
                   accessibilityRole="button"
                   accessibilityLabel={p.name ?? 'Someone'}
                 >
                   <Txt variant="body">{p.name || 'Someone'}</Txt>
-                  <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>{p.reason}</Txt>
+                  <Txt variant="caption" tone="t3" className="mt-0.5">{p.reason}</Txt>
                 </Pressable>
                 <Button
                   title={followingIds.has(p.id) ? 'Following' : 'Follow'}
@@ -118,13 +117,15 @@ export default function PeopleScreen() {
 
         <Card>
           <Label>Your code</Label>
-          <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+          <Txt variant="small" tone="t2" className="mt-2">
             Show this to someone standing next to you and they can add you.
           </Txt>
           {code?.link ? (
-            <View style={{ alignItems: 'center', marginTop: space.lg }}>
-              <View style={{ padding: space.md, backgroundColor: '#FFFFFF', borderRadius: radius.md }}>
-                <QRCode value={code.link} size={168} backgroundColor="#FFFFFF" color={color.t1} />
+            <View className="mt-4 items-center">
+              {/* Literal white, not a token: a QR code needs true white quiet
+                  zone and maximum contrast to scan, whatever the surface does. */}
+              <View className="rounded-md p-3" style={{ backgroundColor: '#FFFFFF' }}>
+                <QRCode value={code.link} size={168} backgroundColor="#FFFFFF" color="#0c0a09" />
               </View>
             </View>
           ) : null}
@@ -134,11 +135,11 @@ export default function PeopleScreen() {
             variant="caption"
             tone="t3"
             selectable
-            style={{ marginTop: space.md, textAlign: 'center' }}
+            className="mt-3 text-center"
           >
             {code?.link ?? '—'}
           </Txt>
-          <View style={{ marginTop: space.md }}>
+          <View className="mt-3">
             <Button
               title="Scan someone's code"
               variant="secondary"
@@ -151,11 +152,11 @@ export default function PeopleScreen() {
           <Label>From your contacts</Label>
           {/* Says what actually happens. "We hash them" means nothing to most
               people; "your contacts are never uploaded" does. */}
-          <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+          <Txt variant="small" tone="t2" className="mt-2">
             Your contacts are never uploaded. Numbers are scrambled on this phone and only the
             scrambled version is checked, so we never see anyone's number — including yours.
           </Txt>
-          <View style={{ marginTop: space.md }}>
+          <View className="mt-3">
             <Button
               title={contactsSupported() ? 'Check my contacts' : 'Not available here'}
               variant="secondary"
@@ -166,13 +167,13 @@ export default function PeopleScreen() {
           </View>
 
           {matched?.length ? (
-            <View style={{ marginTop: space.lg, gap: space.sm }}>
+            <View className="mt-4 gap-2">
               <Txt variant="caption" tone="t3">
                 {matched.length} of your contacts {matched.length === 1 ? 'is' : 'are'} here
               </Txt>
               {matched.map((p) => (
-                <Row key={p.id} style={{ marginTop: space.sm }}>
-                  <Txt variant="body" style={{ flex: 1 }}>{p.name || 'Someone'}</Txt>
+                <Row key={p.id} className="mt-2">
+                  <Txt variant="body" className="flex-1">{p.name || 'Someone'}</Txt>
                   <Button
                     title={followingIds.has(p.id) || p.following ? 'Following' : 'Follow'}
                     variant={followingIds.has(p.id) || p.following ? 'secondary' : 'primary'}

@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, Empty, Label, Loading, Row, Txt } from '../../src/ui';
 import { Chip } from '../../src/ui/Chip';
 import { ScreenHeader } from '../../src/ui/ScreenHeader';
-import { color, radius, space } from '../../src/ui/theme';
 import { whenOf } from '../../src/lib/datetime';
 import { useConversations, useSetMessagePrivacy } from '../../src/api/queries';
 
@@ -36,14 +35,14 @@ export default function InboxScreen() {
   const conversations = data?.conversations ?? [];
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Messages" />
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
+        contentContainerClassName="gap-3 px-4 pb-32"
       >
         <Card>
           <Label>Who can message you</Label>
-          <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.md, flexWrap: 'wrap' }}>
+          <View className="mt-3 flex-row flex-wrap gap-2">
             {PRIVACY.map((p) => (
               <Chip
                 key={p.key}
@@ -53,7 +52,7 @@ export default function InboxScreen() {
               />
             ))}
           </View>
-          <Txt variant="caption" tone="t3" style={{ marginTop: space.md }}>
+          <Txt variant="caption" tone="t3" className="mt-3">
             New members start at "People I follow".
           </Txt>
         </Card>
@@ -74,16 +73,16 @@ export default function InboxScreen() {
               }`}
             >
               <Card>
-                <Row style={{ alignItems: 'flex-start' }}>
-                  <View style={{ flex: 1, paddingRight: space.md }}>
+                <Row className="items-start">
+                  <View className="flex-1 pr-3">
                     <Txt variant="bodyStrong">{c.with.name || 'Someone'}</Txt>
                     {c.lastMessage ? (
-                      <Txt variant="small" tone="t2" numberOfLines={1} style={{ marginTop: 2 }}>
+                      <Txt variant="small" tone="t2" numberOfLines={1} className="mt-0.5">
                         {c.lastMessage.mine ? 'You: ' : ''}
                         {c.lastMessage.body}
                       </Txt>
                     ) : (
-                      <Txt variant="small" tone="t3" style={{ marginTop: 2 }}>No messages yet.</Txt>
+                      <Txt variant="small" tone="t3" className="mt-0.5">No messages yet.</Txt>
                     )}
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
@@ -92,18 +91,8 @@ export default function InboxScreen() {
                     ) : null}
                     {c.unread > 0 ? (
                       <View
-                        style={{
-                          marginTop: 4,
-                          minWidth: 20,
-                          paddingHorizontal: 6,
-                          height: 20,
-                          borderRadius: radius.pill,
-                          backgroundColor: color.accent,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Txt variant="caption" style={{ color: color.accentInk, fontWeight: '700' }}>
+                        className="bg-primary mt-1 h-5 min-w-5 items-center justify-center rounded-full px-1.5">
+                        <Txt variant="caption" className="text-primary-foreground font-semibold">
                           {c.unread}
                         </Txt>
                       </View>

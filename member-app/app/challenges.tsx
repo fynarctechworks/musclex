@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Label, Loading, Meter, Row, Txt } from '../src/ui';
 import { Chip } from '../src/ui/Chip';
 import { Notice } from '../src/ui/Notice';
+import { Field } from '../src/ui/Field';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
-import { color, font, radius, space } from '../src/ui/theme';
+import { chart } from '../src/ui/chart-colors';
 import { daysLeft, METRIC_LABEL, type Metric } from '../src/lib/challenge-metric';
 import { useCreateGroupChallenge, useGroupChallenges } from '../src/api/queries';
 
@@ -44,10 +45,10 @@ export default function ChallengesScreen() {
   const challenges = data?.challenges ?? [];
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Challenges" />
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
+        contentContainerClassName="gap-3 px-4 pb-32"
       >
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
@@ -60,7 +61,7 @@ export default function ChallengesScreen() {
           </Row>
           {making ? (
             <>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.md }}>
+              <View className="mt-3 flex-row flex-wrap gap-2">
                 {METRICS.map((m) => (
                   <Chip
                     key={m}
@@ -70,27 +71,14 @@ export default function ChallengesScreen() {
                   />
                 ))}
               </View>
-              <Row style={{ marginTop: space.md, gap: space.sm }}>
-                <TextInput
+              <Row className="mt-3 gap-2">
+                <Field
                   value={title}
                   onChangeText={setTitle}
                   placeholder="What are you racing for?"
-                  placeholderTextColor={color.t4}
                   accessibilityLabel="Challenge name"
                   autoFocus
-                  style={{
-                    flex: 1,
-                    height: 46,
-                    borderRadius: radius.md,
-                    backgroundColor: color.surface2,
-                    borderWidth: 1,
-                    borderColor: color.line,
-                    color: color.t1,
-                    paddingHorizontal: space.lg,
-                    fontFamily: font,
-                    fontSize: 16,
-                  }}
-                />
+                className="flex-1" />
                 <Button
                   title="Create"
                   size="sm"
@@ -116,12 +104,12 @@ export default function ChallengesScreen() {
                   }}
                 />
               </Row>
-              <Txt variant="caption" tone="t3" style={{ marginTop: space.sm }}>
+              <Txt variant="caption" tone="t3" className="mt-2">
                 Runs from today to the end of the month. Invite people from inside it.
               </Txt>
             </>
           ) : (
-            <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+            <Txt variant="small" tone="t2" className="mt-2">
               Race your friends on distance, time, climbing or plain number of workouts.
             </Txt>
           )}
@@ -141,16 +129,16 @@ export default function ChallengesScreen() {
               accessibilityLabel={c.title}
             >
               <Card>
-                <Row style={{ alignItems: 'flex-start' }}>
-                  <View style={{ flex: 1, paddingRight: space.md }}>
+                <Row className="items-start">
+                  <View className="flex-1 pr-3">
                     <Txt variant="bodyStrong">{c.title}</Txt>
-                    <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>
+                    <Txt variant="caption" tone="t3" className="mt-0.5">
                       {METRIC_LABEL[c.metric]} · {c.participantCount}{' '}
                       {c.participantCount === 1 ? 'person' : 'people'} · {daysLeft(c.endsOn)}
                     </Txt>
                   </View>
                 </Row>
-                {c.target ? <Meter value={0} max={1} tint={color.line} /> : null}
+                {c.target ? <Meter value={0} max={1} tint={chart.line} /> : null}
               </Card>
             </Pressable>
           ))
