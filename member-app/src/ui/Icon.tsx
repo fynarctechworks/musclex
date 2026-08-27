@@ -81,6 +81,14 @@ const SYMBOLS = {
   /** Reordering a routine's exercises. */
   up: 'arrow.up',
   down: 'arrow.down',
+  /**
+   * Month paging on the calendar. These are the CIRCLED chevrons, not bare
+   * ones: `chevron` above is already the bare right-facing list affordance,
+   * and a bare left/right pair beside it would read as the same control
+   * pointing two ways rather than as a pager.
+   */
+  back: 'chevron.left.circle',
+  forward: 'chevron.right.circle',
 } as const;
 
 export type IconName = keyof typeof SYMBOLS;

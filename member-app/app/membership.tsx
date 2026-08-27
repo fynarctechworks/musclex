@@ -4,7 +4,6 @@ import * as Linking from 'expo-linking';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
 import { Notice } from '../src/ui/Notice';
-import { color, space } from '../src/ui/theme';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { shortDate } from '../src/lib/datetime';
 import { useMembership, useMembershipPlans, useRenewMembership } from '../src/api/queries';
@@ -52,30 +51,30 @@ export default function MembershipScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Membership" />
-      <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}>
+      <ScrollView contentContainerClassName="gap-3 px-4 pb-32">
         {error ? <Notice title="Renewal" body={error} onDismiss={() => setError(null)} /> : null}
 
         <Card tone={membership ? 'good' : 'default'}>
           <Label>Current plan</Label>
           {membership ? (
             <>
-              <Txt variant="title" style={{ marginTop: space.sm }}>{membership.planName}</Txt>
-              <Row style={{ marginTop: space.md }}>
+              <Txt variant="title" className="mt-2">{membership.planName}</Txt>
+              <Row className="mt-3">
                 <Txt variant="small" tone="t2">Status</Txt>
                 <Txt variant="bodyStrong" style={{ textTransform: 'capitalize' }}>
                   {membership.status ?? 'active'}
                 </Txt>
               </Row>
               {membership.endDate ? (
-                <Row style={{ marginTop: space.sm }}>
+                <Row className="mt-2">
                   <Txt variant="small" tone="t2">Runs until</Txt>
                   <Txt variant="bodyStrong">{shortDate(membership.endDate)}</Txt>
                 </Row>
               ) : null}
               {membership.daysRemaining != null ? (
-                <Row style={{ marginTop: space.sm }}>
+                <Row className="mt-2">
                   <Txt variant="small" tone="t2">Days left</Txt>
                   <Txt
                     variant="bodyStrong"
@@ -87,7 +86,7 @@ export default function MembershipScreen() {
               ) : null}
             </>
           ) : (
-            <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+            <Txt variant="small" tone="t2" className="mt-2">
               You do not have an active membership. Ask at the front desk, or pick a plan below.
             </Txt>
           )}
@@ -102,13 +101,13 @@ export default function MembershipScreen() {
         ) : (
           plans.map((p) => (
             <Card key={p.id} tone={p.isCurrent ? 'accent' : 'default'}>
-              <Row style={{ alignItems: 'flex-start' }}>
-                <View style={{ flex: 1, paddingRight: space.md }}>
+              <Row className="items-start">
+                <View className="flex-1 pr-3">
                   <Txt variant="heading">{p.name}</Txt>
                   {p.description ? (
-                    <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>{p.description}</Txt>
+                    <Txt variant="caption" tone="t3" className="mt-0.5">{p.description}</Txt>
                   ) : null}
-                  <Txt variant="caption" tone="t3" style={{ marginTop: 4 }}>
+                  <Txt variant="caption" tone="t3" className="mt-1">
                     {p.durationDays ? `${p.durationDays} days` : ''}
                     {p.totalClasses ? ` · ${p.totalClasses} classes` : ''}
                     {p.accessType === 'all_branches' ? ' · all branches' : ''}
@@ -117,11 +116,11 @@ export default function MembershipScreen() {
                 <View style={{ alignItems: 'flex-end' }}>
                   <Txt variant="heading">{rupees(p.price)}</Txt>
                   {p.isCurrent ? (
-                    <Txt variant="caption" tone="accent" style={{ marginTop: 2 }}>Current</Txt>
+                    <Txt variant="caption" tone="accent" className="mt-0.5">Current</Txt>
                   ) : null}
                 </View>
               </Row>
-              <View style={{ marginTop: space.md }}>
+              <View className="mt-3">
                 <Button
                   title={p.isCurrent ? 'Renew this plan' : 'Choose this plan'}
                   variant={p.isCurrent ? 'primary' : 'secondary'}
@@ -134,7 +133,7 @@ export default function MembershipScreen() {
           ))
         )}
 
-        <Txt variant="caption" tone="t3" style={{ textAlign: 'center', marginTop: space.sm }}>
+        <Txt variant="caption" tone="t3" className="mt-2 text-center">
           Payment opens your gym's secure checkout. Card details are never entered in this app.
         </Txt>
       </ScrollView>

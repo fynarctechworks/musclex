@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
 import { Notice } from '../src/ui/Notice';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
-import { color, radius, space } from '../src/ui/theme';
 import { shortDate } from '../src/lib/datetime';
 import { photosSupported, pickPhoto, uploadToSignedUrl } from '../src/lib/photos';
 import { useAddProgressPhoto, useProgressPhotos } from '../src/api/queries';
@@ -53,10 +52,10 @@ export default function PhotosScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Progress photos" />
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
+        contentContainerClassName="gap-3 px-4 pb-32"
       >
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
@@ -69,7 +68,7 @@ export default function PhotosScreen() {
 
         <Card>
           <Label>Who can see these</Label>
-          <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+          <Txt variant="small" tone="t2" className="mt-2">
             Only you. They are not on your profile, not in any feed, and the links the app uses
             expire after an hour — so one that gets forwarded stops working.
           </Txt>
@@ -81,32 +80,23 @@ export default function PhotosScreen() {
             body="Same pose, same light, every few weeks. That is what makes them worth comparing."
           />
         ) : (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+          <View className="flex-row flex-wrap gap-2">
             {photos.map((p) => (
               <View key={p.id} style={{ width: '48%' }}>
                 <View
-                  style={{
-                    aspectRatio: 0.75,
-                    borderRadius: radius.md,
-                    overflow: 'hidden',
-                    backgroundColor: color.surface2,
-                    borderWidth: 1,
-                    borderColor: color.line,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
+                  className="border-border bg-secondary items-center justify-center overflow-hidden rounded-md border"
+                  style={{ aspectRatio: 0.75 }}>
                   {p.url ? (
                     <Image source={{ uri: p.url }} style={{ width: '100%', height: '100%' }} />
                   ) : (
                     // Signing failed. Say so rather than showing a broken
                     // image icon and letting them think the photo is gone.
-                    <Txt variant="caption" tone="t3" style={{ textAlign: 'center', padding: space.md }}>
+                    <Txt variant="caption" tone="t3" className="p-3 text-center">
                       Could not load this one. Pull down to try again.
                     </Txt>
                   )}
                 </View>
-                <Txt variant="caption" tone="t3" style={{ marginTop: 4 }}>
+                <Txt variant="caption" tone="t3" className="mt-1">
                   {shortDate(p.takenAt)}
                 </Txt>
               </View>

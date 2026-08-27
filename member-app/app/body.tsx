@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Label, Loading, Row, Txt } from '../src/ui';
 import { Notice } from '../src/ui/Notice';
-import { font, color, radius, space } from '../src/ui/theme';
+import { chart as chartColors } from '../src/ui/chart-colors';
+import { Field } from '../src/ui/Field';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { BarChart } from '../src/features/Sparkline';
 import { shortDate } from '../src/lib/datetime';
@@ -98,14 +99,14 @@ export default function BodyScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Body" />
-      <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}>
+      <ScrollView contentContainerClassName="gap-3 px-4 pb-32">
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
         <Card>
           <Label>Current</Label>
-          <Row style={{ alignItems: 'flex-end', marginTop: space.sm }}>
+          <Row className="mt-2 items-end">
             <View>
               <Txt variant="display">{u.fw(latest)}</Txt>
               {data?.latest ? (
@@ -123,7 +124,7 @@ export default function BodyScreen() {
             ) : null}
           </Row>
           {progress?.latest?.bmi ? (
-            <Row style={{ marginTop: space.md }}>
+            <Row className="mt-3">
               <Txt variant="small" tone="t2">BMI</Txt>
               <Txt variant="bodyStrong">{progress.latest.bmi}</Txt>
             </Row>
@@ -132,28 +133,14 @@ export default function BodyScreen() {
 
         <Card>
           <Label>Log today's weight</Label>
-          <Row style={{ marginTop: space.md, gap: space.sm }}>
-            <TextInput
+          <Row className="mt-3 gap-2">
+            <Field
               value={value}
               onChangeText={setValue}
               keyboardType="decimal-pad"
               placeholder={latest != null ? u.w(latest) : u.w(75)}
-              placeholderTextColor={color.t4}
               accessibilityLabel={`Weight in ${u.weightUnit}`}
-              style={{
-                flex: 1,
-                height: 46,
-                borderRadius: radius.md,
-                backgroundColor: color.surface2,
-                borderWidth: 1,
-                borderColor: color.line,
-                color: color.t1,
-                paddingHorizontal: space.lg,
-                fontFamily: font,
-                fontSize: 16,
-                fontWeight: '600',
-              }}
-            />
+            className="flex-1" />
             <Button
               title="Save"
               size="sm"
@@ -166,37 +153,23 @@ export default function BodyScreen() {
 
         <Card>
           <Label>Measurements</Label>
-          <Txt variant="caption" tone="t3" style={{ marginTop: space.sm }}>
+          <Txt variant="caption" tone="t3" className="mt-2">
             Fill in only what you measured. Blank fields are left alone.
           </Txt>
           {MEASURES.map((m) => (
-            <Row key={m.key} style={{ marginTop: space.md }}>
-              <Txt variant="small" tone="t2" style={{ flex: 1 }}>
+            <Row key={m.key} className="mt-3">
+              <Txt variant="small" tone="t2" className="flex-1">
                 {m.label}
               </Txt>
-              <TextInput
+              <Field
                 value={measures[m.key] ?? ''}
                 onChangeText={(v) => setMeasures((p) => ({ ...p, [m.key]: v }))}
                 keyboardType="decimal-pad"
                 placeholder={m.unit}
-                placeholderTextColor={color.t4}
-                accessibilityLabel={`${m.label} in ${m.unit}`}
-                style={{
-                  width: 110,
-                  height: 42,
-                  borderRadius: radius.md,
-                  backgroundColor: color.surface2,
-                  borderWidth: 1,
-                  borderColor: color.line,
-                  color: color.t1,
-                  textAlign: 'center',
-                  fontFamily: font,
-                  fontSize: 15,
-                }}
-              />
+                accessibilityLabel={`${m.label} in ${m.unit}`} />
             </Row>
           ))}
-          <View style={{ marginTop: space.lg }}>
+          <View className="mt-4">
             <Button
               title="Save measurements"
               variant="secondary"
@@ -209,8 +182,8 @@ export default function BodyScreen() {
         {chart.length > 1 ? (
           <Card>
             <Label>Trend</Label>
-            <View style={{ marginTop: space.md }}>
-              <BarChart data={chart} tint={color.good} />
+            <View className="mt-3">
+              <BarChart data={chart} tint={chartColors.good} />
             </View>
           </Card>
         ) : null}
@@ -218,12 +191,12 @@ export default function BodyScreen() {
         <Card>
           <Label>History</Label>
           {entries.length === 0 ? (
-            <Txt variant="small" tone="t2" style={{ marginTop: space.md }}>
+            <Txt variant="small" tone="t2" className="mt-3">
               Nothing logged yet.
             </Txt>
           ) : (
             [...entries].reverse().map((e) => (
-              <Row key={e.date} style={{ marginTop: space.md }}>
+              <Row key={e.date} className="mt-3">
                 <Txt variant="small" tone="t2">{shortDate(e.date)}</Txt>
                 <Txt variant="bodyStrong">{u.fw(e.weightKg)}</Txt>
               </Row>

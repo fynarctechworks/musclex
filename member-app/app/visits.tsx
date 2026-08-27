@@ -16,9 +16,9 @@ export default function VisitsScreen() {
   const visits = data?.visits ?? [];
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Visits" />
-      <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}>
+      <ScrollView contentContainerClassName="gap-3 px-4 pb-32">
         <Card>
           <Row style={{ alignItems: 'flex-end' }}>
             <View>
@@ -35,15 +35,15 @@ export default function VisitsScreen() {
         <Card>
           <Label>History</Label>
           {visits.length === 0 ? (
-            <Txt variant="small" tone="t2" style={{ marginTop: space.md }}>
+            <Txt variant="small" tone="t2" className="mt-3">
               No check-ins recorded yet. Scan the QR at the door and this fills in.
             </Txt>
           ) : (
             visits.map((v) => (
-              <Row key={v.id} style={{ marginTop: space.md, alignItems: 'flex-start' }}>
-                <View style={{ flex: 1, paddingRight: space.md }}>
+              <Row key={v.id} className="mt-3 items-start">
+                <View className="flex-1 pr-3">
                   <Txt variant="bodyStrong">{dayOf(v.checkedInAt)}</Txt>
-                  <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>
+                  <Txt variant="caption" tone="t3" className="mt-0.5">
                     {v.branchName ?? 'Your gym'}
                     {v.method ? ` · ${v.method}` : ''}
                   </Txt>

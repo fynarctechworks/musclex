@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Card, Label, Loading, Row, Txt } from '../src/ui';
+import { Card, Icon, Label, Loading, Row, Txt, type IconName } from '../src/ui';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
-import { color, radius, space } from '../src/ui/theme';
+import { cn } from '@/lib/utils';
+import { accentAlpha, chart } from '../src/ui/chart-colors';
 import { buildMonth, intensity, shiftMonth, WEEKDAYS, type Cell } from '../src/lib/calendar';
 import { useTrainingStats } from '../src/api/queries';
 
@@ -52,37 +53,26 @@ export default function CalendarScreen() {
   const atLatest = year === now.getFullYear() && month === now.getMonth();
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Calendar" />
       <ScrollView
-        contentContainerStyle={{
-          padding: space.lg,
-          paddingTop: 0,
-          paddingBottom: 120,
-          gap: space.md,
-        }}
-      >
+        contentContainerClassName="gap-3 px-4 pb-32">
         <Card>
           <Row>
-            <Arrow label="Previous month" glyph="‹" onPress={() => go(-1)} />
+            <Arrow label="Previous month" icon="back" onPress={() => go(-1)} />
             <Txt variant="heading">{grid.label}</Txt>
-            <Arrow
-              label="Next month"
-              glyph="›"
-              onPress={() => go(1)}
-              disabled={atLatest}
-            />
+            <Arrow label="Next month" icon="forward" onPress={() => go(1)} disabled={atLatest} />
           </Row>
 
-          <View style={{ flexDirection: 'row', marginTop: space.lg }}>
+          <View className="mt-4 flex-row">
             {WEEKDAYS.map((d, i) => (
-              <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+              <View key={i} className="flex-1 items-center">
                 <Txt variant="caption" tone="t4">{d}</Txt>
               </View>
             ))}
           </View>
 
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: space.sm }}>
+          <View className="mt-2 flex-row flex-wrap">
             {grid.cells.map((c, i) => (
               <Day
                 key={c.key ?? `pad-${i}`}
@@ -93,7 +83,7 @@ export default function CalendarScreen() {
             ))}
           </View>
 
-          <Row style={{ marginTop: space.lg }}>
+          <Row className="mt-4">
             <Txt variant="small" tone="t2">
               {grid.activeDays === 0
                 ? 'Nothing logged this month.'
@@ -110,7 +100,7 @@ export default function CalendarScreen() {
         {picked ? (
           <Card>
             <Label>{formatPicked(picked, year, month)}</Label>
-            <Txt variant="heading" style={{ marginTop: space.sm }}>
+            <Txt variant="heading" className="mt-2">
               {picked.sets > 0
                 ? `${picked.sets} ${picked.sets === 1 ? 'set' : 'sets'}`
                 : 'Rest day'}
@@ -120,24 +110,24 @@ export default function CalendarScreen() {
 
         <Card>
           <Label>How to read it</Label>
-          <Row style={{ marginTop: space.md, justifyContent: 'flex-start', gap: space.sm }}>
-            <Txt variant="caption" tone="t3">Less</Txt>
+          <Row className="mt-3 justify-start gap-2">
+            <Txt variant="caption" tone="t3">
+              Less
+            </Txt>
             {[0, 1, 2, 3, 4].map((s) => (
               <View
                 key={s}
-                style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: radius.sm - 3,
-                  backgroundColor: shade(s as 0 | 1 | 2 | 3 | 4),
-                  borderWidth: s === 0 ? 1 : 0,
-                  borderColor: color.line,
-                }}
+                // The swatch IS the scale, so its fill is data.
+                style={{ backgroundColor: shade(s as 0 | 1 | 2 | 3 | 4) }}
+                className={cn(
+                  'h-[18px] w-[18px] rounded-[5px]',
+                  s === 0 && 'border-border border',
+                )}
               />
             ))}
             <Txt variant="caption" tone="t3">More</Txt>
           </Row>
-          <Txt variant="small" tone="t2" style={{ marginTop: space.md }}>
+          <Txt variant="small" tone="t2" className="mt-3">
             Each square is a day, shaded by how many sets you logged.
           </Txt>
         </Card>
@@ -145,12 +135,12 @@ export default function CalendarScreen() {
         {data ? (
           <Card>
             <Label>Last 12 months</Label>
-            <Row style={{ marginTop: space.md, alignItems: 'flex-end' }}>
+            <Row className="mt-3 items-end">
               <View>
                 <Txt variant="display">{data.activeDays.length}</Txt>
                 <Txt variant="caption" tone="t3">days trained</Txt>
               </View>
-              <View style={{ alignItems: 'flex-end' }}>
+              <View className="items-end">
                 <Txt variant="display">{data.longestStreak}</Txt>
                 <Txt variant="caption" tone="t3">longest streak</Txt>
               </View>
@@ -164,8 +154,8 @@ export default function CalendarScreen() {
 
 /** Intensity step → fill. Rest days are a well, not a colour. */
 function shade(step: 0 | 1 | 2 | 3 | 4): string {
-  if (step === 0) return color.surface2;
-  return ['', 'rgba(225,6,0,0.16)', 'rgba(225,6,0,0.34)', 'rgba(225,6,0,0.62)', color.accent][
+  if (step === 0) return chart.track;
+  return ['', accentAlpha(0.16), accentAlpha(0.34), accentAlpha(0.62), chart.accent][
     step
   ];
 }
@@ -203,30 +193,23 @@ function Day({
             : `${cell.day}, ${cell.sets > 0 ? `${cell.sets} sets` : 'rest day'}`
         }
         accessibilityState={{ selected }}
+        // Every value here is derived from the day's own data — its heat,
+        // whether it is today, whether it is picked — so this stays inline.
         style={({ pressed }) => ({
           flex: 1,
-          borderRadius: radius.sm,
+          borderRadius: 8,
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: shade(step),
           // Today is ringed rather than filled, so it reads even on a rest day.
           borderWidth: selected ? 2 : cell.today || step === 0 ? 1 : 0,
-          borderColor: selected
-            ? color.t1
-            : cell.today
-              ? color.accent
-              : color.line,
+          borderColor: selected ? chart.ink : cell.today ? chart.accent : chart.line,
           opacity: (cell.future ? 0.45 : 1) * (pressed ? 0.7 : 1),
-        })}
-      >
+        })}>
         <Txt
           variant="caption"
           tone={dark ? 't3' : cell.today ? 'accent' : 't2'}
-          style={{
-            fontWeight: cell.today ? '700' : '500',
-            color: dark ? color.accentInk : undefined,
-          }}
-        >
+          className={cn(cell.today ? 'font-semibold' : 'font-medium', dark && 'text-white')}>
           {cell.day}
         </Txt>
       </Pressable>
@@ -236,12 +219,12 @@ function Day({
 
 function Arrow({
   label,
-  glyph,
+  icon,
   onPress,
   disabled,
 }: {
   label: string;
-  glyph: string;
+  icon: IconName;
   onPress: () => void;
   disabled?: boolean;
 }) {
@@ -253,19 +236,11 @@ function Arrow({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: !!disabled }}
-      style={{
-        width: 34,
-        height: 34,
-        borderRadius: radius.sm,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: color.surface2,
-        borderWidth: 1,
-        borderColor: color.line,
-        opacity: disabled ? 0.35 : 1,
-      }}
-    >
-      <Txt variant="body" tone="t2" style={{ fontWeight: '700' }}>{glyph}</Txt>
+      className={cn(
+        'border-border bg-secondary h-[34px] w-[34px] items-center justify-center rounded-sm border',
+        disabled && 'opacity-35',
+      )}>
+      <Icon name={icon} size={16} tone="t2" decorative />
     </Pressable>
   );
 }

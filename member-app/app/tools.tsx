@@ -45,7 +45,7 @@ export default function ToolsScreen() {
 
   const stat = (k: string, v?: number | string | null, suffix = '') =>
     v == null ? null : (
-      <Row key={k} style={{ marginTop: space.md }}>
+      <Row key={k} className="mt-3">
         <Txt variant="small" tone="t2">{k}</Txt>
         <Txt variant="bodyStrong">
           {typeof v === 'number' ? Math.round(v).toLocaleString() : v}
@@ -55,9 +55,9 @@ export default function ToolsScreen() {
     );
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Calculators" />
-      <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}>
+      <ScrollView contentContainerClassName="gap-3 px-4 pb-32">
         {error ? <Notice title="Could not calculate" body={error} onDismiss={() => setError(null)} /> : null}
 
         <Card>
@@ -66,11 +66,11 @@ export default function ToolsScreen() {
           {stat('Weight', profile?.weightKg != null ? u.fw(profile.weightKg) : null)}
           {stat('Activity', profile?.activityLevel?.replace(/_/g, ' '))}
           {!ready ? (
-            <Txt variant="small" tone="t2" style={{ marginTop: space.md }}>
+            <Txt variant="small" tone="t2" className="mt-3">
               Add your height and weight in Profile to get accurate numbers.
             </Txt>
           ) : null}
-          <View style={{ marginTop: space.lg }}>
+          <View className="mt-4">
             <Button
               title={result ? 'Recalculate' : 'Calculate'}
               onPress={run}
@@ -96,7 +96,7 @@ export default function ToolsScreen() {
               {stat('Carbs', result.carbsG, ' g')}
               {stat('Fat', result.fatG, ' g')}
               {stat('Water', result.waterMl, ' ml')}
-              <Txt variant="caption" tone="t3" style={{ marginTop: space.md }}>
+              <Txt variant="caption" tone="t3" className="mt-3">
                 Estimates. Your trainer's plan overrides these.
               </Txt>
             </Card>

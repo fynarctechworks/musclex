@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Label, Loading, Meter, Row, Txt } from '../../src/ui';
 import { Notice } from '../../src/ui/Notice';
-import { font, color, radius, space } from '../../src/ui/theme';
+import { Chip } from '../../src/ui/Chip';
+import { chart } from '../../src/ui/chart-colors';
+import { Field } from '../../src/ui/Field';
 import { ScreenHeader } from '../../src/ui/ScreenHeader';
 import { useAddGoal, useGoals, useUpdateGoal } from '../../src/api/queries';
 import { Icon } from '../../src/ui/Icon';
@@ -56,61 +58,31 @@ export default function GoalsScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Goals" />
-      <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}>
+      <ScrollView contentContainerClassName="gap-3 px-4 pb-32">
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
         <Card>
           <Label>Set a goal</Label>
-          <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.md, flexWrap: 'wrap' }}>
-            {TYPES.map((t) => {
-              const on = type === t.key;
-              return (
-                <Pressable
-                  key={t.key}
-                  onPress={() => setType(t.key)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: on }}
-                  style={{
-                    height: 34,
-                    paddingHorizontal: space.lg,
-                    borderRadius: radius.pill,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: on ? color.accentSoft : color.surface2,
-                    borderWidth: 1,
-                    borderColor: on ? color.accentEdge : color.line,
-                  }}
-                >
-                  <Txt variant="caption" tone={on ? 'accent' : 't2'} style={{ fontWeight: '600' }}>
-                    {t.label}
-                  </Txt>
-                </Pressable>
-              );
-            })}
+          <View className="mt-3 flex-row flex-wrap gap-2">
+            {TYPES.map((t) => (
+              <Chip
+                key={t.key}
+                label={t.label}
+                active={type === t.key}
+                onPress={() => setType(t.key)}
+              />
+            ))}
           </View>
-          <Row style={{ marginTop: space.md, gap: space.sm }}>
-            <TextInput
+          <Row className="mt-3 gap-2">
+            <Field
               value={target}
               onChangeText={setTarget}
               keyboardType="decimal-pad"
               placeholder={`Target in ${chosen.unit}`}
-              placeholderTextColor={color.t4}
               accessibilityLabel="Goal target"
-              style={{
-                flex: 1,
-                height: 46,
-                borderRadius: radius.md,
-                backgroundColor: color.surface2,
-                borderWidth: 1,
-                borderColor: color.line,
-                color: color.t1,
-                paddingHorizontal: space.lg,
-                fontFamily: font,
-                fontSize: 16,
-              }}
-            />
+            className="flex-1" />
             <Button title="Add" size="sm" onPress={create} disabled={!target} loading={add.isPending} />
           </Row>
         </Card>
@@ -118,16 +90,16 @@ export default function GoalsScreen() {
         <Card>
           <Label>Active</Label>
           {active.length === 0 ? (
-            <Txt variant="small" tone="t2" style={{ marginTop: space.md }}>
+            <Txt variant="small" tone="t2" className="mt-3">
               No goals set. Pick one above.
             </Txt>
           ) : (
             active.map((g) => (
-              <View key={g.id} style={{ marginTop: space.lg }}>
-                <Row style={{ alignItems: 'flex-start' }}>
-                  <View style={{ flex: 1, paddingRight: space.md }}>
+              <View key={g.id} className="mt-4">
+                <Row className="items-start">
+                  <View className="flex-1 pr-3">
                     <Txt variant="bodyStrong">{g.title}</Txt>
-                    <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>
+                    <Txt variant="caption" tone="t3" className="mt-0.5">
                       {g.currentValue ?? 0} / {g.targetValue} {g.unit}
                     </Txt>
                   </View>
@@ -140,7 +112,7 @@ export default function GoalsScreen() {
                   />
                 </Row>
                 {g.targetValue ? (
-                  <Meter value={g.currentValue ?? 0} max={g.targetValue} tint={color.accent} />
+                  <Meter value={g.currentValue ?? 0} max={g.targetValue} tint={chart.accent} />
                 ) : null}
               </View>
             ))
@@ -151,7 +123,7 @@ export default function GoalsScreen() {
           <Card>
             <Label>Completed</Label>
             {closed.map((g) => (
-              <Row key={g.id} style={{ marginTop: space.md, opacity: 0.6 }}>
+              <Row key={g.id} className="mt-3 opacity-60">
                 <Txt variant="body">{g.title}</Txt>
                 <Row style={{ gap: 4, justifyContent: 'flex-start' }}>
                   <Icon name="check" size={13} tone="good" decorative />
