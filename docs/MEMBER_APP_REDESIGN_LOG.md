@@ -72,3 +72,40 @@ reproduces on a three-line Pressable, so it is RNTL here, not the code.
 Commits: `bc29666`, `8246e7b`, `a2c9179`.
 
 **Remaining: 41 files still on `src/ui/theme`** (was 57).
+
+### Phase 3 — Community depth (COMPLETE)
+
+`feed`, `friends`, `people`, `clubs`, `challenges`, `gym-challenges`,
+`activities`, `heatmap`, `dm/index`, `dm/[id]` — every screen the Community tab
+reaches.
+
+**New: `src/ui/Field.tsx`.** Eighteen screens had each hand-rolled the same text
+input, with the placeholder colour written out as a literal eighteen times, and
+heights already drifted between 42 and 50 for no reason anyone chose.
+`placeholderTextColor` is why it has to be a component and not a class — RN
+takes it as a prop.
+
+**Deliberately kept different:** the coach thread FILLS its own bubbles; the DM
+thread TINTS them. A reply to the coach is read one at a time; person-to-person
+messages are read in long runs, where a column of solid red is tiring. Both now
+carry a comment, because otherwise the difference looks like drift.
+
+### Phase 4 — You-tab depth (COMPLETE)
+
+`body`, `calendar`, `photos`, `membership`, `visits`, `referral`, `tools`,
+`settings/goals`, `settings/profile`.
+
+**Two real de-duplications, not restyles:**
+- `goals` and `profile` had each hand-rolled a pill toggle that was line-for-line
+  the existing `Chip` — same height, radius, selected treatment, and
+  `accessibilityRole="radio"`. Both now use it.
+- `profile` carried a local `input` style object; `Field` replaces it.
+
+The calendar's month pager was a `‹` / `›` text pair and is now circled
+chevrons — deliberately not the bare `chevron` already in the set, which is the
+list affordance. The day cell keeps an inline style, with a note: its fill, ring
+and opacity are all derived from that day's own data.
+
+Commits: `959ff19`, `987125d`, `969f1bb`.
+
+**22 files still on `src/ui/theme`** (from 57 at session start).
