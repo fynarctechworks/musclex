@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import { AppState, View } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { PortalHost } from '@rn-primitives/portal';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
@@ -159,6 +160,16 @@ export default function RootLayout() {
             <Loading label="Starting" />
           )}
         </View>
+        {/*
+          Every portal-backed overlay renders into this host: dialog,
+          alert-dialog, select and tooltip. Without it those components fail
+          SILENTLY — the trigger presses, no overlay appears, and nothing is
+          logged — which is easy to miss and hard to diagnose later.
+
+          Outside the themed <View> on purpose: an overlay covers the whole
+          window, so it must not be clipped by the app's own background layer.
+        */}
+        <PortalHost />
       </QueryClientProvider>
     </SafeAreaProvider>
   );

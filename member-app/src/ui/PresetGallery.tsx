@@ -1,18 +1,36 @@
 import * as React from 'react';
+import { Info, TriangleAlert } from 'lucide-react-native';
 import { ScrollView, View } from 'react-native';
 
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
+  DialogTitle, DialogTrigger,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Text } from '@/components/ui/text';
+import { Toggle } from '@/components/ui/toggle';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -72,6 +90,10 @@ function Cell({ children }: { children: React.ReactNode }) {
 export function PresetGallery() {
   const [checked, setChecked] = React.useState(true);
   const [on, setOn] = React.useState(true);
+  const [unit, setUnit] = React.useState('kg');
+  const [goal, setGoal] = React.useState('lose');
+  const [bold, setBold] = React.useState(false);
+  const [muscles, setMuscles] = React.useState<string[]>(['chest']);
 
   return (
     <ScrollView
@@ -224,6 +246,105 @@ export function PresetGallery() {
           <Text className="text-foreground text-sm">Rahul Sharma</Text>
         </View>
         <Separator />
+      </Section>
+
+
+      <Section title="Alerts" hint="Replaces the app's Notice. Icon plus title plus body, never colour alone.">
+        <View className="gap-2">
+          <Alert icon={Info}>
+            <AlertTitle>New plan assigned</AlertTitle>
+            <AlertDescription>Your coach updated this week's programme.</AlertDescription>
+          </Alert>
+          <Alert icon={TriangleAlert} variant="destructive">
+            <AlertTitle>Payment failed</AlertTitle>
+            <AlertDescription>Your membership renewal did not go through.</AlertDescription>
+          </Alert>
+        </View>
+      </Section>
+
+      <Section title="Dialog" hint="Portal-backed. Renders into the PortalHost in app/_layout.tsx — without that host it opens nothing and logs nothing.">
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline"><Text>Log food</Text></Button>
+          </DialogTrigger>
+          <DialogContent className="w-[92%]">
+            <DialogHeader>
+              <DialogTitle>Log food</DialogTitle>
+              <DialogDescription>Search or scan a barcode.</DialogDescription>
+            </DialogHeader>
+            <Input placeholder="Porridge, 60g" />
+            <DialogFooter>
+              <Button><Text>Add</Text></Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </Section>
+
+      <Section title="Alert dialog" hint="For destructive confirmation only — it cannot be dismissed by tapping outside.">
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive"><Text>Delete this log</Text></Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent className="w-[92%]">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this log?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This removes the session and its sets. It cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel><Text>Cancel</Text></AlertDialogCancel>
+              <AlertDialogAction><Text>Delete</Text></AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </Section>
+
+      <Section title="Select" hint="Units and other single-value choices.">
+        <Select value={{ value: unit, label: unit }} onValueChange={(o) => setUnit(o?.value ?? 'kg')}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Unit" className="text-foreground text-sm" />
+          </SelectTrigger>
+          <SelectContent className="w-40">
+            <SelectItem label="kg" value="kg" />
+            <SelectItem label="lb" value="lb" />
+          </SelectContent>
+        </Select>
+      </Section>
+
+      <Section title="Radio group" hint="One choice from a short, visible set — onboarding and goals.">
+        <RadioGroup value={goal} onValueChange={setGoal} className="gap-3">
+          {[['lose', 'Lose fat'], ['gain', 'Build muscle'], ['hold', 'Maintain']].map(([v, label]) => (
+            <View key={v} className="flex-row items-center gap-3">
+              <RadioGroupItem value={v} aria-labelledby={`goal-${v}`} />
+              <Text nativeID={`goal-${v}`} className="text-foreground text-sm">{label}</Text>
+            </View>
+          ))}
+        </RadioGroup>
+      </Section>
+
+      <Section title="Toggle & toggle group" hint="Replaces the app's Chip. Toggle group is the muscle filter row.">
+        <View className="gap-3">
+          <Toggle pressed={bold} onPressedChange={setBold} variant="outline">
+            <Text>Warm-ups</Text>
+          </Toggle>
+          <ToggleGroup type="multiple" value={muscles} onValueChange={setMuscles} className="flex-row flex-wrap gap-2">
+            {['chest', 'back', 'legs', 'arms'].map((m) => (
+              <ToggleGroupItem key={m} value={m} variant="outline"><Text>{m}</Text></ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </View>
+      </Section>
+
+      <Section title="Tooltip" hint="Replaces InfoTip. Also portal-backed.">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="sm"><Text>What is a streak?</Text></Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <Text>Consecutive days with at least one logged session.</Text>
+          </TooltipContent>
+        </Tooltip>
       </Section>
 
       <Section title="Radius" hint="Derived from --radius 0.875rem exactly as the preset derives it.">

@@ -32,6 +32,13 @@ describe('preset design system gallery', () => {
       'Card',
       'Form controls',
       'Progress & skeleton',
+      'Alerts',
+      'Dialog',
+      'Alert dialog',
+      'Select',
+      'Radio group',
+      'Toggle & toggle group',
+      'Tooltip',
       'Avatar & separator',
       'Radius',
       'Spacing',
@@ -62,7 +69,14 @@ describe('preset design system gallery', () => {
   it('mounts every RNR component without throwing', async () => {
     await render(<PresetGallery />);
     // One representative label from each component family.
-    for (const label of ['Default', 'Secondary', 'Outline', 'Destructive', 'Push day', 'Body weight']) {
+    for (const label of [
+      'Default', 'Secondary', 'Outline', 'Destructive', 'Push day', 'Body weight',
+      // The overlay components render their TRIGGER inline; the content only
+      // mounts into the PortalHost once opened, so the trigger is what proves
+      // the component constructed without throwing.
+      'Log food', 'Delete this log', 'What is a streak?', 'Lose fat', 'Warm-ups',
+      'Payment failed', 'New plan assigned',
+    ]) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
   });
