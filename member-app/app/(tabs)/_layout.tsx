@@ -87,11 +87,23 @@ function TabItem({ icon, label, active }: { icon: IconName; label: string; activ
  * workout, which decided for the member what "start" meant and left recording
  * an outdoor activity feeling like a lesser feature buried in a list.
  */
-function StartButton({ onOpen }: { onOpen: (at: { x: number; y: number }) => void }) {
+function StartButton({
+  onOpen,
+  hidden,
+}: {
+  onOpen: (at: { x: number; y: number }) => void;
+  hidden?: boolean;
+}) {
+  // The ref is on the BUTTON, not on a wrapper around it. A wrapper carries
+  // the mx-2 margin, so measuring it returned a 64pt-wide box and put the
+  // centre 8pt off — enough for the ✕ that replaces this button to sit
+  // visibly beside it rather than on it.
   const ref = useRef<View>(null);
   return (
-    <View ref={ref} collapsable={false}>
+    <View className="mx-2">
       <Pressable
+        ref={ref}
+        collapsable={false}
         accessibilityRole="button"
         accessibilityLabel="Start a workout or activity"
         accessibilityHint="Opens a choice of gym workout or recording an activity"
@@ -104,10 +116,17 @@ function StartButton({ onOpen }: { onOpen: (at: { x: number; y: number }) => voi
             onOpen({ x: x + w / 2, y: y + h / 2 });
           });
         }}
-        // Its own margin rather than a gap on the row: this is the one control
-        // in the bar that is not a tab, and the space either side of it is what
-        // says so.
-        className="bg-primary mx-2 h-12 w-12 items-center justify-center rounded-full active:opacity-85">
+        /*
+          Hidden — not unmounted — while the menu is open.
+
+          The ✕ that replaces it is drawn in an overlay directly on top of this
+          button, so with both visible there were two red circles a fraction of
+          a point apart and the lower one bled out around the upper as a halo.
+          Masking it was treating the symptom. Keeping the button mounted
+          preserves the bar's layout, so nothing shifts when the menu opens.
+        */
+        style={{ opacity: hidden ? 0 : 1 }}
+        className="bg-primary h-12 w-12 items-center justify-center rounded-full active:opacity-85">
         <Icon name="add" size={24} tone="inverse" decorative />
       </Pressable>
     </View>
@@ -149,7 +168,13 @@ function Bar() {
         </Pressable>
       ))}
 
-      <StartButton onOpen={(at) => { setAnchor(at); setStep('arc'); }} />
+      <StartButton
+        hidden={step === 'arc'}
+        onOpen={(at) => {
+          setAnchor(at);
+          setStep('arc');
+        }}
+      />
 
       {TABS.slice(2).map((t) => (
         <Pressable

@@ -41,6 +41,14 @@ const ARC = [
 
 const RADIUS = 92;
 
+/**
+ * The + button's diameter, matching h-12/w-12 in the nav bar.
+ *
+ * The ✕ must be exactly this size and exactly on the anchor, or the bar
+ * appears to jump the moment the menu opens.
+ */
+const PLUS = 48;
+
 /** Degrees to a screen offset. Y is negated: the arc opens upward. */
 function place(angle: number) {
   const rad = (angle * Math.PI) / 180;
@@ -85,7 +93,13 @@ function Action({
   }));
 
   return (
-    <Animated.View className="absolute items-center" style={style}>
+    <Animated.View
+      className="absolute items-center"
+      // The parent is only as big as the + button so that its centre lands on
+      // the anchor. Without a width of its own an arm inherits that 48pt and
+      // its label truncates to "Gy…"; the negative margins keep the arm
+      // CENTRED on its arc point while letting the chip run past the parent.
+      style={[style, { width: 140, marginLeft: -46, marginRight: -46 }]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
@@ -158,10 +172,30 @@ export function StartMenu({
           accessibilityLabel="Close"
           onPress={onClose}
           style={{ flex: 1 }}>
-          <BlurView intensity={22} tint="systemThickMaterialLight" style={{ flex: 1 }}>
+          {/*
+            Strong enough to actually OBSCURE the nav bar underneath. At a low
+            intensity the real + still read through as a red glow around the ✕
+            that is meant to replace it — two offset red circles, which is the
+            one thing this overlay must not look like.
+          */}
+          <BlurView intensity={55} tint="systemThickMaterialLight" style={{ flex: 1 }}>
+            {/*
+              A box the size of the + itself, offset by half of it, so its
+              CENTRE lands on the anchor.
+
+              This was a zero-size box with items-center — which does not
+              centre anything on a point. Children of a 0×0 box lay out from
+              its top-left corner, so the ✕ hung half its width right and half
+              its height below the real +, and the whole arc was off with it.
+            */}
             <View
-              className="absolute h-0 w-0 items-center justify-center"
-              style={{ left: anchor.x, top: anchor.y }}
+              className="absolute items-center justify-center"
+              style={{
+                left: anchor.x - PLUS / 2,
+                top: anchor.y - PLUS / 2,
+                width: PLUS,
+                height: PLUS,
+              }}
               pointerEvents="box-none">
               {ARC.map((a, i) => (
                 <Action
