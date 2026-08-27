@@ -109,3 +109,64 @@ and opacity are all derived from that day's own data.
 Commits: `959ff19`, `987125d`, `969f1bb`.
 
 **22 files still on `src/ui/theme`** (from 57 at session start).
+
+### Phase 5 — everything else (COMPLETE)
+
+`onboarding`, `classes`, `gyms`, `messages`, `scan`, both `explore` routes, the
+share-link route, all eight detail routes (`activity/[id]`, `activity/new`,
+`challenge/[id]`, `chat/[trainerId]`, `club/[id]`, `exercise/[id]`,
+`friend/[id]`, `person/[id]`), the root layout, and the two dev route shells.
+
+`onboarding` is worth calling out: it is the first screen a new member ever
+sees, was still entirely on the old surface, and does not appear in any
+"one tap from a tab" list because no tab links to it. Its `Choice` rows stay
+full-width rather than becoming `Chip`s — they are the only thing on the step
+and reading down a column is the point.
+
+**New: `Badge` in `src/ui`.** The unread count was hand-drawn in both `messages`
+and `dm/index`. The number is the whole message there, so it now carries its own
+accessible label instead of relying on the fill.
+
+**Three message threads, deliberately two treatments.** Coach and the trainer
+chat FILL their bubbles; member-to-member DMs TINT them. A trainer or coach
+exchange is read a message at a time; peer DMs are read in long runs where a
+column of solid red is tiring. All three now say so in a comment, because
+otherwise it looks like drift.
+
+### `theme.ts` is retired
+
+`levelColor` / `levelLabel` were the last live callers and moved to
+`chart-colors` — they belong together, since a colour meaning "busy" is useless
+without the word that says so.
+
+`src/ui/theme.ts` is now imported by exactly three files: `(tabs)/gym.tsx`,
+`me.tsx` and `progress.tsx`. **All three are registered `href: null` and
+unreachable.** Nothing a member can navigate to reads it. See TODO_FOR_ME.md M3
+before deleting them — two are safe, `progress` is still linked from You.
+
+### Testing
+
+`app/` screens had **no** tests at session start. They now have three files:
+
+- `routines-screen` — pins that Start routes to `/session?routine=<id>`, the
+  exact wire that opened an empty workout last week
+- `routine-edit-screen` — pins that an old uniform `3 x 10` still expands into
+  three editable rows, and that `fillGaps` sends `[12, 10, 10]`
+- `screens-render` — mounts all 32 migrated screens against EMPTY data, the
+  state a new member is in and the one most likely to hit an unguarded `.map`
+
+**The smoke test was checked for vacuousness:** breaking `clubs.tsx` on purpose
+failed exactly that case and no other, and the file was restored byte-identical.
+
+**343 tests green, from 304.** `tsc` clean throughout.
+
+⚠️ **Harness note:** `fireEvent.press` that changes state needs `await act(...)`
+in this repo's RNTL, or the assertion reads the pre-press tree.
+
+### Audited at the end
+
+- No className collisions, empty classNames, or `style={{}}` left by the passes
+- No `accessibilityLabel` lost anywhere. The one file that showed a drop
+  (`routine-edit`) was a deliberate swap to `accessibilityElementsHidden` on a
+  thumbnail whose name renders beside it
+- Every colour class used resolves to a token defined in `global.css`
