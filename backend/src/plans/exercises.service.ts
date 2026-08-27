@@ -24,9 +24,25 @@ export class ExercisesService {
 
   constructor(private readonly tenant: TenantPrisma) {}
 
+  /**
+   * Public origin for the shared exercise-media bucket.
+   *
+   * The illustrations are gym-AGNOSTIC — the same GIF serves every gym — so
+   * they live in one public bucket rather than per tenant, and the catalogue
+   * stores only the path. Building the origin here is what lets the identical
+   * seed data work against local Supabase and production without either
+   * hostname being baked into the committed catalogue.
+   */
+  private mediaBase(): string | null {
+    const url = process.env.SUPABASE_URL?.replace(/\/$/, '');
+    return url ? `${url}/storage/v1/object/public/exercise-media` : null;
+  }
+
   async findAll(filters: {
     search?: string;
     muscle_group?: string;
+    /** The head within the group — 'front_delt' inside 'shoulders'. */
+    target_muscle?: string;
     include_inactive?: boolean;
     page?: number;
     limit?: number;
@@ -37,6 +53,7 @@ export class ExercisesService {
     if (!filters.include_inactive) where.is_active = true;
     if (filters.search) where.name = { contains: filters.search, mode: 'insensitive' };
     if (filters.muscle_group) where.muscle_group = filters.muscle_group;
+    if (filters.target_muscle) where.target_muscle = filters.target_muscle;
 
     const [data, total] = await Promise.all([
       this.tenant.client.exercise.findMany({
@@ -56,6 +73,7 @@ export class ExercisesService {
           secondary_muscles: true,
           equipment: true,
           media_url: true,
+          thumb_url: true,
           instructions: true,
           is_active: true,
         },
@@ -134,6 +152,66 @@ export class ExercisesService {
    * Reads the existing names in ONE query rather than checking per row —
    * 1,323 round trips inside studio provisioning would make signup crawl.
    */
+  /**
+   * The muscle heads present in this gym's catalogue, for the sub-filter.
+   *
+   * Derived from the gym's OWN rows rather than a static list, because a gym
+   * can curate: archiving every rear-delt movement should remove that chip,
+   * not leave a filter that returns nothing. Counts come back so the UI can
+   * show them and skip empty heads.
+   */
+  async muscleHeads(muscleGroup?: string) {
+    const rows = await this.tenant.client.exercise.groupBy({
+      by: ['target_muscle'],
+      where: {
+        is_active: true,
+        ...(muscleGroup ? { muscle_group: muscleGroup } : {}),
+        target_muscle: { not: null },
+      },
+      _count: { target_muscle: true },
+    });
+    return {
+      data: rows
+        .map((r) => ({ target_muscle: r.target_muscle, count: r._count.target_muscle }))
+        .sort((a, b) => b.count - a.count),
+    };
+  }
+
+  /**
+   * Attach illustrations to catalogue rows that predate them.
+   *
+   * A gym seeded before media existed has the right movements and no pictures,
+   * and `seedDefaults` alone will not fix that — it skips names the gym
+   * already has, which is exactly the rows needing the back-fill.
+   *
+   * Only fills rows where BOTH media columns are empty, so a gym that uploaded
+   * its own illustration for an exercise keeps it.
+   */
+  private async backfillMedia(base: string | null): Promise<number> {
+    if (!base) return 0;
+    const missing = await this.tenant.client.exercise.findMany({
+      where: { media_url: null, thumb_url: null },
+      select: { id: true, name: true },
+    });
+    if (missing.length === 0) return 0;
+
+    const byName = new Map(EXERCISE_CATALOGUE.map((e) => [e.name, e]));
+    let n = 0;
+    for (const row of missing) {
+      const cat = byName.get(row.name);
+      if (!cat?.media_path) continue;
+      await this.tenant.client.exercise.update({
+        where: { id: row.id },
+        data: {
+          media_url: `${base}/${cat.media_path}`,
+          thumb_url: cat.thumb_path ? `${base}/${cat.thumb_path}` : null,
+        },
+      });
+      n += 1;
+    }
+    return n;
+  }
+
   async seedDefaults() {
     const gymId = getTenantGymId()!;
     const existing = await this.tenant.client.exercise.findMany({
@@ -142,8 +220,18 @@ export class ExercisesService {
     const have = new Set(existing.map((e) => e.name));
     const toCreate = EXERCISE_CATALOGUE.filter((e) => !have.has(e.name));
 
+    const base = this.mediaBase();
+
     if (toCreate.length === 0) {
-      return { created: 0, skipped: EXERCISE_CATALOGUE.length, total: EXERCISE_CATALOGUE.length };
+      // Still back-fill: a gym that already has every movement is exactly the
+      // one whose rows predate illustrations. Returning early here is what
+      // made the first attempt a no-op.
+      return {
+        created: 0,
+        skipped: EXERCISE_CATALOGUE.length,
+        total: EXERCISE_CATALOGUE.length,
+        media_backfilled: await this.backfillMedia(base),
+      };
     }
 
     await this.tenant.client.exercise.createMany({
@@ -155,16 +243,26 @@ export class ExercisesService {
         secondary_muscles: e.secondary_muscles,
         equipment: e.equipment,
         tracking_type: e.tracking_type,
+        // Left null when SUPABASE_URL is unset rather than written as a
+        // half-formed URL: a broken image is worse than none, and the rows
+        // can be back-filled once storage exists.
+        media_url: base && e.media_path ? `${base}/${e.media_path}` : null,
+        thumb_url: base && e.thumb_path ? `${base}/${e.thumb_path}` : null,
         is_active: true,
       })),
       skipDuplicates: true,
     });
 
-    this.logger.log(`Seeded ${toCreate.length} exercises for gym ${gymId}`);
+    const backfilled = await this.backfillMedia(base);
+    this.logger.log(
+      `Seeded ${toCreate.length} exercises for gym ${gymId}` +
+        (backfilled ? ` (+${backfilled} media back-filled)` : ''),
+    );
     return {
       created: toCreate.length,
       skipped: EXERCISE_CATALOGUE.length - toCreate.length,
       total: EXERCISE_CATALOGUE.length,
+      media_backfilled: backfilled,
     };
   }
 }

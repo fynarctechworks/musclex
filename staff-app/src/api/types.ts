@@ -261,6 +261,7 @@ export type Exercise = {
   secondary_muscles?: string[] | null;
   equipment?: string | null;
   media_url?: string | null;
+  thumb_url?: string | null;
   instructions?: string | null;
   is_active?: boolean;
 };

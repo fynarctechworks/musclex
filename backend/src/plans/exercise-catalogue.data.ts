@@ -14,6 +14,9 @@ export interface CatalogueExercise {
   secondary_muscles: string[];
   equipment: string;
   tracking_type: string;
+  /** Path within the exercise-media bucket; origin added at seed time. */
+  media_path: string | null;
+  thumb_path: string | null;
 }
 
 export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
@@ -23,7 +26,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/3-4-sit-up.gif",
+    "thumb_path": "abs/3-4-sit-up.thumb.webp"
   },
   {
     "name": "45 Side Bend",
@@ -31,7 +36,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/45-side-bend.gif",
+    "thumb_path": "abs/45-side-bend.thumb.webp"
   },
   {
     "name": "Air Bike",
@@ -39,7 +46,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/air-bike.gif",
+    "thumb_path": "abs/air-bike.thumb.webp"
   },
   {
     "name": "All Fours Squad Stretch",
@@ -47,7 +56,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "quads",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "quads/all-fours-squad-stretch.gif",
+    "thumb_path": "quads/all-fours-squad-stretch.thumb.webp"
   },
   {
     "name": "Alternate Heel Touchers",
@@ -55,7 +66,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/alternate-heel-touchers.gif",
+    "thumb_path": "abs/alternate-heel-touchers.thumb.webp"
   },
   {
     "name": "Alternate Lateral Pulldown",
@@ -67,7 +80,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/alternate-lateral-pulldown.gif",
+    "thumb_path": "lats/alternate-lateral-pulldown.thumb.webp"
   },
   {
     "name": "Ankle Circles",
@@ -75,7 +90,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/ankle-circles.gif",
+    "thumb_path": "calves/ankle-circles.thumb.webp"
   },
   {
     "name": "Archer Pull Up",
@@ -87,7 +104,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/archer-pull-up.gif",
+    "thumb_path": "lats/archer-pull-up.thumb.webp"
   },
   {
     "name": "Archer Push Up",
@@ -98,7 +117,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/archer-push-up.gif",
+    "thumb_path": "pectorals/archer-push-up.thumb.webp"
   },
   {
     "name": "Arm Slingers Hanging Bent Knee Legs",
@@ -106,7 +127,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/arm-slingers-hanging-bent-knee-legs.gif",
+    "thumb_path": "abs/arm-slingers-hanging-bent-knee-legs.thumb.webp"
   },
   {
     "name": "Arm Slingers Hanging Straight Legs",
@@ -114,7 +137,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/arm-slingers-hanging-straight-legs.gif",
+    "thumb_path": "abs/arm-slingers-hanging-straight-legs.thumb.webp"
   },
   {
     "name": "Arms Apart Circular Toe Touch Male",
@@ -122,7 +147,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/arms-apart-circular-toe-touch-male.gif",
+    "thumb_path": "glutes/arms-apart-circular-toe-touch-male.thumb.webp"
   },
   {
     "name": "Arms Overhead Full Sit Up Male",
@@ -130,7 +157,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/arms-overhead-full-sit-up-male.gif",
+    "thumb_path": "abs/arms-overhead-full-sit-up-male.thumb.webp"
   },
   {
     "name": "Assisted Chest Dip Kneeling",
@@ -141,7 +170,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/assisted-chest-dip-kneeling.gif",
+    "thumb_path": "pectorals/assisted-chest-dip-kneeling.thumb.webp"
   },
   {
     "name": "Assisted Hanging Knee Raise",
@@ -149,7 +180,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/assisted-hanging-knee-raise.gif",
+    "thumb_path": "abs/assisted-hanging-knee-raise.thumb.webp"
   },
   {
     "name": "Assisted Hanging Knee Raise With Throw Down",
@@ -157,7 +190,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/assisted-hanging-knee-raise-with-throw-down.gif",
+    "thumb_path": "abs/assisted-hanging-knee-raise-with-throw-down.thumb.webp"
   },
   {
     "name": "Assisted Lying Calves Stretch",
@@ -165,7 +200,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "calves/assisted-lying-calves-stretch.gif",
+    "thumb_path": "calves/assisted-lying-calves-stretch.thumb.webp"
   },
   {
     "name": "Assisted Lying Glutes Stretch",
@@ -173,7 +210,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "glutes/assisted-lying-glutes-stretch.gif",
+    "thumb_path": "glutes/assisted-lying-glutes-stretch.thumb.webp"
   },
   {
     "name": "Assisted Lying Gluteus And Piriformis Stretch",
@@ -181,7 +220,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "glutes/assisted-lying-gluteus-and-piriformis-stretch.gif",
+    "thumb_path": "glutes/assisted-lying-gluteus-and-piriformis-stretch.thumb.webp"
   },
   {
     "name": "Assisted Lying Leg Raise With Lateral Throw Down",
@@ -189,7 +230,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/assisted-lying-leg-raise-with-lateral-throw-down.gif",
+    "thumb_path": "abs/assisted-lying-leg-raise-with-lateral-throw-down.thumb.webp"
   },
   {
     "name": "Assisted Lying Leg Raise With Throw Down",
@@ -197,7 +240,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/assisted-lying-leg-raise-with-throw-down.gif",
+    "thumb_path": "abs/assisted-lying-leg-raise-with-throw-down.thumb.webp"
   },
   {
     "name": "Assisted Motion Russian Twist",
@@ -205,7 +250,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/assisted-motion-russian-twist.gif",
+    "thumb_path": "abs/assisted-motion-russian-twist.thumb.webp"
   },
   {
     "name": "Assisted Parallel Close Grip Pull Up",
@@ -217,7 +264,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/assisted-parallel-close-grip-pull-up.gif",
+    "thumb_path": "lats/assisted-parallel-close-grip-pull-up.thumb.webp"
   },
   {
     "name": "Assisted Prone Hamstring",
@@ -225,7 +274,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "hamstrings",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/assisted-prone-hamstring.gif",
+    "thumb_path": "hamstrings/assisted-prone-hamstring.thumb.webp"
   },
   {
     "name": "Assisted Prone Lying Quads Stretch",
@@ -233,7 +284,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "quads",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "quads/assisted-prone-lying-quads-stretch.gif",
+    "thumb_path": "quads/assisted-prone-lying-quads-stretch.thumb.webp"
   },
   {
     "name": "Assisted Prone Rectus Femoris Stretch",
@@ -241,7 +294,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "abs/assisted-prone-rectus-femoris-stretch.gif",
+    "thumb_path": "abs/assisted-prone-rectus-femoris-stretch.thumb.webp"
   },
   {
     "name": "Assisted Pull Up",
@@ -253,7 +308,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/assisted-pull-up.gif",
+    "thumb_path": "lats/assisted-pull-up.thumb.webp"
   },
   {
     "name": "Assisted Seated Pectoralis Major Stretch With Stability Ball",
@@ -261,7 +318,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "pectorals/assisted-seated-pectoralis-major-stretch-with-stability-ball.gif",
+    "thumb_path": "pectorals/assisted-seated-pectoralis-major-stretch-with-stability-ball.thumb.webp"
   },
   {
     "name": "Assisted Side Lying Adductor Stretch",
@@ -269,7 +328,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "adductors",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "adductors/assisted-side-lying-adductor-stretch.gif",
+    "thumb_path": "adductors/assisted-side-lying-adductor-stretch.thumb.webp"
   },
   {
     "name": "Assisted Sit Up",
@@ -277,7 +338,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/assisted-sit-up.gif",
+    "thumb_path": "abs/assisted-sit-up.thumb.webp"
   },
   {
     "name": "Assisted Standing Chin Up",
@@ -289,7 +352,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/assisted-standing-chin-up.gif",
+    "thumb_path": "lats/assisted-standing-chin-up.thumb.webp"
   },
   {
     "name": "Assisted Standing Pull Up",
@@ -301,7 +366,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/assisted-standing-pull-up.gif",
+    "thumb_path": "lats/assisted-standing-pull-up.thumb.webp"
   },
   {
     "name": "Assisted Standing Triceps Extension With Towel",
@@ -311,7 +378,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/assisted-standing-triceps-extension-with-towel.gif",
+    "thumb_path": "triceps/assisted-standing-triceps-extension-with-towel.thumb.webp"
   },
   {
     "name": "Assisted Triceps Dip Kneeling",
@@ -322,7 +391,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/assisted-triceps-dip-kneeling.gif",
+    "thumb_path": "triceps/assisted-triceps-dip-kneeling.thumb.webp"
   },
   {
     "name": "Assisted Wide Grip Chest Dip Kneeling",
@@ -333,7 +404,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/assisted-wide-grip-chest-dip-kneeling.gif",
+    "thumb_path": "pectorals/assisted-wide-grip-chest-dip-kneeling.thumb.webp"
   },
   {
     "name": "Astride Jumps Male",
@@ -341,7 +414,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/astride-jumps-male.gif",
+    "thumb_path": "cardio/astride-jumps-male.thumb.webp"
   },
   {
     "name": "Back And Forth Step",
@@ -349,7 +424,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/back-and-forth-step.gif",
+    "thumb_path": "cardio/back-and-forth-step.thumb.webp"
   },
   {
     "name": "Back Extension On Exercise Ball",
@@ -360,7 +437,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "hamstrings"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "spine/back-extension-on-exercise-ball.gif",
+    "thumb_path": "spine/back-extension-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Back Lever",
@@ -368,7 +447,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "traps",
     "secondary_muscles": [],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/back-lever.gif",
+    "thumb_path": "upper-back/back-lever.thumb.webp"
   },
   {
     "name": "Back Pec Stretch",
@@ -376,7 +457,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "lats/back-pec-stretch.gif",
+    "thumb_path": "lats/back-pec-stretch.thumb.webp"
   },
   {
     "name": "Backward Jump",
@@ -384,7 +467,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "quads",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/backward-jump.gif",
+    "thumb_path": "quads/backward-jump.thumb.webp"
   },
   {
     "name": "Balance Board",
@@ -392,7 +477,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "quads",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/balance-board.gif",
+    "thumb_path": "quads/balance-board.thumb.webp"
   },
   {
     "name": "Band Alternating Biceps Curl",
@@ -402,7 +489,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/band-alternating-biceps-curl.gif",
+    "thumb_path": "biceps/band-alternating-biceps-curl.thumb.webp"
   },
   {
     "name": "Band Alternating V Up",
@@ -410,7 +499,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/band-alternating-v-up.gif",
+    "thumb_path": "abs/band-alternating-v-up.thumb.webp"
   },
   {
     "name": "Band Assisted Pull Up",
@@ -422,7 +513,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/band-assisted-pull-up.gif",
+    "thumb_path": "lats/band-assisted-pull-up.thumb.webp"
   },
   {
     "name": "Band Assisted Wheel Rollerout",
@@ -430,7 +523,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/band-assisted-wheel-rollerout.gif",
+    "thumb_path": "abs/band-assisted-wheel-rollerout.thumb.webp"
   },
   {
     "name": "Band Bench Press",
@@ -441,7 +536,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/band-bench-press.gif",
+    "thumb_path": "pectorals/band-bench-press.thumb.webp"
   },
   {
     "name": "Band Bent Over Hip Extension",
@@ -452,7 +549,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/band-bent-over-hip-extension.gif",
+    "thumb_path": "glutes/band-bent-over-hip-extension.thumb.webp"
   },
   {
     "name": "Band Bicycle Crunch",
@@ -460,7 +559,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/band-bicycle-crunch.gif",
+    "thumb_path": "abs/band-bicycle-crunch.thumb.webp"
   },
   {
     "name": "Band Close Grip Pulldown",
@@ -472,7 +573,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/band-close-grip-pulldown.gif",
+    "thumb_path": "lats/band-close-grip-pulldown.thumb.webp"
   },
   {
     "name": "Band Close Grip Push Up",
@@ -482,7 +585,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/band-close-grip-push-up.gif",
+    "thumb_path": "triceps/band-close-grip-push-up.thumb.webp"
   },
   {
     "name": "Band Concentration Curl",
@@ -492,7 +597,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/band-concentration-curl.gif",
+    "thumb_path": "biceps/band-concentration-curl.thumb.webp"
   },
   {
     "name": "Band Fixed Back Close Grip Pulldown",
@@ -504,7 +611,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/band-fixed-back-close-grip-pulldown.gif",
+    "thumb_path": "lats/band-fixed-back-close-grip-pulldown.thumb.webp"
   },
   {
     "name": "Band Fixed Back Underhand Pulldown",
@@ -516,7 +625,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/band-fixed-back-underhand-pulldown.gif",
+    "thumb_path": "lats/band-fixed-back-underhand-pulldown.thumb.webp"
   },
   {
     "name": "Band Front Lateral Raise",
@@ -526,7 +637,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/band-front-lateral-raise.gif",
+    "thumb_path": "delts/band-front-lateral-raise.thumb.webp"
   },
   {
     "name": "Band Front Raise",
@@ -536,7 +649,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/band-front-raise.gif",
+    "thumb_path": "delts/band-front-raise.thumb.webp"
   },
   {
     "name": "Band Hip Lift",
@@ -544,7 +659,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/band-hip-lift.gif",
+    "thumb_path": "glutes/band-hip-lift.thumb.webp"
   },
   {
     "name": "Band Horizontal Pallof Press",
@@ -555,7 +672,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/band-horizontal-pallof-press.gif",
+    "thumb_path": "abs/band-horizontal-pallof-press.thumb.webp"
   },
   {
     "name": "Band Jack Knife Sit Up",
@@ -563,7 +682,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/band-jack-knife-sit-up.gif",
+    "thumb_path": "abs/band-jack-knife-sit-up.thumb.webp"
   },
   {
     "name": "Band Kneeling One Arm Pulldown",
@@ -575,7 +696,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/band-kneeling-one-arm-pulldown.gif",
+    "thumb_path": "lats/band-kneeling-one-arm-pulldown.thumb.webp"
   },
   {
     "name": "Band Kneeling Twisting Crunch",
@@ -583,7 +706,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/band-kneeling-twisting-crunch.gif",
+    "thumb_path": "abs/band-kneeling-twisting-crunch.thumb.webp"
   },
   {
     "name": "Band Lying Hip Internal Rotation",
@@ -591,7 +716,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/band-lying-hip-internal-rotation.gif",
+    "thumb_path": "glutes/band-lying-hip-internal-rotation.thumb.webp"
   },
   {
     "name": "Band Lying Straight Leg Raise",
@@ -599,7 +726,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/band-lying-straight-leg-raise.gif",
+    "thumb_path": "abs/band-lying-straight-leg-raise.thumb.webp"
   },
   {
     "name": "Band One Arm Overhead Biceps Curl",
@@ -609,7 +738,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/band-one-arm-overhead-biceps-curl.gif",
+    "thumb_path": "biceps/band-one-arm-overhead-biceps-curl.thumb.webp"
   },
   {
     "name": "Band One Arm Single Leg Split Squat",
@@ -621,7 +752,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/band-one-arm-single-leg-split-squat.gif",
+    "thumb_path": "quads/band-one-arm-single-leg-split-squat.thumb.webp"
   },
   {
     "name": "Band One Arm Standing Low Row",
@@ -634,7 +767,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/band-one-arm-standing-low-row.gif",
+    "thumb_path": "upper-back/band-one-arm-standing-low-row.thumb.webp"
   },
   {
     "name": "Band One Arm Twisting Chest Press",
@@ -645,7 +780,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/band-one-arm-twisting-chest-press.gif",
+    "thumb_path": "pectorals/band-one-arm-twisting-chest-press.thumb.webp"
   },
   {
     "name": "Band One Arm Twisting Seated Row",
@@ -658,7 +795,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/band-one-arm-twisting-seated-row.gif",
+    "thumb_path": "upper-back/band-one-arm-twisting-seated-row.thumb.webp"
   },
   {
     "name": "Band Pull Through",
@@ -669,7 +808,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/band-pull-through.gif",
+    "thumb_path": "glutes/band-pull-through.thumb.webp"
   },
   {
     "name": "Band Push Sit Up",
@@ -677,7 +818,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/band-push-sit-up.gif",
+    "thumb_path": "abs/band-push-sit-up.thumb.webp"
   },
   {
     "name": "Band Reverse Fly",
@@ -688,7 +831,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "upper_back"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/band-reverse-fly.gif",
+    "thumb_path": "delts/band-reverse-fly.thumb.webp"
   },
   {
     "name": "Band Reverse Wrist Curl",
@@ -698,7 +843,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/band-reverse-wrist-curl.gif",
+    "thumb_path": "forearms/band-reverse-wrist-curl.thumb.webp"
   },
   {
     "name": "Band Seated Hip Internal Rotation",
@@ -706,7 +853,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/band-seated-hip-internal-rotation.gif",
+    "thumb_path": "glutes/band-seated-hip-internal-rotation.thumb.webp"
   },
   {
     "name": "Band Seated Twist",
@@ -714,7 +863,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/band-seated-twist.gif",
+    "thumb_path": "abs/band-seated-twist.thumb.webp"
   },
   {
     "name": "Band Shoulder Press",
@@ -724,7 +875,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/band-shoulder-press.gif",
+    "thumb_path": "delts/band-shoulder-press.thumb.webp"
   },
   {
     "name": "Band Shrug",
@@ -735,7 +888,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "traps/band-shrug.gif",
+    "thumb_path": "traps/band-shrug.thumb.webp"
   },
   {
     "name": "Band Side Triceps Extension",
@@ -745,7 +900,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/band-side-triceps-extension.gif",
+    "thumb_path": "triceps/band-side-triceps-extension.thumb.webp"
   },
   {
     "name": "Band Single Leg Calf Raise",
@@ -753,7 +910,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/band-single-leg-calf-raise.gif",
+    "thumb_path": "calves/band-single-leg-calf-raise.thumb.webp"
   },
   {
     "name": "Band Single Leg Reverse Calf Raise",
@@ -761,7 +920,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/band-single-leg-reverse-calf-raise.gif",
+    "thumb_path": "calves/band-single-leg-reverse-calf-raise.thumb.webp"
   },
   {
     "name": "Band Single Leg Split Squat",
@@ -773,7 +934,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/band-single-leg-split-squat.gif",
+    "thumb_path": "quads/band-single-leg-split-squat.thumb.webp"
   },
   {
     "name": "Band Squat",
@@ -784,7 +947,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/band-squat.gif",
+    "thumb_path": "glutes/band-squat.thumb.webp"
   },
   {
     "name": "Band Squat Row",
@@ -798,7 +963,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/band-squat-row.gif",
+    "thumb_path": "glutes/band-squat-row.thumb.webp"
   },
   {
     "name": "Band Standing Crunch",
@@ -806,7 +973,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/band-standing-crunch.gif",
+    "thumb_path": "abs/band-standing-crunch.thumb.webp"
   },
   {
     "name": "Band Standing Rear Delt Row",
@@ -817,7 +986,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/band-standing-rear-delt-row.gif",
+    "thumb_path": "delts/band-standing-rear-delt-row.thumb.webp"
   },
   {
     "name": "Band Standing Twisting Crunch",
@@ -825,7 +996,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/band-standing-twisting-crunch.gif",
+    "thumb_path": "abs/band-standing-twisting-crunch.thumb.webp"
   },
   {
     "name": "Band Step Up",
@@ -833,7 +1006,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/band-step-up.gif",
+    "thumb_path": "glutes/band-step-up.thumb.webp"
   },
   {
     "name": "Band Stiff Leg Deadlift",
@@ -847,7 +1022,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/band-stiff-leg-deadlift.gif",
+    "thumb_path": "glutes/band-stiff-leg-deadlift.thumb.webp"
   },
   {
     "name": "Band Straight Back Stiff Leg Deadlift",
@@ -861,7 +1038,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/band-straight-back-stiff-leg-deadlift.gif",
+    "thumb_path": "glutes/band-straight-back-stiff-leg-deadlift.thumb.webp"
   },
   {
     "name": "Band Straight Leg Deadlift",
@@ -875,7 +1054,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "spine/band-straight-leg-deadlift.gif",
+    "thumb_path": "spine/band-straight-leg-deadlift.thumb.webp"
   },
   {
     "name": "Band Twisting Overhead Press",
@@ -885,7 +1066,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/band-twisting-overhead-press.gif",
+    "thumb_path": "delts/band-twisting-overhead-press.thumb.webp"
   },
   {
     "name": "Band Two Legs Calf Raise Band Under Both Legs v2",
@@ -893,7 +1076,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/band-two-legs-calf-raise-band-under-both-legs-v-2.gif",
+    "thumb_path": "calves/band-two-legs-calf-raise-band-under-both-legs-v-2.thumb.webp"
   },
   {
     "name": "Band Underhand Pulldown",
@@ -905,7 +1090,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/band-underhand-pulldown.gif",
+    "thumb_path": "lats/band-underhand-pulldown.thumb.webp"
   },
   {
     "name": "Band V Up",
@@ -913,7 +1100,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/band-v-up.gif",
+    "thumb_path": "abs/band-v-up.thumb.webp"
   },
   {
     "name": "Band Vertical Pallof Press",
@@ -924,7 +1113,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/band-vertical-pallof-press.gif",
+    "thumb_path": "abs/band-vertical-pallof-press.thumb.webp"
   },
   {
     "name": "Band Wrist Curl",
@@ -934,7 +1125,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/band-wrist-curl.gif",
+    "thumb_path": "forearms/band-wrist-curl.thumb.webp"
   },
   {
     "name": "Band Y Raise",
@@ -944,7 +1137,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/band-y-raise.gif",
+    "thumb_path": "delts/band-y-raise.thumb.webp"
   },
   {
     "name": "Barbell Alternate Biceps Curl",
@@ -954,7 +1149,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/barbell-alternate-biceps-curl.gif",
+    "thumb_path": "biceps/barbell-alternate-biceps-curl.thumb.webp"
   },
   {
     "name": "Barbell Bench Front Squat",
@@ -966,7 +1163,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/barbell-bench-front-squat.gif",
+    "thumb_path": "quads/barbell-bench-front-squat.thumb.webp"
   },
   {
     "name": "Barbell Bench Press",
@@ -977,7 +1176,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/barbell-bench-press.gif",
+    "thumb_path": "pectorals/barbell-bench-press.thumb.webp"
   },
   {
     "name": "Barbell Bench Squat",
@@ -989,7 +1190,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/barbell-bench-squat.gif",
+    "thumb_path": "quads/barbell-bench-squat.thumb.webp"
   },
   {
     "name": "Barbell Bent Arm Pullover",
@@ -1001,7 +1204,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/barbell-bent-arm-pullover.gif",
+    "thumb_path": "lats/barbell-bent-arm-pullover.thumb.webp"
   },
   {
     "name": "Barbell Bent Over Row",
@@ -1014,7 +1219,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/barbell-bent-over-row.gif",
+    "thumb_path": "upper-back/barbell-bent-over-row.thumb.webp"
   },
   {
     "name": "Barbell Biceps Curl With Arm Blaster",
@@ -1024,7 +1231,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/barbell-biceps-curl-with-arm-blaster.gif",
+    "thumb_path": "biceps/barbell-biceps-curl-with-arm-blaster.thumb.webp"
   },
   {
     "name": "Barbell Clean And Press",
@@ -1040,7 +1249,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/barbell-clean-and-press.gif",
+    "thumb_path": "quads/barbell-clean-and-press.thumb.webp"
   },
   {
     "name": "Barbell Clean Grip Front Squat",
@@ -1055,7 +1266,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-clean-grip-front-squat.gif",
+    "thumb_path": "glutes/barbell-clean-grip-front-squat.thumb.webp"
   },
   {
     "name": "Barbell Close Grip Bench Press",
@@ -1065,7 +1278,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-close-grip-bench-press.gif",
+    "thumb_path": "triceps/barbell-close-grip-bench-press.thumb.webp"
   },
   {
     "name": "Barbell Curl",
@@ -1075,7 +1290,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/barbell-curl.gif",
+    "thumb_path": "biceps/barbell-curl.thumb.webp"
   },
   {
     "name": "Barbell Deadlift",
@@ -1089,7 +1306,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-deadlift.gif",
+    "thumb_path": "glutes/barbell-deadlift.thumb.webp"
   },
   {
     "name": "Barbell Decline Bench Press",
@@ -1100,7 +1319,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/barbell-decline-bench-press.gif",
+    "thumb_path": "pectorals/barbell-decline-bench-press.thumb.webp"
   },
   {
     "name": "Barbell Decline Bent Arm Pullover",
@@ -1112,7 +1333,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/barbell-decline-bent-arm-pullover.gif",
+    "thumb_path": "lats/barbell-decline-bent-arm-pullover.thumb.webp"
   },
   {
     "name": "Barbell Decline Close Grip To Skull Press",
@@ -1122,7 +1345,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-decline-close-grip-to-skull-press.gif",
+    "thumb_path": "triceps/barbell-decline-close-grip-to-skull-press.thumb.webp"
   },
   {
     "name": "Barbell Decline Pullover",
@@ -1130,7 +1355,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lower_chest",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/barbell-decline-pullover.gif",
+    "thumb_path": "pectorals/barbell-decline-pullover.thumb.webp"
   },
   {
     "name": "Barbell Decline Wide Grip Press",
@@ -1141,7 +1368,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/barbell-decline-wide-grip-press.gif",
+    "thumb_path": "pectorals/barbell-decline-wide-grip-press.thumb.webp"
   },
   {
     "name": "Barbell Decline Wide Grip Pullover",
@@ -1153,7 +1382,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/barbell-decline-wide-grip-pullover.gif",
+    "thumb_path": "lats/barbell-decline-wide-grip-pullover.thumb.webp"
   },
   {
     "name": "Barbell Drag Curl",
@@ -1163,7 +1394,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/barbell-drag-curl.gif",
+    "thumb_path": "biceps/barbell-drag-curl.thumb.webp"
   },
   {
     "name": "Barbell Floor Calf Raise",
@@ -1171,7 +1404,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/barbell-floor-calf-raise.gif",
+    "thumb_path": "calves/barbell-floor-calf-raise.thumb.webp"
   },
   {
     "name": "Barbell Front Chest Squat",
@@ -1182,7 +1417,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-front-chest-squat.gif",
+    "thumb_path": "glutes/barbell-front-chest-squat.thumb.webp"
   },
   {
     "name": "Barbell Front Raise",
@@ -1192,7 +1429,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/barbell-front-raise.gif",
+    "thumb_path": "delts/barbell-front-raise.thumb.webp"
   },
   {
     "name": "Barbell Front Raise And Pullover",
@@ -1200,7 +1439,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/barbell-front-raise-and-pullover.gif",
+    "thumb_path": "pectorals/barbell-front-raise-and-pullover.thumb.webp"
   },
   {
     "name": "Barbell Front Squat",
@@ -1211,7 +1452,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-front-squat.gif",
+    "thumb_path": "glutes/barbell-front-squat.thumb.webp"
   },
   {
     "name": "Barbell Full Squat",
@@ -1222,7 +1465,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-full-squat.gif",
+    "thumb_path": "glutes/barbell-full-squat.thumb.webp"
   },
   {
     "name": "Barbell Full Squat Back Pov",
@@ -1233,7 +1478,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-full-squat-back-pov.gif",
+    "thumb_path": "glutes/barbell-full-squat-back-pov.thumb.webp"
   },
   {
     "name": "Barbell Full Squat Side Pov",
@@ -1244,7 +1491,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-full-squat-side-pov.gif",
+    "thumb_path": "glutes/barbell-full-squat-side-pov.thumb.webp"
   },
   {
     "name": "Barbell Full Zercher Squat",
@@ -1255,7 +1504,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-full-zercher-squat.gif",
+    "thumb_path": "glutes/barbell-full-zercher-squat.thumb.webp"
   },
   {
     "name": "Barbell Glute Bridge",
@@ -1266,7 +1517,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-glute-bridge.gif",
+    "thumb_path": "glutes/barbell-glute-bridge.thumb.webp"
   },
   {
     "name": "Barbell Glute Bridge Two Legs On Bench Male",
@@ -1277,7 +1530,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-glute-bridge-two-legs-on-bench-male.gif",
+    "thumb_path": "glutes/barbell-glute-bridge-two-legs-on-bench-male.thumb.webp"
   },
   {
     "name": "Barbell Good Morning",
@@ -1288,7 +1543,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/barbell-good-morning.gif",
+    "thumb_path": "hamstrings/barbell-good-morning.thumb.webp"
   },
   {
     "name": "Barbell Guillotine Bench Press",
@@ -1299,7 +1556,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/barbell-guillotine-bench-press.gif",
+    "thumb_path": "pectorals/barbell-guillotine-bench-press.thumb.webp"
   },
   {
     "name": "Barbell Hack Squat",
@@ -1310,7 +1569,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-hack-squat.gif",
+    "thumb_path": "glutes/barbell-hack-squat.thumb.webp"
   },
   {
     "name": "Barbell High Bar Squat",
@@ -1321,7 +1582,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-high-bar-squat.gif",
+    "thumb_path": "glutes/barbell-high-bar-squat.thumb.webp"
   },
   {
     "name": "Barbell Incline Bench Press",
@@ -1332,7 +1595,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/barbell-incline-bench-press.gif",
+    "thumb_path": "pectorals/barbell-incline-bench-press.thumb.webp"
   },
   {
     "name": "Barbell Incline Close Grip Bench Press",
@@ -1342,7 +1607,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-incline-close-grip-bench-press.gif",
+    "thumb_path": "triceps/barbell-incline-close-grip-bench-press.thumb.webp"
   },
   {
     "name": "Barbell Incline Reverse Grip Press",
@@ -1352,7 +1619,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-incline-reverse-grip-press.gif",
+    "thumb_path": "triceps/barbell-incline-reverse-grip-press.thumb.webp"
   },
   {
     "name": "Barbell Incline Row",
@@ -1365,7 +1634,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/barbell-incline-row.gif",
+    "thumb_path": "upper-back/barbell-incline-row.thumb.webp"
   },
   {
     "name": "Barbell Incline Shoulder Raise",
@@ -1373,7 +1644,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "serratus_anterior",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "serratus-anterior/barbell-incline-shoulder-raise.gif",
+    "thumb_path": "serratus-anterior/barbell-incline-shoulder-raise.thumb.webp"
   },
   {
     "name": "Barbell Jefferson Squat",
@@ -1384,7 +1657,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-jefferson-squat.gif",
+    "thumb_path": "glutes/barbell-jefferson-squat.thumb.webp"
   },
   {
     "name": "Barbell Jm Bench Press",
@@ -1394,7 +1669,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-jm-bench-press.gif",
+    "thumb_path": "triceps/barbell-jm-bench-press.thumb.webp"
   },
   {
     "name": "Barbell Jump Squat",
@@ -1405,7 +1682,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-jump-squat.gif",
+    "thumb_path": "glutes/barbell-jump-squat.thumb.webp"
   },
   {
     "name": "Barbell Lateral Lunge",
@@ -1416,7 +1695,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-lateral-lunge.gif",
+    "thumb_path": "glutes/barbell-lateral-lunge.thumb.webp"
   },
   {
     "name": "Barbell Low Bar Squat",
@@ -1427,7 +1708,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-low-bar-squat.gif",
+    "thumb_path": "glutes/barbell-low-bar-squat.thumb.webp"
   },
   {
     "name": "Barbell Lunge",
@@ -1438,7 +1721,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-lunge.gif",
+    "thumb_path": "glutes/barbell-lunge.thumb.webp"
   },
   {
     "name": "Barbell Lying Back Of The Head Tricep Extension",
@@ -1448,7 +1733,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-lying-back-of-the-head-tricep-extension.gif",
+    "thumb_path": "triceps/barbell-lying-back-of-the-head-tricep-extension.thumb.webp"
   },
   {
     "name": "Barbell Lying Close Grip Press",
@@ -1458,7 +1745,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-lying-close-grip-press.gif",
+    "thumb_path": "triceps/barbell-lying-close-grip-press.thumb.webp"
   },
   {
     "name": "Barbell Lying Close Grip Triceps Extension",
@@ -1468,7 +1757,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-lying-close-grip-triceps-extension.gif",
+    "thumb_path": "triceps/barbell-lying-close-grip-triceps-extension.thumb.webp"
   },
   {
     "name": "Barbell Lying Extension",
@@ -1478,7 +1769,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-lying-extension.gif",
+    "thumb_path": "triceps/barbell-lying-extension.thumb.webp"
   },
   {
     "name": "Barbell Lying Lifting On Hip",
@@ -1486,7 +1779,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-lying-lifting-on-hip.gif",
+    "thumb_path": "glutes/barbell-lying-lifting-on-hip.thumb.webp"
   },
   {
     "name": "Barbell Lying Preacher Curl",
@@ -1496,7 +1791,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/barbell-lying-preacher-curl.gif",
+    "thumb_path": "biceps/barbell-lying-preacher-curl.thumb.webp"
   },
   {
     "name": "Barbell Lying Triceps Extension",
@@ -1506,7 +1803,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-lying-triceps-extension.gif",
+    "thumb_path": "triceps/barbell-lying-triceps-extension.thumb.webp"
   },
   {
     "name": "Barbell Lying Triceps Extension Skull Crusher",
@@ -1516,7 +1815,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-lying-triceps-extension-skull-crusher.gif",
+    "thumb_path": "triceps/barbell-lying-triceps-extension-skull-crusher.thumb.webp"
   },
   {
     "name": "Barbell Narrow Stance Squat",
@@ -1527,7 +1828,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-narrow-stance-squat.gif",
+    "thumb_path": "glutes/barbell-narrow-stance-squat.thumb.webp"
   },
   {
     "name": "Barbell One Arm Bent Over Row",
@@ -1540,7 +1843,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/barbell-one-arm-bent-over-row.gif",
+    "thumb_path": "upper-back/barbell-one-arm-bent-over-row.thumb.webp"
   },
   {
     "name": "Barbell One Arm Floor Press",
@@ -1550,7 +1855,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-one-arm-floor-press.gif",
+    "thumb_path": "triceps/barbell-one-arm-floor-press.thumb.webp"
   },
   {
     "name": "Barbell One Arm Side Deadlift",
@@ -1564,7 +1871,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-one-arm-side-deadlift.gif",
+    "thumb_path": "glutes/barbell-one-arm-side-deadlift.thumb.webp"
   },
   {
     "name": "Barbell One Arm Snatch",
@@ -1578,7 +1887,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/barbell-one-arm-snatch.gif",
+    "thumb_path": "delts/barbell-one-arm-snatch.thumb.webp"
   },
   {
     "name": "Barbell One Leg Squat",
@@ -1590,7 +1901,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/barbell-one-leg-squat.gif",
+    "thumb_path": "quads/barbell-one-leg-squat.thumb.webp"
   },
   {
     "name": "Barbell Overhead Squat",
@@ -1602,7 +1915,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/barbell-overhead-squat.gif",
+    "thumb_path": "quads/barbell-overhead-squat.thumb.webp"
   },
   {
     "name": "Barbell Palms Down Wrist Curl Over A Bench",
@@ -1612,7 +1927,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/barbell-palms-down-wrist-curl-over-a-bench.gif",
+    "thumb_path": "forearms/barbell-palms-down-wrist-curl-over-a-bench.thumb.webp"
   },
   {
     "name": "Barbell Palms Up Wrist Curl Over A Bench",
@@ -1622,7 +1939,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/barbell-palms-up-wrist-curl-over-a-bench.gif",
+    "thumb_path": "forearms/barbell-palms-up-wrist-curl-over-a-bench.thumb.webp"
   },
   {
     "name": "Barbell Pendlay Row",
@@ -1635,7 +1954,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/barbell-pendlay-row.gif",
+    "thumb_path": "upper-back/barbell-pendlay-row.thumb.webp"
   },
   {
     "name": "Barbell Pin Presses",
@@ -1645,7 +1966,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-pin-presses.gif",
+    "thumb_path": "triceps/barbell-pin-presses.thumb.webp"
   },
   {
     "name": "Barbell Preacher Curl",
@@ -1655,7 +1978,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/barbell-preacher-curl.gif",
+    "thumb_path": "biceps/barbell-preacher-curl.thumb.webp"
   },
   {
     "name": "Barbell Press Sit Up",
@@ -1666,7 +1991,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/barbell-press-sit-up.gif",
+    "thumb_path": "abs/barbell-press-sit-up.thumb.webp"
   },
   {
     "name": "Barbell Prone Incline Curl",
@@ -1676,7 +2003,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/barbell-prone-incline-curl.gif",
+    "thumb_path": "biceps/barbell-prone-incline-curl.thumb.webp"
   },
   {
     "name": "Barbell Pullover",
@@ -1688,7 +2017,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/barbell-pullover.gif",
+    "thumb_path": "lats/barbell-pullover.thumb.webp"
   },
   {
     "name": "Barbell Pullover To Press",
@@ -1701,7 +2032,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/barbell-pullover-to-press.gif",
+    "thumb_path": "lats/barbell-pullover-to-press.thumb.webp"
   },
   {
     "name": "Barbell Rack Pull",
@@ -1709,7 +2042,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-rack-pull.gif",
+    "thumb_path": "glutes/barbell-rack-pull.thumb.webp"
   },
   {
     "name": "Barbell Rear Delt Raise",
@@ -1719,7 +2054,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/barbell-rear-delt-raise.gif",
+    "thumb_path": "delts/barbell-rear-delt-raise.thumb.webp"
   },
   {
     "name": "Barbell Rear Delt Row",
@@ -1730,7 +2067,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/barbell-rear-delt-row.gif",
+    "thumb_path": "delts/barbell-rear-delt-row.thumb.webp"
   },
   {
     "name": "Barbell Rear Lunge",
@@ -1741,7 +2080,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-rear-lunge.gif",
+    "thumb_path": "glutes/barbell-rear-lunge.thumb.webp"
   },
   {
     "name": "Barbell Rear Lunge v2",
@@ -1752,7 +2093,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-rear-lunge-v-2.gif",
+    "thumb_path": "glutes/barbell-rear-lunge-v-2.thumb.webp"
   },
   {
     "name": "Barbell Revers Wrist Curl v2",
@@ -1762,7 +2105,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/barbell-revers-wrist-curl-v-2.gif",
+    "thumb_path": "forearms/barbell-revers-wrist-curl-v-2.thumb.webp"
   },
   {
     "name": "Barbell Reverse Close Grip Bench Press",
@@ -1772,7 +2117,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-reverse-close-grip-bench-press.gif",
+    "thumb_path": "triceps/barbell-reverse-close-grip-bench-press.thumb.webp"
   },
   {
     "name": "Barbell Reverse Curl",
@@ -1782,7 +2129,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/barbell-reverse-curl.gif",
+    "thumb_path": "biceps/barbell-reverse-curl.thumb.webp"
   },
   {
     "name": "Barbell Reverse Grip Bent Over Row",
@@ -1795,7 +2144,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/barbell-reverse-grip-bent-over-row.gif",
+    "thumb_path": "upper-back/barbell-reverse-grip-bent-over-row.thumb.webp"
   },
   {
     "name": "Barbell Reverse Grip Decline Bench Press",
@@ -1806,7 +2157,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/barbell-reverse-grip-decline-bench-press.gif",
+    "thumb_path": "pectorals/barbell-reverse-grip-decline-bench-press.thumb.webp"
   },
   {
     "name": "Barbell Reverse Grip Incline Bench Press",
@@ -1817,7 +2170,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/barbell-reverse-grip-incline-bench-press.gif",
+    "thumb_path": "pectorals/barbell-reverse-grip-incline-bench-press.thumb.webp"
   },
   {
     "name": "Barbell Reverse Grip Incline Bench Row",
@@ -1830,7 +2185,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/barbell-reverse-grip-incline-bench-row.gif",
+    "thumb_path": "upper-back/barbell-reverse-grip-incline-bench-row.thumb.webp"
   },
   {
     "name": "Barbell Reverse Grip Skullcrusher",
@@ -1840,7 +2197,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-reverse-grip-skullcrusher.gif",
+    "thumb_path": "triceps/barbell-reverse-grip-skullcrusher.thumb.webp"
   },
   {
     "name": "Barbell Reverse Preacher Curl",
@@ -1850,7 +2209,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/barbell-reverse-preacher-curl.gif",
+    "thumb_path": "biceps/barbell-reverse-preacher-curl.thumb.webp"
   },
   {
     "name": "Barbell Reverse Wrist Curl",
@@ -1860,7 +2221,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/barbell-reverse-wrist-curl.gif",
+    "thumb_path": "forearms/barbell-reverse-wrist-curl.thumb.webp"
   },
   {
     "name": "Barbell Rollerout",
@@ -1868,7 +2231,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/barbell-rollerout.gif",
+    "thumb_path": "abs/barbell-rollerout.thumb.webp"
   },
   {
     "name": "Barbell Rollerout From Bench",
@@ -1876,7 +2241,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/barbell-rollerout-from-bench.gif",
+    "thumb_path": "abs/barbell-rollerout-from-bench.thumb.webp"
   },
   {
     "name": "Barbell Romanian Deadlift",
@@ -1890,7 +2257,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-romanian-deadlift.gif",
+    "thumb_path": "glutes/barbell-romanian-deadlift.thumb.webp"
   },
   {
     "name": "Barbell Seated Behind Head Military Press",
@@ -1900,7 +2269,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/barbell-seated-behind-head-military-press.gif",
+    "thumb_path": "delts/barbell-seated-behind-head-military-press.thumb.webp"
   },
   {
     "name": "Barbell Seated Bradford Rocky Press",
@@ -1910,7 +2281,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/barbell-seated-bradford-rocky-press.gif",
+    "thumb_path": "delts/barbell-seated-bradford-rocky-press.thumb.webp"
   },
   {
     "name": "Barbell Seated Calf Raise",
@@ -1918,7 +2291,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/barbell-seated-calf-raise.gif",
+    "thumb_path": "calves/barbell-seated-calf-raise.thumb.webp"
   },
   {
     "name": "Barbell Seated Calf Raise 1371",
@@ -1926,7 +2301,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/barbell-seated-calf-raise-1371.gif",
+    "thumb_path": "calves/barbell-seated-calf-raise-1371.thumb.webp"
   },
   {
     "name": "Barbell Seated Close Grip Behind Neck Triceps Extension",
@@ -1936,7 +2313,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-seated-close-grip-behind-neck-triceps-extension.gif",
+    "thumb_path": "triceps/barbell-seated-close-grip-behind-neck-triceps-extension.thumb.webp"
   },
   {
     "name": "Barbell Seated Close Grip Concentration Curl",
@@ -1946,7 +2325,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/barbell-seated-close-grip-concentration-curl.gif",
+    "thumb_path": "biceps/barbell-seated-close-grip-concentration-curl.thumb.webp"
   },
   {
     "name": "Barbell Seated Good Morning",
@@ -1954,7 +2335,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-seated-good-morning.gif",
+    "thumb_path": "glutes/barbell-seated-good-morning.thumb.webp"
   },
   {
     "name": "Barbell Seated Overhead Press",
@@ -1964,7 +2347,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/barbell-seated-overhead-press.gif",
+    "thumb_path": "delts/barbell-seated-overhead-press.thumb.webp"
   },
   {
     "name": "Barbell Seated Overhead Triceps Extension",
@@ -1974,7 +2359,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-seated-overhead-triceps-extension.gif",
+    "thumb_path": "triceps/barbell-seated-overhead-triceps-extension.thumb.webp"
   },
   {
     "name": "Barbell Seated Twist",
@@ -1982,7 +2369,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/barbell-seated-twist.gif",
+    "thumb_path": "abs/barbell-seated-twist.thumb.webp"
   },
   {
     "name": "Barbell Shrug",
@@ -1993,7 +2382,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "traps/barbell-shrug.gif",
+    "thumb_path": "traps/barbell-shrug.thumb.webp"
   },
   {
     "name": "Barbell Side Bent v2",
@@ -2001,7 +2392,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/barbell-side-bent-v-2.gif",
+    "thumb_path": "abs/barbell-side-bent-v-2.thumb.webp"
   },
   {
     "name": "Barbell Side Split Squat",
@@ -2013,7 +2406,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/barbell-side-split-squat.gif",
+    "thumb_path": "quads/barbell-side-split-squat.thumb.webp"
   },
   {
     "name": "Barbell Side Split Squat v2",
@@ -2025,7 +2420,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/barbell-side-split-squat-v-2.gif",
+    "thumb_path": "quads/barbell-side-split-squat-v-2.thumb.webp"
   },
   {
     "name": "Barbell Single Leg Deadlift",
@@ -2039,7 +2436,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-single-leg-deadlift.gif",
+    "thumb_path": "glutes/barbell-single-leg-deadlift.thumb.webp"
   },
   {
     "name": "Barbell Single Leg Split Squat",
@@ -2051,7 +2450,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/barbell-single-leg-split-squat.gif",
+    "thumb_path": "quads/barbell-single-leg-split-squat.thumb.webp"
   },
   {
     "name": "Barbell Sitted Alternate Leg Raise",
@@ -2059,7 +2460,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/barbell-sitted-alternate-leg-raise.gif",
+    "thumb_path": "abs/barbell-sitted-alternate-leg-raise.thumb.webp"
   },
   {
     "name": "Barbell Sitted Alternate Leg Raise Female",
@@ -2067,7 +2470,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/barbell-sitted-alternate-leg-raise-female.gif",
+    "thumb_path": "abs/barbell-sitted-alternate-leg-raise-female.thumb.webp"
   },
   {
     "name": "Barbell Skier",
@@ -2079,7 +2484,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/barbell-skier.gif",
+    "thumb_path": "delts/barbell-skier.thumb.webp"
   },
   {
     "name": "Barbell Speed Squat",
@@ -2090,7 +2497,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-speed-squat.gif",
+    "thumb_path": "glutes/barbell-speed-squat.thumb.webp"
   },
   {
     "name": "Barbell Split Squat v2",
@@ -2102,7 +2511,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/barbell-split-squat-v-2.gif",
+    "thumb_path": "quads/barbell-split-squat-v-2.thumb.webp"
   },
   {
     "name": "Barbell Squat Jump Step Rear Lunge",
@@ -2114,7 +2525,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/barbell-squat-jump-step-rear-lunge.gif",
+    "thumb_path": "quads/barbell-squat-jump-step-rear-lunge.thumb.webp"
   },
   {
     "name": "Barbell Squat On Knees",
@@ -2126,7 +2539,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/barbell-squat-on-knees.gif",
+    "thumb_path": "quads/barbell-squat-on-knees.thumb.webp"
   },
   {
     "name": "Barbell Standing Ab Rollerout",
@@ -2134,7 +2549,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/barbell-standing-ab-rollerout.gif",
+    "thumb_path": "abs/barbell-standing-ab-rollerout.thumb.webp"
   },
   {
     "name": "Barbell Standing Back Wrist Curl",
@@ -2144,7 +2561,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/barbell-standing-back-wrist-curl.gif",
+    "thumb_path": "forearms/barbell-standing-back-wrist-curl.thumb.webp"
   },
   {
     "name": "Barbell Standing Bradford Press",
@@ -2154,7 +2573,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/barbell-standing-bradford-press.gif",
+    "thumb_path": "delts/barbell-standing-bradford-press.thumb.webp"
   },
   {
     "name": "Barbell Standing Calf Raise",
@@ -2162,7 +2583,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/barbell-standing-calf-raise.gif",
+    "thumb_path": "calves/barbell-standing-calf-raise.thumb.webp"
   },
   {
     "name": "Barbell Standing Close Grip Curl",
@@ -2172,7 +2595,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/barbell-standing-close-grip-curl.gif",
+    "thumb_path": "biceps/barbell-standing-close-grip-curl.thumb.webp"
   },
   {
     "name": "Barbell Standing Close Grip Military Press",
@@ -2182,7 +2607,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/barbell-standing-close-grip-military-press.gif",
+    "thumb_path": "delts/barbell-standing-close-grip-military-press.thumb.webp"
   },
   {
     "name": "Barbell Standing Concentration Curl",
@@ -2192,7 +2619,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/barbell-standing-concentration-curl.gif",
+    "thumb_path": "biceps/barbell-standing-concentration-curl.thumb.webp"
   },
   {
     "name": "Barbell Standing Front Raise Over Head",
@@ -2202,7 +2631,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/barbell-standing-front-raise-over-head.gif",
+    "thumb_path": "delts/barbell-standing-front-raise-over-head.thumb.webp"
   },
   {
     "name": "Barbell Standing Leg Calf Raise",
@@ -2210,7 +2641,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/barbell-standing-leg-calf-raise.gif",
+    "thumb_path": "calves/barbell-standing-leg-calf-raise.thumb.webp"
   },
   {
     "name": "Barbell Standing Overhead Triceps Extension",
@@ -2220,7 +2653,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/barbell-standing-overhead-triceps-extension.gif",
+    "thumb_path": "triceps/barbell-standing-overhead-triceps-extension.thumb.webp"
   },
   {
     "name": "Barbell Standing Reverse Grip Curl",
@@ -2230,7 +2665,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/barbell-standing-reverse-grip-curl.gif",
+    "thumb_path": "biceps/barbell-standing-reverse-grip-curl.thumb.webp"
   },
   {
     "name": "Barbell Standing Rocking Leg Calf Raise",
@@ -2238,7 +2675,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/barbell-standing-rocking-leg-calf-raise.gif",
+    "thumb_path": "calves/barbell-standing-rocking-leg-calf-raise.thumb.webp"
   },
   {
     "name": "Barbell Standing Twist",
@@ -2246,7 +2685,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/barbell-standing-twist.gif",
+    "thumb_path": "abs/barbell-standing-twist.thumb.webp"
   },
   {
     "name": "Barbell Standing Wide Grip Biceps Curl",
@@ -2256,7 +2697,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/barbell-standing-wide-grip-biceps-curl.gif",
+    "thumb_path": "biceps/barbell-standing-wide-grip-biceps-curl.thumb.webp"
   },
   {
     "name": "Barbell Standing Wide Grip Curl",
@@ -2266,7 +2709,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/barbell-standing-wide-grip-curl.gif",
+    "thumb_path": "biceps/barbell-standing-wide-grip-curl.thumb.webp"
   },
   {
     "name": "Barbell Standing Wide Military Press",
@@ -2276,7 +2721,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/barbell-standing-wide-military-press.gif",
+    "thumb_path": "delts/barbell-standing-wide-military-press.thumb.webp"
   },
   {
     "name": "Barbell Step Up",
@@ -2284,7 +2731,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-step-up.gif",
+    "thumb_path": "glutes/barbell-step-up.thumb.webp"
   },
   {
     "name": "Barbell Stiff Leg Good Morning",
@@ -2292,7 +2741,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-stiff-leg-good-morning.gif",
+    "thumb_path": "glutes/barbell-stiff-leg-good-morning.thumb.webp"
   },
   {
     "name": "Barbell Straight Leg Deadlift",
@@ -2306,7 +2757,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/barbell-straight-leg-deadlift.gif",
+    "thumb_path": "hamstrings/barbell-straight-leg-deadlift.thumb.webp"
   },
   {
     "name": "Barbell Sumo Deadlift",
@@ -2320,7 +2773,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-sumo-deadlift.gif",
+    "thumb_path": "glutes/barbell-sumo-deadlift.thumb.webp"
   },
   {
     "name": "Barbell Thruster",
@@ -2333,7 +2788,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/barbell-thruster.gif",
+    "thumb_path": "delts/barbell-thruster.thumb.webp"
   },
   {
     "name": "Barbell Upright Row",
@@ -2345,7 +2802,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/barbell-upright-row.gif",
+    "thumb_path": "delts/barbell-upright-row.thumb.webp"
   },
   {
     "name": "Barbell Upright Row v2",
@@ -2357,7 +2816,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/barbell-upright-row-v-2.gif",
+    "thumb_path": "delts/barbell-upright-row-v-2.thumb.webp"
   },
   {
     "name": "Barbell Upright Row v3",
@@ -2369,7 +2830,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/barbell-upright-row-v-3.gif",
+    "thumb_path": "delts/barbell-upright-row-v-3.thumb.webp"
   },
   {
     "name": "Barbell Wide Bench Press",
@@ -2380,7 +2843,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/barbell-wide-bench-press.gif",
+    "thumb_path": "pectorals/barbell-wide-bench-press.thumb.webp"
   },
   {
     "name": "Barbell Wide Grip Upright Row",
@@ -2392,7 +2857,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/barbell-wide-grip-upright-row.gif",
+    "thumb_path": "delts/barbell-wide-grip-upright-row.thumb.webp"
   },
   {
     "name": "Barbell Wide Reverse Grip Bench Press",
@@ -2403,7 +2870,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/barbell-wide-reverse-grip-bench-press.gif",
+    "thumb_path": "pectorals/barbell-wide-reverse-grip-bench-press.thumb.webp"
   },
   {
     "name": "Barbell Wide Squat",
@@ -2415,7 +2884,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/barbell-wide-squat.gif",
+    "thumb_path": "quads/barbell-wide-squat.thumb.webp"
   },
   {
     "name": "Barbell Wrist Curl",
@@ -2425,7 +2896,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/barbell-wrist-curl.gif",
+    "thumb_path": "forearms/barbell-wrist-curl.thumb.webp"
   },
   {
     "name": "Barbell Wrist Curl v2",
@@ -2435,7 +2908,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/barbell-wrist-curl-v-2.gif",
+    "thumb_path": "forearms/barbell-wrist-curl-v-2.thumb.webp"
   },
   {
     "name": "Barbell Zercher Squat",
@@ -2446,7 +2921,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/barbell-zercher-squat.gif",
+    "thumb_path": "glutes/barbell-zercher-squat.thumb.webp"
   },
   {
     "name": "Basic Toe Touch Male",
@@ -2454,7 +2931,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/basic-toe-touch-male.gif",
+    "thumb_path": "glutes/basic-toe-touch-male.thumb.webp"
   },
   {
     "name": "Battling Ropes",
@@ -2466,7 +2945,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/battling-ropes.gif",
+    "thumb_path": "delts/battling-ropes.thumb.webp"
   },
   {
     "name": "Bear Crawl",
@@ -2474,7 +2955,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/bear-crawl.gif",
+    "thumb_path": "cardio/bear-crawl.thumb.webp"
   },
   {
     "name": "Behind Head Chest Stretch",
@@ -2482,7 +2965,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "pectorals/behind-head-chest-stretch.gif",
+    "thumb_path": "pectorals/behind-head-chest-stretch.thumb.webp"
   },
   {
     "name": "Bench Dip Knees Bent",
@@ -2493,7 +2978,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/bench-dip-knees-bent.gif",
+    "thumb_path": "triceps/bench-dip-knees-bent.thumb.webp"
   },
   {
     "name": "Bench Dip On Floor",
@@ -2504,7 +2991,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/bench-dip-on-floor.gif",
+    "thumb_path": "triceps/bench-dip-on-floor.thumb.webp"
   },
   {
     "name": "Bench Hip Extension",
@@ -2515,7 +3004,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/bench-hip-extension.gif",
+    "thumb_path": "glutes/bench-hip-extension.thumb.webp"
   },
   {
     "name": "Bench Pull Ups",
@@ -2527,7 +3018,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/bench-pull-ups.gif",
+    "thumb_path": "lats/bench-pull-ups.thumb.webp"
   },
   {
     "name": "Bent Knee Lying Twist Male",
@@ -2535,7 +3028,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/bent-knee-lying-twist-male.gif",
+    "thumb_path": "glutes/bent-knee-lying-twist-male.thumb.webp"
   },
   {
     "name": "Biceps Leg Concentration Curl",
@@ -2545,7 +3040,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/biceps-leg-concentration-curl.gif",
+    "thumb_path": "biceps/biceps-leg-concentration-curl.thumb.webp"
   },
   {
     "name": "Biceps Narrow Pull Ups",
@@ -2556,7 +3053,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/biceps-narrow-pull-ups.gif",
+    "thumb_path": "biceps/biceps-narrow-pull-ups.thumb.webp"
   },
   {
     "name": "Biceps Pull Up",
@@ -2567,7 +3066,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/biceps-pull-up.gif",
+    "thumb_path": "biceps/biceps-pull-up.thumb.webp"
   },
   {
     "name": "Body Up",
@@ -2575,7 +3076,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "triceps",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/body-up.gif",
+    "thumb_path": "triceps/body-up.thumb.webp"
   },
   {
     "name": "Bodyweight Drop Jump Squat",
@@ -2586,7 +3089,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/bodyweight-drop-jump-squat.gif",
+    "thumb_path": "glutes/bodyweight-drop-jump-squat.thumb.webp"
   },
   {
     "name": "Bodyweight Incline Side Plank",
@@ -2597,7 +3102,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "glutes"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/bodyweight-incline-side-plank.gif",
+    "thumb_path": "abs/bodyweight-incline-side-plank.thumb.webp"
   },
   {
     "name": "Bodyweight Kneeling Triceps Extension",
@@ -2607,7 +3114,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/bodyweight-kneeling-triceps-extension.gif",
+    "thumb_path": "triceps/bodyweight-kneeling-triceps-extension.thumb.webp"
   },
   {
     "name": "Bodyweight Side Lying Biceps Curl",
@@ -2617,7 +3126,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/bodyweight-side-lying-biceps-curl.gif",
+    "thumb_path": "biceps/bodyweight-side-lying-biceps-curl.thumb.webp"
   },
   {
     "name": "Bodyweight Squatting Row",
@@ -2633,7 +3144,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/bodyweight-squatting-row.gif",
+    "thumb_path": "upper-back/bodyweight-squatting-row.thumb.webp"
   },
   {
     "name": "Bodyweight Squatting Row With Towel",
@@ -2649,7 +3162,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/bodyweight-squatting-row-with-towel.gif",
+    "thumb_path": "upper-back/bodyweight-squatting-row-with-towel.thumb.webp"
   },
   {
     "name": "Bodyweight Standing Calf Raise",
@@ -2657,7 +3172,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/bodyweight-standing-calf-raise.gif",
+    "thumb_path": "calves/bodyweight-standing-calf-raise.thumb.webp"
   },
   {
     "name": "Bodyweight Standing Close Grip One Arm Row",
@@ -2670,7 +3187,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/bodyweight-standing-close-grip-one-arm-row.gif",
+    "thumb_path": "upper-back/bodyweight-standing-close-grip-one-arm-row.thumb.webp"
   },
   {
     "name": "Bodyweight Standing Close Grip Row",
@@ -2683,7 +3202,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/bodyweight-standing-close-grip-row.gif",
+    "thumb_path": "upper-back/bodyweight-standing-close-grip-row.thumb.webp"
   },
   {
     "name": "Bodyweight Standing One Arm Row",
@@ -2696,7 +3217,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/bodyweight-standing-one-arm-row.gif",
+    "thumb_path": "upper-back/bodyweight-standing-one-arm-row.thumb.webp"
   },
   {
     "name": "Bodyweight Standing One Arm Row With Towel",
@@ -2709,7 +3232,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/bodyweight-standing-one-arm-row-with-towel.gif",
+    "thumb_path": "upper-back/bodyweight-standing-one-arm-row-with-towel.thumb.webp"
   },
   {
     "name": "Bodyweight Standing Row",
@@ -2722,7 +3247,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/bodyweight-standing-row.gif",
+    "thumb_path": "upper-back/bodyweight-standing-row.thumb.webp"
   },
   {
     "name": "Bodyweight Standing Row With Towel",
@@ -2735,7 +3262,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/bodyweight-standing-row-with-towel.gif",
+    "thumb_path": "upper-back/bodyweight-standing-row-with-towel.thumb.webp"
   },
   {
     "name": "Bottoms Up",
@@ -2743,7 +3272,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/bottoms-up.gif",
+    "thumb_path": "abs/bottoms-up.thumb.webp"
   },
   {
     "name": "Box Jump Down With One Leg Stabilization",
@@ -2751,7 +3282,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/box-jump-down-with-one-leg-stabilization.gif",
+    "thumb_path": "calves/box-jump-down-with-one-leg-stabilization.thumb.webp"
   },
   {
     "name": "Bridge Mountain Climber Cross Body",
@@ -2761,7 +3294,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "hamstrings"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/bridge-mountain-climber-cross-body.gif",
+    "thumb_path": "abs/bridge-mountain-climber-cross-body.thumb.webp"
   },
   {
     "name": "Burpee",
@@ -2775,7 +3310,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/burpee.gif",
+    "thumb_path": "cardio/burpee.thumb.webp"
   },
   {
     "name": "Butt Ups",
@@ -2783,7 +3320,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/butt-ups.gif",
+    "thumb_path": "abs/butt-ups.thumb.webp"
   },
   {
     "name": "Butterfly Yoga Pose",
@@ -2791,7 +3330,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "adductors",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "adductors/butterfly-yoga-pose.gif",
+    "thumb_path": "adductors/butterfly-yoga-pose.thumb.webp"
   },
   {
     "name": "Cable Alternate Shoulder Press",
@@ -2801,7 +3342,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-alternate-shoulder-press.gif",
+    "thumb_path": "delts/cable-alternate-shoulder-press.thumb.webp"
   },
   {
     "name": "Cable Alternate Triceps Extension",
@@ -2811,7 +3354,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-alternate-triceps-extension.gif",
+    "thumb_path": "triceps/cable-alternate-triceps-extension.thumb.webp"
   },
   {
     "name": "Cable Assisted Inverse Leg Curl",
@@ -2822,7 +3367,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/cable-assisted-inverse-leg-curl.gif",
+    "thumb_path": "hamstrings/cable-assisted-inverse-leg-curl.thumb.webp"
   },
   {
     "name": "Cable Bar Lateral Pulldown",
@@ -2834,7 +3381,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-bar-lateral-pulldown.gif",
+    "thumb_path": "lats/cable-bar-lateral-pulldown.thumb.webp"
   },
   {
     "name": "Cable Bench Press",
@@ -2845,7 +3394,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-bench-press.gif",
+    "thumb_path": "pectorals/cable-bench-press.thumb.webp"
   },
   {
     "name": "Cable Close Grip Curl",
@@ -2855,7 +3406,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-close-grip-curl.gif",
+    "thumb_path": "biceps/cable-close-grip-curl.thumb.webp"
   },
   {
     "name": "Cable Concentration Curl",
@@ -2865,7 +3418,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-concentration-curl.gif",
+    "thumb_path": "biceps/cable-concentration-curl.thumb.webp"
   },
   {
     "name": "Cable Concentration Extension On Knee",
@@ -2875,7 +3430,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-concentration-extension-on-knee.gif",
+    "thumb_path": "triceps/cable-concentration-extension-on-knee.thumb.webp"
   },
   {
     "name": "Cable Cross Over Lateral Pulldown",
@@ -2887,7 +3444,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-cross-over-lateral-pulldown.gif",
+    "thumb_path": "lats/cable-cross-over-lateral-pulldown.thumb.webp"
   },
   {
     "name": "Cable Cross Over Revers Fly",
@@ -2898,7 +3457,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "upper_back"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-cross-over-revers-fly.gif",
+    "thumb_path": "delts/cable-cross-over-revers-fly.thumb.webp"
   },
   {
     "name": "Cable Cross Over Variation",
@@ -2908,7 +3469,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-cross-over-variation.gif",
+    "thumb_path": "pectorals/cable-cross-over-variation.thumb.webp"
   },
   {
     "name": "Cable Curl",
@@ -2918,7 +3481,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-curl.gif",
+    "thumb_path": "biceps/cable-curl.thumb.webp"
   },
   {
     "name": "Cable Deadlift",
@@ -2932,7 +3497,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/cable-deadlift.gif",
+    "thumb_path": "glutes/cable-deadlift.thumb.webp"
   },
   {
     "name": "Cable Decline Fly",
@@ -2942,7 +3509,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-decline-fly.gif",
+    "thumb_path": "pectorals/cable-decline-fly.thumb.webp"
   },
   {
     "name": "Cable Decline One Arm Press",
@@ -2953,7 +3522,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-decline-one-arm-press.gif",
+    "thumb_path": "pectorals/cable-decline-one-arm-press.thumb.webp"
   },
   {
     "name": "Cable Decline Press",
@@ -2964,7 +3535,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-decline-press.gif",
+    "thumb_path": "pectorals/cable-decline-press.thumb.webp"
   },
   {
     "name": "Cable Decline Seated Wide Grip Row",
@@ -2977,7 +3550,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-decline-seated-wide-grip-row.gif",
+    "thumb_path": "upper-back/cable-decline-seated-wide-grip-row.thumb.webp"
   },
   {
     "name": "Cable Drag Curl",
@@ -2987,7 +3562,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-drag-curl.gif",
+    "thumb_path": "biceps/cable-drag-curl.thumb.webp"
   },
   {
     "name": "Cable Floor Seated Wide Grip Row",
@@ -3000,7 +3577,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-floor-seated-wide-grip-row.gif",
+    "thumb_path": "upper-back/cable-floor-seated-wide-grip-row.thumb.webp"
   },
   {
     "name": "Cable Forward Raise",
@@ -3010,7 +3589,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-forward-raise.gif",
+    "thumb_path": "delts/cable-forward-raise.thumb.webp"
   },
   {
     "name": "Cable Front Raise",
@@ -3020,7 +3601,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-front-raise.gif",
+    "thumb_path": "delts/cable-front-raise.thumb.webp"
   },
   {
     "name": "Cable Front Shoulder Raise",
@@ -3030,7 +3613,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-front-shoulder-raise.gif",
+    "thumb_path": "delts/cable-front-shoulder-raise.thumb.webp"
   },
   {
     "name": "Cable Hammer Curl With Rope",
@@ -3040,7 +3625,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-hammer-curl-with-rope.gif",
+    "thumb_path": "biceps/cable-hammer-curl-with-rope.thumb.webp"
   },
   {
     "name": "Cable High Pulley Overhead Tricep Extension",
@@ -3050,7 +3637,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-high-pulley-overhead-tricep-extension.gif",
+    "thumb_path": "triceps/cable-high-pulley-overhead-tricep-extension.thumb.webp"
   },
   {
     "name": "Cable High Row Kneeling",
@@ -3063,7 +3652,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-high-row-kneeling.gif",
+    "thumb_path": "upper-back/cable-high-row-kneeling.thumb.webp"
   },
   {
     "name": "Cable Hip Adduction",
@@ -3071,7 +3662,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "adductors",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "adductors/cable-hip-adduction.gif",
+    "thumb_path": "adductors/cable-hip-adduction.thumb.webp"
   },
   {
     "name": "Cable Incline Bench Press",
@@ -3082,7 +3675,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-incline-bench-press.gif",
+    "thumb_path": "pectorals/cable-incline-bench-press.thumb.webp"
   },
   {
     "name": "Cable Incline Bench Row",
@@ -3095,7 +3690,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-incline-bench-row.gif",
+    "thumb_path": "upper-back/cable-incline-bench-row.thumb.webp"
   },
   {
     "name": "Cable Incline Fly",
@@ -3105,7 +3702,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-incline-fly.gif",
+    "thumb_path": "pectorals/cable-incline-fly.thumb.webp"
   },
   {
     "name": "Cable Incline Fly On Stability Ball",
@@ -3115,7 +3714,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-incline-fly-on-stability-ball.gif",
+    "thumb_path": "pectorals/cable-incline-fly-on-stability-ball.thumb.webp"
   },
   {
     "name": "Cable Incline Pushdown",
@@ -3123,7 +3724,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-incline-pushdown.gif",
+    "thumb_path": "lats/cable-incline-pushdown.thumb.webp"
   },
   {
     "name": "Cable Incline Triceps Extension",
@@ -3133,7 +3736,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-incline-triceps-extension.gif",
+    "thumb_path": "triceps/cable-incline-triceps-extension.thumb.webp"
   },
   {
     "name": "Cable Judo Flip",
@@ -3141,7 +3746,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/cable-judo-flip.gif",
+    "thumb_path": "abs/cable-judo-flip.thumb.webp"
   },
   {
     "name": "Cable Kickback",
@@ -3151,7 +3758,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-kickback.gif",
+    "thumb_path": "triceps/cable-kickback.thumb.webp"
   },
   {
     "name": "Cable Kneeling Crunch",
@@ -3159,7 +3768,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/cable-kneeling-crunch.gif",
+    "thumb_path": "abs/cable-kneeling-crunch.thumb.webp"
   },
   {
     "name": "Cable Kneeling Rear Delt Row With Rope Male",
@@ -3170,7 +3781,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-kneeling-rear-delt-row-with-rope-male.gif",
+    "thumb_path": "delts/cable-kneeling-rear-delt-row-with-rope-male.thumb.webp"
   },
   {
     "name": "Cable Kneeling Triceps Extension",
@@ -3180,7 +3793,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-kneeling-triceps-extension.gif",
+    "thumb_path": "triceps/cable-kneeling-triceps-extension.thumb.webp"
   },
   {
     "name": "Cable Lat Pulldown Full Range Of Motion",
@@ -3192,7 +3807,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-lat-pulldown-full-range-of-motion.gif",
+    "thumb_path": "lats/cable-lat-pulldown-full-range-of-motion.thumb.webp"
   },
   {
     "name": "Cable Lateral Pulldown With Rope Attachment",
@@ -3204,7 +3821,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-lateral-pulldown-with-rope-attachment.gif",
+    "thumb_path": "lats/cable-lateral-pulldown-with-rope-attachment.thumb.webp"
   },
   {
     "name": "Cable Lateral Pulldown With V Bar",
@@ -3216,7 +3835,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-lateral-pulldown-with-v-bar.gif",
+    "thumb_path": "lats/cable-lateral-pulldown-with-v-bar.thumb.webp"
   },
   {
     "name": "Cable Lateral Raise",
@@ -3226,7 +3847,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-lateral-raise.gif",
+    "thumb_path": "delts/cable-lateral-raise.thumb.webp"
   },
   {
     "name": "Cable Low Fly",
@@ -3236,7 +3859,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-low-fly.gif",
+    "thumb_path": "pectorals/cable-low-fly.thumb.webp"
   },
   {
     "name": "Cable Low Seated Row",
@@ -3249,7 +3874,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-low-seated-row.gif",
+    "thumb_path": "upper-back/cable-low-seated-row.thumb.webp"
   },
   {
     "name": "Cable Lying Bicep Curl",
@@ -3259,7 +3886,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-lying-bicep-curl.gif",
+    "thumb_path": "biceps/cable-lying-bicep-curl.thumb.webp"
   },
   {
     "name": "Cable Lying Close Grip Curl",
@@ -3269,7 +3898,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-lying-close-grip-curl.gif",
+    "thumb_path": "biceps/cable-lying-close-grip-curl.thumb.webp"
   },
   {
     "name": "Cable Lying Extension Pullover With Rope Attachment",
@@ -3281,7 +3912,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-lying-extension-pullover-with-rope-attachment.gif",
+    "thumb_path": "lats/cable-lying-extension-pullover-with-rope-attachment.thumb.webp"
   },
   {
     "name": "Cable Lying Fly",
@@ -3291,7 +3924,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-lying-fly.gif",
+    "thumb_path": "pectorals/cable-lying-fly.thumb.webp"
   },
   {
     "name": "Cable Lying Triceps Extension v2",
@@ -3301,7 +3936,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-lying-triceps-extension-v-2.gif",
+    "thumb_path": "triceps/cable-lying-triceps-extension-v-2.thumb.webp"
   },
   {
     "name": "Cable Middle Fly",
@@ -3311,7 +3948,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-middle-fly.gif",
+    "thumb_path": "pectorals/cable-middle-fly.thumb.webp"
   },
   {
     "name": "Cable One Arm Bent Over Row",
@@ -3324,7 +3963,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-one-arm-bent-over-row.gif",
+    "thumb_path": "upper-back/cable-one-arm-bent-over-row.thumb.webp"
   },
   {
     "name": "Cable One Arm Curl",
@@ -3334,7 +3975,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-one-arm-curl.gif",
+    "thumb_path": "biceps/cable-one-arm-curl.thumb.webp"
   },
   {
     "name": "Cable One Arm Decline Chest Fly",
@@ -3344,7 +3987,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-one-arm-decline-chest-fly.gif",
+    "thumb_path": "pectorals/cable-one-arm-decline-chest-fly.thumb.webp"
   },
   {
     "name": "Cable One Arm Fly On Exercise Ball",
@@ -3354,7 +3999,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-one-arm-fly-on-exercise-ball.gif",
+    "thumb_path": "pectorals/cable-one-arm-fly-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Cable One Arm Incline Fly On Exercise Ball",
@@ -3364,7 +4011,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-one-arm-incline-fly-on-exercise-ball.gif",
+    "thumb_path": "pectorals/cable-one-arm-incline-fly-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Cable One Arm Incline Press",
@@ -3375,7 +4024,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-one-arm-incline-press.gif",
+    "thumb_path": "pectorals/cable-one-arm-incline-press.thumb.webp"
   },
   {
     "name": "Cable One Arm Incline Press On Exercise Ball",
@@ -3386,7 +4037,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-one-arm-incline-press-on-exercise-ball.gif",
+    "thumb_path": "pectorals/cable-one-arm-incline-press-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Cable One Arm Lateral Bent Over",
@@ -3394,7 +4047,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-one-arm-lateral-bent-over.gif",
+    "thumb_path": "pectorals/cable-one-arm-lateral-bent-over.thumb.webp"
   },
   {
     "name": "Cable One Arm Lateral Raise",
@@ -3404,7 +4059,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-one-arm-lateral-raise.gif",
+    "thumb_path": "delts/cable-one-arm-lateral-raise.thumb.webp"
   },
   {
     "name": "Cable One Arm Preacher Curl",
@@ -3414,7 +4071,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-one-arm-preacher-curl.gif",
+    "thumb_path": "biceps/cable-one-arm-preacher-curl.thumb.webp"
   },
   {
     "name": "Cable One Arm Press On Exercise Ball",
@@ -3425,7 +4084,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-one-arm-press-on-exercise-ball.gif",
+    "thumb_path": "pectorals/cable-one-arm-press-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Cable One Arm Pulldown",
@@ -3437,7 +4098,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-one-arm-pulldown.gif",
+    "thumb_path": "lats/cable-one-arm-pulldown.thumb.webp"
   },
   {
     "name": "Cable One Arm Reverse Preacher Curl",
@@ -3447,7 +4110,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-one-arm-reverse-preacher-curl.gif",
+    "thumb_path": "biceps/cable-one-arm-reverse-preacher-curl.thumb.webp"
   },
   {
     "name": "Cable One Arm Straight Back High Row Kneeling",
@@ -3460,7 +4125,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-one-arm-straight-back-high-row-kneeling.gif",
+    "thumb_path": "upper-back/cable-one-arm-straight-back-high-row-kneeling.thumb.webp"
   },
   {
     "name": "Cable One Arm Tricep Pushdown",
@@ -3470,7 +4137,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-one-arm-tricep-pushdown.gif",
+    "thumb_path": "triceps/cable-one-arm-tricep-pushdown.thumb.webp"
   },
   {
     "name": "Cable Overhead Curl",
@@ -3480,7 +4149,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-overhead-curl.gif",
+    "thumb_path": "biceps/cable-overhead-curl.thumb.webp"
   },
   {
     "name": "Cable Overhead Curl On Exercise Ball",
@@ -3490,7 +4161,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-overhead-curl-on-exercise-ball.gif",
+    "thumb_path": "biceps/cable-overhead-curl-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Cable Overhead Triceps Extension Rope Attachment",
@@ -3500,7 +4173,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-overhead-triceps-extension-rope-attachment.gif",
+    "thumb_path": "triceps/cable-overhead-triceps-extension-rope-attachment.thumb.webp"
   },
   {
     "name": "Cable Palm Rotational Row",
@@ -3513,7 +4188,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-palm-rotational-row.gif",
+    "thumb_path": "upper-back/cable-palm-rotational-row.thumb.webp"
   },
   {
     "name": "Cable Preacher Curl",
@@ -3523,7 +4200,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-preacher-curl.gif",
+    "thumb_path": "biceps/cable-preacher-curl.thumb.webp"
   },
   {
     "name": "Cable Press On Exercise Ball",
@@ -3534,7 +4213,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-press-on-exercise-ball.gif",
+    "thumb_path": "pectorals/cable-press-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Cable Pull Through With Rope",
@@ -3545,7 +4226,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/cable-pull-through-with-rope.gif",
+    "thumb_path": "glutes/cable-pull-through-with-rope.thumb.webp"
   },
   {
     "name": "Cable Pulldown",
@@ -3557,7 +4240,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-pulldown.gif",
+    "thumb_path": "lats/cable-pulldown.thumb.webp"
   },
   {
     "name": "Cable Pulldown Bicep Curl",
@@ -3568,7 +4253,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-pulldown-bicep-curl.gif",
+    "thumb_path": "biceps/cable-pulldown-bicep-curl.thumb.webp"
   },
   {
     "name": "Cable Pulldown Pro Lat Bar",
@@ -3580,7 +4267,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-pulldown-pro-lat-bar.gif",
+    "thumb_path": "lats/cable-pulldown-pro-lat-bar.thumb.webp"
   },
   {
     "name": "Cable Pushdown",
@@ -3590,7 +4279,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-pushdown.gif",
+    "thumb_path": "triceps/cable-pushdown.thumb.webp"
   },
   {
     "name": "Cable Pushdown Straight Arm v2",
@@ -3598,7 +4289,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-pushdown-straight-arm-v-2.gif",
+    "thumb_path": "lats/cable-pushdown-straight-arm-v-2.thumb.webp"
   },
   {
     "name": "Cable Pushdown With Rope Attachment",
@@ -3608,7 +4301,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-pushdown-with-rope-attachment.gif",
+    "thumb_path": "triceps/cable-pushdown-with-rope-attachment.thumb.webp"
   },
   {
     "name": "Cable Rear Delt Row Stirrups",
@@ -3619,7 +4314,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-rear-delt-row-stirrups.gif",
+    "thumb_path": "delts/cable-rear-delt-row-stirrups.thumb.webp"
   },
   {
     "name": "Cable Rear Delt Row With Rope",
@@ -3630,7 +4327,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-rear-delt-row-with-rope.gif",
+    "thumb_path": "delts/cable-rear-delt-row-with-rope.thumb.webp"
   },
   {
     "name": "Cable Rear Drive",
@@ -3638,7 +4337,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "triceps",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-rear-drive.gif",
+    "thumb_path": "triceps/cable-rear-drive.thumb.webp"
   },
   {
     "name": "Cable Rear Pulldown",
@@ -3650,7 +4351,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-rear-pulldown.gif",
+    "thumb_path": "lats/cable-rear-pulldown.thumb.webp"
   },
   {
     "name": "Cable Reverse Crunch",
@@ -3658,7 +4361,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/cable-reverse-crunch.gif",
+    "thumb_path": "abs/cable-reverse-crunch.thumb.webp"
   },
   {
     "name": "Cable Reverse Curl",
@@ -3668,7 +4373,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-reverse-curl.gif",
+    "thumb_path": "biceps/cable-reverse-curl.thumb.webp"
   },
   {
     "name": "Cable Reverse Grip Pushdown",
@@ -3678,7 +4385,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-reverse-grip-pushdown.gif",
+    "thumb_path": "triceps/cable-reverse-grip-pushdown.thumb.webp"
   },
   {
     "name": "Cable Reverse Grip Straight Back Seated High Row",
@@ -3691,7 +4400,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-reverse-grip-straight-back-seated-high-row.gif",
+    "thumb_path": "upper-back/cable-reverse-grip-straight-back-seated-high-row.thumb.webp"
   },
   {
     "name": "Cable Reverse Grip Triceps Pushdown Sz Bar With Arm Blaster",
@@ -3701,7 +4412,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-reverse-grip-triceps-pushdown-sz-bar-with-arm-blaster.gif",
+    "thumb_path": "triceps/cable-reverse-grip-triceps-pushdown-sz-bar-with-arm-blaster.thumb.webp"
   },
   {
     "name": "Cable Reverse One Arm Curl",
@@ -3711,7 +4424,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-reverse-one-arm-curl.gif",
+    "thumb_path": "biceps/cable-reverse-one-arm-curl.thumb.webp"
   },
   {
     "name": "Cable Reverse Preacher Curl",
@@ -3721,7 +4436,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-reverse-preacher-curl.gif",
+    "thumb_path": "biceps/cable-reverse-preacher-curl.thumb.webp"
   },
   {
     "name": "Cable Reverse Wrist Curl",
@@ -3731,7 +4448,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/cable-reverse-wrist-curl.gif",
+    "thumb_path": "forearms/cable-reverse-wrist-curl.thumb.webp"
   },
   {
     "name": "Cable Rope Crossover Seated Row",
@@ -3744,7 +4463,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-rope-crossover-seated-row.gif",
+    "thumb_path": "upper-back/cable-rope-crossover-seated-row.thumb.webp"
   },
   {
     "name": "Cable Rope Elevated Seated Row",
@@ -3757,7 +4478,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-rope-elevated-seated-row.gif",
+    "thumb_path": "upper-back/cable-rope-elevated-seated-row.thumb.webp"
   },
   {
     "name": "Cable Rope Extension Incline Bench Row",
@@ -3770,7 +4493,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-rope-extension-incline-bench-row.gif",
+    "thumb_path": "upper-back/cable-rope-extension-incline-bench-row.thumb.webp"
   },
   {
     "name": "Cable Rope Hammer Preacher Curl",
@@ -3780,7 +4505,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-rope-hammer-preacher-curl.gif",
+    "thumb_path": "biceps/cable-rope-hammer-preacher-curl.thumb.webp"
   },
   {
     "name": "Cable Rope High Pulley Overhead Tricep Extension",
@@ -3790,7 +4517,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-rope-high-pulley-overhead-tricep-extension.gif",
+    "thumb_path": "triceps/cable-rope-high-pulley-overhead-tricep-extension.thumb.webp"
   },
   {
     "name": "Cable Rope Incline Tricep Extension",
@@ -3800,7 +4529,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-rope-incline-tricep-extension.gif",
+    "thumb_path": "triceps/cable-rope-incline-tricep-extension.thumb.webp"
   },
   {
     "name": "Cable Rope Lying On Floor Tricep Extension",
@@ -3810,7 +4541,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-rope-lying-on-floor-tricep-extension.gif",
+    "thumb_path": "triceps/cable-rope-lying-on-floor-tricep-extension.thumb.webp"
   },
   {
     "name": "Cable Rope One Arm Hammer Preacher Curl",
@@ -3820,7 +4553,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-rope-one-arm-hammer-preacher-curl.gif",
+    "thumb_path": "biceps/cable-rope-one-arm-hammer-preacher-curl.thumb.webp"
   },
   {
     "name": "Cable Rope Seated Row",
@@ -3833,7 +4568,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-rope-seated-row.gif",
+    "thumb_path": "upper-back/cable-rope-seated-row.thumb.webp"
   },
   {
     "name": "Cable Russian Twists On Stability Ball",
@@ -3841,7 +4578,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/cable-russian-twists-on-stability-ball.gif",
+    "thumb_path": "abs/cable-russian-twists-on-stability-ball.thumb.webp"
   },
   {
     "name": "Cable Seated Chest Press",
@@ -3852,7 +4591,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-seated-chest-press.gif",
+    "thumb_path": "pectorals/cable-seated-chest-press.thumb.webp"
   },
   {
     "name": "Cable Seated Crunch",
@@ -3860,7 +4601,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/cable-seated-crunch.gif",
+    "thumb_path": "abs/cable-seated-crunch.thumb.webp"
   },
   {
     "name": "Cable Seated Curl",
@@ -3870,7 +4613,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-seated-curl.gif",
+    "thumb_path": "biceps/cable-seated-curl.thumb.webp"
   },
   {
     "name": "Cable Seated High Row V Bar",
@@ -3882,7 +4627,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-seated-high-row-v-bar.gif",
+    "thumb_path": "lats/cable-seated-high-row-v-bar.thumb.webp"
   },
   {
     "name": "Cable Seated One Arm Alternate Row",
@@ -3895,7 +4642,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-seated-one-arm-alternate-row.gif",
+    "thumb_path": "upper-back/cable-seated-one-arm-alternate-row.thumb.webp"
   },
   {
     "name": "Cable Seated One Arm Concentration Curl",
@@ -3905,7 +4654,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-seated-one-arm-concentration-curl.gif",
+    "thumb_path": "biceps/cable-seated-one-arm-concentration-curl.thumb.webp"
   },
   {
     "name": "Cable Seated Overhead Curl",
@@ -3915,7 +4666,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-seated-overhead-curl.gif",
+    "thumb_path": "biceps/cable-seated-overhead-curl.thumb.webp"
   },
   {
     "name": "Cable Seated Rear Lateral Raise",
@@ -3925,7 +4678,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-seated-rear-lateral-raise.gif",
+    "thumb_path": "delts/cable-seated-rear-lateral-raise.thumb.webp"
   },
   {
     "name": "Cable Seated Row",
@@ -3938,7 +4693,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-seated-row.gif",
+    "thumb_path": "upper-back/cable-seated-row.thumb.webp"
   },
   {
     "name": "Cable Seated Shoulder Internal Rotation",
@@ -3946,7 +4703,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "front_delt",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-seated-shoulder-internal-rotation.gif",
+    "thumb_path": "delts/cable-seated-shoulder-internal-rotation.thumb.webp"
   },
   {
     "name": "Cable Seated Twist",
@@ -3954,7 +4713,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/cable-seated-twist.gif",
+    "thumb_path": "abs/cable-seated-twist.thumb.webp"
   },
   {
     "name": "Cable Seated Wide Grip Row",
@@ -3967,7 +4728,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-seated-wide-grip-row.gif",
+    "thumb_path": "upper-back/cable-seated-wide-grip-row.thumb.webp"
   },
   {
     "name": "Cable Shoulder Press",
@@ -3977,7 +4740,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-shoulder-press.gif",
+    "thumb_path": "delts/cable-shoulder-press.thumb.webp"
   },
   {
     "name": "Cable Shrug",
@@ -3988,7 +4753,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "traps/cable-shrug.gif",
+    "thumb_path": "traps/cable-shrug.thumb.webp"
   },
   {
     "name": "Cable Side Bend",
@@ -3996,7 +4763,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/cable-side-bend.gif",
+    "thumb_path": "abs/cable-side-bend.thumb.webp"
   },
   {
     "name": "Cable Side Bend Crunch Bosu Ball",
@@ -4004,7 +4773,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/cable-side-bend-crunch-bosu-ball.gif",
+    "thumb_path": "abs/cable-side-bend-crunch-bosu-ball.thumb.webp"
   },
   {
     "name": "Cable Side Crunch",
@@ -4012,7 +4783,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/cable-side-crunch.gif",
+    "thumb_path": "abs/cable-side-crunch.thumb.webp"
   },
   {
     "name": "Cable Squat Row With Rope Attachment",
@@ -4027,7 +4800,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-squat-row-with-rope-attachment.gif",
+    "thumb_path": "lats/cable-squat-row-with-rope-attachment.thumb.webp"
   },
   {
     "name": "Cable Squatting Curl",
@@ -4040,7 +4815,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-squatting-curl.gif",
+    "thumb_path": "biceps/cable-squatting-curl.thumb.webp"
   },
   {
     "name": "Cable Standing Back Wrist Curl",
@@ -4050,7 +4827,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/cable-standing-back-wrist-curl.gif",
+    "thumb_path": "forearms/cable-standing-back-wrist-curl.thumb.webp"
   },
   {
     "name": "Cable Standing Calf Raise",
@@ -4058,7 +4837,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/cable-standing-calf-raise.gif",
+    "thumb_path": "calves/cable-standing-calf-raise.thumb.webp"
   },
   {
     "name": "Cable Standing Cross Over High Reverse Fly",
@@ -4069,7 +4850,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "upper_back"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-standing-cross-over-high-reverse-fly.gif",
+    "thumb_path": "delts/cable-standing-cross-over-high-reverse-fly.thumb.webp"
   },
   {
     "name": "Cable Standing Crunch",
@@ -4077,7 +4860,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/cable-standing-crunch.gif",
+    "thumb_path": "abs/cable-standing-crunch.thumb.webp"
   },
   {
     "name": "Cable Standing Crunch With Rope Attachment",
@@ -4085,7 +4870,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/cable-standing-crunch-with-rope-attachment.gif",
+    "thumb_path": "abs/cable-standing-crunch-with-rope-attachment.thumb.webp"
   },
   {
     "name": "Cable Standing Fly",
@@ -4095,7 +4882,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-standing-fly.gif",
+    "thumb_path": "pectorals/cable-standing-fly.thumb.webp"
   },
   {
     "name": "Cable Standing Hip Extension",
@@ -4106,7 +4895,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/cable-standing-hip-extension.gif",
+    "thumb_path": "glutes/cable-standing-hip-extension.thumb.webp"
   },
   {
     "name": "Cable Standing Inner Curl",
@@ -4116,7 +4907,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-standing-inner-curl.gif",
+    "thumb_path": "biceps/cable-standing-inner-curl.thumb.webp"
   },
   {
     "name": "Cable Standing Lift",
@@ -4124,7 +4917,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/cable-standing-lift.gif",
+    "thumb_path": "abs/cable-standing-lift.thumb.webp"
   },
   {
     "name": "Cable Standing One Arm Triceps Extension",
@@ -4134,7 +4929,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-standing-one-arm-triceps-extension.gif",
+    "thumb_path": "triceps/cable-standing-one-arm-triceps-extension.thumb.webp"
   },
   {
     "name": "Cable Standing One Leg Calf Raise",
@@ -4142,7 +4939,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/cable-standing-one-leg-calf-raise.gif",
+    "thumb_path": "calves/cable-standing-one-leg-calf-raise.thumb.webp"
   },
   {
     "name": "Cable Standing Pulldown With Rope",
@@ -4153,7 +4952,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-standing-pulldown-with-rope.gif",
+    "thumb_path": "biceps/cable-standing-pulldown-with-rope.thumb.webp"
   },
   {
     "name": "Cable Standing Rear Delt Row With Rope",
@@ -4164,7 +4965,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-standing-rear-delt-row-with-rope.gif",
+    "thumb_path": "delts/cable-standing-rear-delt-row-with-rope.thumb.webp"
   },
   {
     "name": "Cable Standing Reverse Grip One Arm Overhead Tricep Extension",
@@ -4174,7 +4977,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-standing-reverse-grip-one-arm-overhead-tricep-extension.gif",
+    "thumb_path": "triceps/cable-standing-reverse-grip-one-arm-overhead-tricep-extension.thumb.webp"
   },
   {
     "name": "Cable Standing Row V Bar",
@@ -4187,7 +4992,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-standing-row-v-bar.gif",
+    "thumb_path": "upper-back/cable-standing-row-v-bar.thumb.webp"
   },
   {
     "name": "Cable Standing Shoulder External Rotation",
@@ -4195,7 +5002,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "front_delt",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-standing-shoulder-external-rotation.gif",
+    "thumb_path": "delts/cable-standing-shoulder-external-rotation.thumb.webp"
   },
   {
     "name": "Cable Standing Twist Row V Bar",
@@ -4208,7 +5017,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-standing-twist-row-v-bar.gif",
+    "thumb_path": "upper-back/cable-standing-twist-row-v-bar.thumb.webp"
   },
   {
     "name": "Cable Standing Up Straight Crossovers",
@@ -4218,7 +5029,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-standing-up-straight-crossovers.gif",
+    "thumb_path": "pectorals/cable-standing-up-straight-crossovers.thumb.webp"
   },
   {
     "name": "Cable Straight Arm Pulldown",
@@ -4230,7 +5043,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-straight-arm-pulldown.gif",
+    "thumb_path": "lats/cable-straight-arm-pulldown.thumb.webp"
   },
   {
     "name": "Cable Straight Arm Pulldown With Rope",
@@ -4242,7 +5057,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-straight-arm-pulldown-with-rope.gif",
+    "thumb_path": "lats/cable-straight-arm-pulldown-with-rope.thumb.webp"
   },
   {
     "name": "Cable Straight Back Seated Row",
@@ -4255,7 +5072,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-straight-back-seated-row.gif",
+    "thumb_path": "upper-back/cable-straight-back-seated-row.thumb.webp"
   },
   {
     "name": "Cable Supine Reverse Fly",
@@ -4266,7 +5085,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "upper_back"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-supine-reverse-fly.gif",
+    "thumb_path": "delts/cable-supine-reverse-fly.thumb.webp"
   },
   {
     "name": "Cable Thibaudeau Kayak Row",
@@ -4278,7 +5099,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-thibaudeau-kayak-row.gif",
+    "thumb_path": "lats/cable-thibaudeau-kayak-row.thumb.webp"
   },
   {
     "name": "Cable Triceps Pushdown V Bar",
@@ -4288,7 +5111,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-triceps-pushdown-v-bar.gif",
+    "thumb_path": "triceps/cable-triceps-pushdown-v-bar.thumb.webp"
   },
   {
     "name": "Cable Triceps Pushdown V Bar With Arm Blaster",
@@ -4298,7 +5123,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-triceps-pushdown-v-bar-with-arm-blaster.gif",
+    "thumb_path": "triceps/cable-triceps-pushdown-v-bar-with-arm-blaster.thumb.webp"
   },
   {
     "name": "Cable Tuck Reverse Crunch",
@@ -4306,7 +5133,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/cable-tuck-reverse-crunch.gif",
+    "thumb_path": "abs/cable-tuck-reverse-crunch.thumb.webp"
   },
   {
     "name": "Cable Twist",
@@ -4314,7 +5143,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/cable-twist.gif",
+    "thumb_path": "abs/cable-twist.thumb.webp"
   },
   {
     "name": "Cable Twist Up Down",
@@ -4322,7 +5153,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/cable-twist-up-down.gif",
+    "thumb_path": "abs/cable-twist-up-down.thumb.webp"
   },
   {
     "name": "Cable Twisting Pull",
@@ -4330,7 +5163,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-twisting-pull.gif",
+    "thumb_path": "lats/cable-twisting-pull.thumb.webp"
   },
   {
     "name": "Cable Two Arm Curl On Incline Bench",
@@ -4340,7 +5175,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/cable-two-arm-curl-on-incline-bench.gif",
+    "thumb_path": "biceps/cable-two-arm-curl-on-incline-bench.thumb.webp"
   },
   {
     "name": "Cable Two Arm Tricep Kickback",
@@ -4350,7 +5187,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/cable-two-arm-tricep-kickback.gif",
+    "thumb_path": "triceps/cable-two-arm-tricep-kickback.thumb.webp"
   },
   {
     "name": "Cable Underhand Pulldown",
@@ -4362,7 +5201,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-underhand-pulldown.gif",
+    "thumb_path": "lats/cable-underhand-pulldown.thumb.webp"
   },
   {
     "name": "Cable Upper Chest Crossovers",
@@ -4372,7 +5213,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/cable-upper-chest-crossovers.gif",
+    "thumb_path": "pectorals/cable-upper-chest-crossovers.thumb.webp"
   },
   {
     "name": "Cable Upper Row",
@@ -4385,7 +5228,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cable-upper-row.gif",
+    "thumb_path": "upper-back/cable-upper-row.thumb.webp"
   },
   {
     "name": "Cable Upright Row",
@@ -4397,7 +5242,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/cable-upright-row.gif",
+    "thumb_path": "delts/cable-upright-row.thumb.webp"
   },
   {
     "name": "Cable Wide Grip Rear Pulldown Behind Neck",
@@ -4409,7 +5256,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/cable-wide-grip-rear-pulldown-behind-neck.gif",
+    "thumb_path": "lats/cable-wide-grip-rear-pulldown-behind-neck.thumb.webp"
   },
   {
     "name": "Cable Wrist Curl",
@@ -4419,7 +5268,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/cable-wrist-curl.gif",
+    "thumb_path": "forearms/cable-wrist-curl.thumb.webp"
   },
   {
     "name": "Calf Push Stretch With Hands Against Wall",
@@ -4427,7 +5278,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "calves/calf-push-stretch-with-hands-against-wall.gif",
+    "thumb_path": "calves/calf-push-stretch-with-hands-against-wall.thumb.webp"
   },
   {
     "name": "Calf Stretch With Hands Against Wall",
@@ -4435,7 +5288,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "calves/calf-stretch-with-hands-against-wall.gif",
+    "thumb_path": "calves/calf-stretch-with-hands-against-wall.thumb.webp"
   },
   {
     "name": "Calf Stretch With Rope",
@@ -4443,7 +5298,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "calves/calf-stretch-with-rope.gif",
+    "thumb_path": "calves/calf-stretch-with-rope.thumb.webp"
   },
   {
     "name": "Cambered Bar Lying Row",
@@ -4456,7 +5313,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/cambered-bar-lying-row.gif",
+    "thumb_path": "upper-back/cambered-bar-lying-row.thumb.webp"
   },
   {
     "name": "Captains Chair Straight Leg Raise",
@@ -4464,7 +5323,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/captains-chair-straight-leg-raise.gif",
+    "thumb_path": "abs/captains-chair-straight-leg-raise.thumb.webp"
   },
   {
     "name": "Chair Leg Extended Stretch",
@@ -4472,7 +5333,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "quads",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "quads/chair-leg-extended-stretch.gif",
+    "thumb_path": "quads/chair-leg-extended-stretch.thumb.webp"
   },
   {
     "name": "Chest And Front Of Shoulder Stretch",
@@ -4480,7 +5343,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "pectorals/chest-and-front-of-shoulder-stretch.gif",
+    "thumb_path": "pectorals/chest-and-front-of-shoulder-stretch.thumb.webp"
   },
   {
     "name": "Chest Dip",
@@ -4491,7 +5356,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/chest-dip.gif",
+    "thumb_path": "pectorals/chest-dip.thumb.webp"
   },
   {
     "name": "Chest Dip On Dip Pull Up Cage",
@@ -4504,7 +5371,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/chest-dip-on-dip-pull-up-cage.gif",
+    "thumb_path": "pectorals/chest-dip-on-dip-pull-up-cage.thumb.webp"
   },
   {
     "name": "Chest Dip On Straight Bar",
@@ -4515,7 +5384,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/chest-dip-on-straight-bar.gif",
+    "thumb_path": "pectorals/chest-dip-on-straight-bar.thumb.webp"
   },
   {
     "name": "Chest Stretch With Exercise Ball",
@@ -4523,7 +5394,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "pectorals/chest-stretch-with-exercise-ball.gif",
+    "thumb_path": "pectorals/chest-stretch-with-exercise-ball.thumb.webp"
   },
   {
     "name": "Chest Tap Push Up Male",
@@ -4534,7 +5407,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/chest-tap-push-up-male.gif",
+    "thumb_path": "pectorals/chest-tap-push-up-male.thumb.webp"
   },
   {
     "name": "Chin Up",
@@ -4546,7 +5421,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/chin-up.gif",
+    "thumb_path": "lats/chin-up.thumb.webp"
   },
   {
     "name": "Chin Ups Narrow Parallel Grip",
@@ -4559,7 +5436,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/chin-ups-narrow-parallel-grip.gif",
+    "thumb_path": "upper-back/chin-ups-narrow-parallel-grip.thumb.webp"
   },
   {
     "name": "Circles Knee Stretch",
@@ -4567,7 +5446,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "calves/circles-knee-stretch.gif",
+    "thumb_path": "calves/circles-knee-stretch.thumb.webp"
   },
   {
     "name": "Clap Push Up",
@@ -4578,7 +5459,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/clap-push-up.gif",
+    "thumb_path": "pectorals/clap-push-up.thumb.webp"
   },
   {
     "name": "Clock Push Up",
@@ -4589,7 +5472,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/clock-push-up.gif",
+    "thumb_path": "pectorals/clock-push-up.thumb.webp"
   },
   {
     "name": "Close Grip Chin Up",
@@ -4601,7 +5486,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/close-grip-chin-up.gif",
+    "thumb_path": "lats/close-grip-chin-up.thumb.webp"
   },
   {
     "name": "Close Grip Push Up",
@@ -4611,7 +5498,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/close-grip-push-up.gif",
+    "thumb_path": "triceps/close-grip-push-up.thumb.webp"
   },
   {
     "name": "Close Grip Push Up On Knees",
@@ -4621,7 +5510,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/close-grip-push-up-on-knees.gif",
+    "thumb_path": "triceps/close-grip-push-up-on-knees.thumb.webp"
   },
   {
     "name": "Cocoons",
@@ -4629,7 +5520,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/cocoons.gif",
+    "thumb_path": "abs/cocoons.thumb.webp"
   },
   {
     "name": "Crab Twist Toe Touch",
@@ -4637,7 +5530,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/crab-twist-toe-touch.gif",
+    "thumb_path": "abs/crab-twist-toe-touch.thumb.webp"
   },
   {
     "name": "Cross Body Crunch",
@@ -4645,7 +5540,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/cross-body-crunch.gif",
+    "thumb_path": "abs/cross-body-crunch.thumb.webp"
   },
   {
     "name": "Crunch Floor",
@@ -4653,7 +5550,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/crunch-floor.gif",
+    "thumb_path": "abs/crunch-floor.thumb.webp"
   },
   {
     "name": "Crunch Hands Overhead",
@@ -4661,7 +5560,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/crunch-hands-overhead.gif",
+    "thumb_path": "abs/crunch-hands-overhead.thumb.webp"
   },
   {
     "name": "Crunch On Stability Ball",
@@ -4669,7 +5570,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/crunch-on-stability-ball.gif",
+    "thumb_path": "abs/crunch-on-stability-ball.thumb.webp"
   },
   {
     "name": "Crunch On Stability Ball Arms Straight",
@@ -4677,7 +5580,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/crunch-on-stability-ball-arms-straight.gif",
+    "thumb_path": "abs/crunch-on-stability-ball-arms-straight.thumb.webp"
   },
   {
     "name": "Curl Up",
@@ -4685,7 +5590,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/curl-up.gif",
+    "thumb_path": "abs/curl-up.thumb.webp"
   },
   {
     "name": "Curtsey Squat",
@@ -4696,7 +5603,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/curtsey-squat.gif",
+    "thumb_path": "glutes/curtsey-squat.thumb.webp"
   },
   {
     "name": "Cycle Cross Trainer",
@@ -4704,7 +5613,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "machine",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/cycle-cross-trainer.gif",
+    "thumb_path": "cardio/cycle-cross-trainer.thumb.webp"
   },
   {
     "name": "Dead Bug",
@@ -4712,7 +5623,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/dead-bug.gif",
+    "thumb_path": "abs/dead-bug.thumb.webp"
   },
   {
     "name": "Decline Crunch",
@@ -4720,7 +5633,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/decline-crunch.gif",
+    "thumb_path": "abs/decline-crunch.thumb.webp"
   },
   {
     "name": "Decline Push Up",
@@ -4731,7 +5646,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/decline-push-up.gif",
+    "thumb_path": "pectorals/decline-push-up.thumb.webp"
   },
   {
     "name": "Decline Sit Up",
@@ -4739,7 +5656,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/decline-sit-up.gif",
+    "thumb_path": "abs/decline-sit-up.thumb.webp"
   },
   {
     "name": "Deep Push Up",
@@ -4750,7 +5669,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/deep-push-up.gif",
+    "thumb_path": "pectorals/deep-push-up.thumb.webp"
   },
   {
     "name": "Diamond Push Up",
@@ -4760,7 +5681,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/diamond-push-up.gif",
+    "thumb_path": "triceps/diamond-push-up.thumb.webp"
   },
   {
     "name": "Donkey Calf Raise",
@@ -4768,7 +5691,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/donkey-calf-raise.gif",
+    "thumb_path": "calves/donkey-calf-raise.thumb.webp"
   },
   {
     "name": "Drop Push Up",
@@ -4779,7 +5704,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/drop-push-up.gif",
+    "thumb_path": "pectorals/drop-push-up.thumb.webp"
   },
   {
     "name": "Dumbbell Alternate Biceps Curl",
@@ -4789,7 +5716,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-alternate-biceps-curl.gif",
+    "thumb_path": "biceps/dumbbell-alternate-biceps-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Alternate Biceps Curl With Arm Blaster",
@@ -4799,7 +5728,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-alternate-biceps-curl-with-arm-blaster.gif",
+    "thumb_path": "biceps/dumbbell-alternate-biceps-curl-with-arm-blaster.thumb.webp"
   },
   {
     "name": "Dumbbell Alternate Hammer Preacher Curl",
@@ -4809,7 +5740,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-alternate-hammer-preacher-curl.gif",
+    "thumb_path": "biceps/dumbbell-alternate-hammer-preacher-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Alternate Preacher Curl",
@@ -4819,7 +5752,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-alternate-preacher-curl.gif",
+    "thumb_path": "biceps/dumbbell-alternate-preacher-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Alternate Seated Hammer Curl",
@@ -4829,7 +5764,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-alternate-seated-hammer-curl.gif",
+    "thumb_path": "biceps/dumbbell-alternate-seated-hammer-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Alternate Side Press",
@@ -4839,7 +5776,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-alternate-side-press.gif",
+    "thumb_path": "delts/dumbbell-alternate-side-press.thumb.webp"
   },
   {
     "name": "Dumbbell Alternating Bicep Curl With Leg Raised On Exercise Ball",
@@ -4849,7 +5788,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-alternating-bicep-curl-with-leg-raised-on-exercise-ball.gif",
+    "thumb_path": "biceps/dumbbell-alternating-bicep-curl-with-leg-raised-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Alternating Seated Bicep Curl On Exercise Ball",
@@ -4859,7 +5800,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-alternating-seated-bicep-curl-on-exercise-ball.gif",
+    "thumb_path": "biceps/dumbbell-alternating-seated-bicep-curl-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Arnold Press",
@@ -4869,7 +5812,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-arnold-press.gif",
+    "thumb_path": "delts/dumbbell-arnold-press.thumb.webp"
   },
   {
     "name": "Dumbbell Arnold Press v2",
@@ -4879,7 +5824,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-arnold-press-v-2.gif",
+    "thumb_path": "delts/dumbbell-arnold-press-v-2.thumb.webp"
   },
   {
     "name": "Dumbbell Around Pullover",
@@ -4887,7 +5834,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-around-pullover.gif",
+    "thumb_path": "pectorals/dumbbell-around-pullover.thumb.webp"
   },
   {
     "name": "Dumbbell Bench Press",
@@ -4898,7 +5847,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-bench-press.gif",
+    "thumb_path": "pectorals/dumbbell-bench-press.thumb.webp"
   },
   {
     "name": "Dumbbell Bench Seated Press",
@@ -4908,7 +5859,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-bench-seated-press.gif",
+    "thumb_path": "delts/dumbbell-bench-seated-press.thumb.webp"
   },
   {
     "name": "Dumbbell Bench Squat",
@@ -4919,7 +5872,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/dumbbell-bench-squat.gif",
+    "thumb_path": "glutes/dumbbell-bench-squat.thumb.webp"
   },
   {
     "name": "Dumbbell Bent Over Row",
@@ -4932,7 +5887,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/dumbbell-bent-over-row.gif",
+    "thumb_path": "upper-back/dumbbell-bent-over-row.thumb.webp"
   },
   {
     "name": "Dumbbell Bicep Curl Lunge With Bowling Motion",
@@ -4945,7 +5902,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-bicep-curl-lunge-with-bowling-motion.gif",
+    "thumb_path": "biceps/dumbbell-bicep-curl-lunge-with-bowling-motion.thumb.webp"
   },
   {
     "name": "Dumbbell Bicep Curl On Exercise Ball With Leg Raised",
@@ -4955,7 +5914,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-bicep-curl-on-exercise-ball-with-leg-raised.gif",
+    "thumb_path": "biceps/dumbbell-bicep-curl-on-exercise-ball-with-leg-raised.thumb.webp"
   },
   {
     "name": "Dumbbell Bicep Curl With Stork Stance",
@@ -4965,7 +5926,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-bicep-curl-with-stork-stance.gif",
+    "thumb_path": "biceps/dumbbell-bicep-curl-with-stork-stance.thumb.webp"
   },
   {
     "name": "Dumbbell Biceps Curl",
@@ -4975,7 +5938,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-biceps-curl.gif",
+    "thumb_path": "biceps/dumbbell-biceps-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Biceps Curl Reverse",
@@ -4985,7 +5950,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-biceps-curl-reverse.gif",
+    "thumb_path": "biceps/dumbbell-biceps-curl-reverse.thumb.webp"
   },
   {
     "name": "Dumbbell Biceps Curl Squat",
@@ -4998,7 +5965,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-biceps-curl-squat.gif",
+    "thumb_path": "biceps/dumbbell-biceps-curl-squat.thumb.webp"
   },
   {
     "name": "Dumbbell Biceps Curl V Sit On Bosu Ball",
@@ -5008,7 +5977,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-biceps-curl-v-sit-on-bosu-ball.gif",
+    "thumb_path": "biceps/dumbbell-biceps-curl-v-sit-on-bosu-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Biceps Curl With Arm Blaster",
@@ -5018,7 +5989,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-biceps-curl-with-arm-blaster.gif",
+    "thumb_path": "biceps/dumbbell-biceps-curl-with-arm-blaster.thumb.webp"
   },
   {
     "name": "Dumbbell Burpee",
@@ -5032,7 +6005,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/dumbbell-burpee.gif",
+    "thumb_path": "cardio/dumbbell-burpee.thumb.webp"
   },
   {
     "name": "Dumbbell Clean",
@@ -5046,7 +6021,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/dumbbell-clean.gif",
+    "thumb_path": "glutes/dumbbell-clean.thumb.webp"
   },
   {
     "name": "Dumbbell Close Grip Press",
@@ -5056,7 +6033,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-close-grip-press.gif",
+    "thumb_path": "triceps/dumbbell-close-grip-press.thumb.webp"
   },
   {
     "name": "Dumbbell Close Grip Press 1731",
@@ -5066,7 +6045,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-close-grip-press-1731.gif",
+    "thumb_path": "triceps/dumbbell-close-grip-press-1731.thumb.webp"
   },
   {
     "name": "Dumbbell Concentration Curl",
@@ -5076,7 +6057,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-concentration-curl.gif",
+    "thumb_path": "biceps/dumbbell-concentration-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Contralateral Forward Lunge",
@@ -5087,7 +6070,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/dumbbell-contralateral-forward-lunge.gif",
+    "thumb_path": "glutes/dumbbell-contralateral-forward-lunge.thumb.webp"
   },
   {
     "name": "Dumbbell Cross Body Hammer Curl",
@@ -5097,7 +6082,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-cross-body-hammer-curl.gif",
+    "thumb_path": "biceps/dumbbell-cross-body-hammer-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Cross Body Hammer Curl v2",
@@ -5107,7 +6094,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-cross-body-hammer-curl-v-2.gif",
+    "thumb_path": "biceps/dumbbell-cross-body-hammer-curl-v-2.thumb.webp"
   },
   {
     "name": "Dumbbell Cuban Press",
@@ -5117,7 +6106,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-cuban-press.gif",
+    "thumb_path": "delts/dumbbell-cuban-press.thumb.webp"
   },
   {
     "name": "Dumbbell Cuban Press v2",
@@ -5127,7 +6118,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-cuban-press-v-2.gif",
+    "thumb_path": "delts/dumbbell-cuban-press-v-2.thumb.webp"
   },
   {
     "name": "Dumbbell Deadlift",
@@ -5141,7 +6134,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/dumbbell-deadlift.gif",
+    "thumb_path": "glutes/dumbbell-deadlift.thumb.webp"
   },
   {
     "name": "Dumbbell Decline Bench Press",
@@ -5152,7 +6147,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-decline-bench-press.gif",
+    "thumb_path": "pectorals/dumbbell-decline-bench-press.thumb.webp"
   },
   {
     "name": "Dumbbell Decline Fly",
@@ -5162,7 +6159,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-decline-fly.gif",
+    "thumb_path": "pectorals/dumbbell-decline-fly.thumb.webp"
   },
   {
     "name": "Dumbbell Decline Hammer Press",
@@ -5173,7 +6172,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-decline-hammer-press.gif",
+    "thumb_path": "pectorals/dumbbell-decline-hammer-press.thumb.webp"
   },
   {
     "name": "Dumbbell Decline One Arm Fly",
@@ -5183,7 +6184,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-decline-one-arm-fly.gif",
+    "thumb_path": "pectorals/dumbbell-decline-one-arm-fly.thumb.webp"
   },
   {
     "name": "Dumbbell Decline One Arm Hammer Press",
@@ -5193,7 +6196,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-decline-one-arm-hammer-press.gif",
+    "thumb_path": "triceps/dumbbell-decline-one-arm-hammer-press.thumb.webp"
   },
   {
     "name": "Dumbbell Decline Shrug",
@@ -5204,7 +6209,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "traps/dumbbell-decline-shrug.gif",
+    "thumb_path": "traps/dumbbell-decline-shrug.thumb.webp"
   },
   {
     "name": "Dumbbell Decline Shrug v2",
@@ -5215,7 +6222,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "traps/dumbbell-decline-shrug-v-2.gif",
+    "thumb_path": "traps/dumbbell-decline-shrug-v-2.thumb.webp"
   },
   {
     "name": "Dumbbell Decline Triceps Extension",
@@ -5225,7 +6234,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-decline-triceps-extension.gif",
+    "thumb_path": "triceps/dumbbell-decline-triceps-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Decline Twist Fly",
@@ -5235,7 +6246,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-decline-twist-fly.gif",
+    "thumb_path": "pectorals/dumbbell-decline-twist-fly.thumb.webp"
   },
   {
     "name": "Dumbbell Finger Curls",
@@ -5243,7 +6256,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "forearms",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/dumbbell-finger-curls.gif",
+    "thumb_path": "forearms/dumbbell-finger-curls.thumb.webp"
   },
   {
     "name": "Dumbbell Fly",
@@ -5253,7 +6268,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-fly.gif",
+    "thumb_path": "pectorals/dumbbell-fly.thumb.webp"
   },
   {
     "name": "Dumbbell Fly On Exercise Ball",
@@ -5263,7 +6280,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-fly-on-exercise-ball.gif",
+    "thumb_path": "pectorals/dumbbell-fly-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Forward Lunge Triceps Extension",
@@ -5276,7 +6295,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-forward-lunge-triceps-extension.gif",
+    "thumb_path": "triceps/dumbbell-forward-lunge-triceps-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Front Raise",
@@ -5286,7 +6307,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-front-raise.gif",
+    "thumb_path": "delts/dumbbell-front-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Front Raise v2",
@@ -5296,7 +6319,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-front-raise-v-2.gif",
+    "thumb_path": "delts/dumbbell-front-raise-v-2.thumb.webp"
   },
   {
     "name": "Dumbbell Full Can Lateral Raise",
@@ -5306,7 +6331,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-full-can-lateral-raise.gif",
+    "thumb_path": "delts/dumbbell-full-can-lateral-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Goblet Squat",
@@ -5318,7 +6345,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/dumbbell-goblet-squat.gif",
+    "thumb_path": "quads/dumbbell-goblet-squat.thumb.webp"
   },
   {
     "name": "Dumbbell Hammer Curl",
@@ -5328,7 +6357,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-hammer-curl.gif",
+    "thumb_path": "biceps/dumbbell-hammer-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Hammer Curl On Exercise Ball",
@@ -5338,7 +6369,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-hammer-curl-on-exercise-ball.gif",
+    "thumb_path": "biceps/dumbbell-hammer-curl-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Hammer Curl v2",
@@ -5348,7 +6381,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-hammer-curl-v-2.gif",
+    "thumb_path": "biceps/dumbbell-hammer-curl-v-2.thumb.webp"
   },
   {
     "name": "Dumbbell Hammer Curls With Arm Blaster",
@@ -5358,7 +6393,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-hammer-curls-with-arm-blaster.gif",
+    "thumb_path": "biceps/dumbbell-hammer-curls-with-arm-blaster.thumb.webp"
   },
   {
     "name": "Dumbbell High Curl",
@@ -5368,7 +6405,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-high-curl.gif",
+    "thumb_path": "biceps/dumbbell-high-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Alternate Press",
@@ -5379,7 +6418,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-incline-alternate-press.gif",
+    "thumb_path": "pectorals/dumbbell-incline-alternate-press.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Bench Press",
@@ -5390,7 +6431,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-incline-bench-press.gif",
+    "thumb_path": "pectorals/dumbbell-incline-bench-press.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Biceps Curl",
@@ -5400,7 +6443,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-incline-biceps-curl.gif",
+    "thumb_path": "biceps/dumbbell-incline-biceps-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Breeding",
@@ -5408,7 +6453,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "upper_chest",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-incline-breeding.gif",
+    "thumb_path": "pectorals/dumbbell-incline-breeding.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Curl",
@@ -5418,7 +6465,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-incline-curl.gif",
+    "thumb_path": "biceps/dumbbell-incline-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Curl v2",
@@ -5428,7 +6477,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-incline-curl-v-2.gif",
+    "thumb_path": "biceps/dumbbell-incline-curl-v-2.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Fly",
@@ -5438,7 +6489,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-incline-fly.gif",
+    "thumb_path": "pectorals/dumbbell-incline-fly.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Fly On Exercise Ball",
@@ -5448,7 +6501,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-incline-fly-on-exercise-ball.gif",
+    "thumb_path": "pectorals/dumbbell-incline-fly-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Hammer Curl",
@@ -5458,7 +6513,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-incline-hammer-curl.gif",
+    "thumb_path": "biceps/dumbbell-incline-hammer-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Hammer Press",
@@ -5469,7 +6526,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-incline-hammer-press.gif",
+    "thumb_path": "pectorals/dumbbell-incline-hammer-press.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Hammer Press On Exercise Ball",
@@ -5479,7 +6538,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-incline-hammer-press-on-exercise-ball.gif",
+    "thumb_path": "triceps/dumbbell-incline-hammer-press-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Inner Biceps Curl",
@@ -5489,7 +6550,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-incline-inner-biceps-curl.gif",
+    "thumb_path": "biceps/dumbbell-incline-inner-biceps-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Incline One Arm Fly",
@@ -5499,7 +6562,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-incline-one-arm-fly.gif",
+    "thumb_path": "pectorals/dumbbell-incline-one-arm-fly.thumb.webp"
   },
   {
     "name": "Dumbbell Incline One Arm Fly On Exercise Ball",
@@ -5509,7 +6574,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-incline-one-arm-fly-on-exercise-ball.gif",
+    "thumb_path": "pectorals/dumbbell-incline-one-arm-fly-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Incline One Arm Hammer Press",
@@ -5519,7 +6586,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-incline-one-arm-hammer-press.gif",
+    "thumb_path": "triceps/dumbbell-incline-one-arm-hammer-press.thumb.webp"
   },
   {
     "name": "Dumbbell Incline One Arm Hammer Press On Exercise Ball",
@@ -5529,7 +6598,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-incline-one-arm-hammer-press-on-exercise-ball.gif",
+    "thumb_path": "triceps/dumbbell-incline-one-arm-hammer-press-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Incline One Arm Lateral Raise",
@@ -5539,7 +6610,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-incline-one-arm-lateral-raise.gif",
+    "thumb_path": "delts/dumbbell-incline-one-arm-lateral-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Incline One Arm Press",
@@ -5550,7 +6623,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-incline-one-arm-press.gif",
+    "thumb_path": "pectorals/dumbbell-incline-one-arm-press.thumb.webp"
   },
   {
     "name": "Dumbbell Incline One Arm Press On Exercise Ball",
@@ -5561,7 +6636,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-incline-one-arm-press-on-exercise-ball.gif",
+    "thumb_path": "pectorals/dumbbell-incline-one-arm-press-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Palm In Press",
@@ -5572,7 +6649,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-incline-palm-in-press.gif",
+    "thumb_path": "pectorals/dumbbell-incline-palm-in-press.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Press On Exercise Ball",
@@ -5583,7 +6662,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-incline-press-on-exercise-ball.gif",
+    "thumb_path": "pectorals/dumbbell-incline-press-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Raise",
@@ -5593,7 +6674,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-incline-raise.gif",
+    "thumb_path": "delts/dumbbell-incline-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Rear Lateral Raise",
@@ -5603,7 +6686,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-incline-rear-lateral-raise.gif",
+    "thumb_path": "delts/dumbbell-incline-rear-lateral-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Row",
@@ -5616,7 +6701,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/dumbbell-incline-row.gif",
+    "thumb_path": "upper-back/dumbbell-incline-row.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Shoulder Raise",
@@ -5624,7 +6711,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "serratus_anterior",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "serratus-anterior/dumbbell-incline-shoulder-raise.gif",
+    "thumb_path": "serratus-anterior/dumbbell-incline-shoulder-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Shrug",
@@ -5635,7 +6724,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "traps/dumbbell-incline-shrug.gif",
+    "thumb_path": "traps/dumbbell-incline-shrug.thumb.webp"
   },
   {
     "name": "Dumbbell Incline T Raise",
@@ -5645,7 +6736,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-incline-t-raise.gif",
+    "thumb_path": "delts/dumbbell-incline-t-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Triceps Extension",
@@ -5655,7 +6748,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-incline-triceps-extension.gif",
+    "thumb_path": "triceps/dumbbell-incline-triceps-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Twisted Flyes",
@@ -5665,7 +6760,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-incline-twisted-flyes.gif",
+    "thumb_path": "pectorals/dumbbell-incline-twisted-flyes.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Two Arm Extension",
@@ -5675,7 +6772,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-incline-two-arm-extension.gif",
+    "thumb_path": "triceps/dumbbell-incline-two-arm-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Incline Y Raise",
@@ -5683,7 +6782,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "traps",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/dumbbell-incline-y-raise.gif",
+    "thumb_path": "upper-back/dumbbell-incline-y-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Iron Cross",
@@ -5695,7 +6796,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-iron-cross.gif",
+    "thumb_path": "delts/dumbbell-iron-cross.thumb.webp"
   },
   {
     "name": "Dumbbell Kickback",
@@ -5705,7 +6808,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-kickback.gif",
+    "thumb_path": "triceps/dumbbell-kickback.thumb.webp"
   },
   {
     "name": "Dumbbell Kickbacks On Exercise Ball",
@@ -5715,7 +6820,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-kickbacks-on-exercise-ball.gif",
+    "thumb_path": "triceps/dumbbell-kickbacks-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Kneeling Bicep Curl Exercise Ball",
@@ -5725,7 +6832,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-kneeling-bicep-curl-exercise-ball.gif",
+    "thumb_path": "biceps/dumbbell-kneeling-bicep-curl-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Lateral Raise",
@@ -5735,7 +6844,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-lateral-raise.gif",
+    "thumb_path": "delts/dumbbell-lateral-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Lateral To Front Raise",
@@ -5745,7 +6856,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-lateral-to-front-raise.gif",
+    "thumb_path": "delts/dumbbell-lateral-to-front-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Lunge",
@@ -5756,7 +6869,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/dumbbell-lunge.gif",
+    "thumb_path": "glutes/dumbbell-lunge.thumb.webp"
   },
   {
     "name": "Dumbbell Lunge With Bicep Curl",
@@ -5769,7 +6884,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-lunge-with-bicep-curl.gif",
+    "thumb_path": "biceps/dumbbell-lunge-with-bicep-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Lying Alternate Extension",
@@ -5779,7 +6896,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-lying-alternate-extension.gif",
+    "thumb_path": "triceps/dumbbell-lying-alternate-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Lying Elbow Press",
@@ -5789,7 +6908,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-lying-elbow-press.gif",
+    "thumb_path": "triceps/dumbbell-lying-elbow-press.thumb.webp"
   },
   {
     "name": "Dumbbell Lying Extension Across Face",
@@ -5799,7 +6920,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-lying-extension-across-face.gif",
+    "thumb_path": "triceps/dumbbell-lying-extension-across-face.thumb.webp"
   },
   {
     "name": "Dumbbell Lying External Shoulder Rotation",
@@ -5807,7 +6930,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "front_delt",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-lying-external-shoulder-rotation.gif",
+    "thumb_path": "delts/dumbbell-lying-external-shoulder-rotation.thumb.webp"
   },
   {
     "name": "Dumbbell Lying Femoral",
@@ -5815,7 +6940,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "hamstrings",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/dumbbell-lying-femoral.gif",
+    "thumb_path": "hamstrings/dumbbell-lying-femoral.thumb.webp"
   },
   {
     "name": "Dumbbell Lying Hammer Press",
@@ -5826,7 +6953,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-lying-hammer-press.gif",
+    "thumb_path": "pectorals/dumbbell-lying-hammer-press.thumb.webp"
   },
   {
     "name": "Dumbbell Lying On Floor Rear Delt Raise",
@@ -5836,7 +6965,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-lying-on-floor-rear-delt-raise.gif",
+    "thumb_path": "delts/dumbbell-lying-on-floor-rear-delt-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Lying One Arm Deltoid Rear",
@@ -5844,7 +6975,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "rear_delt",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-lying-one-arm-deltoid-rear.gif",
+    "thumb_path": "delts/dumbbell-lying-one-arm-deltoid-rear.thumb.webp"
   },
   {
     "name": "Dumbbell Lying One Arm Press",
@@ -5855,7 +6988,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-lying-one-arm-press.gif",
+    "thumb_path": "pectorals/dumbbell-lying-one-arm-press.thumb.webp"
   },
   {
     "name": "Dumbbell Lying One Arm Press v2",
@@ -5866,7 +7001,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-lying-one-arm-press-v-2.gif",
+    "thumb_path": "pectorals/dumbbell-lying-one-arm-press-v-2.thumb.webp"
   },
   {
     "name": "Dumbbell Lying One Arm Pronated Triceps Extension",
@@ -5876,7 +7013,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-lying-one-arm-pronated-triceps-extension.gif",
+    "thumb_path": "triceps/dumbbell-lying-one-arm-pronated-triceps-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Lying One Arm Rear Lateral Raise",
@@ -5886,7 +7025,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-lying-one-arm-rear-lateral-raise.gif",
+    "thumb_path": "delts/dumbbell-lying-one-arm-rear-lateral-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Lying One Arm Supinated Triceps Extension",
@@ -5896,7 +7037,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-lying-one-arm-supinated-triceps-extension.gif",
+    "thumb_path": "triceps/dumbbell-lying-one-arm-supinated-triceps-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Lying Pronation",
@@ -5904,7 +7047,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "forearms",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/dumbbell-lying-pronation.gif",
+    "thumb_path": "forearms/dumbbell-lying-pronation.thumb.webp"
   },
   {
     "name": "Dumbbell Lying Pronation On Floor",
@@ -5912,7 +7057,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "forearms",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/dumbbell-lying-pronation-on-floor.gif",
+    "thumb_path": "forearms/dumbbell-lying-pronation-on-floor.thumb.webp"
   },
   {
     "name": "Dumbbell Lying Pullover On Exercise Ball",
@@ -5920,7 +7067,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-lying-pullover-on-exercise-ball.gif",
+    "thumb_path": "pectorals/dumbbell-lying-pullover-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Lying Rear Delt Row",
@@ -5933,7 +7082,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/dumbbell-lying-rear-delt-row.gif",
+    "thumb_path": "upper-back/dumbbell-lying-rear-delt-row.thumb.webp"
   },
   {
     "name": "Dumbbell Lying Rear Lateral Raise",
@@ -5943,7 +7094,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-lying-rear-lateral-raise.gif",
+    "thumb_path": "delts/dumbbell-lying-rear-lateral-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Lying Single Extension",
@@ -5953,7 +7106,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-lying-single-extension.gif",
+    "thumb_path": "triceps/dumbbell-lying-single-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Lying Supination",
@@ -5961,7 +7116,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "forearms",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/dumbbell-lying-supination.gif",
+    "thumb_path": "forearms/dumbbell-lying-supination.thumb.webp"
   },
   {
     "name": "Dumbbell Lying Supination On Floor",
@@ -5969,7 +7126,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "forearms",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/dumbbell-lying-supination-on-floor.gif",
+    "thumb_path": "forearms/dumbbell-lying-supination-on-floor.thumb.webp"
   },
   {
     "name": "Dumbbell Lying Supine Biceps Curl",
@@ -5979,7 +7138,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-lying-supine-biceps-curl.gif",
+    "thumb_path": "biceps/dumbbell-lying-supine-biceps-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Lying Supine Curl",
@@ -5989,7 +7150,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-lying-supine-curl.gif",
+    "thumb_path": "biceps/dumbbell-lying-supine-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Lying Triceps Extension",
@@ -5999,7 +7162,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-lying-triceps-extension.gif",
+    "thumb_path": "triceps/dumbbell-lying-triceps-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Lying Wide Curl",
@@ -6009,7 +7174,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-lying-wide-curl.gif",
+    "thumb_path": "biceps/dumbbell-lying-wide-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Neutral Grip Bench Press",
@@ -6019,7 +7186,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-neutral-grip-bench-press.gif",
+    "thumb_path": "triceps/dumbbell-neutral-grip-bench-press.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Bench Fly",
@@ -6029,7 +7198,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-one-arm-bench-fly.gif",
+    "thumb_path": "pectorals/dumbbell-one-arm-bench-fly.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Bent Over Row",
@@ -6042,7 +7213,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/dumbbell-one-arm-bent-over-row.gif",
+    "thumb_path": "upper-back/dumbbell-one-arm-bent-over-row.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Chest Fly On Exercise Ball",
@@ -6052,7 +7225,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-one-arm-chest-fly-on-exercise-ball.gif",
+    "thumb_path": "pectorals/dumbbell-one-arm-chest-fly-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Concentration Curl On Stability Ball",
@@ -6062,7 +7237,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-one-arm-concentration-curl-on-stability-ball.gif",
+    "thumb_path": "biceps/dumbbell-one-arm-concentration-curl-on-stability-ball.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Decline Chest Press",
@@ -6073,7 +7250,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-one-arm-decline-chest-press.gif",
+    "thumb_path": "pectorals/dumbbell-one-arm-decline-chest-press.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Fly On Exercise Ball",
@@ -6083,7 +7262,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-one-arm-fly-on-exercise-ball.gif",
+    "thumb_path": "pectorals/dumbbell-one-arm-fly-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm French Press On Exercise Ball",
@@ -6093,7 +7274,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-one-arm-french-press-on-exercise-ball.gif",
+    "thumb_path": "triceps/dumbbell-one-arm-french-press-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Hammer Preacher Curl",
@@ -6103,7 +7286,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-one-arm-hammer-preacher-curl.gif",
+    "thumb_path": "biceps/dumbbell-one-arm-hammer-preacher-curl.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Hammer Press On Exercise Ball",
@@ -6113,7 +7298,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-one-arm-hammer-press-on-exercise-ball.gif",
+    "thumb_path": "triceps/dumbbell-one-arm-hammer-press-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Incline Chest Press",
@@ -6124,7 +7311,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-one-arm-incline-chest-press.gif",
+    "thumb_path": "pectorals/dumbbell-one-arm-incline-chest-press.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Kickback",
@@ -6134,7 +7323,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-one-arm-kickback.gif",
+    "thumb_path": "triceps/dumbbell-one-arm-kickback.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Lateral Raise",
@@ -6144,7 +7335,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-one-arm-lateral-raise.gif",
+    "thumb_path": "delts/dumbbell-one-arm-lateral-raise.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Lateral Raise With Support",
@@ -6154,7 +7347,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-one-arm-lateral-raise-with-support.gif",
+    "thumb_path": "delts/dumbbell-one-arm-lateral-raise-with-support.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Press On Exercise Ball",
@@ -6165,7 +7360,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-one-arm-press-on-exercise-ball.gif",
+    "thumb_path": "pectorals/dumbbell-one-arm-press-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Prone Curl",
@@ -6175,7 +7372,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-one-arm-prone-curl.gif",
+    "thumb_path": "biceps/dumbbell-one-arm-prone-curl.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Prone Hammer Curl",
@@ -6185,7 +7384,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-one-arm-prone-hammer-curl.gif",
+    "thumb_path": "biceps/dumbbell-one-arm-prone-hammer-curl.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Pullover On Exercise Ball",
@@ -6193,7 +7394,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-one-arm-pullover-on-exercise-ball.gif",
+    "thumb_path": "pectorals/dumbbell-one-arm-pullover-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Reverse Fly With Support",
@@ -6204,7 +7407,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "upper_back"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-one-arm-reverse-fly-with-support.gif",
+    "thumb_path": "delts/dumbbell-one-arm-reverse-fly-with-support.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Reverse Grip Press",
@@ -6215,7 +7420,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-one-arm-reverse-grip-press.gif",
+    "thumb_path": "pectorals/dumbbell-one-arm-reverse-grip-press.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Reverse Preacher Curl",
@@ -6225,7 +7432,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-one-arm-reverse-preacher-curl.gif",
+    "thumb_path": "biceps/dumbbell-one-arm-reverse-preacher-curl.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Reverse Spider Curl",
@@ -6235,7 +7444,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-one-arm-reverse-spider-curl.gif",
+    "thumb_path": "biceps/dumbbell-one-arm-reverse-spider-curl.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Reverse Wrist Curl",
@@ -6245,7 +7456,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/dumbbell-one-arm-reverse-wrist-curl.gif",
+    "thumb_path": "forearms/dumbbell-one-arm-reverse-wrist-curl.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Seated Bicep Curl On Exercise Ball",
@@ -6255,7 +7468,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-one-arm-seated-bicep-curl-on-exercise-ball.gif",
+    "thumb_path": "biceps/dumbbell-one-arm-seated-bicep-curl-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Seated Hammer Curl",
@@ -6265,7 +7480,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-one-arm-seated-hammer-curl.gif",
+    "thumb_path": "biceps/dumbbell-one-arm-seated-hammer-curl.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Seated Neutral Wrist Curl",
@@ -6275,7 +7492,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/dumbbell-one-arm-seated-neutral-wrist-curl.gif",
+    "thumb_path": "forearms/dumbbell-one-arm-seated-neutral-wrist-curl.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Shoulder Press",
@@ -6285,7 +7504,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-one-arm-shoulder-press.gif",
+    "thumb_path": "delts/dumbbell-one-arm-shoulder-press.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Shoulder Press v2",
@@ -6295,7 +7516,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-one-arm-shoulder-press-v-2.gif",
+    "thumb_path": "delts/dumbbell-one-arm-shoulder-press-v-2.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Snatch",
@@ -6309,7 +7532,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/dumbbell-one-arm-snatch.gif",
+    "thumb_path": "glutes/dumbbell-one-arm-snatch.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Standing Curl",
@@ -6319,7 +7544,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-one-arm-standing-curl.gif",
+    "thumb_path": "biceps/dumbbell-one-arm-standing-curl.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Standing Hammer Curl",
@@ -6329,7 +7556,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-one-arm-standing-hammer-curl.gif",
+    "thumb_path": "biceps/dumbbell-one-arm-standing-hammer-curl.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Triceps Extension On Bench",
@@ -6339,7 +7568,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-one-arm-triceps-extension-on-bench.gif",
+    "thumb_path": "triceps/dumbbell-one-arm-triceps-extension-on-bench.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Upright Row",
@@ -6351,7 +7582,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-one-arm-upright-row.gif",
+    "thumb_path": "delts/dumbbell-one-arm-upright-row.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Wrist Curl",
@@ -6361,7 +7594,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/dumbbell-one-arm-wrist-curl.gif",
+    "thumb_path": "forearms/dumbbell-one-arm-wrist-curl.thumb.webp"
   },
   {
     "name": "Dumbbell One Arm Zottman Preacher Curl",
@@ -6371,7 +7606,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-one-arm-zottman-preacher-curl.gif",
+    "thumb_path": "biceps/dumbbell-one-arm-zottman-preacher-curl.thumb.webp"
   },
   {
     "name": "Dumbbell One Leg Fly On Exercise Ball",
@@ -6381,7 +7618,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-one-leg-fly-on-exercise-ball.gif",
+    "thumb_path": "pectorals/dumbbell-one-leg-fly-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Over Bench Neutral Wrist Curl",
@@ -6391,7 +7630,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-over-bench-neutral-wrist-curl.gif",
+    "thumb_path": "biceps/dumbbell-over-bench-neutral-wrist-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Over Bench One Arm Neutral Wrist Curl",
@@ -6401,7 +7642,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-over-bench-one-arm-neutral-wrist-curl.gif",
+    "thumb_path": "biceps/dumbbell-over-bench-one-arm-neutral-wrist-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Over Bench One Arm Reverse Wrist Curl",
@@ -6411,7 +7654,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/dumbbell-over-bench-one-arm-reverse-wrist-curl.gif",
+    "thumb_path": "forearms/dumbbell-over-bench-one-arm-reverse-wrist-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Over Bench One Arm Wrist Curl",
@@ -6421,7 +7666,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/dumbbell-over-bench-one-arm-wrist-curl.gif",
+    "thumb_path": "forearms/dumbbell-over-bench-one-arm-wrist-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Over Bench Revers Wrist Curl",
@@ -6431,7 +7678,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/dumbbell-over-bench-revers-wrist-curl.gif",
+    "thumb_path": "forearms/dumbbell-over-bench-revers-wrist-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Over Bench Wrist Curl",
@@ -6441,7 +7690,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/dumbbell-over-bench-wrist-curl.gif",
+    "thumb_path": "forearms/dumbbell-over-bench-wrist-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Palm Rotational Bent Over Row",
@@ -6454,7 +7705,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/dumbbell-palm-rotational-bent-over-row.gif",
+    "thumb_path": "upper-back/dumbbell-palm-rotational-bent-over-row.thumb.webp"
   },
   {
     "name": "Dumbbell Palms In Incline Bench Press",
@@ -6464,7 +7717,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-palms-in-incline-bench-press.gif",
+    "thumb_path": "triceps/dumbbell-palms-in-incline-bench-press.thumb.webp"
   },
   {
     "name": "Dumbbell Peacher Hammer Curl",
@@ -6474,7 +7729,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-peacher-hammer-curl.gif",
+    "thumb_path": "biceps/dumbbell-peacher-hammer-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Plyo Squat",
@@ -6485,7 +7742,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/dumbbell-plyo-squat.gif",
+    "thumb_path": "glutes/dumbbell-plyo-squat.thumb.webp"
   },
   {
     "name": "Dumbbell Preacher Curl",
@@ -6495,7 +7754,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-preacher-curl.gif",
+    "thumb_path": "biceps/dumbbell-preacher-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Preacher Curl Over Exercise Ball",
@@ -6505,7 +7766,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-preacher-curl-over-exercise-ball.gif",
+    "thumb_path": "biceps/dumbbell-preacher-curl-over-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Press On Exercise Ball",
@@ -6516,7 +7779,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-press-on-exercise-ball.gif",
+    "thumb_path": "pectorals/dumbbell-press-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Pronate Grip Triceps Extension",
@@ -6526,7 +7791,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-pronate-grip-triceps-extension.gif",
+    "thumb_path": "triceps/dumbbell-pronate-grip-triceps-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Prone Incline Curl",
@@ -6536,7 +7803,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-prone-incline-curl.gif",
+    "thumb_path": "biceps/dumbbell-prone-incline-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Prone Incline Hammer Curl",
@@ -6546,7 +7815,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-prone-incline-hammer-curl.gif",
+    "thumb_path": "biceps/dumbbell-prone-incline-hammer-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Pullover",
@@ -6554,7 +7825,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-pullover.gif",
+    "thumb_path": "pectorals/dumbbell-pullover.thumb.webp"
   },
   {
     "name": "Dumbbell Pullover Hip Extension On Exercise Ball",
@@ -6562,7 +7835,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-pullover-hip-extension-on-exercise-ball.gif",
+    "thumb_path": "pectorals/dumbbell-pullover-hip-extension-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Pullover On Exercise Ball",
@@ -6570,7 +7845,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-pullover-on-exercise-ball.gif",
+    "thumb_path": "pectorals/dumbbell-pullover-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Push Press",
@@ -6580,7 +7857,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-push-press.gif",
+    "thumb_path": "delts/dumbbell-push-press.thumb.webp"
   },
   {
     "name": "Dumbbell Raise",
@@ -6590,7 +7869,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-raise.gif",
+    "thumb_path": "delts/dumbbell-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Rear Delt Raise",
@@ -6600,7 +7881,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-rear-delt-raise.gif",
+    "thumb_path": "delts/dumbbell-rear-delt-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Rear Delt Row Shoulder",
@@ -6611,7 +7894,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-rear-delt-row-shoulder.gif",
+    "thumb_path": "delts/dumbbell-rear-delt-row-shoulder.thumb.webp"
   },
   {
     "name": "Dumbbell Rear Fly",
@@ -6622,7 +7907,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "upper_back"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-rear-fly.gif",
+    "thumb_path": "delts/dumbbell-rear-fly.thumb.webp"
   },
   {
     "name": "Dumbbell Rear Lateral Raise",
@@ -6632,7 +7919,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-rear-lateral-raise.gif",
+    "thumb_path": "delts/dumbbell-rear-lateral-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Rear Lateral Raise Support Head",
@@ -6642,7 +7931,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-rear-lateral-raise-support-head.gif",
+    "thumb_path": "delts/dumbbell-rear-lateral-raise-support-head.thumb.webp"
   },
   {
     "name": "Dumbbell Rear Lunge",
@@ -6653,7 +7944,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/dumbbell-rear-lunge.gif",
+    "thumb_path": "glutes/dumbbell-rear-lunge.thumb.webp"
   },
   {
     "name": "Dumbbell Revers Grip Biceps Curl",
@@ -6663,7 +7956,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-revers-grip-biceps-curl.gif",
+    "thumb_path": "biceps/dumbbell-revers-grip-biceps-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Reverse Bench Press",
@@ -6674,7 +7969,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-reverse-bench-press.gif",
+    "thumb_path": "pectorals/dumbbell-reverse-bench-press.thumb.webp"
   },
   {
     "name": "Dumbbell Reverse Fly",
@@ -6685,7 +7982,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "upper_back"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-reverse-fly.gif",
+    "thumb_path": "delts/dumbbell-reverse-fly.thumb.webp"
   },
   {
     "name": "Dumbbell Reverse Grip Incline Bench One Arm Row",
@@ -6698,7 +7997,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/dumbbell-reverse-grip-incline-bench-one-arm-row.gif",
+    "thumb_path": "upper-back/dumbbell-reverse-grip-incline-bench-one-arm-row.thumb.webp"
   },
   {
     "name": "Dumbbell Reverse Grip Incline Bench Two Arm Row",
@@ -6711,7 +8012,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/dumbbell-reverse-grip-incline-bench-two-arm-row.gif",
+    "thumb_path": "upper-back/dumbbell-reverse-grip-incline-bench-two-arm-row.thumb.webp"
   },
   {
     "name": "Dumbbell Reverse Grip Row Female",
@@ -6724,7 +8027,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/dumbbell-reverse-grip-row-female.gif",
+    "thumb_path": "upper-back/dumbbell-reverse-grip-row-female.thumb.webp"
   },
   {
     "name": "Dumbbell Reverse Preacher Curl",
@@ -6734,7 +8039,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-reverse-preacher-curl.gif",
+    "thumb_path": "biceps/dumbbell-reverse-preacher-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Reverse Spider Curl",
@@ -6744,7 +8051,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-reverse-spider-curl.gif",
+    "thumb_path": "biceps/dumbbell-reverse-spider-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Reverse Wrist Curl",
@@ -6754,7 +8063,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/dumbbell-reverse-wrist-curl.gif",
+    "thumb_path": "forearms/dumbbell-reverse-wrist-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Romanian Deadlift",
@@ -6768,7 +8079,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/dumbbell-romanian-deadlift.gif",
+    "thumb_path": "glutes/dumbbell-romanian-deadlift.thumb.webp"
   },
   {
     "name": "Dumbbell Rotation Reverse Fly",
@@ -6779,7 +8092,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "upper_back"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-rotation-reverse-fly.gif",
+    "thumb_path": "delts/dumbbell-rotation-reverse-fly.thumb.webp"
   },
   {
     "name": "Dumbbell Scott Press",
@@ -6789,7 +8104,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-scott-press.gif",
+    "thumb_path": "delts/dumbbell-scott-press.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Alternate Front Raise",
@@ -6799,7 +8116,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-seated-alternate-front-raise.gif",
+    "thumb_path": "delts/dumbbell-seated-alternate-front-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Alternate Hammer Curl On Exercise Ball",
@@ -6809,7 +8128,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-seated-alternate-hammer-curl-on-exercise-ball.gif",
+    "thumb_path": "biceps/dumbbell-seated-alternate-hammer-curl-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Alternate Press",
@@ -6819,7 +8140,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-seated-alternate-press.gif",
+    "thumb_path": "delts/dumbbell-seated-alternate-press.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Alternate Shoulder",
@@ -6827,7 +8150,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "front_delt",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-seated-alternate-shoulder.gif",
+    "thumb_path": "delts/dumbbell-seated-alternate-shoulder.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Bench Extension",
@@ -6837,7 +8162,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-seated-bench-extension.gif",
+    "thumb_path": "triceps/dumbbell-seated-bench-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Bent Arm Lateral Raise",
@@ -6847,7 +8174,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-seated-bent-arm-lateral-raise.gif",
+    "thumb_path": "delts/dumbbell-seated-bent-arm-lateral-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Bent Over Alternate Kickback",
@@ -6857,7 +8186,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-seated-bent-over-alternate-kickback.gif",
+    "thumb_path": "triceps/dumbbell-seated-bent-over-alternate-kickback.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Bent Over Triceps Extension",
@@ -6867,7 +8198,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-seated-bent-over-triceps-extension.gif",
+    "thumb_path": "triceps/dumbbell-seated-bent-over-triceps-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Bicep Curl",
@@ -6877,7 +8210,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-seated-bicep-curl.gif",
+    "thumb_path": "biceps/dumbbell-seated-bicep-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Biceps Curl On Stability Ball",
@@ -6887,7 +8222,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-seated-biceps-curl-on-stability-ball.gif",
+    "thumb_path": "biceps/dumbbell-seated-biceps-curl-on-stability-ball.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Biceps Curl To Shoulder Press",
@@ -6899,7 +8236,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-seated-biceps-curl-to-shoulder-press.gif",
+    "thumb_path": "biceps/dumbbell-seated-biceps-curl-to-shoulder-press.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Calf Raise",
@@ -6907,7 +8246,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/dumbbell-seated-calf-raise.gif",
+    "thumb_path": "calves/dumbbell-seated-calf-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Curl",
@@ -6917,7 +8258,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-seated-curl.gif",
+    "thumb_path": "biceps/dumbbell-seated-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Front Raise",
@@ -6927,7 +8270,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-seated-front-raise.gif",
+    "thumb_path": "delts/dumbbell-seated-front-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Hammer Curl",
@@ -6937,7 +8282,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-seated-hammer-curl.gif",
+    "thumb_path": "biceps/dumbbell-seated-hammer-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Inner Biceps Curl",
@@ -6947,7 +8294,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-seated-inner-biceps-curl.gif",
+    "thumb_path": "biceps/dumbbell-seated-inner-biceps-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Kickback",
@@ -6957,7 +8306,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-seated-kickback.gif",
+    "thumb_path": "triceps/dumbbell-seated-kickback.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Lateral Raise",
@@ -6967,7 +8318,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-seated-lateral-raise.gif",
+    "thumb_path": "delts/dumbbell-seated-lateral-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Lateral Raise v2",
@@ -6977,7 +8330,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-seated-lateral-raise-v-2.gif",
+    "thumb_path": "delts/dumbbell-seated-lateral-raise-v-2.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Neutral Wrist Curl",
@@ -6987,7 +8342,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-seated-neutral-wrist-curl.gif",
+    "thumb_path": "biceps/dumbbell-seated-neutral-wrist-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Seated One Arm Bicep Curl On Exercise Ball With Leg Raised",
@@ -6997,7 +8354,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-seated-one-arm-bicep-curl-on-exercise-ball-with-leg-raised.gif",
+    "thumb_path": "biceps/dumbbell-seated-one-arm-bicep-curl-on-exercise-ball-with-leg-raised.thumb.webp"
   },
   {
     "name": "Dumbbell Seated One Arm Kickback",
@@ -7007,7 +8366,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-seated-one-arm-kickback.gif",
+    "thumb_path": "triceps/dumbbell-seated-one-arm-kickback.thumb.webp"
   },
   {
     "name": "Dumbbell Seated One Arm Rotate",
@@ -7015,7 +8376,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "forearms",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/dumbbell-seated-one-arm-rotate.gif",
+    "thumb_path": "forearms/dumbbell-seated-one-arm-rotate.thumb.webp"
   },
   {
     "name": "Dumbbell Seated One Leg Calf Raise",
@@ -7023,7 +8386,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/dumbbell-seated-one-leg-calf-raise.gif",
+    "thumb_path": "calves/dumbbell-seated-one-leg-calf-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Seated One Leg Calf Raise Hammer Grip",
@@ -7031,7 +8396,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/dumbbell-seated-one-leg-calf-raise-hammer-grip.gif",
+    "thumb_path": "calves/dumbbell-seated-one-leg-calf-raise-hammer-grip.thumb.webp"
   },
   {
     "name": "Dumbbell Seated One Leg Calf Raise Palm Up",
@@ -7039,7 +8406,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/dumbbell-seated-one-leg-calf-raise-palm-up.gif",
+    "thumb_path": "calves/dumbbell-seated-one-leg-calf-raise-palm-up.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Palms Up Wrist Curl",
@@ -7049,7 +8418,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/dumbbell-seated-palms-up-wrist-curl.gif",
+    "thumb_path": "forearms/dumbbell-seated-palms-up-wrist-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Preacher Curl",
@@ -7059,7 +8430,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-seated-preacher-curl.gif",
+    "thumb_path": "biceps/dumbbell-seated-preacher-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Revers Grip Concentration Curl",
@@ -7069,7 +8442,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-seated-revers-grip-concentration-curl.gif",
+    "thumb_path": "biceps/dumbbell-seated-revers-grip-concentration-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Reverse Grip One Arm Overhead Tricep Extension",
@@ -7079,7 +8454,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-seated-reverse-grip-one-arm-overhead-tricep-extension.gif",
+    "thumb_path": "triceps/dumbbell-seated-reverse-grip-one-arm-overhead-tricep-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Shoulder Press",
@@ -7089,7 +8466,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-seated-shoulder-press.gif",
+    "thumb_path": "delts/dumbbell-seated-shoulder-press.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Shoulder Press Parallel Grip",
@@ -7099,7 +8478,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-seated-shoulder-press-parallel-grip.gif",
+    "thumb_path": "delts/dumbbell-seated-shoulder-press-parallel-grip.thumb.webp"
   },
   {
     "name": "Dumbbell Seated Triceps Extension",
@@ -7109,7 +8490,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-seated-triceps-extension.gif",
+    "thumb_path": "triceps/dumbbell-seated-triceps-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Shrug",
@@ -7120,7 +8503,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "traps/dumbbell-shrug.gif",
+    "thumb_path": "traps/dumbbell-shrug.thumb.webp"
   },
   {
     "name": "Dumbbell Side Bend",
@@ -7128,7 +8513,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/dumbbell-side-bend.gif",
+    "thumb_path": "abs/dumbbell-side-bend.thumb.webp"
   },
   {
     "name": "Dumbbell Side Lying One Hand Raise",
@@ -7138,7 +8525,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-side-lying-one-hand-raise.gif",
+    "thumb_path": "delts/dumbbell-side-lying-one-hand-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Side Plank With Rear Fly",
@@ -7151,7 +8540,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/dumbbell-side-plank-with-rear-fly.gif",
+    "thumb_path": "upper-back/dumbbell-side-plank-with-rear-fly.thumb.webp"
   },
   {
     "name": "Dumbbell Single Arm Overhead Carry",
@@ -7159,7 +8550,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "front_delt",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-single-arm-overhead-carry.gif",
+    "thumb_path": "delts/dumbbell-single-arm-overhead-carry.thumb.webp"
   },
   {
     "name": "Dumbbell Single Leg Calf Raise",
@@ -7167,7 +8560,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/dumbbell-single-leg-calf-raise.gif",
+    "thumb_path": "calves/dumbbell-single-leg-calf-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Single Leg Deadlift",
@@ -7181,7 +8576,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/dumbbell-single-leg-deadlift.gif",
+    "thumb_path": "glutes/dumbbell-single-leg-deadlift.thumb.webp"
   },
   {
     "name": "Dumbbell Single Leg Deadlift With Stepbox Support",
@@ -7195,7 +8592,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/dumbbell-single-leg-deadlift-with-stepbox-support.gif",
+    "thumb_path": "glutes/dumbbell-single-leg-deadlift-with-stepbox-support.thumb.webp"
   },
   {
     "name": "Dumbbell Single Leg Split Squat",
@@ -7207,7 +8606,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/dumbbell-single-leg-split-squat.gif",
+    "thumb_path": "quads/dumbbell-single-leg-split-squat.thumb.webp"
   },
   {
     "name": "Dumbbell Single Leg Squat",
@@ -7218,7 +8619,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/dumbbell-single-leg-squat.gif",
+    "thumb_path": "glutes/dumbbell-single-leg-squat.thumb.webp"
   },
   {
     "name": "Dumbbell Squat",
@@ -7229,7 +8632,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/dumbbell-squat.gif",
+    "thumb_path": "glutes/dumbbell-squat.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Alternate Hammer Curl And Press",
@@ -7241,7 +8646,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-standing-alternate-hammer-curl-and-press.gif",
+    "thumb_path": "biceps/dumbbell-standing-alternate-hammer-curl-and-press.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Alternate Overhead Press",
@@ -7251,7 +8658,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-standing-alternate-overhead-press.gif",
+    "thumb_path": "delts/dumbbell-standing-alternate-overhead-press.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Alternate Raise",
@@ -7261,7 +8670,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-standing-alternate-raise.gif",
+    "thumb_path": "delts/dumbbell-standing-alternate-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Alternating Tricep Kickback",
@@ -7271,7 +8682,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-standing-alternating-tricep-kickback.gif",
+    "thumb_path": "triceps/dumbbell-standing-alternating-tricep-kickback.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Around World",
@@ -7279,7 +8692,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "front_delt",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-standing-around-world.gif",
+    "thumb_path": "delts/dumbbell-standing-around-world.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Bent Over One Arm Triceps Extension",
@@ -7289,7 +8704,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-standing-bent-over-one-arm-triceps-extension.gif",
+    "thumb_path": "triceps/dumbbell-standing-bent-over-one-arm-triceps-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Bent Over Two Arm Triceps Extension",
@@ -7299,7 +8716,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-standing-bent-over-two-arm-triceps-extension.gif",
+    "thumb_path": "triceps/dumbbell-standing-bent-over-two-arm-triceps-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Biceps Curl",
@@ -7309,7 +8728,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-standing-biceps-curl.gif",
+    "thumb_path": "biceps/dumbbell-standing-biceps-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Calf Raise",
@@ -7317,7 +8738,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/dumbbell-standing-calf-raise.gif",
+    "thumb_path": "calves/dumbbell-standing-calf-raise.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Concentration Curl",
@@ -7327,7 +8750,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-standing-concentration-curl.gif",
+    "thumb_path": "biceps/dumbbell-standing-concentration-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Front Raise Above Head",
@@ -7337,7 +8762,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-standing-front-raise-above-head.gif",
+    "thumb_path": "delts/dumbbell-standing-front-raise-above-head.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Inner Biceps Curl v2",
@@ -7347,7 +8774,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-standing-inner-biceps-curl-v-2.gif",
+    "thumb_path": "biceps/dumbbell-standing-inner-biceps-curl-v-2.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Kickback",
@@ -7357,7 +8786,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-standing-kickback.gif",
+    "thumb_path": "triceps/dumbbell-standing-kickback.thumb.webp"
   },
   {
     "name": "Dumbbell Standing One Arm Concentration Curl",
@@ -7367,7 +8798,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-standing-one-arm-concentration-curl.gif",
+    "thumb_path": "biceps/dumbbell-standing-one-arm-concentration-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Standing One Arm Curl Over Incline Bench",
@@ -7377,7 +8810,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-standing-one-arm-curl-over-incline-bench.gif",
+    "thumb_path": "biceps/dumbbell-standing-one-arm-curl-over-incline-bench.thumb.webp"
   },
   {
     "name": "Dumbbell Standing One Arm Curl Over Incline Bench 1680",
@@ -7387,7 +8822,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-standing-one-arm-curl-over-incline-bench-1680.gif",
+    "thumb_path": "biceps/dumbbell-standing-one-arm-curl-over-incline-bench-1680.thumb.webp"
   },
   {
     "name": "Dumbbell Standing One Arm Extension",
@@ -7397,7 +8834,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-standing-one-arm-extension.gif",
+    "thumb_path": "triceps/dumbbell-standing-one-arm-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Standing One Arm Palm In Press",
@@ -7407,7 +8846,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-standing-one-arm-palm-in-press.gif",
+    "thumb_path": "delts/dumbbell-standing-one-arm-palm-in-press.thumb.webp"
   },
   {
     "name": "Dumbbell Standing One Arm Reverse Curl",
@@ -7417,7 +8858,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-standing-one-arm-reverse-curl.gif",
+    "thumb_path": "biceps/dumbbell-standing-one-arm-reverse-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Overhead Press",
@@ -7427,7 +8870,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-standing-overhead-press.gif",
+    "thumb_path": "delts/dumbbell-standing-overhead-press.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Palms In Press",
@@ -7437,7 +8882,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-standing-palms-in-press.gif",
+    "thumb_path": "delts/dumbbell-standing-palms-in-press.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Preacher Curl",
@@ -7447,7 +8894,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-standing-preacher-curl.gif",
+    "thumb_path": "biceps/dumbbell-standing-preacher-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Reverse Curl",
@@ -7457,7 +8906,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-standing-reverse-curl.gif",
+    "thumb_path": "biceps/dumbbell-standing-reverse-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Triceps Extension",
@@ -7467,7 +8918,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-standing-triceps-extension.gif",
+    "thumb_path": "triceps/dumbbell-standing-triceps-extension.thumb.webp"
   },
   {
     "name": "Dumbbell Standing Zottman Preacher Curl",
@@ -7477,7 +8930,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-standing-zottman-preacher-curl.gif",
+    "thumb_path": "biceps/dumbbell-standing-zottman-preacher-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Step Up",
@@ -7485,7 +8940,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/dumbbell-step-up.gif",
+    "thumb_path": "glutes/dumbbell-step-up.thumb.webp"
   },
   {
     "name": "Dumbbell Step Up Lunge",
@@ -7497,7 +8954,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/dumbbell-step-up-lunge.gif",
+    "thumb_path": "quads/dumbbell-step-up-lunge.thumb.webp"
   },
   {
     "name": "Dumbbell Step Up Single Leg Balance With Bicep Curl",
@@ -7507,7 +8966,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-step-up-single-leg-balance-with-bicep-curl.gif",
+    "thumb_path": "biceps/dumbbell-step-up-single-leg-balance-with-bicep-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Step Up Split Squat",
@@ -7519,7 +8980,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/dumbbell-step-up-split-squat.gif",
+    "thumb_path": "quads/dumbbell-step-up-split-squat.thumb.webp"
   },
   {
     "name": "Dumbbell Stiff Leg Deadlift",
@@ -7533,7 +8996,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/dumbbell-stiff-leg-deadlift.gif",
+    "thumb_path": "glutes/dumbbell-stiff-leg-deadlift.thumb.webp"
   },
   {
     "name": "Dumbbell Straight Arm Pullover",
@@ -7541,7 +9006,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/dumbbell-straight-arm-pullover.gif",
+    "thumb_path": "pectorals/dumbbell-straight-arm-pullover.thumb.webp"
   },
   {
     "name": "Dumbbell Straight Leg Deadlift",
@@ -7555,7 +9022,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/dumbbell-straight-leg-deadlift.gif",
+    "thumb_path": "glutes/dumbbell-straight-leg-deadlift.thumb.webp"
   },
   {
     "name": "Dumbbell Sumo Pull Through",
@@ -7566,7 +9035,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/dumbbell-sumo-pull-through.gif",
+    "thumb_path": "glutes/dumbbell-sumo-pull-through.thumb.webp"
   },
   {
     "name": "Dumbbell Supported Squat",
@@ -7578,7 +9049,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/dumbbell-supported-squat.gif",
+    "thumb_path": "quads/dumbbell-supported-squat.thumb.webp"
   },
   {
     "name": "Dumbbell Tate Press",
@@ -7588,7 +9061,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-tate-press.gif",
+    "thumb_path": "triceps/dumbbell-tate-press.thumb.webp"
   },
   {
     "name": "Dumbbell Tricep Kickback With Stork Stance",
@@ -7598,7 +9073,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-tricep-kickback-with-stork-stance.gif",
+    "thumb_path": "triceps/dumbbell-tricep-kickback-with-stork-stance.thumb.webp"
   },
   {
     "name": "Dumbbell Twisting Bench Press",
@@ -7608,7 +9085,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbell-twisting-bench-press.gif",
+    "thumb_path": "triceps/dumbbell-twisting-bench-press.thumb.webp"
   },
   {
     "name": "Dumbbell Upright Row",
@@ -7620,7 +9099,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-upright-row.gif",
+    "thumb_path": "delts/dumbbell-upright-row.thumb.webp"
   },
   {
     "name": "Dumbbell Upright Row Back Pov",
@@ -7632,7 +9113,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-upright-row-back-pov.gif",
+    "thumb_path": "delts/dumbbell-upright-row-back-pov.thumb.webp"
   },
   {
     "name": "Dumbbell Upright Shoulder External Rotation",
@@ -7640,7 +9123,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "front_delt",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-upright-shoulder-external-rotation.gif",
+    "thumb_path": "delts/dumbbell-upright-shoulder-external-rotation.thumb.webp"
   },
   {
     "name": "Dumbbell W Press",
@@ -7650,7 +9135,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/dumbbell-w-press.gif",
+    "thumb_path": "delts/dumbbell-w-press.thumb.webp"
   },
   {
     "name": "Dumbbell Waiter Biceps Curl",
@@ -7660,7 +9147,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-waiter-biceps-curl.gif",
+    "thumb_path": "biceps/dumbbell-waiter-biceps-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Zottman Curl",
@@ -7670,7 +9159,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-zottman-curl.gif",
+    "thumb_path": "biceps/dumbbell-zottman-curl.thumb.webp"
   },
   {
     "name": "Dumbbell Zottman Preacher Curl",
@@ -7680,7 +9171,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/dumbbell-zottman-preacher-curl.gif",
+    "thumb_path": "biceps/dumbbell-zottman-preacher-curl.thumb.webp"
   },
   {
     "name": "Dumbbells Seated Triceps Extension",
@@ -7690,7 +9183,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/dumbbells-seated-triceps-extension.gif",
+    "thumb_path": "triceps/dumbbells-seated-triceps-extension.thumb.webp"
   },
   {
     "name": "Dynamic Chest Stretch Male",
@@ -7698,7 +9193,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "pectorals/dynamic-chest-stretch-male.gif",
+    "thumb_path": "pectorals/dynamic-chest-stretch-male.thumb.webp"
   },
   {
     "name": "Elbow Dips",
@@ -7709,7 +9206,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/elbow-dips.gif",
+    "thumb_path": "triceps/elbow-dips.thumb.webp"
   },
   {
     "name": "Elbow Lift Reverse Push Up",
@@ -7720,7 +9219,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/elbow-lift-reverse-push-up.gif",
+    "thumb_path": "upper-back/elbow-lift-reverse-push-up.thumb.webp"
   },
   {
     "name": "Elbow To Knee",
@@ -7728,7 +9229,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/elbow-to-knee.gif",
+    "thumb_path": "abs/elbow-to-knee.thumb.webp"
   },
   {
     "name": "Elevator",
@@ -7736,7 +9239,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "traps",
     "secondary_muscles": [],
     "equipment": "other",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/elevator.gif",
+    "thumb_path": "upper-back/elevator.thumb.webp"
   },
   {
     "name": "Exercise Ball Alternating Arm Ups",
@@ -7744,7 +9249,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/exercise-ball-alternating-arm-ups.gif",
+    "thumb_path": "lats/exercise-ball-alternating-arm-ups.thumb.webp"
   },
   {
     "name": "Exercise Ball Back Extension With Arms Extended",
@@ -7755,7 +9262,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "hamstrings"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "spine/exercise-ball-back-extension-with-arms-extended.gif",
+    "thumb_path": "spine/exercise-ball-back-extension-with-arms-extended.thumb.webp"
   },
   {
     "name": "Exercise Ball Back Extension With Hands Behind Head",
@@ -7766,7 +9275,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "hamstrings"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "spine/exercise-ball-back-extension-with-hands-behind-head.gif",
+    "thumb_path": "spine/exercise-ball-back-extension-with-hands-behind-head.thumb.webp"
   },
   {
     "name": "Exercise Ball Back Extension With Knees Off Ground",
@@ -7777,7 +9288,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "hamstrings"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "spine/exercise-ball-back-extension-with-knees-off-ground.gif",
+    "thumb_path": "spine/exercise-ball-back-extension-with-knees-off-ground.thumb.webp"
   },
   {
     "name": "Exercise Ball Back Extension With Rotation",
@@ -7788,7 +9301,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "hamstrings"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "spine/exercise-ball-back-extension-with-rotation.gif",
+    "thumb_path": "spine/exercise-ball-back-extension-with-rotation.thumb.webp"
   },
   {
     "name": "Exercise Ball Dip",
@@ -7799,7 +9314,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/exercise-ball-dip.gif",
+    "thumb_path": "triceps/exercise-ball-dip.thumb.webp"
   },
   {
     "name": "Exercise Ball Hip Flexor Stretch",
@@ -7807,7 +9324,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "glutes/exercise-ball-hip-flexor-stretch.gif",
+    "thumb_path": "glutes/exercise-ball-hip-flexor-stretch.thumb.webp"
   },
   {
     "name": "Exercise Ball Hug",
@@ -7815,7 +9334,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "spinal_erectors",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "spine/exercise-ball-hug.gif",
+    "thumb_path": "spine/exercise-ball-hug.thumb.webp"
   },
   {
     "name": "Exercise Ball Lat Stretch",
@@ -7823,7 +9344,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "lats/exercise-ball-lat-stretch.gif",
+    "thumb_path": "lats/exercise-ball-lat-stretch.thumb.webp"
   },
   {
     "name": "Exercise Ball Lower Back Stretch Pyramid",
@@ -7831,7 +9354,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "lats/exercise-ball-lower-back-stretch-pyramid.gif",
+    "thumb_path": "lats/exercise-ball-lower-back-stretch-pyramid.thumb.webp"
   },
   {
     "name": "Exercise Ball Lying Side Lat Stretch",
@@ -7839,7 +9364,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "lats/exercise-ball-lying-side-lat-stretch.gif",
+    "thumb_path": "lats/exercise-ball-lying-side-lat-stretch.thumb.webp"
   },
   {
     "name": "Exercise Ball On The Wall Calf Raise",
@@ -7847,7 +9374,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/exercise-ball-on-the-wall-calf-raise.gif",
+    "thumb_path": "calves/exercise-ball-on-the-wall-calf-raise.thumb.webp"
   },
   {
     "name": "Exercise Ball On The Wall Calf Raise Tennis Ball Between Ankles",
@@ -7855,7 +9384,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/exercise-ball-on-the-wall-calf-raise-tennis-ball-between-ankles.gif",
+    "thumb_path": "calves/exercise-ball-on-the-wall-calf-raise-tennis-ball-between-ankles.thumb.webp"
   },
   {
     "name": "Exercise Ball On The Wall Calf Raise Tennis Ball Between Knees",
@@ -7863,7 +9394,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/exercise-ball-on-the-wall-calf-raise-tennis-ball-between-knees.gif",
+    "thumb_path": "calves/exercise-ball-on-the-wall-calf-raise-tennis-ball-between-knees.thumb.webp"
   },
   {
     "name": "Exercise Ball One Leg Prone Lower Body Rotation",
@@ -7871,7 +9404,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/exercise-ball-one-leg-prone-lower-body-rotation.gif",
+    "thumb_path": "glutes/exercise-ball-one-leg-prone-lower-body-rotation.thumb.webp"
   },
   {
     "name": "Exercise Ball One Legged Diagonal Kick Hamstring Curl",
@@ -7879,7 +9414,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/exercise-ball-one-legged-diagonal-kick-hamstring-curl.gif",
+    "thumb_path": "glutes/exercise-ball-one-legged-diagonal-kick-hamstring-curl.thumb.webp"
   },
   {
     "name": "Exercise Ball Pike Push Up",
@@ -7892,7 +9429,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/exercise-ball-pike-push-up.gif",
+    "thumb_path": "pectorals/exercise-ball-pike-push-up.thumb.webp"
   },
   {
     "name": "Exercise Ball Prone Leg Raise",
@@ -7900,7 +9439,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "spinal_erectors",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "spine/exercise-ball-prone-leg-raise.gif",
+    "thumb_path": "spine/exercise-ball-prone-leg-raise.thumb.webp"
   },
   {
     "name": "Exercise Ball Seated Hamstring Stretch",
@@ -7908,7 +9449,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "hamstrings",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "hamstrings/exercise-ball-seated-hamstring-stretch.gif",
+    "thumb_path": "hamstrings/exercise-ball-seated-hamstring-stretch.thumb.webp"
   },
   {
     "name": "Exercise Ball Seated Triceps Stretch",
@@ -7916,7 +9459,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "triceps",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "triceps/exercise-ball-seated-triceps-stretch.gif",
+    "thumb_path": "triceps/exercise-ball-seated-triceps-stretch.thumb.webp"
   },
   {
     "name": "Exercise Ball Supine Triceps Extension",
@@ -7926,7 +9471,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/exercise-ball-supine-triceps-extension.gif",
+    "thumb_path": "triceps/exercise-ball-supine-triceps-extension.thumb.webp"
   },
   {
     "name": "Ez Bar Biceps Curl With Arm Blaster",
@@ -7936,7 +9483,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/ez-bar-biceps-curl-with-arm-blaster.gif",
+    "thumb_path": "biceps/ez-bar-biceps-curl-with-arm-blaster.thumb.webp"
   },
   {
     "name": "Ez Bar Close Grip Bench Press",
@@ -7946,7 +9495,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/ez-bar-close-grip-bench-press.gif",
+    "thumb_path": "triceps/ez-bar-close-grip-bench-press.thumb.webp"
   },
   {
     "name": "Ez Bar French Press On Exercise Ball",
@@ -7956,7 +9507,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/ez-bar-french-press-on-exercise-ball.gif",
+    "thumb_path": "triceps/ez-bar-french-press-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Ez Bar Lying Bent Arms Pullover",
@@ -7968,7 +9521,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/ez-bar-lying-bent-arms-pullover.gif",
+    "thumb_path": "lats/ez-bar-lying-bent-arms-pullover.thumb.webp"
   },
   {
     "name": "Ez Bar Lying Close Grip Triceps Extension Behind Head",
@@ -7978,7 +9533,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/ez-bar-lying-close-grip-triceps-extension-behind-head.gif",
+    "thumb_path": "triceps/ez-bar-lying-close-grip-triceps-extension-behind-head.thumb.webp"
   },
   {
     "name": "Ez Bar Reverse Grip Bent Over Row",
@@ -7991,7 +9548,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/ez-bar-reverse-grip-bent-over-row.gif",
+    "thumb_path": "upper-back/ez-bar-reverse-grip-bent-over-row.thumb.webp"
   },
   {
     "name": "Ez Bar Seated Close Grip Concentration Curl",
@@ -8001,7 +9560,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/ez-bar-seated-close-grip-concentration-curl.gif",
+    "thumb_path": "biceps/ez-bar-seated-close-grip-concentration-curl.thumb.webp"
   },
   {
     "name": "Ez Bar Standing French Press",
@@ -8011,7 +9572,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/ez-bar-standing-french-press.gif",
+    "thumb_path": "triceps/ez-bar-standing-french-press.thumb.webp"
   },
   {
     "name": "Ez Barbell Anti Gravity Press",
@@ -8021,7 +9584,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/ez-barbell-anti-gravity-press.gif",
+    "thumb_path": "delts/ez-barbell-anti-gravity-press.thumb.webp"
   },
   {
     "name": "Ez Barbell Close Grip Curl",
@@ -8031,7 +9596,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/ez-barbell-close-grip-curl.gif",
+    "thumb_path": "biceps/ez-barbell-close-grip-curl.thumb.webp"
   },
   {
     "name": "Ez Barbell Close Grip Preacher Curl",
@@ -8041,7 +9608,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/ez-barbell-close-grip-preacher-curl.gif",
+    "thumb_path": "biceps/ez-barbell-close-grip-preacher-curl.thumb.webp"
   },
   {
     "name": "Ez Barbell Curl",
@@ -8051,7 +9620,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/ez-barbell-curl.gif",
+    "thumb_path": "biceps/ez-barbell-curl.thumb.webp"
   },
   {
     "name": "Ez Barbell Decline Close Grip Face Press",
@@ -8061,7 +9632,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/ez-barbell-decline-close-grip-face-press.gif",
+    "thumb_path": "triceps/ez-barbell-decline-close-grip-face-press.thumb.webp"
   },
   {
     "name": "Ez Barbell Decline Triceps Extension",
@@ -8071,7 +9644,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/ez-barbell-decline-triceps-extension.gif",
+    "thumb_path": "triceps/ez-barbell-decline-triceps-extension.thumb.webp"
   },
   {
     "name": "Ez Barbell Incline Triceps Extension",
@@ -8081,7 +9656,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/ez-barbell-incline-triceps-extension.gif",
+    "thumb_path": "triceps/ez-barbell-incline-triceps-extension.thumb.webp"
   },
   {
     "name": "Ez Barbell Jm Bench Press",
@@ -8091,7 +9668,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/ez-barbell-jm-bench-press.gif",
+    "thumb_path": "triceps/ez-barbell-jm-bench-press.thumb.webp"
   },
   {
     "name": "Ez Barbell Reverse Grip Curl",
@@ -8101,7 +9680,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/ez-barbell-reverse-grip-curl.gif",
+    "thumb_path": "biceps/ez-barbell-reverse-grip-curl.thumb.webp"
   },
   {
     "name": "Ez Barbell Reverse Grip Preacher Curl",
@@ -8111,7 +9692,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/ez-barbell-reverse-grip-preacher-curl.gif",
+    "thumb_path": "biceps/ez-barbell-reverse-grip-preacher-curl.thumb.webp"
   },
   {
     "name": "Ez Barbell Seated Curls",
@@ -8121,7 +9704,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/ez-barbell-seated-curls.gif",
+    "thumb_path": "biceps/ez-barbell-seated-curls.thumb.webp"
   },
   {
     "name": "Ez Barbell Seated Triceps Extension",
@@ -8131,7 +9716,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/ez-barbell-seated-triceps-extension.gif",
+    "thumb_path": "triceps/ez-barbell-seated-triceps-extension.thumb.webp"
   },
   {
     "name": "Ez Barbell Spider Curl",
@@ -8141,7 +9728,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/ez-barbell-spider-curl.gif",
+    "thumb_path": "biceps/ez-barbell-spider-curl.thumb.webp"
   },
   {
     "name": "Ez Barbell Spider Curl 1628",
@@ -8151,7 +9740,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/ez-barbell-spider-curl-1628.gif",
+    "thumb_path": "biceps/ez-barbell-spider-curl-1628.thumb.webp"
   },
   {
     "name": "Ez Barbell Standing Wide Grip Biceps Curl",
@@ -8161,7 +9752,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "ez-bar",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/ez-barbell-standing-wide-grip-biceps-curl.gif",
+    "thumb_path": "biceps/ez-barbell-standing-wide-grip-biceps-curl.thumb.webp"
   },
   {
     "name": "Farmers Walk",
@@ -8169,7 +9762,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "quads",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/farmers-walk.gif",
+    "thumb_path": "quads/farmers-walk.thumb.webp"
   },
   {
     "name": "Finger Curls",
@@ -8177,7 +9772,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "forearms",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/finger-curls.gif",
+    "thumb_path": "forearms/finger-curls.thumb.webp"
   },
   {
     "name": "Flag",
@@ -8185,7 +9782,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/flag.gif",
+    "thumb_path": "abs/flag.thumb.webp"
   },
   {
     "name": "Flexion Leg Sit Up Bent Knee",
@@ -8193,7 +9792,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/flexion-leg-sit-up-bent-knee.gif",
+    "thumb_path": "abs/flexion-leg-sit-up-bent-knee.thumb.webp"
   },
   {
     "name": "Flexion Leg Sit Up Straight Arm",
@@ -8201,7 +9802,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/flexion-leg-sit-up-straight-arm.gif",
+    "thumb_path": "abs/flexion-leg-sit-up-straight-arm.thumb.webp"
   },
   {
     "name": "Floor Fly With Barbell",
@@ -8211,7 +9814,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/floor-fly-with-barbell.gif",
+    "thumb_path": "pectorals/floor-fly-with-barbell.thumb.webp"
   },
   {
     "name": "Flutter Kicks",
@@ -8219,7 +9824,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/flutter-kicks.gif",
+    "thumb_path": "glutes/flutter-kicks.thumb.webp"
   },
   {
     "name": "Forward Jump",
@@ -8227,7 +9834,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "quads",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/forward-jump.gif",
+    "thumb_path": "quads/forward-jump.thumb.webp"
   },
   {
     "name": "Forward Lunge Male",
@@ -8238,7 +9847,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/forward-lunge-male.gif",
+    "thumb_path": "glutes/forward-lunge-male.thumb.webp"
   },
   {
     "name": "Frankenstein Squat",
@@ -8249,7 +9860,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/frankenstein-squat.gif",
+    "thumb_path": "glutes/frankenstein-squat.thumb.webp"
   },
   {
     "name": "Frog Crunch",
@@ -8257,7 +9870,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/frog-crunch.gif",
+    "thumb_path": "abs/frog-crunch.thumb.webp"
   },
   {
     "name": "Frog Planche",
@@ -8268,7 +9883,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/frog-planche.gif",
+    "thumb_path": "abs/frog-planche.thumb.webp"
   },
   {
     "name": "Front Lever",
@@ -8276,7 +9893,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/front-lever.gif",
+    "thumb_path": "abs/front-lever.thumb.webp"
   },
   {
     "name": "Front Lever Reps",
@@ -8284,7 +9903,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "traps",
     "secondary_muscles": [],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/front-lever-reps.gif",
+    "thumb_path": "upper-back/front-lever-reps.thumb.webp"
   },
   {
     "name": "Front Plank With Twist",
@@ -8295,7 +9916,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "glutes"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/front-plank-with-twist.gif",
+    "thumb_path": "abs/front-plank-with-twist.thumb.webp"
   },
   {
     "name": "Full Maltese",
@@ -8303,7 +9926,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/full-maltese.gif",
+    "thumb_path": "abs/full-maltese.thumb.webp"
   },
   {
     "name": "Full Planche",
@@ -8314,7 +9939,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/full-planche.gif",
+    "thumb_path": "abs/full-planche.thumb.webp"
   },
   {
     "name": "Full Planche Push Up",
@@ -8327,7 +9954,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/full-planche-push-up.gif",
+    "thumb_path": "pectorals/full-planche-push-up.thumb.webp"
   },
   {
     "name": "Gironda Sternum Chin",
@@ -8335,7 +9964,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/gironda-sternum-chin.gif",
+    "thumb_path": "lats/gironda-sternum-chin.thumb.webp"
   },
   {
     "name": "Glute Bridge March",
@@ -8346,7 +9977,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/glute-bridge-march.gif",
+    "thumb_path": "glutes/glute-bridge-march.thumb.webp"
   },
   {
     "name": "Glute Bridge Two Legs On Bench Male",
@@ -8357,7 +9990,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/glute-bridge-two-legs-on-bench-male.gif",
+    "thumb_path": "glutes/glute-bridge-two-legs-on-bench-male.thumb.webp"
   },
   {
     "name": "Glute Ham Raise",
@@ -8365,7 +10000,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "hamstrings",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/glute-ham-raise.gif",
+    "thumb_path": "hamstrings/glute-ham-raise.thumb.webp"
   },
   {
     "name": "Gorilla Chin",
@@ -8373,7 +10010,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/gorilla-chin.gif",
+    "thumb_path": "abs/gorilla-chin.thumb.webp"
   },
   {
     "name": "Groin Crunch",
@@ -8381,7 +10020,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/groin-crunch.gif",
+    "thumb_path": "abs/groin-crunch.thumb.webp"
   },
   {
     "name": "Hack Calf Raise",
@@ -8389,7 +10030,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/hack-calf-raise.gif",
+    "thumb_path": "calves/hack-calf-raise.thumb.webp"
   },
   {
     "name": "Hack One Leg Calf Raise",
@@ -8397,7 +10040,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/hack-one-leg-calf-raise.gif",
+    "thumb_path": "calves/hack-one-leg-calf-raise.thumb.webp"
   },
   {
     "name": "Half Knee Bends Male",
@@ -8405,7 +10050,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/half-knee-bends-male.gif",
+    "thumb_path": "cardio/half-knee-bends-male.thumb.webp"
   },
   {
     "name": "Half Sit Up Male",
@@ -8413,7 +10060,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/half-sit-up-male.gif",
+    "thumb_path": "abs/half-sit-up-male.thumb.webp"
   },
   {
     "name": "Hamstring Stretch",
@@ -8421,7 +10070,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "hamstrings",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "hamstrings/hamstring-stretch.gif",
+    "thumb_path": "hamstrings/hamstring-stretch.thumb.webp"
   },
   {
     "name": "Hands Bike",
@@ -8429,7 +10080,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/hands-bike.gif",
+    "thumb_path": "pectorals/hands-bike.thumb.webp"
   },
   {
     "name": "Hands Clasped Circular Toe Touch Male",
@@ -8437,7 +10090,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/hands-clasped-circular-toe-touch-male.gif",
+    "thumb_path": "glutes/hands-clasped-circular-toe-touch-male.thumb.webp"
   },
   {
     "name": "Hands Reversed Clasped Circular Toe Touch Male",
@@ -8445,7 +10100,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/hands-reversed-clasped-circular-toe-touch-male.gif",
+    "thumb_path": "glutes/hands-reversed-clasped-circular-toe-touch-male.thumb.webp"
   },
   {
     "name": "Handstand",
@@ -8456,7 +10113,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/handstand.gif",
+    "thumb_path": "triceps/handstand.thumb.webp"
   },
   {
     "name": "Handstand Push Up",
@@ -8468,7 +10127,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/handstand-push-up.gif",
+    "thumb_path": "triceps/handstand-push-up.thumb.webp"
   },
   {
     "name": "Hanging Leg Hip Raise",
@@ -8476,7 +10137,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/hanging-leg-hip-raise.gif",
+    "thumb_path": "abs/hanging-leg-hip-raise.thumb.webp"
   },
   {
     "name": "Hanging Leg Raise",
@@ -8484,7 +10147,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/hanging-leg-raise.gif",
+    "thumb_path": "abs/hanging-leg-raise.thumb.webp"
   },
   {
     "name": "Hanging Oblique Knee Raise",
@@ -8492,7 +10157,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/hanging-oblique-knee-raise.gif",
+    "thumb_path": "abs/hanging-oblique-knee-raise.thumb.webp"
   },
   {
     "name": "Hanging Pike",
@@ -8503,7 +10170,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/hanging-pike.gif",
+    "thumb_path": "abs/hanging-pike.thumb.webp"
   },
   {
     "name": "Hanging Straight Leg Hip Raise",
@@ -8511,7 +10180,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/hanging-straight-leg-hip-raise.gif",
+    "thumb_path": "abs/hanging-straight-leg-hip-raise.thumb.webp"
   },
   {
     "name": "Hanging Straight Leg Raise",
@@ -8519,7 +10190,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/hanging-straight-leg-raise.gif",
+    "thumb_path": "abs/hanging-straight-leg-raise.thumb.webp"
   },
   {
     "name": "Hanging Straight Twisting Leg Hip Raise",
@@ -8527,7 +10200,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/hanging-straight-twisting-leg-hip-raise.gif",
+    "thumb_path": "abs/hanging-straight-twisting-leg-hip-raise.thumb.webp"
   },
   {
     "name": "High Knee Against Wall",
@@ -8535,7 +10210,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/high-knee-against-wall.gif",
+    "thumb_path": "cardio/high-knee-against-wall.thumb.webp"
   },
   {
     "name": "Hip Raise Bent Knee",
@@ -8543,7 +10220,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/hip-raise-bent-knee.gif",
+    "thumb_path": "abs/hip-raise-bent-knee.thumb.webp"
   },
   {
     "name": "Hug Keens To Chest",
@@ -8551,7 +10230,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/hug-keens-to-chest.gif",
+    "thumb_path": "glutes/hug-keens-to-chest.thumb.webp"
   },
   {
     "name": "Hyght Dumbbell Fly",
@@ -8561,7 +10242,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/hyght-dumbbell-fly.gif",
+    "thumb_path": "pectorals/hyght-dumbbell-fly.thumb.webp"
   },
   {
     "name": "Hyperextension",
@@ -8572,7 +10255,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "hamstrings"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "spine/hyperextension.gif",
+    "thumb_path": "spine/hyperextension.thumb.webp"
   },
   {
     "name": "Hyperextension On Bench",
@@ -8583,7 +10268,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "hamstrings"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "spine/hyperextension-on-bench.gif",
+    "thumb_path": "spine/hyperextension-on-bench.thumb.webp"
   },
   {
     "name": "Impossible Dips",
@@ -8594,7 +10281,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/impossible-dips.gif",
+    "thumb_path": "triceps/impossible-dips.thumb.webp"
   },
   {
     "name": "Inchworm",
@@ -8602,7 +10291,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/inchworm.gif",
+    "thumb_path": "abs/inchworm.thumb.webp"
   },
   {
     "name": "Inchworm v2",
@@ -8610,7 +10301,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/inchworm-v-2.gif",
+    "thumb_path": "abs/inchworm-v-2.thumb.webp"
   },
   {
     "name": "Incline Close Grip Push Up",
@@ -8620,7 +10313,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/incline-close-grip-push-up.gif",
+    "thumb_path": "triceps/incline-close-grip-push-up.thumb.webp"
   },
   {
     "name": "Incline Leg Hip Raise Leg Straight",
@@ -8628,7 +10323,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/incline-leg-hip-raise-leg-straight.gif",
+    "thumb_path": "abs/incline-leg-hip-raise-leg-straight.thumb.webp"
   },
   {
     "name": "Incline Push Up",
@@ -8639,7 +10336,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/incline-push-up.gif",
+    "thumb_path": "pectorals/incline-push-up.thumb.webp"
   },
   {
     "name": "Incline Push Up Depth Jump",
@@ -8650,7 +10349,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/incline-push-up-depth-jump.gif",
+    "thumb_path": "pectorals/incline-push-up-depth-jump.thumb.webp"
   },
   {
     "name": "Incline Push Up On Box",
@@ -8661,7 +10362,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/incline-push-up-on-box.gif",
+    "thumb_path": "pectorals/incline-push-up-on-box.thumb.webp"
   },
   {
     "name": "Incline Reverse Grip Push Up",
@@ -8672,7 +10375,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/incline-reverse-grip-push-up.gif",
+    "thumb_path": "pectorals/incline-reverse-grip-push-up.thumb.webp"
   },
   {
     "name": "Incline Scapula Push Up",
@@ -8683,7 +10388,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "serratus-anterior/incline-scapula-push-up.gif",
+    "thumb_path": "serratus-anterior/incline-scapula-push-up.thumb.webp"
   },
   {
     "name": "Incline Twisting Sit Up",
@@ -8691,7 +10398,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/incline-twisting-sit-up.gif",
+    "thumb_path": "abs/incline-twisting-sit-up.thumb.webp"
   },
   {
     "name": "Intermediate Hip Flexor And Quad Stretch",
@@ -8699,7 +10408,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "quads",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "quads/intermediate-hip-flexor-and-quad-stretch.gif",
+    "thumb_path": "quads/intermediate-hip-flexor-and-quad-stretch.thumb.webp"
   },
   {
     "name": "Inverse Leg Curl Bench Support",
@@ -8710,7 +10421,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/inverse-leg-curl-bench-support.gif",
+    "thumb_path": "hamstrings/inverse-leg-curl-bench-support.thumb.webp"
   },
   {
     "name": "Inverse Leg Curl On Pull Up Cable Machine",
@@ -8724,7 +10437,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "cable",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/inverse-leg-curl-on-pull-up-cable-machine.gif",
+    "thumb_path": "hamstrings/inverse-leg-curl-on-pull-up-cable-machine.thumb.webp"
   },
   {
     "name": "Inverted Row",
@@ -8737,7 +10452,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/inverted-row.gif",
+    "thumb_path": "upper-back/inverted-row.thumb.webp"
   },
   {
     "name": "Inverted Row Bent Knees",
@@ -8750,7 +10467,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/inverted-row-bent-knees.gif",
+    "thumb_path": "upper-back/inverted-row-bent-knees.thumb.webp"
   },
   {
     "name": "Inverted Row On Bench",
@@ -8763,7 +10482,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/inverted-row-on-bench.gif",
+    "thumb_path": "upper-back/inverted-row-on-bench.thumb.webp"
   },
   {
     "name": "Inverted Row v2",
@@ -8776,7 +10497,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/inverted-row-v-2.gif",
+    "thumb_path": "upper-back/inverted-row-v-2.thumb.webp"
   },
   {
     "name": "Inverted Row With Straps",
@@ -8789,7 +10512,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/inverted-row-with-straps.gif",
+    "thumb_path": "upper-back/inverted-row-with-straps.thumb.webp"
   },
   {
     "name": "Iron Cross Stretch",
@@ -8801,7 +10526,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "glutes/iron-cross-stretch.gif",
+    "thumb_path": "glutes/iron-cross-stretch.thumb.webp"
   },
   {
     "name": "Isometric Chest Squeeze",
@@ -8809,7 +10536,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/isometric-chest-squeeze.gif",
+    "thumb_path": "pectorals/isometric-chest-squeeze.thumb.webp"
   },
   {
     "name": "Isometric Wipers",
@@ -8817,7 +10546,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/isometric-wipers.gif",
+    "thumb_path": "pectorals/isometric-wipers.thumb.webp"
   },
   {
     "name": "Jack Burpee",
@@ -8831,7 +10562,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/jack-burpee.gif",
+    "thumb_path": "cardio/jack-burpee.thumb.webp"
   },
   {
     "name": "Jack Jump Male",
@@ -8839,7 +10572,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/jack-jump-male.gif",
+    "thumb_path": "cardio/jack-jump-male.thumb.webp"
   },
   {
     "name": "Jackknife Sit Up",
@@ -8847,7 +10582,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/jackknife-sit-up.gif",
+    "thumb_path": "abs/jackknife-sit-up.thumb.webp"
   },
   {
     "name": "Janda Sit Up",
@@ -8855,7 +10592,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/janda-sit-up.gif",
+    "thumb_path": "abs/janda-sit-up.thumb.webp"
   },
   {
     "name": "Jump Rope",
@@ -8863,7 +10602,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/jump-rope.gif",
+    "thumb_path": "cardio/jump-rope.thumb.webp"
   },
   {
     "name": "Jump Squat",
@@ -8874,7 +10615,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/jump-squat.gif",
+    "thumb_path": "glutes/jump-squat.thumb.webp"
   },
   {
     "name": "Jump Squat v2",
@@ -8885,7 +10628,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/jump-squat-v-2.gif",
+    "thumb_path": "glutes/jump-squat-v-2.thumb.webp"
   },
   {
     "name": "Kettlebell Advanced Windmill",
@@ -8893,7 +10638,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/kettlebell-advanced-windmill.gif",
+    "thumb_path": "abs/kettlebell-advanced-windmill.thumb.webp"
   },
   {
     "name": "Kettlebell Alternating Hang Clean",
@@ -8907,7 +10654,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/kettlebell-alternating-hang-clean.gif",
+    "thumb_path": "forearms/kettlebell-alternating-hang-clean.thumb.webp"
   },
   {
     "name": "Kettlebell Alternating Press",
@@ -8917,7 +10666,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/kettlebell-alternating-press.gif",
+    "thumb_path": "delts/kettlebell-alternating-press.thumb.webp"
   },
   {
     "name": "Kettlebell Alternating Press On Floor",
@@ -8928,7 +10679,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/kettlebell-alternating-press-on-floor.gif",
+    "thumb_path": "pectorals/kettlebell-alternating-press-on-floor.thumb.webp"
   },
   {
     "name": "Kettlebell Alternating Renegade Row",
@@ -8941,7 +10694,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/kettlebell-alternating-renegade-row.gif",
+    "thumb_path": "upper-back/kettlebell-alternating-renegade-row.thumb.webp"
   },
   {
     "name": "Kettlebell Alternating Row",
@@ -8954,7 +10709,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/kettlebell-alternating-row.gif",
+    "thumb_path": "upper-back/kettlebell-alternating-row.thumb.webp"
   },
   {
     "name": "Kettlebell Arnold Press",
@@ -8964,7 +10721,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/kettlebell-arnold-press.gif",
+    "thumb_path": "delts/kettlebell-arnold-press.thumb.webp"
   },
   {
     "name": "Kettlebell Bent Press",
@@ -8975,7 +10734,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/kettlebell-bent-press.gif",
+    "thumb_path": "abs/kettlebell-bent-press.thumb.webp"
   },
   {
     "name": "Kettlebell Bottoms Up Clean From The Hang Position",
@@ -8990,7 +10751,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/kettlebell-bottoms-up-clean-from-the-hang-position.gif",
+    "thumb_path": "biceps/kettlebell-bottoms-up-clean-from-the-hang-position.thumb.webp"
   },
   {
     "name": "Kettlebell Double Alternating Hang Clean",
@@ -9005,7 +10768,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/kettlebell-double-alternating-hang-clean.gif",
+    "thumb_path": "biceps/kettlebell-double-alternating-hang-clean.thumb.webp"
   },
   {
     "name": "Kettlebell Double Jerk",
@@ -9019,7 +10784,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/kettlebell-double-jerk.gif",
+    "thumb_path": "delts/kettlebell-double-jerk.thumb.webp"
   },
   {
     "name": "Kettlebell Double Push Press",
@@ -9029,7 +10796,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/kettlebell-double-push-press.gif",
+    "thumb_path": "delts/kettlebell-double-push-press.thumb.webp"
   },
   {
     "name": "Kettlebell Double Snatch",
@@ -9043,7 +10812,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/kettlebell-double-snatch.gif",
+    "thumb_path": "delts/kettlebell-double-snatch.thumb.webp"
   },
   {
     "name": "Kettlebell Double Windmill",
@@ -9051,7 +10822,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/kettlebell-double-windmill.gif",
+    "thumb_path": "abs/kettlebell-double-windmill.thumb.webp"
   },
   {
     "name": "Kettlebell Extended Range One Arm Press On Floor",
@@ -9062,7 +10835,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/kettlebell-extended-range-one-arm-press-on-floor.gif",
+    "thumb_path": "pectorals/kettlebell-extended-range-one-arm-press-on-floor.thumb.webp"
   },
   {
     "name": "Kettlebell Figure 8",
@@ -9070,7 +10845,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/kettlebell-figure-8.gif",
+    "thumb_path": "abs/kettlebell-figure-8.thumb.webp"
   },
   {
     "name": "Kettlebell Front Squat",
@@ -9081,7 +10858,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/kettlebell-front-squat.gif",
+    "thumb_path": "glutes/kettlebell-front-squat.thumb.webp"
   },
   {
     "name": "Kettlebell Goblet Squat",
@@ -9092,7 +10871,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/kettlebell-goblet-squat.gif",
+    "thumb_path": "glutes/kettlebell-goblet-squat.thumb.webp"
   },
   {
     "name": "Kettlebell Hang Clean",
@@ -9106,7 +10887,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/kettlebell-hang-clean.gif",
+    "thumb_path": "hamstrings/kettlebell-hang-clean.thumb.webp"
   },
   {
     "name": "Kettlebell Lunge Pass Through",
@@ -9117,7 +10900,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/kettlebell-lunge-pass-through.gif",
+    "thumb_path": "glutes/kettlebell-lunge-pass-through.thumb.webp"
   },
   {
     "name": "Kettlebell One Arm Clean And Jerk",
@@ -9131,7 +10916,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/kettlebell-one-arm-clean-and-jerk.gif",
+    "thumb_path": "delts/kettlebell-one-arm-clean-and-jerk.thumb.webp"
   },
   {
     "name": "Kettlebell One Arm Floor Press",
@@ -9142,7 +10929,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/kettlebell-one-arm-floor-press.gif",
+    "thumb_path": "pectorals/kettlebell-one-arm-floor-press.thumb.webp"
   },
   {
     "name": "Kettlebell One Arm Jerk",
@@ -9156,7 +10945,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/kettlebell-one-arm-jerk.gif",
+    "thumb_path": "delts/kettlebell-one-arm-jerk.thumb.webp"
   },
   {
     "name": "Kettlebell One Arm Military Press To The Side",
@@ -9166,7 +10957,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/kettlebell-one-arm-military-press-to-the-side.gif",
+    "thumb_path": "delts/kettlebell-one-arm-military-press-to-the-side.thumb.webp"
   },
   {
     "name": "Kettlebell One Arm Push Press",
@@ -9176,7 +10969,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/kettlebell-one-arm-push-press.gif",
+    "thumb_path": "delts/kettlebell-one-arm-push-press.thumb.webp"
   },
   {
     "name": "Kettlebell One Arm Row",
@@ -9189,7 +10984,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/kettlebell-one-arm-row.gif",
+    "thumb_path": "upper-back/kettlebell-one-arm-row.thumb.webp"
   },
   {
     "name": "Kettlebell One Arm Snatch",
@@ -9203,7 +11000,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/kettlebell-one-arm-snatch.gif",
+    "thumb_path": "delts/kettlebell-one-arm-snatch.thumb.webp"
   },
   {
     "name": "Kettlebell Pirate Supper Legs",
@@ -9211,7 +11010,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "front_delt",
     "secondary_muscles": [],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/kettlebell-pirate-supper-legs.gif",
+    "thumb_path": "delts/kettlebell-pirate-supper-legs.thumb.webp"
   },
   {
     "name": "Kettlebell Pistol Squat",
@@ -9222,7 +11023,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/kettlebell-pistol-squat.gif",
+    "thumb_path": "glutes/kettlebell-pistol-squat.thumb.webp"
   },
   {
     "name": "Kettlebell Plyo Push Up",
@@ -9233,7 +11036,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/kettlebell-plyo-push-up.gif",
+    "thumb_path": "pectorals/kettlebell-plyo-push-up.thumb.webp"
   },
   {
     "name": "Kettlebell Seated Press",
@@ -9243,7 +11048,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/kettlebell-seated-press.gif",
+    "thumb_path": "delts/kettlebell-seated-press.thumb.webp"
   },
   {
     "name": "Kettlebell Seated Two Arm Military Press",
@@ -9253,7 +11060,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/kettlebell-seated-two-arm-military-press.gif",
+    "thumb_path": "delts/kettlebell-seated-two-arm-military-press.thumb.webp"
   },
   {
     "name": "Kettlebell Seesaw Press",
@@ -9263,7 +11072,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/kettlebell-seesaw-press.gif",
+    "thumb_path": "delts/kettlebell-seesaw-press.thumb.webp"
   },
   {
     "name": "Kettlebell Sumo High Pull",
@@ -9271,7 +11082,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "traps",
     "secondary_muscles": [],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "traps/kettlebell-sumo-high-pull.gif",
+    "thumb_path": "traps/kettlebell-sumo-high-pull.thumb.webp"
   },
   {
     "name": "Kettlebell Swing",
@@ -9285,7 +11098,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/kettlebell-swing.gif",
+    "thumb_path": "glutes/kettlebell-swing.thumb.webp"
   },
   {
     "name": "Kettlebell Thruster",
@@ -9298,7 +11113,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/kettlebell-thruster.gif",
+    "thumb_path": "delts/kettlebell-thruster.thumb.webp"
   },
   {
     "name": "Kettlebell Turkish Get Up Squat Style",
@@ -9309,7 +11126,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/kettlebell-turkish-get-up-squat-style.gif",
+    "thumb_path": "glutes/kettlebell-turkish-get-up-squat-style.thumb.webp"
   },
   {
     "name": "Kettlebell Two Arm Clean",
@@ -9323,7 +11142,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/kettlebell-two-arm-clean.gif",
+    "thumb_path": "delts/kettlebell-two-arm-clean.thumb.webp"
   },
   {
     "name": "Kettlebell Two Arm Military Press",
@@ -9333,7 +11154,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/kettlebell-two-arm-military-press.gif",
+    "thumb_path": "delts/kettlebell-two-arm-military-press.thumb.webp"
   },
   {
     "name": "Kettlebell Two Arm Row",
@@ -9346,7 +11169,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/kettlebell-two-arm-row.gif",
+    "thumb_path": "upper-back/kettlebell-two-arm-row.thumb.webp"
   },
   {
     "name": "Kettlebell Windmill",
@@ -9354,7 +11179,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "kettlebell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/kettlebell-windmill.gif",
+    "thumb_path": "abs/kettlebell-windmill.thumb.webp"
   },
   {
     "name": "Kick Out Sit",
@@ -9362,7 +11189,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "hamstrings",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/kick-out-sit.gif",
+    "thumb_path": "hamstrings/kick-out-sit.thumb.webp"
   },
   {
     "name": "Kipping Muscle Up",
@@ -9370,7 +11199,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/kipping-muscle-up.gif",
+    "thumb_path": "lats/kipping-muscle-up.thumb.webp"
   },
   {
     "name": "Knee Touch Crunch",
@@ -9378,7 +11209,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/knee-touch-crunch.gif",
+    "thumb_path": "abs/knee-touch-crunch.thumb.webp"
   },
   {
     "name": "Kneeling Jump Squat",
@@ -9389,7 +11222,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/kneeling-jump-squat.gif",
+    "thumb_path": "glutes/kneeling-jump-squat.thumb.webp"
   },
   {
     "name": "Kneeling Lat Stretch",
@@ -9397,7 +11232,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "lats/kneeling-lat-stretch.gif",
+    "thumb_path": "lats/kneeling-lat-stretch.thumb.webp"
   },
   {
     "name": "Kneeling Plank Tap Shoulder Male",
@@ -9408,7 +11245,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "glutes"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/kneeling-plank-tap-shoulder-male.gif",
+    "thumb_path": "abs/kneeling-plank-tap-shoulder-male.thumb.webp"
   },
   {
     "name": "Kneeling Push Up Male",
@@ -9419,7 +11258,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/kneeling-push-up-male.gif",
+    "thumb_path": "pectorals/kneeling-push-up-male.thumb.webp"
   },
   {
     "name": "Korean Dips",
@@ -9430,7 +11271,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/korean-dips.gif",
+    "thumb_path": "pectorals/korean-dips.thumb.webp"
   },
   {
     "name": "L Pull Up",
@@ -9442,7 +11285,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/l-pull-up.gif",
+    "thumb_path": "lats/l-pull-up.thumb.webp"
   },
   {
     "name": "L Sit On Floor",
@@ -9450,7 +11295,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/l-sit-on-floor.gif",
+    "thumb_path": "abs/l-sit-on-floor.thumb.webp"
   },
   {
     "name": "Landmine 180",
@@ -9458,7 +11305,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/landmine-180.gif",
+    "thumb_path": "abs/landmine-180.thumb.webp"
   },
   {
     "name": "Landmine Lateral Raise",
@@ -9468,7 +11317,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/landmine-lateral-raise.gif",
+    "thumb_path": "delts/landmine-lateral-raise.thumb.webp"
   },
   {
     "name": "Lean Planche",
@@ -9479,7 +11330,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/lean-planche.gif",
+    "thumb_path": "abs/lean-planche.thumb.webp"
   },
   {
     "name": "Left Hook Boxing",
@@ -9487,7 +11340,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "front_delt",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/left-hook-boxing.gif",
+    "thumb_path": "delts/left-hook-boxing.thumb.webp"
   },
   {
     "name": "Leg Pull In Flat Bench",
@@ -9495,7 +11350,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/leg-pull-in-flat-bench.gif",
+    "thumb_path": "abs/leg-pull-in-flat-bench.thumb.webp"
   },
   {
     "name": "Leg Up Hamstring Stretch",
@@ -9503,7 +11360,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "hamstrings",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "hamstrings/leg-up-hamstring-stretch.gif",
+    "thumb_path": "hamstrings/leg-up-hamstring-stretch.thumb.webp"
   },
   {
     "name": "Lever Alternate Leg Press",
@@ -9514,7 +11373,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/lever-alternate-leg-press.gif",
+    "thumb_path": "quads/lever-alternate-leg-press.thumb.webp"
   },
   {
     "name": "Lever Alternating Narrow Grip Seated Row",
@@ -9527,7 +11388,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/lever-alternating-narrow-grip-seated-row.gif",
+    "thumb_path": "upper-back/lever-alternating-narrow-grip-seated-row.thumb.webp"
   },
   {
     "name": "Lever Assisted Chin Up",
@@ -9539,7 +11402,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/lever-assisted-chin-up.gif",
+    "thumb_path": "lats/lever-assisted-chin-up.thumb.webp"
   },
   {
     "name": "Lever Back Extension",
@@ -9550,7 +11415,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "hamstrings"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "spine/lever-back-extension.gif",
+    "thumb_path": "spine/lever-back-extension.thumb.webp"
   },
   {
     "name": "Lever Bent Over Row",
@@ -9563,7 +11430,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/lever-bent-over-row.gif",
+    "thumb_path": "upper-back/lever-bent-over-row.thumb.webp"
   },
   {
     "name": "Lever Bent Over Row With V Bar",
@@ -9576,7 +11445,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/lever-bent-over-row-with-v-bar.gif",
+    "thumb_path": "upper-back/lever-bent-over-row-with-v-bar.thumb.webp"
   },
   {
     "name": "Lever Bicep Curl",
@@ -9586,7 +11457,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/lever-bicep-curl.gif",
+    "thumb_path": "biceps/lever-bicep-curl.thumb.webp"
   },
   {
     "name": "Lever Calf Press",
@@ -9597,7 +11470,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/lever-calf-press.gif",
+    "thumb_path": "calves/lever-calf-press.thumb.webp"
   },
   {
     "name": "Lever Chest Press",
@@ -9608,7 +11483,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/lever-chest-press.gif",
+    "thumb_path": "pectorals/lever-chest-press.thumb.webp"
   },
   {
     "name": "Lever Chest Press 0577",
@@ -9619,7 +11496,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/lever-chest-press-0577.gif",
+    "thumb_path": "pectorals/lever-chest-press-0577.thumb.webp"
   },
   {
     "name": "Lever Deadlift",
@@ -9633,7 +11512,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/lever-deadlift.gif",
+    "thumb_path": "glutes/lever-deadlift.thumb.webp"
   },
   {
     "name": "Lever Decline Chest Press",
@@ -9644,7 +11525,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/lever-decline-chest-press.gif",
+    "thumb_path": "pectorals/lever-decline-chest-press.thumb.webp"
   },
   {
     "name": "Lever Donkey Calf Raise",
@@ -9652,7 +11535,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/lever-donkey-calf-raise.gif",
+    "thumb_path": "calves/lever-donkey-calf-raise.thumb.webp"
   },
   {
     "name": "Lever Front Pulldown",
@@ -9664,7 +11549,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/lever-front-pulldown.gif",
+    "thumb_path": "lats/lever-front-pulldown.thumb.webp"
   },
   {
     "name": "Lever Gripless Shrug",
@@ -9675,7 +11562,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "traps/lever-gripless-shrug.gif",
+    "thumb_path": "traps/lever-gripless-shrug.thumb.webp"
   },
   {
     "name": "Lever Gripless Shrug v2",
@@ -9686,7 +11575,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "traps/lever-gripless-shrug-v-2.gif",
+    "thumb_path": "traps/lever-gripless-shrug-v-2.thumb.webp"
   },
   {
     "name": "Lever Gripper Hands",
@@ -9696,7 +11587,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/lever-gripper-hands.gif",
+    "thumb_path": "forearms/lever-gripper-hands.thumb.webp"
   },
   {
     "name": "Lever Hammer Grip Preacher Curl",
@@ -9706,7 +11599,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/lever-hammer-grip-preacher-curl.gif",
+    "thumb_path": "biceps/lever-hammer-grip-preacher-curl.thumb.webp"
   },
   {
     "name": "Lever High Row",
@@ -9719,7 +11614,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/lever-high-row.gif",
+    "thumb_path": "upper-back/lever-high-row.thumb.webp"
   },
   {
     "name": "Lever Hip Extension v2",
@@ -9730,7 +11627,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/lever-hip-extension-v-2.gif",
+    "thumb_path": "glutes/lever-hip-extension-v-2.thumb.webp"
   },
   {
     "name": "Lever Horizontal One Leg Press",
@@ -9741,7 +11640,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/lever-horizontal-one-leg-press.gif",
+    "thumb_path": "glutes/lever-horizontal-one-leg-press.thumb.webp"
   },
   {
     "name": "Lever Incline Chest Press",
@@ -9752,7 +11653,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/lever-incline-chest-press.gif",
+    "thumb_path": "pectorals/lever-incline-chest-press.thumb.webp"
   },
   {
     "name": "Lever Incline Chest Press v2",
@@ -9763,7 +11666,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/lever-incline-chest-press-v-2.gif",
+    "thumb_path": "pectorals/lever-incline-chest-press-v-2.thumb.webp"
   },
   {
     "name": "Lever Kneeling Leg Curl",
@@ -9774,7 +11679,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/lever-kneeling-leg-curl.gif",
+    "thumb_path": "hamstrings/lever-kneeling-leg-curl.thumb.webp"
   },
   {
     "name": "Lever Kneeling Twist",
@@ -9782,7 +11689,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/lever-kneeling-twist.gif",
+    "thumb_path": "abs/lever-kneeling-twist.thumb.webp"
   },
   {
     "name": "Lever Lateral Raise",
@@ -9792,7 +11701,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/lever-lateral-raise.gif",
+    "thumb_path": "delts/lever-lateral-raise.thumb.webp"
   },
   {
     "name": "Lever Leg Extension",
@@ -9803,7 +11714,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "hamstrings"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/lever-leg-extension.gif",
+    "thumb_path": "quads/lever-leg-extension.thumb.webp"
   },
   {
     "name": "Lever Lying Leg Curl",
@@ -9814,7 +11727,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/lever-lying-leg-curl.gif",
+    "thumb_path": "hamstrings/lever-lying-leg-curl.thumb.webp"
   },
   {
     "name": "Lever Lying Two One Leg Curl",
@@ -9825,7 +11740,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/lever-lying-two-one-leg-curl.gif",
+    "thumb_path": "hamstrings/lever-lying-two-one-leg-curl.thumb.webp"
   },
   {
     "name": "Lever Military Press",
@@ -9835,7 +11752,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/lever-military-press.gif",
+    "thumb_path": "delts/lever-military-press.thumb.webp"
   },
   {
     "name": "Lever Narrow Grip Seated Row",
@@ -9848,7 +11767,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/lever-narrow-grip-seated-row.gif",
+    "thumb_path": "upper-back/lever-narrow-grip-seated-row.thumb.webp"
   },
   {
     "name": "Lever One Arm Bent Over Row",
@@ -9861,7 +11782,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/lever-one-arm-bent-over-row.gif",
+    "thumb_path": "upper-back/lever-one-arm-bent-over-row.thumb.webp"
   },
   {
     "name": "Lever One Arm Lateral High Row",
@@ -9874,7 +11797,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/lever-one-arm-lateral-high-row.gif",
+    "thumb_path": "upper-back/lever-one-arm-lateral-high-row.thumb.webp"
   },
   {
     "name": "Lever One Arm Lateral Wide Pulldown",
@@ -9886,7 +11811,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/lever-one-arm-lateral-wide-pulldown.gif",
+    "thumb_path": "lats/lever-one-arm-lateral-wide-pulldown.thumb.webp"
   },
   {
     "name": "Lever One Arm Shoulder Press",
@@ -9896,7 +11823,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/lever-one-arm-shoulder-press.gif",
+    "thumb_path": "delts/lever-one-arm-shoulder-press.thumb.webp"
   },
   {
     "name": "Lever Overhand Triceps Dip",
@@ -9907,7 +11836,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/lever-overhand-triceps-dip.gif",
+    "thumb_path": "triceps/lever-overhand-triceps-dip.thumb.webp"
   },
   {
     "name": "Lever Preacher Curl",
@@ -9917,7 +11848,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/lever-preacher-curl.gif",
+    "thumb_path": "biceps/lever-preacher-curl.thumb.webp"
   },
   {
     "name": "Lever Preacher Curl v2",
@@ -9927,7 +11860,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/lever-preacher-curl-v-2.gif",
+    "thumb_path": "biceps/lever-preacher-curl-v-2.thumb.webp"
   },
   {
     "name": "Lever Pullover",
@@ -9939,7 +11874,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/lever-pullover.gif",
+    "thumb_path": "lats/lever-pullover.thumb.webp"
   },
   {
     "name": "Lever Reverse Grip Lateral Pulldown",
@@ -9951,7 +11888,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/lever-reverse-grip-lateral-pulldown.gif",
+    "thumb_path": "lats/lever-reverse-grip-lateral-pulldown.thumb.webp"
   },
   {
     "name": "Lever Reverse Grip Preacher Curl",
@@ -9961,7 +11900,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/lever-reverse-grip-preacher-curl.gif",
+    "thumb_path": "biceps/lever-reverse-grip-preacher-curl.thumb.webp"
   },
   {
     "name": "Lever Reverse Grip Vertical Row",
@@ -9974,7 +11915,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/lever-reverse-grip-vertical-row.gif",
+    "thumb_path": "upper-back/lever-reverse-grip-vertical-row.thumb.webp"
   },
   {
     "name": "Lever Reverse Hyperextension",
@@ -9985,7 +11928,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/lever-reverse-hyperextension.gif",
+    "thumb_path": "glutes/lever-reverse-hyperextension.thumb.webp"
   },
   {
     "name": "Lever Reverse T Bar Row",
@@ -9998,7 +11943,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/lever-reverse-t-bar-row.gif",
+    "thumb_path": "upper-back/lever-reverse-t-bar-row.thumb.webp"
   },
   {
     "name": "Lever Rotary Calf",
@@ -10006,7 +11953,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/lever-rotary-calf.gif",
+    "thumb_path": "calves/lever-rotary-calf.thumb.webp"
   },
   {
     "name": "Lever Seated Calf Press",
@@ -10017,7 +11966,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/lever-seated-calf-press.gif",
+    "thumb_path": "calves/lever-seated-calf-press.thumb.webp"
   },
   {
     "name": "Lever Seated Calf Raise",
@@ -10025,7 +11976,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/lever-seated-calf-raise.gif",
+    "thumb_path": "calves/lever-seated-calf-raise.thumb.webp"
   },
   {
     "name": "Lever Seated Crunch",
@@ -10033,7 +11986,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/lever-seated-crunch.gif",
+    "thumb_path": "abs/lever-seated-crunch.thumb.webp"
   },
   {
     "name": "Lever Seated Crunch Chest Pad",
@@ -10041,7 +11996,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/lever-seated-crunch-chest-pad.gif",
+    "thumb_path": "abs/lever-seated-crunch-chest-pad.thumb.webp"
   },
   {
     "name": "Lever Seated Crunch v2",
@@ -10049,7 +12006,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/lever-seated-crunch-v-2.gif",
+    "thumb_path": "abs/lever-seated-crunch-v-2.thumb.webp"
   },
   {
     "name": "Lever Seated Dip",
@@ -10060,7 +12019,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/lever-seated-dip.gif",
+    "thumb_path": "triceps/lever-seated-dip.thumb.webp"
   },
   {
     "name": "Lever Seated Fly",
@@ -10070,7 +12031,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/lever-seated-fly.gif",
+    "thumb_path": "pectorals/lever-seated-fly.thumb.webp"
   },
   {
     "name": "Lever Seated Good Morning",
@@ -10078,7 +12041,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/lever-seated-good-morning.gif",
+    "thumb_path": "glutes/lever-seated-good-morning.thumb.webp"
   },
   {
     "name": "Lever Seated Hip Abduction",
@@ -10086,7 +12051,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abductors",
     "secondary_muscles": [],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abductors/lever-seated-hip-abduction.gif",
+    "thumb_path": "abductors/lever-seated-hip-abduction.thumb.webp"
   },
   {
     "name": "Lever Seated Hip Adduction",
@@ -10094,7 +12061,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "adductors",
     "secondary_muscles": [],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "adductors/lever-seated-hip-adduction.gif",
+    "thumb_path": "adductors/lever-seated-hip-adduction.thumb.webp"
   },
   {
     "name": "Lever Seated Leg Curl",
@@ -10105,7 +12074,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/lever-seated-leg-curl.gif",
+    "thumb_path": "hamstrings/lever-seated-leg-curl.thumb.webp"
   },
   {
     "name": "Lever Seated Leg Raise Crunch",
@@ -10113,7 +12084,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/lever-seated-leg-raise-crunch.gif",
+    "thumb_path": "abs/lever-seated-leg-raise-crunch.thumb.webp"
   },
   {
     "name": "Lever Seated Reverse Fly",
@@ -10124,7 +12097,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "upper_back"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/lever-seated-reverse-fly.gif",
+    "thumb_path": "delts/lever-seated-reverse-fly.thumb.webp"
   },
   {
     "name": "Lever Seated Reverse Fly Parallel Grip",
@@ -10135,7 +12110,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "upper_back"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/lever-seated-reverse-fly-parallel-grip.gif",
+    "thumb_path": "delts/lever-seated-reverse-fly-parallel-grip.thumb.webp"
   },
   {
     "name": "Lever Seated Row",
@@ -10148,7 +12125,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/lever-seated-row.gif",
+    "thumb_path": "upper-back/lever-seated-row.thumb.webp"
   },
   {
     "name": "Lever Seated Squat Calf Raise On Leg Press Machine",
@@ -10161,7 +12140,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "hamstrings"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/lever-seated-squat-calf-raise-on-leg-press-machine.gif",
+    "thumb_path": "calves/lever-seated-squat-calf-raise-on-leg-press-machine.thumb.webp"
   },
   {
     "name": "Lever Shoulder Press",
@@ -10171,7 +12152,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/lever-shoulder-press.gif",
+    "thumb_path": "delts/lever-shoulder-press.thumb.webp"
   },
   {
     "name": "Lever Shoulder Press v2",
@@ -10181,7 +12164,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/lever-shoulder-press-v-2.gif",
+    "thumb_path": "delts/lever-shoulder-press-v-2.thumb.webp"
   },
   {
     "name": "Lever Shoulder Press v3",
@@ -10191,7 +12176,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/lever-shoulder-press-v-3.gif",
+    "thumb_path": "delts/lever-shoulder-press-v-3.thumb.webp"
   },
   {
     "name": "Lever Shrug",
@@ -10202,7 +12189,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "traps/lever-shrug.gif",
+    "thumb_path": "traps/lever-shrug.thumb.webp"
   },
   {
     "name": "Lever Standing Calf Raise",
@@ -10210,7 +12199,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/lever-standing-calf-raise.gif",
+    "thumb_path": "calves/lever-standing-calf-raise.thumb.webp"
   },
   {
     "name": "Lever Standing Chest Press",
@@ -10221,7 +12212,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/lever-standing-chest-press.gif",
+    "thumb_path": "pectorals/lever-standing-chest-press.thumb.webp"
   },
   {
     "name": "Lever T Bar Reverse Grip Row",
@@ -10234,7 +12227,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/lever-t-bar-reverse-grip-row.gif",
+    "thumb_path": "upper-back/lever-t-bar-reverse-grip-row.thumb.webp"
   },
   {
     "name": "Lever T Bar Row",
@@ -10247,7 +12242,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/lever-t-bar-row.gif",
+    "thumb_path": "upper-back/lever-t-bar-row.thumb.webp"
   },
   {
     "name": "Lever Triceps Extension",
@@ -10257,7 +12254,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/lever-triceps-extension.gif",
+    "thumb_path": "triceps/lever-triceps-extension.thumb.webp"
   },
   {
     "name": "Lever Unilateral Row",
@@ -10270,7 +12269,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/lever-unilateral-row.gif",
+    "thumb_path": "upper-back/lever-unilateral-row.thumb.webp"
   },
   {
     "name": "Low Glute Bridge On Floor",
@@ -10281,7 +12282,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/low-glute-bridge-on-floor.gif",
+    "thumb_path": "glutes/low-glute-bridge-on-floor.thumb.webp"
   },
   {
     "name": "Lower Back Curl",
@@ -10289,7 +12292,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "spinal_erectors",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "spine/lower-back-curl.gif",
+    "thumb_path": "spine/lower-back-curl.thumb.webp"
   },
   {
     "name": "Lunge With Jump",
@@ -10300,7 +12305,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/lunge-with-jump.gif",
+    "thumb_path": "glutes/lunge-with-jump.thumb.webp"
   },
   {
     "name": "Lunge With Twist",
@@ -10312,7 +12319,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/lunge-with-twist.gif",
+    "thumb_path": "abs/lunge-with-twist.thumb.webp"
   },
   {
     "name": "Lying Elbow To Knee",
@@ -10320,7 +12329,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/lying-elbow-to-knee.gif",
+    "thumb_path": "abs/lying-elbow-to-knee.thumb.webp"
   },
   {
     "name": "Lying Leg Hip Raise",
@@ -10328,7 +12339,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/lying-leg-hip-raise.gif",
+    "thumb_path": "abs/lying-leg-hip-raise.thumb.webp"
   },
   {
     "name": "Lying Leg Raise Flat Bench",
@@ -10336,7 +12349,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/lying-leg-raise-flat-bench.gif",
+    "thumb_path": "abs/lying-leg-raise-flat-bench.thumb.webp"
   },
   {
     "name": "Lying Side Quads Stretch",
@@ -10344,7 +12359,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "quads",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "quads/lying-side-quads-stretch.gif",
+    "thumb_path": "quads/lying-side-quads-stretch.thumb.webp"
   },
   {
     "name": "Machine Inner Chest Press",
@@ -10355,7 +12372,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "machine",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/machine-inner-chest-press.gif",
+    "thumb_path": "pectorals/machine-inner-chest-press.thumb.webp"
   },
   {
     "name": "March Sit Wall",
@@ -10363,7 +12382,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/march-sit-wall.gif",
+    "thumb_path": "glutes/march-sit-wall.thumb.webp"
   },
   {
     "name": "Medicine Ball Catch And Overhead Throw",
@@ -10371,7 +12392,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/medicine-ball-catch-and-overhead-throw.gif",
+    "thumb_path": "lats/medicine-ball-catch-and-overhead-throw.thumb.webp"
   },
   {
     "name": "Medicine Ball Chest Pass",
@@ -10379,7 +12402,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/medicine-ball-chest-pass.gif",
+    "thumb_path": "pectorals/medicine-ball-chest-pass.thumb.webp"
   },
   {
     "name": "Medicine Ball Chest Push From 3 Point Stance",
@@ -10387,7 +12412,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/medicine-ball-chest-push-from-3-point-stance.gif",
+    "thumb_path": "pectorals/medicine-ball-chest-push-from-3-point-stance.thumb.webp"
   },
   {
     "name": "Medicine Ball Chest Push Multiple Response",
@@ -10395,7 +12422,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/medicine-ball-chest-push-multiple-response.gif",
+    "thumb_path": "pectorals/medicine-ball-chest-push-multiple-response.thumb.webp"
   },
   {
     "name": "Medicine Ball Chest Push Single Response",
@@ -10403,7 +12432,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/medicine-ball-chest-push-single-response.gif",
+    "thumb_path": "pectorals/medicine-ball-chest-push-single-response.thumb.webp"
   },
   {
     "name": "Medicine Ball Chest Push With Run Release",
@@ -10411,7 +12442,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/medicine-ball-chest-push-with-run-release.gif",
+    "thumb_path": "pectorals/medicine-ball-chest-push-with-run-release.thumb.webp"
   },
   {
     "name": "Medicine Ball Close Grip Push Up",
@@ -10421,7 +12454,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/medicine-ball-close-grip-push-up.gif",
+    "thumb_path": "triceps/medicine-ball-close-grip-push-up.thumb.webp"
   },
   {
     "name": "Medicine Ball Overhead Slam",
@@ -10429,7 +12464,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "traps",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/medicine-ball-overhead-slam.gif",
+    "thumb_path": "upper-back/medicine-ball-overhead-slam.thumb.webp"
   },
   {
     "name": "Medicine Ball Supine Chest Throw",
@@ -10437,7 +12474,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "triceps",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/medicine-ball-supine-chest-throw.gif",
+    "thumb_path": "triceps/medicine-ball-supine-chest-throw.thumb.webp"
   },
   {
     "name": "Mixed Grip Chin Up",
@@ -10449,7 +12488,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/mixed-grip-chin-up.gif",
+    "thumb_path": "lats/mixed-grip-chin-up.thumb.webp"
   },
   {
     "name": "Modified Hindu Push Up Male",
@@ -10460,7 +12501,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/modified-hindu-push-up-male.gif",
+    "thumb_path": "pectorals/modified-hindu-push-up-male.thumb.webp"
   },
   {
     "name": "Modified Push Up To Lower Arms",
@@ -10471,7 +12514,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/modified-push-up-to-lower-arms.gif",
+    "thumb_path": "forearms/modified-push-up-to-lower-arms.thumb.webp"
   },
   {
     "name": "Monster Walk",
@@ -10479,7 +12524,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/monster-walk.gif",
+    "thumb_path": "glutes/monster-walk.thumb.webp"
   },
   {
     "name": "Mountain Climber",
@@ -10487,7 +12534,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/mountain-climber.gif",
+    "thumb_path": "cardio/mountain-climber.thumb.webp"
   },
   {
     "name": "Muscle Up",
@@ -10495,7 +12544,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/muscle-up.gif",
+    "thumb_path": "lats/muscle-up.thumb.webp"
   },
   {
     "name": "Muscle Up On Vertical Bar",
@@ -10503,7 +12554,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/muscle-up-on-vertical-bar.gif",
+    "thumb_path": "lats/muscle-up-on-vertical-bar.thumb.webp"
   },
   {
     "name": "Narrow Push Up On Exercise Ball",
@@ -10513,7 +12566,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/narrow-push-up-on-exercise-ball.gif",
+    "thumb_path": "triceps/narrow-push-up-on-exercise-ball.thumb.webp"
   },
   {
     "name": "Neck Side Stretch",
@@ -10521,7 +12576,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "levator_scapulae",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "levator-scapulae/neck-side-stretch.gif",
+    "thumb_path": "levator-scapulae/neck-side-stretch.thumb.webp"
   },
   {
     "name": "Negative Crunch",
@@ -10529,7 +12586,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/negative-crunch.gif",
+    "thumb_path": "abs/negative-crunch.thumb.webp"
   },
   {
     "name": "Oblique Crunch v2",
@@ -10537,7 +12596,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/oblique-crunch-v-2.gif",
+    "thumb_path": "abs/oblique-crunch-v-2.thumb.webp"
   },
   {
     "name": "Oblique Crunches Floor",
@@ -10545,7 +12606,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/oblique-crunches-floor.gif",
+    "thumb_path": "abs/oblique-crunches-floor.thumb.webp"
   },
   {
     "name": "Olympic Barbell Hammer Curl",
@@ -10555,7 +12618,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/olympic-barbell-hammer-curl.gif",
+    "thumb_path": "biceps/olympic-barbell-hammer-curl.thumb.webp"
   },
   {
     "name": "Olympic Barbell Triceps Extension",
@@ -10565,7 +12630,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/olympic-barbell-triceps-extension.gif",
+    "thumb_path": "triceps/olympic-barbell-triceps-extension.thumb.webp"
   },
   {
     "name": "One Arm Against Wall",
@@ -10573,7 +12640,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/one-arm-against-wall.gif",
+    "thumb_path": "lats/one-arm-against-wall.thumb.webp"
   },
   {
     "name": "One Arm Chin Up",
@@ -10585,7 +12654,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/one-arm-chin-up.gif",
+    "thumb_path": "lats/one-arm-chin-up.thumb.webp"
   },
   {
     "name": "One Arm Dip",
@@ -10596,7 +12667,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/one-arm-dip.gif",
+    "thumb_path": "triceps/one-arm-dip.thumb.webp"
   },
   {
     "name": "One Arm Slam With Medicine Ball",
@@ -10604,7 +12677,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/one-arm-slam-with-medicine-ball.gif",
+    "thumb_path": "abs/one-arm-slam-with-medicine-ball.thumb.webp"
   },
   {
     "name": "One Arm Towel Row",
@@ -10617,7 +12692,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/one-arm-towel-row.gif",
+    "thumb_path": "upper-back/one-arm-towel-row.thumb.webp"
   },
   {
     "name": "One Leg Donkey Calf Raise",
@@ -10625,7 +12702,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/one-leg-donkey-calf-raise.gif",
+    "thumb_path": "calves/one-leg-donkey-calf-raise.thumb.webp"
   },
   {
     "name": "One Leg Floor Calf Raise",
@@ -10633,7 +12712,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/one-leg-floor-calf-raise.gif",
+    "thumb_path": "calves/one-leg-floor-calf-raise.thumb.webp"
   },
   {
     "name": "One Leg Squat",
@@ -10644,7 +12725,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/one-leg-squat.gif",
+    "thumb_path": "glutes/one-leg-squat.thumb.webp"
   },
   {
     "name": "Otis Up",
@@ -10652,7 +12735,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/otis-up.gif",
+    "thumb_path": "abs/otis-up.thumb.webp"
   },
   {
     "name": "Outside Leg Kick Push Up",
@@ -10663,7 +12748,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/outside-leg-kick-push-up.gif",
+    "thumb_path": "glutes/outside-leg-kick-push-up.thumb.webp"
   },
   {
     "name": "Overhead Triceps Stretch",
@@ -10673,7 +12760,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "triceps/overhead-triceps-stretch.gif",
+    "thumb_path": "triceps/overhead-triceps-stretch.thumb.webp"
   },
   {
     "name": "Pelvic Tilt",
@@ -10681,7 +12770,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/pelvic-tilt.gif",
+    "thumb_path": "abs/pelvic-tilt.thumb.webp"
   },
   {
     "name": "Pelvic Tilt Into Bridge",
@@ -10692,7 +12783,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/pelvic-tilt-into-bridge.gif",
+    "thumb_path": "glutes/pelvic-tilt-into-bridge.thumb.webp"
   },
   {
     "name": "Peroneals Stretch",
@@ -10700,7 +12793,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "calves/peroneals-stretch.gif",
+    "thumb_path": "calves/peroneals-stretch.thumb.webp"
   },
   {
     "name": "Pike To Cobra Push Up",
@@ -10713,7 +12808,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/pike-to-cobra-push-up.gif",
+    "thumb_path": "glutes/pike-to-cobra-push-up.thumb.webp"
   },
   {
     "name": "Plyo Push Up",
@@ -10724,7 +12821,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/plyo-push-up.gif",
+    "thumb_path": "pectorals/plyo-push-up.thumb.webp"
   },
   {
     "name": "Posterior Step To Overhead Reach",
@@ -10732,7 +12831,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/posterior-step-to-overhead-reach.gif",
+    "thumb_path": "abs/posterior-step-to-overhead-reach.thumb.webp"
   },
   {
     "name": "Posterior Tibialis Stretch",
@@ -10740,7 +12841,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "calves/posterior-tibialis-stretch.gif",
+    "thumb_path": "calves/posterior-tibialis-stretch.thumb.webp"
   },
   {
     "name": "Potty Squat",
@@ -10752,7 +12855,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/potty-squat.gif",
+    "thumb_path": "abs/potty-squat.thumb.webp"
   },
   {
     "name": "Potty Squat With Support",
@@ -10763,7 +12868,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/potty-squat-with-support.gif",
+    "thumb_path": "glutes/potty-squat-with-support.thumb.webp"
   },
   {
     "name": "Power Clean",
@@ -10777,7 +12884,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/power-clean.gif",
+    "thumb_path": "hamstrings/power-clean.thumb.webp"
   },
   {
     "name": "Power Point Plank",
@@ -10788,7 +12897,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "glutes"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/power-point-plank.gif",
+    "thumb_path": "abs/power-point-plank.thumb.webp"
   },
   {
     "name": "Prisoner Half Sit Up Male",
@@ -10796,7 +12907,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/prisoner-half-sit-up-male.gif",
+    "thumb_path": "abs/prisoner-half-sit-up-male.thumb.webp"
   },
   {
     "name": "Prone Twist On Stability Ball",
@@ -10804,7 +12917,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/prone-twist-on-stability-ball.gif",
+    "thumb_path": "abs/prone-twist-on-stability-ball.thumb.webp"
   },
   {
     "name": "Pull In On Stability Ball",
@@ -10812,7 +12927,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/pull-in-on-stability-ball.gif",
+    "thumb_path": "abs/pull-in-on-stability-ball.thumb.webp"
   },
   {
     "name": "Pull Up",
@@ -10824,7 +12941,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/pull-up.gif",
+    "thumb_path": "lats/pull-up.thumb.webp"
   },
   {
     "name": "Pull Up Neutral Grip",
@@ -10836,7 +12955,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/pull-up-neutral-grip.gif",
+    "thumb_path": "lats/pull-up-neutral-grip.thumb.webp"
   },
   {
     "name": "Push And Pull Bodyweight",
@@ -10844,7 +12965,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/push-and-pull-bodyweight.gif",
+    "thumb_path": "pectorals/push-and-pull-bodyweight.thumb.webp"
   },
   {
     "name": "Push To Run",
@@ -10852,7 +12975,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/push-to-run.gif",
+    "thumb_path": "cardio/push-to-run.thumb.webp"
   },
   {
     "name": "Push Up",
@@ -10863,7 +12988,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/push-up.gif",
+    "thumb_path": "pectorals/push-up.thumb.webp"
   },
   {
     "name": "Push Up Bosu Ball",
@@ -10874,7 +13001,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/push-up-bosu-ball.gif",
+    "thumb_path": "pectorals/push-up-bosu-ball.thumb.webp"
   },
   {
     "name": "Push Up Close Grip Off Dumbbell",
@@ -10884,7 +13013,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/push-up-close-grip-off-dumbbell.gif",
+    "thumb_path": "triceps/push-up-close-grip-off-dumbbell.thumb.webp"
   },
   {
     "name": "Push Up Inside Leg Kick",
@@ -10895,7 +13026,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/push-up-inside-leg-kick.gif",
+    "thumb_path": "glutes/push-up-inside-leg-kick.thumb.webp"
   },
   {
     "name": "Push Up Medicine Ball",
@@ -10906,7 +13039,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/push-up-medicine-ball.gif",
+    "thumb_path": "pectorals/push-up-medicine-ball.thumb.webp"
   },
   {
     "name": "Push Up On Bosu Ball",
@@ -10917,7 +13052,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/push-up-on-bosu-ball.gif",
+    "thumb_path": "pectorals/push-up-on-bosu-ball.thumb.webp"
   },
   {
     "name": "Push Up On Lower Arms",
@@ -10927,7 +13064,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/push-up-on-lower-arms.gif",
+    "thumb_path": "triceps/push-up-on-lower-arms.thumb.webp"
   },
   {
     "name": "Push Up On Stability Ball",
@@ -10938,7 +13077,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/push-up-on-stability-ball.gif",
+    "thumb_path": "pectorals/push-up-on-stability-ball.thumb.webp"
   },
   {
     "name": "Push Up On Stability Ball 0656",
@@ -10949,7 +13090,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/push-up-on-stability-ball-0656.gif",
+    "thumb_path": "pectorals/push-up-on-stability-ball-0656.thumb.webp"
   },
   {
     "name": "Push Up Plus",
@@ -10960,7 +13103,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/push-up-plus.gif",
+    "thumb_path": "pectorals/push-up-plus.thumb.webp"
   },
   {
     "name": "Push Up To Side Plank",
@@ -10972,7 +13117,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "glutes"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/push-up-to-side-plank.gif",
+    "thumb_path": "abs/push-up-to-side-plank.thumb.webp"
   },
   {
     "name": "Push Up Wall",
@@ -10983,7 +13130,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/push-up-wall.gif",
+    "thumb_path": "pectorals/push-up-wall.thumb.webp"
   },
   {
     "name": "Push Up Wall v2",
@@ -10994,7 +13143,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/push-up-wall-v-2.gif",
+    "thumb_path": "pectorals/push-up-wall-v-2.thumb.webp"
   },
   {
     "name": "Quads",
@@ -11002,7 +13153,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "quads",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/quads.gif",
+    "thumb_path": "quads/quads.thumb.webp"
   },
   {
     "name": "Quarter Sit Up",
@@ -11010,7 +13163,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/quarter-sit-up.gif",
+    "thumb_path": "abs/quarter-sit-up.thumb.webp"
   },
   {
     "name": "Quick Feet v2",
@@ -11018,7 +13173,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "quads",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/quick-feet-v-2.gif",
+    "thumb_path": "quads/quick-feet-v-2.thumb.webp"
   },
   {
     "name": "Raise Single Arm Push Up",
@@ -11029,7 +13186,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/raise-single-arm-push-up.gif",
+    "thumb_path": "pectorals/raise-single-arm-push-up.thumb.webp"
   },
   {
     "name": "Rear Decline Bridge",
@@ -11040,7 +13199,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/rear-decline-bridge.gif",
+    "thumb_path": "glutes/rear-decline-bridge.thumb.webp"
   },
   {
     "name": "Rear Deltoid Stretch",
@@ -11048,7 +13209,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "rear_delt",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "delts/rear-deltoid-stretch.gif",
+    "thumb_path": "delts/rear-deltoid-stretch.thumb.webp"
   },
   {
     "name": "Rear Pull Up",
@@ -11060,7 +13223,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/rear-pull-up.gif",
+    "thumb_path": "lats/rear-pull-up.thumb.webp"
   },
   {
     "name": "Reclining Big Toe Pose With Rope",
@@ -11068,7 +13233,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "hamstrings",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/reclining-big-toe-pose-with-rope.gif",
+    "thumb_path": "hamstrings/reclining-big-toe-pose-with-rope.thumb.webp"
   },
   {
     "name": "Resistance Band Hip Thrusts On Knees Female",
@@ -11079,7 +13246,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/resistance-band-hip-thrusts-on-knees-female.gif",
+    "thumb_path": "glutes/resistance-band-hip-thrusts-on-knees-female.thumb.webp"
   },
   {
     "name": "Resistance Band Leg Extension",
@@ -11090,7 +13259,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "hamstrings"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/resistance-band-leg-extension.gif",
+    "thumb_path": "quads/resistance-band-leg-extension.thumb.webp"
   },
   {
     "name": "Resistance Band Seated Biceps Curl",
@@ -11100,7 +13271,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/resistance-band-seated-biceps-curl.gif",
+    "thumb_path": "biceps/resistance-band-seated-biceps-curl.thumb.webp"
   },
   {
     "name": "Resistance Band Seated Chest Press",
@@ -11111,7 +13284,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/resistance-band-seated-chest-press.gif",
+    "thumb_path": "pectorals/resistance-band-seated-chest-press.thumb.webp"
   },
   {
     "name": "Resistance Band Seated Hip Abduction",
@@ -11119,7 +13294,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abductors",
     "secondary_muscles": [],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abductors/resistance-band-seated-hip-abduction.gif",
+    "thumb_path": "abductors/resistance-band-seated-hip-abduction.thumb.webp"
   },
   {
     "name": "Resistance Band Seated Shoulder Press",
@@ -11129,7 +13306,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/resistance-band-seated-shoulder-press.gif",
+    "thumb_path": "delts/resistance-band-seated-shoulder-press.thumb.webp"
   },
   {
     "name": "Resistance Band Seated Straight Back Row",
@@ -11142,7 +13321,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "band",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/resistance-band-seated-straight-back-row.gif",
+    "thumb_path": "upper-back/resistance-band-seated-straight-back-row.thumb.webp"
   },
   {
     "name": "Reverse Crunch",
@@ -11150,7 +13331,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/reverse-crunch.gif",
+    "thumb_path": "abs/reverse-crunch.thumb.webp"
   },
   {
     "name": "Reverse Dip",
@@ -11161,7 +13344,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/reverse-dip.gif",
+    "thumb_path": "triceps/reverse-dip.thumb.webp"
   },
   {
     "name": "Reverse Grip Machine Lat Pulldown",
@@ -11173,7 +13358,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "machine",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/reverse-grip-machine-lat-pulldown.gif",
+    "thumb_path": "lats/reverse-grip-machine-lat-pulldown.thumb.webp"
   },
   {
     "name": "Reverse Grip Pull Up",
@@ -11185,7 +13372,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/reverse-grip-pull-up.gif",
+    "thumb_path": "lats/reverse-grip-pull-up.thumb.webp"
   },
   {
     "name": "Reverse Hyper Extension On Stability Ball",
@@ -11193,7 +13382,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/reverse-hyper-extension-on-stability-ball.gif",
+    "thumb_path": "glutes/reverse-hyper-extension-on-stability-ball.thumb.webp"
   },
   {
     "name": "Reverse Hyper On Flat Bench",
@@ -11201,7 +13392,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/reverse-hyper-on-flat-bench.gif",
+    "thumb_path": "glutes/reverse-hyper-on-flat-bench.thumb.webp"
   },
   {
     "name": "Reverse Plank With Leg Lift",
@@ -11212,7 +13405,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "glutes"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/reverse-plank-with-leg-lift.gif",
+    "thumb_path": "abs/reverse-plank-with-leg-lift.thumb.webp"
   },
   {
     "name": "Ring Dips",
@@ -11223,7 +13418,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/ring-dips.gif",
+    "thumb_path": "triceps/ring-dips.thumb.webp"
   },
   {
     "name": "Rocking Frog Stretch",
@@ -11231,7 +13428,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "glutes/rocking-frog-stretch.gif",
+    "thumb_path": "glutes/rocking-frog-stretch.thumb.webp"
   },
   {
     "name": "Rocky Pull Up Pulldown",
@@ -11243,7 +13442,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/rocky-pull-up-pulldown.gif",
+    "thumb_path": "lats/rocky-pull-up-pulldown.thumb.webp"
   },
   {
     "name": "Roller Back Stretch",
@@ -11251,7 +13452,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "spinal_erectors",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "spine/roller-back-stretch.gif",
+    "thumb_path": "spine/roller-back-stretch.thumb.webp"
   },
   {
     "name": "Roller Body Saw",
@@ -11259,7 +13462,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/roller-body-saw.gif",
+    "thumb_path": "abs/roller-body-saw.thumb.webp"
   },
   {
     "name": "Roller Hip Lat Stretch",
@@ -11267,7 +13472,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "glutes/roller-hip-lat-stretch.gif",
+    "thumb_path": "glutes/roller-hip-lat-stretch.thumb.webp"
   },
   {
     "name": "Roller Hip Stretch",
@@ -11275,7 +13482,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "glutes/roller-hip-stretch.gif",
+    "thumb_path": "glutes/roller-hip-stretch.thumb.webp"
   },
   {
     "name": "Roller Reverse Crunch",
@@ -11283,7 +13492,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/roller-reverse-crunch.gif",
+    "thumb_path": "abs/roller-reverse-crunch.thumb.webp"
   },
   {
     "name": "Roller Seated Shoulder Flexor Depresor Retractor",
@@ -11291,7 +13502,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/roller-seated-shoulder-flexor-depresor-retractor.gif",
+    "thumb_path": "pectorals/roller-seated-shoulder-flexor-depresor-retractor.thumb.webp"
   },
   {
     "name": "Roller Seated Single Leg Shoulder Flexor Depresor Retractor",
@@ -11299,7 +13512,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "mid_chest",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/roller-seated-single-leg-shoulder-flexor-depresor-retractor.gif",
+    "thumb_path": "pectorals/roller-seated-single-leg-shoulder-flexor-depresor-retractor.thumb.webp"
   },
   {
     "name": "Roller Side Lat Stretch",
@@ -11307,7 +13522,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "lats/roller-side-lat-stretch.gif",
+    "thumb_path": "lats/roller-side-lat-stretch.thumb.webp"
   },
   {
     "name": "Rope Climb",
@@ -11315,7 +13532,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "traps",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/rope-climb.gif",
+    "thumb_path": "upper-back/rope-climb.thumb.webp"
   },
   {
     "name": "Run",
@@ -11323,7 +13542,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/run.gif",
+    "thumb_path": "cardio/run.thumb.webp"
   },
   {
     "name": "Run Equipment",
@@ -11331,7 +13552,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/run-equipment.gif",
+    "thumb_path": "cardio/run-equipment.thumb.webp"
   },
   {
     "name": "Runners Stretch",
@@ -11339,7 +13562,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "hamstrings",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "hamstrings/runners-stretch.gif",
+    "thumb_path": "hamstrings/runners-stretch.thumb.webp"
   },
   {
     "name": "Russian Twist",
@@ -11347,7 +13572,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/russian-twist.gif",
+    "thumb_path": "abs/russian-twist.thumb.webp"
   },
   {
     "name": "Scapula Dips",
@@ -11359,7 +13586,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "traps/scapula-dips.gif",
+    "thumb_path": "traps/scapula-dips.thumb.webp"
   },
   {
     "name": "Scapula Push Up",
@@ -11370,7 +13599,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "serratus-anterior/scapula-push-up.gif",
+    "thumb_path": "serratus-anterior/scapula-push-up.thumb.webp"
   },
   {
     "name": "Scapular Pull Up",
@@ -11382,7 +13613,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "traps/scapular-pull-up.gif",
+    "thumb_path": "traps/scapular-pull-up.thumb.webp"
   },
   {
     "name": "Scissor Jumps Male",
@@ -11390,7 +13623,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/scissor-jumps-male.gif",
+    "thumb_path": "cardio/scissor-jumps-male.thumb.webp"
   },
   {
     "name": "Seated Calf Stretch Male",
@@ -11398,7 +13633,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "calves/seated-calf-stretch-male.gif",
+    "thumb_path": "calves/seated-calf-stretch-male.thumb.webp"
   },
   {
     "name": "Seated Glute Stretch",
@@ -11406,7 +13643,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "glutes/seated-glute-stretch.gif",
+    "thumb_path": "glutes/seated-glute-stretch.thumb.webp"
   },
   {
     "name": "Seated Leg Raise",
@@ -11414,7 +13653,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/seated-leg-raise.gif",
+    "thumb_path": "abs/seated-leg-raise.thumb.webp"
   },
   {
     "name": "Seated Lower Back Stretch",
@@ -11422,7 +13663,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "lats/seated-lower-back-stretch.gif",
+    "thumb_path": "lats/seated-lower-back-stretch.thumb.webp"
   },
   {
     "name": "Seated Piriformis Stretch",
@@ -11430,7 +13673,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "glutes/seated-piriformis-stretch.gif",
+    "thumb_path": "glutes/seated-piriformis-stretch.thumb.webp"
   },
   {
     "name": "Seated Side Crunch Wall",
@@ -11438,7 +13683,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/seated-side-crunch-wall.gif",
+    "thumb_path": "abs/seated-side-crunch-wall.thumb.webp"
   },
   {
     "name": "Seated Wide Angle Pose Sequence",
@@ -11446,7 +13693,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "hamstrings",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/seated-wide-angle-pose-sequence.gif",
+    "thumb_path": "hamstrings/seated-wide-angle-pose-sequence.thumb.webp"
   },
   {
     "name": "Self Assisted Inverse Leg Curl",
@@ -11457,7 +13706,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/self-assisted-inverse-leg-curl.gif",
+    "thumb_path": "hamstrings/self-assisted-inverse-leg-curl.thumb.webp"
   },
   {
     "name": "Self Assisted Inverse Leg Curl 1766",
@@ -11468,7 +13719,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/self-assisted-inverse-leg-curl-1766.gif",
+    "thumb_path": "hamstrings/self-assisted-inverse-leg-curl-1766.thumb.webp"
   },
   {
     "name": "Self Assisted Inverse Leg Curl On Floor",
@@ -11479,7 +13732,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/self-assisted-inverse-leg-curl-on-floor.gif",
+    "thumb_path": "hamstrings/self-assisted-inverse-leg-curl-on-floor.thumb.webp"
   },
   {
     "name": "Semi Squat Jump Male",
@@ -11491,7 +13746,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/semi-squat-jump-male.gif",
+    "thumb_path": "cardio/semi-squat-jump-male.thumb.webp"
   },
   {
     "name": "Short Stride Run",
@@ -11499,7 +13756,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/short-stride-run.gif",
+    "thumb_path": "cardio/short-stride-run.thumb.webp"
   },
   {
     "name": "Shoulder Grip Pull Up",
@@ -11511,7 +13770,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/shoulder-grip-pull-up.gif",
+    "thumb_path": "lats/shoulder-grip-pull-up.thumb.webp"
   },
   {
     "name": "Shoulder Tap",
@@ -11519,7 +13780,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/shoulder-tap.gif",
+    "thumb_path": "abs/shoulder-tap.thumb.webp"
   },
   {
     "name": "Shoulder Tap Push Up",
@@ -11530,7 +13793,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/shoulder-tap-push-up.gif",
+    "thumb_path": "pectorals/shoulder-tap-push-up.thumb.webp"
   },
   {
     "name": "Side Bridge Hip Abduction",
@@ -11541,7 +13806,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abductors/side-bridge-hip-abduction.gif",
+    "thumb_path": "abductors/side-bridge-hip-abduction.thumb.webp"
   },
   {
     "name": "Side Bridge v2",
@@ -11551,7 +13818,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "hamstrings"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/side-bridge-v-2.gif",
+    "thumb_path": "abs/side-bridge-v-2.thumb.webp"
   },
   {
     "name": "Side Hip Abduction",
@@ -11559,7 +13828,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abductors",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abductors/side-hip-abduction.gif",
+    "thumb_path": "abductors/side-hip-abduction.thumb.webp"
   },
   {
     "name": "Side Hip On Parallel Bars",
@@ -11567,7 +13838,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/side-hip-on-parallel-bars.gif",
+    "thumb_path": "abs/side-hip-on-parallel-bars.thumb.webp"
   },
   {
     "name": "Side Lying Floor Stretch",
@@ -11575,7 +13848,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "lats/side-lying-floor-stretch.gif",
+    "thumb_path": "lats/side-lying-floor-stretch.thumb.webp"
   },
   {
     "name": "Side Lying Hip Adduction Male",
@@ -11583,7 +13858,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "adductors",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "adductors/side-lying-hip-adduction-male.gif",
+    "thumb_path": "adductors/side-lying-hip-adduction-male.thumb.webp"
   },
   {
     "name": "Side Plank Hip Adduction",
@@ -11595,7 +13872,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "glutes"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "adductors/side-plank-hip-adduction.gif",
+    "thumb_path": "adductors/side-plank-hip-adduction.thumb.webp"
   },
   {
     "name": "Side Push Neck Stretch",
@@ -11603,7 +13882,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "levator_scapulae",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "levator-scapulae/side-push-neck-stretch.gif",
+    "thumb_path": "levator-scapulae/side-push-neck-stretch.thumb.webp"
   },
   {
     "name": "Side Push Up",
@@ -11613,7 +13894,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/side-push-up.gif",
+    "thumb_path": "triceps/side-push-up.thumb.webp"
   },
   {
     "name": "Side To Side Chin",
@@ -11621,7 +13904,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/side-to-side-chin.gif",
+    "thumb_path": "lats/side-to-side-chin.thumb.webp"
   },
   {
     "name": "Side To Side Toe Touch Male",
@@ -11629,7 +13914,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/side-to-side-toe-touch-male.gif",
+    "thumb_path": "abs/side-to-side-toe-touch-male.thumb.webp"
   },
   {
     "name": "Side Wrist Pull Stretch",
@@ -11639,7 +13926,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "forearms/side-wrist-pull-stretch.gif",
+    "thumb_path": "forearms/side-wrist-pull-stretch.thumb.webp"
   },
   {
     "name": "Single Arm Push Up",
@@ -11650,7 +13939,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/single-arm-push-up.gif",
+    "thumb_path": "pectorals/single-arm-push-up.thumb.webp"
   },
   {
     "name": "Single Leg Bridge With Outstretched Leg",
@@ -11661,7 +13952,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "abs"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/single-leg-bridge-with-outstretched-leg.gif",
+    "thumb_path": "glutes/single-leg-bridge-with-outstretched-leg.thumb.webp"
   },
   {
     "name": "Single Leg Calf Raise On A Dumbbell",
@@ -11669,7 +13962,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "dumbbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/single-leg-calf-raise-on-a-dumbbell.gif",
+    "thumb_path": "calves/single-leg-calf-raise-on-a-dumbbell.thumb.webp"
   },
   {
     "name": "Single Leg Platform Slide",
@@ -11677,7 +13972,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "hamstrings",
     "secondary_muscles": [],
     "equipment": "machine",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/single-leg-platform-slide.gif",
+    "thumb_path": "hamstrings/single-leg-platform-slide.thumb.webp"
   },
   {
     "name": "Single Leg Squat Pistol Male",
@@ -11688,7 +13985,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/single-leg-squat-pistol-male.gif",
+    "thumb_path": "glutes/single-leg-squat-pistol-male.thumb.webp"
   },
   {
     "name": "Sissy Squat",
@@ -11700,7 +13999,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/sissy-squat.gif",
+    "thumb_path": "quads/sissy-squat.thumb.webp"
   },
   {
     "name": "Sit Up v2",
@@ -11708,7 +14009,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/sit-up-v-2.gif",
+    "thumb_path": "abs/sit-up-v-2.thumb.webp"
   },
   {
     "name": "Sit Up With Arms On Chest",
@@ -11716,7 +14019,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/sit-up-with-arms-on-chest.gif",
+    "thumb_path": "abs/sit-up-with-arms-on-chest.thumb.webp"
   },
   {
     "name": "Skater Hops",
@@ -11724,7 +14029,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/skater-hops.gif",
+    "thumb_path": "cardio/skater-hops.thumb.webp"
   },
   {
     "name": "Ski Ergometer",
@@ -11732,7 +14039,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "triceps",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/ski-ergometer.gif",
+    "thumb_path": "triceps/ski-ergometer.thumb.webp"
   },
   {
     "name": "Ski Step",
@@ -11740,7 +14049,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/ski-step.gif",
+    "thumb_path": "cardio/ski-step.thumb.webp"
   },
   {
     "name": "Skin The Cat",
@@ -11748,7 +14059,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "traps",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/skin-the-cat.gif",
+    "thumb_path": "upper-back/skin-the-cat.thumb.webp"
   },
   {
     "name": "Sled 45 Calf Press",
@@ -11759,7 +14072,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "sled",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/sled-45-calf-press.gif",
+    "thumb_path": "calves/sled-45-calf-press.thumb.webp"
   },
   {
     "name": "Sled 45 Degrees One Leg Press",
@@ -11770,7 +14085,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "sled",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/sled-45-degrees-one-leg-press.gif",
+    "thumb_path": "glutes/sled-45-degrees-one-leg-press.thumb.webp"
   },
   {
     "name": "Sled 45 Leg Press",
@@ -11781,7 +14098,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "sled",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/sled-45-leg-press.gif",
+    "thumb_path": "glutes/sled-45-leg-press.thumb.webp"
   },
   {
     "name": "Sled 45 Leg Press Back Pov",
@@ -11792,7 +14111,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "sled",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/sled-45-leg-press-back-pov.gif",
+    "thumb_path": "glutes/sled-45-leg-press-back-pov.thumb.webp"
   },
   {
     "name": "Sled 45 Leg Press Side Pov",
@@ -11803,7 +14124,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "sled",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/sled-45-leg-press-side-pov.gif",
+    "thumb_path": "glutes/sled-45-leg-press-side-pov.thumb.webp"
   },
   {
     "name": "Sled 45 Leg Wide Press",
@@ -11814,7 +14137,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "sled",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/sled-45-leg-wide-press.gif",
+    "thumb_path": "glutes/sled-45-leg-wide-press.thumb.webp"
   },
   {
     "name": "Sled Calf Press On Leg Press",
@@ -11825,7 +14150,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "sled",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/sled-calf-press-on-leg-press.gif",
+    "thumb_path": "calves/sled-calf-press-on-leg-press.thumb.webp"
   },
   {
     "name": "Sled Closer Hack Squat",
@@ -11836,7 +14163,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/sled-closer-hack-squat.gif",
+    "thumb_path": "glutes/sled-closer-hack-squat.thumb.webp"
   },
   {
     "name": "Sled Forward Angled Calf Raise",
@@ -11844,7 +14173,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "sled",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/sled-forward-angled-calf-raise.gif",
+    "thumb_path": "calves/sled-forward-angled-calf-raise.thumb.webp"
   },
   {
     "name": "Sled Hack Squat",
@@ -11855,7 +14186,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "lever",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/sled-hack-squat.gif",
+    "thumb_path": "glutes/sled-hack-squat.thumb.webp"
   },
   {
     "name": "Sled Lying Calf Press",
@@ -11866,7 +14199,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "sled",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/sled-lying-calf-press.gif",
+    "thumb_path": "calves/sled-lying-calf-press.thumb.webp"
   },
   {
     "name": "Sled Lying Squat",
@@ -11877,7 +14212,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "sled",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/sled-lying-squat.gif",
+    "thumb_path": "glutes/sled-lying-squat.thumb.webp"
   },
   {
     "name": "Sled One Leg Calf Press On Leg Press",
@@ -11888,7 +14225,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "sled",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/sled-one-leg-calf-press-on-leg-press.gif",
+    "thumb_path": "calves/sled-one-leg-calf-press-on-leg-press.thumb.webp"
   },
   {
     "name": "Sledge Hammer",
@@ -11896,7 +14235,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "sled",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/sledge-hammer.gif",
+    "thumb_path": "abs/sledge-hammer.thumb.webp"
   },
   {
     "name": "Smith Back Shrug",
@@ -11907,7 +14248,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "traps/smith-back-shrug.gif",
+    "thumb_path": "traps/smith-back-shrug.thumb.webp"
   },
   {
     "name": "Smith Behind Neck Press",
@@ -11917,7 +14260,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/smith-behind-neck-press.gif",
+    "thumb_path": "delts/smith-behind-neck-press.thumb.webp"
   },
   {
     "name": "Smith Bench Press",
@@ -11928,7 +14273,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/smith-bench-press.gif",
+    "thumb_path": "pectorals/smith-bench-press.thumb.webp"
   },
   {
     "name": "Smith Bent Knee Good Morning",
@@ -11936,7 +14283,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/smith-bent-knee-good-morning.gif",
+    "thumb_path": "glutes/smith-bent-knee-good-morning.thumb.webp"
   },
   {
     "name": "Smith Bent Over Row",
@@ -11949,7 +14298,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/smith-bent-over-row.gif",
+    "thumb_path": "upper-back/smith-bent-over-row.thumb.webp"
   },
   {
     "name": "Smith Chair Squat",
@@ -11961,7 +14312,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/smith-chair-squat.gif",
+    "thumb_path": "quads/smith-chair-squat.thumb.webp"
   },
   {
     "name": "Smith Close Grip Bench Press",
@@ -11971,7 +14324,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/smith-close-grip-bench-press.gif",
+    "thumb_path": "triceps/smith-close-grip-bench-press.thumb.webp"
   },
   {
     "name": "Smith Deadlift",
@@ -11985,7 +14340,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/smith-deadlift.gif",
+    "thumb_path": "glutes/smith-deadlift.thumb.webp"
   },
   {
     "name": "Smith Decline Bench Press",
@@ -11996,7 +14353,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/smith-decline-bench-press.gif",
+    "thumb_path": "pectorals/smith-decline-bench-press.thumb.webp"
   },
   {
     "name": "Smith Decline Reverse Grip Press",
@@ -12007,7 +14366,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/smith-decline-reverse-grip-press.gif",
+    "thumb_path": "pectorals/smith-decline-reverse-grip-press.thumb.webp"
   },
   {
     "name": "Smith Front Squat Clean Grip",
@@ -12022,7 +14383,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/smith-front-squat-clean-grip.gif",
+    "thumb_path": "glutes/smith-front-squat-clean-grip.thumb.webp"
   },
   {
     "name": "Smith Full Squat",
@@ -12033,7 +14396,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/smith-full-squat.gif",
+    "thumb_path": "glutes/smith-full-squat.thumb.webp"
   },
   {
     "name": "Smith Hack Squat",
@@ -12044,7 +14409,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/smith-hack-squat.gif",
+    "thumb_path": "glutes/smith-hack-squat.thumb.webp"
   },
   {
     "name": "Smith Hip Raise",
@@ -12052,7 +14419,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/smith-hip-raise.gif",
+    "thumb_path": "abs/smith-hip-raise.thumb.webp"
   },
   {
     "name": "Smith Incline Bench Press",
@@ -12063,7 +14432,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/smith-incline-bench-press.gif",
+    "thumb_path": "pectorals/smith-incline-bench-press.thumb.webp"
   },
   {
     "name": "Smith Incline Reverse Grip Press",
@@ -12074,7 +14445,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/smith-incline-reverse-grip-press.gif",
+    "thumb_path": "pectorals/smith-incline-reverse-grip-press.thumb.webp"
   },
   {
     "name": "Smith Incline Shoulder Raises",
@@ -12082,7 +14455,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "serratus_anterior",
     "secondary_muscles": [],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "serratus-anterior/smith-incline-shoulder-raises.gif",
+    "thumb_path": "serratus-anterior/smith-incline-shoulder-raises.thumb.webp"
   },
   {
     "name": "Smith Leg Press",
@@ -12093,7 +14468,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/smith-leg-press.gif",
+    "thumb_path": "glutes/smith-leg-press.thumb.webp"
   },
   {
     "name": "Smith Low Bar Squat",
@@ -12104,7 +14481,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/smith-low-bar-squat.gif",
+    "thumb_path": "glutes/smith-low-bar-squat.thumb.webp"
   },
   {
     "name": "Smith Machine Bicep Curl",
@@ -12114,7 +14493,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/smith-machine-bicep-curl.gif",
+    "thumb_path": "biceps/smith-machine-bicep-curl.thumb.webp"
   },
   {
     "name": "Smith Machine Decline Close Grip Bench Press",
@@ -12124,7 +14505,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/smith-machine-decline-close-grip-bench-press.gif",
+    "thumb_path": "triceps/smith-machine-decline-close-grip-bench-press.thumb.webp"
   },
   {
     "name": "Smith Machine Incline Tricep Extension",
@@ -12134,7 +14517,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/smith-machine-incline-tricep-extension.gif",
+    "thumb_path": "triceps/smith-machine-incline-tricep-extension.thumb.webp"
   },
   {
     "name": "Smith Machine Reverse Decline Close Grip Bench Press",
@@ -12145,7 +14530,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/smith-machine-reverse-decline-close-grip-bench-press.gif",
+    "thumb_path": "pectorals/smith-machine-reverse-decline-close-grip-bench-press.thumb.webp"
   },
   {
     "name": "Smith Narrow Row",
@@ -12158,7 +14545,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/smith-narrow-row.gif",
+    "thumb_path": "upper-back/smith-narrow-row.thumb.webp"
   },
   {
     "name": "Smith One Arm Row",
@@ -12171,7 +14560,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/smith-one-arm-row.gif",
+    "thumb_path": "upper-back/smith-one-arm-row.thumb.webp"
   },
   {
     "name": "Smith One Leg Floor Calf Raise",
@@ -12179,7 +14570,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/smith-one-leg-floor-calf-raise.gif",
+    "thumb_path": "calves/smith-one-leg-floor-calf-raise.thumb.webp"
   },
   {
     "name": "Smith Rear Delt Row",
@@ -12190,7 +14583,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/smith-rear-delt-row.gif",
+    "thumb_path": "delts/smith-rear-delt-row.thumb.webp"
   },
   {
     "name": "Smith Reverse Calf Raises",
@@ -12198,7 +14593,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/smith-reverse-calf-raises.gif",
+    "thumb_path": "calves/smith-reverse-calf-raises.thumb.webp"
   },
   {
     "name": "Smith Reverse Calf Raises 1394",
@@ -12206,7 +14603,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/smith-reverse-calf-raises-1394.gif",
+    "thumb_path": "calves/smith-reverse-calf-raises-1394.thumb.webp"
   },
   {
     "name": "Smith Reverse Grip Bent Over Row",
@@ -12219,7 +14618,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/smith-reverse-grip-bent-over-row.gif",
+    "thumb_path": "upper-back/smith-reverse-grip-bent-over-row.thumb.webp"
   },
   {
     "name": "Smith Reverse Grip Press",
@@ -12230,7 +14631,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/smith-reverse-grip-press.gif",
+    "thumb_path": "pectorals/smith-reverse-grip-press.thumb.webp"
   },
   {
     "name": "Smith Seated One Leg Calf Raise",
@@ -12238,7 +14641,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/smith-seated-one-leg-calf-raise.gif",
+    "thumb_path": "calves/smith-seated-one-leg-calf-raise.thumb.webp"
   },
   {
     "name": "Smith Seated Shoulder Press",
@@ -12248,7 +14653,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/smith-seated-shoulder-press.gif",
+    "thumb_path": "delts/smith-seated-shoulder-press.thumb.webp"
   },
   {
     "name": "Smith Seated Wrist Curl",
@@ -12258,7 +14665,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/smith-seated-wrist-curl.gif",
+    "thumb_path": "forearms/smith-seated-wrist-curl.thumb.webp"
   },
   {
     "name": "Smith Shoulder Press",
@@ -12268,7 +14677,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/smith-shoulder-press.gif",
+    "thumb_path": "delts/smith-shoulder-press.thumb.webp"
   },
   {
     "name": "Smith Shrug",
@@ -12279,7 +14690,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "traps/smith-shrug.gif",
+    "thumb_path": "traps/smith-shrug.thumb.webp"
   },
   {
     "name": "Smith Single Leg Split Squat",
@@ -12291,7 +14704,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/smith-single-leg-split-squat.gif",
+    "thumb_path": "quads/smith-single-leg-split-squat.thumb.webp"
   },
   {
     "name": "Smith Sprint Lunge",
@@ -12302,7 +14717,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/smith-sprint-lunge.gif",
+    "thumb_path": "glutes/smith-sprint-lunge.thumb.webp"
   },
   {
     "name": "Smith Squat",
@@ -12313,7 +14730,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/smith-squat.gif",
+    "thumb_path": "glutes/smith-squat.thumb.webp"
   },
   {
     "name": "Smith Standing Back Wrist Curl",
@@ -12323,7 +14742,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/smith-standing-back-wrist-curl.gif",
+    "thumb_path": "forearms/smith-standing-back-wrist-curl.thumb.webp"
   },
   {
     "name": "Smith Standing Behind Head Military Press",
@@ -12333,7 +14754,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/smith-standing-behind-head-military-press.gif",
+    "thumb_path": "delts/smith-standing-behind-head-military-press.thumb.webp"
   },
   {
     "name": "Smith Standing Leg Calf Raise",
@@ -12341,7 +14764,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/smith-standing-leg-calf-raise.gif",
+    "thumb_path": "calves/smith-standing-leg-calf-raise.thumb.webp"
   },
   {
     "name": "Smith Standing Military Press",
@@ -12351,7 +14776,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/smith-standing-military-press.gif",
+    "thumb_path": "delts/smith-standing-military-press.thumb.webp"
   },
   {
     "name": "Smith Sumo Squat",
@@ -12362,7 +14789,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/smith-sumo-squat.gif",
+    "thumb_path": "glutes/smith-sumo-squat.thumb.webp"
   },
   {
     "name": "Smith Toe Raise",
@@ -12370,7 +14799,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/smith-toe-raise.gif",
+    "thumb_path": "calves/smith-toe-raise.thumb.webp"
   },
   {
     "name": "Smith Upright Row",
@@ -12382,7 +14813,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/smith-upright-row.gif",
+    "thumb_path": "delts/smith-upright-row.thumb.webp"
   },
   {
     "name": "Smith Wide Grip Bench Press",
@@ -12393,7 +14826,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/smith-wide-grip-bench-press.gif",
+    "thumb_path": "pectorals/smith-wide-grip-bench-press.thumb.webp"
   },
   {
     "name": "Smith Wide Grip Decline Bench Press",
@@ -12404,7 +14839,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "smith",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/smith-wide-grip-decline-bench-press.gif",
+    "thumb_path": "pectorals/smith-wide-grip-decline-bench-press.thumb.webp"
   },
   {
     "name": "Snatch Pull",
@@ -12419,7 +14856,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/snatch-pull.gif",
+    "thumb_path": "quads/snatch-pull.thumb.webp"
   },
   {
     "name": "Spell Caster",
@@ -12427,7 +14866,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/spell-caster.gif",
+    "thumb_path": "abs/spell-caster.thumb.webp"
   },
   {
     "name": "Sphinx",
@@ -12435,7 +14876,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "spinal_erectors",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "spine/sphinx.gif",
+    "thumb_path": "spine/sphinx.thumb.webp"
   },
   {
     "name": "Spider Crawl Push Up",
@@ -12446,7 +14889,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/spider-crawl-push-up.gif",
+    "thumb_path": "glutes/spider-crawl-push-up.thumb.webp"
   },
   {
     "name": "Spine Stretch",
@@ -12454,7 +14899,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "spinal_erectors",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "spine/spine-stretch.gif",
+    "thumb_path": "spine/spine-stretch.thumb.webp"
   },
   {
     "name": "Spine Twist",
@@ -12462,7 +14909,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/spine-twist.gif",
+    "thumb_path": "abs/spine-twist.thumb.webp"
   },
   {
     "name": "Split Squats",
@@ -12474,7 +14923,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/split-squats.gif",
+    "thumb_path": "quads/split-squats.thumb.webp"
   },
   {
     "name": "Squat Jerk",
@@ -12490,7 +14941,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/squat-jerk.gif",
+    "thumb_path": "quads/squat-jerk.thumb.webp"
   },
   {
     "name": "Squat On Bosu Ball",
@@ -12502,7 +14955,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/squat-on-bosu-ball.gif",
+    "thumb_path": "quads/squat-on-bosu-ball.thumb.webp"
   },
   {
     "name": "Squat To Overhead Reach",
@@ -12514,7 +14969,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/squat-to-overhead-reach.gif",
+    "thumb_path": "quads/squat-to-overhead-reach.thumb.webp"
   },
   {
     "name": "Squat To Overhead Reach With Twist",
@@ -12526,7 +14983,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/squat-to-overhead-reach-with-twist.gif",
+    "thumb_path": "quads/squat-to-overhead-reach-with-twist.thumb.webp"
   },
   {
     "name": "Stability Ball Crunch Full Range Hands Behind Head",
@@ -12534,7 +14993,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/stability-ball-crunch-full-range-hands-behind-head.gif",
+    "thumb_path": "abs/stability-ball-crunch-full-range-hands-behind-head.thumb.webp"
   },
   {
     "name": "Stalder Press",
@@ -12544,7 +15005,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/stalder-press.gif",
+    "thumb_path": "triceps/stalder-press.thumb.webp"
   },
   {
     "name": "Standing Archer",
@@ -12552,7 +15015,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "traps",
     "secondary_muscles": [],
     "equipment": "other",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/standing-archer.gif",
+    "thumb_path": "upper-back/standing-archer.thumb.webp"
   },
   {
     "name": "Standing Behind Neck Press",
@@ -12562,7 +15027,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "triceps"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/standing-behind-neck-press.gif",
+    "thumb_path": "delts/standing-behind-neck-press.thumb.webp"
   },
   {
     "name": "Standing Calf Raise On A Staircase",
@@ -12570,7 +15037,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/standing-calf-raise-on-a-staircase.gif",
+    "thumb_path": "calves/standing-calf-raise-on-a-staircase.thumb.webp"
   },
   {
     "name": "Standing Calves",
@@ -12578,7 +15047,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/standing-calves.gif",
+    "thumb_path": "calves/standing-calves.thumb.webp"
   },
   {
     "name": "Standing Calves Calf Stretch",
@@ -12586,7 +15057,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "calves/standing-calves-calf-stretch.gif",
+    "thumb_path": "calves/standing-calves-calf-stretch.thumb.webp"
   },
   {
     "name": "Standing Hamstring And Calf Stretch With Strap",
@@ -12594,7 +15067,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "hamstrings",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "hamstrings/standing-hamstring-and-calf-stretch-with-strap.gif",
+    "thumb_path": "hamstrings/standing-hamstring-and-calf-stretch-with-strap.thumb.webp"
   },
   {
     "name": "Standing Lateral Stretch",
@@ -12602,7 +15077,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "lats/standing-lateral-stretch.gif",
+    "thumb_path": "lats/standing-lateral-stretch.thumb.webp"
   },
   {
     "name": "Standing Pelvic Tilt",
@@ -12610,7 +15087,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "spinal_erectors",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "spine/standing-pelvic-tilt.gif",
+    "thumb_path": "spine/standing-pelvic-tilt.thumb.webp"
   },
   {
     "name": "Standing Single Leg Curl",
@@ -12621,7 +15100,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "other",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "hamstrings/standing-single-leg-curl.gif",
+    "thumb_path": "hamstrings/standing-single-leg-curl.thumb.webp"
   },
   {
     "name": "Standing Wheel Rollerout",
@@ -12629,7 +15110,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/standing-wheel-rollerout.gif",
+    "thumb_path": "abs/standing-wheel-rollerout.thumb.webp"
   },
   {
     "name": "Star Jump Male",
@@ -12637,7 +15120,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/star-jump-male.gif",
+    "thumb_path": "cardio/star-jump-male.thumb.webp"
   },
   {
     "name": "Stationary Bike Run v3",
@@ -12645,7 +15130,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/stationary-bike-run-v-3.gif",
+    "thumb_path": "cardio/stationary-bike-run-v-3.thumb.webp"
   },
   {
     "name": "Stationary Bike Walk",
@@ -12653,7 +15140,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/stationary-bike-walk.gif",
+    "thumb_path": "cardio/stationary-bike-walk.thumb.webp"
   },
   {
     "name": "Straddle Maltese",
@@ -12661,7 +15150,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/straddle-maltese.gif",
+    "thumb_path": "abs/straddle-maltese.thumb.webp"
   },
   {
     "name": "Straddle Planche",
@@ -12672,7 +15163,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/straddle-planche.gif",
+    "thumb_path": "abs/straddle-planche.thumb.webp"
   },
   {
     "name": "Straight Leg Outer Hip Abductor",
@@ -12680,7 +15173,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abductors",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abductors/straight-leg-outer-hip-abductor.gif",
+    "thumb_path": "abductors/straight-leg-outer-hip-abductor.thumb.webp"
   },
   {
     "name": "Superman Push Up",
@@ -12691,7 +15186,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/superman-push-up.gif",
+    "thumb_path": "pectorals/superman-push-up.thumb.webp"
   },
   {
     "name": "Suspended Abdominal Fallout",
@@ -12699,7 +15196,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/suspended-abdominal-fallout.gif",
+    "thumb_path": "abs/suspended-abdominal-fallout.thumb.webp"
   },
   {
     "name": "Suspended Push Up",
@@ -12710,7 +15209,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/suspended-push-up.gif",
+    "thumb_path": "pectorals/suspended-push-up.thumb.webp"
   },
   {
     "name": "Suspended Reverse Crunch",
@@ -12718,7 +15219,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/suspended-reverse-crunch.gif",
+    "thumb_path": "abs/suspended-reverse-crunch.thumb.webp"
   },
   {
     "name": "Suspended Row",
@@ -12731,7 +15234,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "lats"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "upper-back/suspended-row.gif",
+    "thumb_path": "upper-back/suspended-row.thumb.webp"
   },
   {
     "name": "Suspended Split Squat",
@@ -12743,7 +15248,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/suspended-split-squat.gif",
+    "thumb_path": "quads/suspended-split-squat.thumb.webp"
   },
   {
     "name": "Swimmer Kicks v2 Male",
@@ -12751,7 +15258,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/swimmer-kicks-v-2-male.gif",
+    "thumb_path": "glutes/swimmer-kicks-v-2-male.thumb.webp"
   },
   {
     "name": "Swing 360",
@@ -12766,7 +15275,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/swing-360.gif",
+    "thumb_path": "cardio/swing-360.thumb.webp"
   },
   {
     "name": "Three Bench Dip",
@@ -12777,7 +15288,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/three-bench-dip.gif",
+    "thumb_path": "triceps/three-bench-dip.thumb.webp"
   },
   {
     "name": "Tire Flip",
@@ -12785,7 +15298,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/tire-flip.gif",
+    "thumb_path": "glutes/tire-flip.thumb.webp"
   },
   {
     "name": "Trap Bar Deadlift",
@@ -12799,7 +15314,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "spine"
     ],
     "equipment": "barbell",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/trap-bar-deadlift.gif",
+    "thumb_path": "glutes/trap-bar-deadlift.thumb.webp"
   },
   {
     "name": "Triceps Dip",
@@ -12810,7 +15327,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/triceps-dip.gif",
+    "thumb_path": "triceps/triceps-dip.thumb.webp"
   },
   {
     "name": "Triceps Dip Bench Leg",
@@ -12821,7 +15340,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/triceps-dip-bench-leg.gif",
+    "thumb_path": "triceps/triceps-dip-bench-leg.thumb.webp"
   },
   {
     "name": "Triceps Dip Between Benches",
@@ -12832,7 +15353,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/triceps-dip-between-benches.gif",
+    "thumb_path": "triceps/triceps-dip-between-benches.thumb.webp"
   },
   {
     "name": "Triceps Dips Floor",
@@ -12843,7 +15366,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/triceps-dips-floor.gif",
+    "thumb_path": "triceps/triceps-dips-floor.thumb.webp"
   },
   {
     "name": "Triceps Press",
@@ -12853,7 +15378,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/triceps-press.gif",
+    "thumb_path": "triceps/triceps-press.thumb.webp"
   },
   {
     "name": "Triceps Stretch",
@@ -12861,7 +15388,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "triceps",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "triceps/triceps-stretch.gif",
+    "thumb_path": "triceps/triceps-stretch.thumb.webp"
   },
   {
     "name": "Tuck Crunch",
@@ -12869,7 +15398,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/tuck-crunch.gif",
+    "thumb_path": "abs/tuck-crunch.thumb.webp"
   },
   {
     "name": "Twin Handle Parallel Grip Lat Pulldown",
@@ -12881,7 +15412,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/twin-handle-parallel-grip-lat-pulldown.gif",
+    "thumb_path": "lats/twin-handle-parallel-grip-lat-pulldown.thumb.webp"
   },
   {
     "name": "Twist Hip Lift",
@@ -12889,7 +15422,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "glutes",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/twist-hip-lift.gif",
+    "thumb_path": "glutes/twist-hip-lift.thumb.webp"
   },
   {
     "name": "Twisted Leg Raise",
@@ -12897,7 +15432,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/twisted-leg-raise.gif",
+    "thumb_path": "abs/twisted-leg-raise.thumb.webp"
   },
   {
     "name": "Twisted Leg Raise Female",
@@ -12905,7 +15442,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/twisted-leg-raise-female.gif",
+    "thumb_path": "abs/twisted-leg-raise-female.thumb.webp"
   },
   {
     "name": "Two Toe Touch Male",
@@ -12913,7 +15452,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "spinal_erectors",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "spine/two-toe-touch-male.gif",
+    "thumb_path": "spine/two-toe-touch-male.thumb.webp"
   },
   {
     "name": "Upper Back Stretch",
@@ -12921,7 +15462,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "traps",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "upper-back/upper-back-stretch.gif",
+    "thumb_path": "upper-back/upper-back-stretch.thumb.webp"
   },
   {
     "name": "Upward Facing Dog",
@@ -12929,7 +15472,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "spinal_erectors",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "spine/upward-facing-dog.gif",
+    "thumb_path": "spine/upward-facing-dog.thumb.webp"
   },
   {
     "name": "V Sit On Floor",
@@ -12937,7 +15482,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/v-sit-on-floor.gif",
+    "thumb_path": "abs/v-sit-on-floor.thumb.webp"
   },
   {
     "name": "Vertical Leg Raise On Parallel Bars",
@@ -12945,7 +15492,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/vertical-leg-raise-on-parallel-bars.gif",
+    "thumb_path": "abs/vertical-leg-raise-on-parallel-bars.thumb.webp"
   },
   {
     "name": "Walk Elliptical Cross Trainer",
@@ -12953,7 +15502,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "machine",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/walk-elliptical-cross-trainer.gif",
+    "thumb_path": "cardio/walk-elliptical-cross-trainer.thumb.webp"
   },
   {
     "name": "Walking High Knees Lunge",
@@ -12965,7 +15516,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/walking-high-knees-lunge.gif",
+    "thumb_path": "cardio/walking-high-knees-lunge.thumb.webp"
   },
   {
     "name": "Walking Lunge",
@@ -12976,7 +15529,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/walking-lunge.gif",
+    "thumb_path": "glutes/walking-lunge.thumb.webp"
   },
   {
     "name": "Walking On Incline Treadmill",
@@ -12984,7 +15539,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "machine",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/walking-on-incline-treadmill.gif",
+    "thumb_path": "cardio/walking-on-incline-treadmill.thumb.webp"
   },
   {
     "name": "Walking On Stepmill",
@@ -12992,7 +15549,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "machine",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/walking-on-stepmill.gif",
+    "thumb_path": "cardio/walking-on-stepmill.thumb.webp"
   },
   {
     "name": "Weighted Bench Dip",
@@ -13003,7 +15562,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/weighted-bench-dip.gif",
+    "thumb_path": "triceps/weighted-bench-dip.thumb.webp"
   },
   {
     "name": "Weighted Close Grip Chin Up On Dip Cage",
@@ -13017,7 +15578,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/weighted-close-grip-chin-up-on-dip-cage.gif",
+    "thumb_path": "lats/weighted-close-grip-chin-up-on-dip-cage.thumb.webp"
   },
   {
     "name": "Weighted Cossack Squats Male",
@@ -13028,7 +15591,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/weighted-cossack-squats-male.gif",
+    "thumb_path": "glutes/weighted-cossack-squats-male.thumb.webp"
   },
   {
     "name": "Weighted Crunch",
@@ -13036,7 +15601,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/weighted-crunch.gif",
+    "thumb_path": "abs/weighted-crunch.thumb.webp"
   },
   {
     "name": "Weighted Decline Sit Up",
@@ -13044,7 +15611,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/weighted-decline-sit-up.gif",
+    "thumb_path": "abs/weighted-decline-sit-up.thumb.webp"
   },
   {
     "name": "Weighted Donkey Calf Raise",
@@ -13052,7 +15621,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "calves",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "calves/weighted-donkey-calf-raise.gif",
+    "thumb_path": "calves/weighted-donkey-calf-raise.thumb.webp"
   },
   {
     "name": "Weighted Drop Push Up",
@@ -13063,7 +15634,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/weighted-drop-push-up.gif",
+    "thumb_path": "pectorals/weighted-drop-push-up.thumb.webp"
   },
   {
     "name": "Weighted Front Plank",
@@ -13074,7 +15647,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "glutes"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/weighted-front-plank.gif",
+    "thumb_path": "abs/weighted-front-plank.thumb.webp"
   },
   {
     "name": "Weighted Front Raise",
@@ -13084,7 +15659,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "traps"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/weighted-front-raise.gif",
+    "thumb_path": "delts/weighted-front-raise.thumb.webp"
   },
   {
     "name": "Weighted Hanging Leg Hip Raise",
@@ -13092,7 +15669,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/weighted-hanging-leg-hip-raise.gif",
+    "thumb_path": "abs/weighted-hanging-leg-hip-raise.thumb.webp"
   },
   {
     "name": "Weighted Hyperextension On Stability Ball",
@@ -13103,7 +15682,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "hamstrings"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "spine/weighted-hyperextension-on-stability-ball.gif",
+    "thumb_path": "spine/weighted-hyperextension-on-stability-ball.thumb.webp"
   },
   {
     "name": "Weighted Kneeling Step With Swing",
@@ -13117,7 +15698,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/weighted-kneeling-step-with-swing.gif",
+    "thumb_path": "delts/weighted-kneeling-step-with-swing.thumb.webp"
   },
   {
     "name": "Weighted Lunge With Swing",
@@ -13132,7 +15715,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/weighted-lunge-with-swing.gif",
+    "thumb_path": "glutes/weighted-lunge-with-swing.thumb.webp"
   },
   {
     "name": "Weighted Muscle Up",
@@ -13140,7 +15725,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/weighted-muscle-up.gif",
+    "thumb_path": "lats/weighted-muscle-up.thumb.webp"
   },
   {
     "name": "Weighted Muscle Up On Bar",
@@ -13148,7 +15735,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "lats",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/weighted-muscle-up-on-bar.gif",
+    "thumb_path": "lats/weighted-muscle-up-on-bar.thumb.webp"
   },
   {
     "name": "Weighted One Hand Pull Up",
@@ -13160,7 +15749,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/weighted-one-hand-pull-up.gif",
+    "thumb_path": "lats/weighted-one-hand-pull-up.thumb.webp"
   },
   {
     "name": "Weighted Overhead Crunch On Stability Ball",
@@ -13168,7 +15759,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/weighted-overhead-crunch-on-stability-ball.gif",
+    "thumb_path": "abs/weighted-overhead-crunch-on-stability-ball.thumb.webp"
   },
   {
     "name": "Weighted Pull Up",
@@ -13180,7 +15773,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/weighted-pull-up.gif",
+    "thumb_path": "lats/weighted-pull-up.thumb.webp"
   },
   {
     "name": "Weighted Round Arm",
@@ -13188,7 +15783,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "front_delt",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "delts/weighted-round-arm.gif",
+    "thumb_path": "delts/weighted-round-arm.thumb.webp"
   },
   {
     "name": "Weighted Russian Twist",
@@ -13196,7 +15793,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/weighted-russian-twist.gif",
+    "thumb_path": "abs/weighted-russian-twist.thumb.webp"
   },
   {
     "name": "Weighted Russian Twist Legs Up",
@@ -13204,7 +15803,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/weighted-russian-twist-legs-up.gif",
+    "thumb_path": "abs/weighted-russian-twist-legs-up.thumb.webp"
   },
   {
     "name": "Weighted Russian Twist v2",
@@ -13212,7 +15813,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/weighted-russian-twist-v-2.gif",
+    "thumb_path": "abs/weighted-russian-twist-v-2.thumb.webp"
   },
   {
     "name": "Weighted Seated Bicep Curl On Stability Ball",
@@ -13222,7 +15825,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/weighted-seated-bicep-curl-on-stability-ball.gif",
+    "thumb_path": "biceps/weighted-seated-bicep-curl-on-stability-ball.thumb.webp"
   },
   {
     "name": "Weighted Seated Twist On Stability Ball",
@@ -13230,7 +15835,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/weighted-seated-twist-on-stability-ball.gif",
+    "thumb_path": "abs/weighted-seated-twist-on-stability-ball.thumb.webp"
   },
   {
     "name": "Weighted Side Bend On Stability Ball",
@@ -13238,7 +15845,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/weighted-side-bend-on-stability-ball.gif",
+    "thumb_path": "abs/weighted-side-bend-on-stability-ball.thumb.webp"
   },
   {
     "name": "Weighted Sissy Squat",
@@ -13250,7 +15859,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "quads/weighted-sissy-squat.gif",
+    "thumb_path": "quads/weighted-sissy-squat.thumb.webp"
   },
   {
     "name": "Weighted Squat",
@@ -13261,7 +15872,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "glutes/weighted-squat.gif",
+    "thumb_path": "glutes/weighted-squat.thumb.webp"
   },
   {
     "name": "Weighted Standing Curl",
@@ -13271,7 +15884,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "forearms"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "biceps/weighted-standing-curl.gif",
+    "thumb_path": "biceps/weighted-standing-curl.thumb.webp"
   },
   {
     "name": "Weighted Standing Hand Squeeze",
@@ -13279,7 +15894,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "forearms",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/weighted-standing-hand-squeeze.gif",
+    "thumb_path": "forearms/weighted-standing-hand-squeeze.thumb.webp"
   },
   {
     "name": "Weighted Straight Bar Dip",
@@ -13290,7 +15907,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/weighted-straight-bar-dip.gif",
+    "thumb_path": "pectorals/weighted-straight-bar-dip.thumb.webp"
   },
   {
     "name": "Weighted Stretch Lunge",
@@ -13301,7 +15920,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "calves"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "glutes/weighted-stretch-lunge.gif",
+    "thumb_path": "glutes/weighted-stretch-lunge.thumb.webp"
   },
   {
     "name": "Weighted Svend Press",
@@ -13312,7 +15933,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/weighted-svend-press.gif",
+    "thumb_path": "pectorals/weighted-svend-press.thumb.webp"
   },
   {
     "name": "Weighted Three Bench Dips",
@@ -13323,7 +15946,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/weighted-three-bench-dips.gif",
+    "thumb_path": "triceps/weighted-three-bench-dips.thumb.webp"
   },
   {
     "name": "Weighted Tricep Dips",
@@ -13334,7 +15959,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/weighted-tricep-dips.gif",
+    "thumb_path": "triceps/weighted-tricep-dips.thumb.webp"
   },
   {
     "name": "Weighted Triceps Dip On High Parallel Bars",
@@ -13345,7 +15972,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "pectorals"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "triceps/weighted-triceps-dip-on-high-parallel-bars.gif",
+    "thumb_path": "triceps/weighted-triceps-dip-on-high-parallel-bars.thumb.webp"
   },
   {
     "name": "Wheel Rollerout",
@@ -13353,7 +15982,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/wheel-rollerout.gif",
+    "thumb_path": "abs/wheel-rollerout.thumb.webp"
   },
   {
     "name": "Wheel Run",
@@ -13361,7 +15992,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "cardio",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "cardio/wheel-run.gif",
+    "thumb_path": "cardio/wheel-run.thumb.webp"
   },
   {
     "name": "Wide Grip Chest Dip On High Parallel Bars",
@@ -13372,7 +16005,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/wide-grip-chest-dip-on-high-parallel-bars.gif",
+    "thumb_path": "pectorals/wide-grip-chest-dip-on-high-parallel-bars.thumb.webp"
   },
   {
     "name": "Wide Grip Pull Up",
@@ -13384,7 +16019,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/wide-grip-pull-up.gif",
+    "thumb_path": "lats/wide-grip-pull-up.thumb.webp"
   },
   {
     "name": "Wide Grip Rear Pull Up",
@@ -13396,7 +16033,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "lats/wide-grip-rear-pull-up.gif",
+    "thumb_path": "lats/wide-grip-rear-pull-up.thumb.webp"
   },
   {
     "name": "Wide Hand Push Up",
@@ -13407,7 +16046,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "delts"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "pectorals/wide-hand-push-up.gif",
+    "thumb_path": "pectorals/wide-hand-push-up.thumb.webp"
   },
   {
     "name": "Wind Sprints",
@@ -13415,7 +16056,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "abs",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "abs/wind-sprints.gif",
+    "thumb_path": "abs/wind-sprints.thumb.webp"
   },
   {
     "name": "World Greatest Stretch",
@@ -13423,7 +16066,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
     "target_muscle": "hamstrings",
     "secondary_muscles": [],
     "equipment": "bodyweight",
-    "tracking_type": "duration"
+    "tracking_type": "duration",
+    "media_path": "hamstrings/world-greatest-stretch.gif",
+    "thumb_path": "hamstrings/world-greatest-stretch.thumb.webp"
   },
   {
     "name": "Wrist Circles",
@@ -13433,7 +16078,9 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/wrist-circles.gif",
+    "thumb_path": "forearms/wrist-circles.thumb.webp"
   },
   {
     "name": "Wrist Rollerer",
@@ -13443,6 +16090,8 @@ export const EXERCISE_CATALOGUE: CatalogueExercise[] = [
       "biceps"
     ],
     "equipment": "bodyweight",
-    "tracking_type": "reps"
+    "tracking_type": "reps",
+    "media_path": "forearms/wrist-rollerer.gif",
+    "thumb_path": "forearms/wrist-rollerer.thumb.webp"
   }
 ];

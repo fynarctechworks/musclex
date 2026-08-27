@@ -637,18 +637,41 @@ export function useWorkoutPlan(id: string | undefined) {
  * it" is the habit that makes a list screen slow on the mid-range Android
  * phones front-desk staff actually use.
  */
-export function useExercises(params: { search?: string; muscleGroup?: string } = {}) {
-  const { search, muscleGroup } = params;
+export function useExercises(
+  params: { search?: string; muscleGroup?: string; targetMuscle?: string } = {},
+) {
+  const { search, muscleGroup, targetMuscle } = params;
   return useQuery({
-    queryKey: ['exercises', search ?? '', muscleGroup ?? ''],
+    queryKey: ['exercises', search ?? '', muscleGroup ?? '', targetMuscle ?? ''],
     queryFn: () =>
       api.get<Paginated<Exercise>>('/exercises', {
         params: {
           limit: 100,
           ...(search ? { search } : {}),
           ...(muscleGroup ? { muscle_group: muscleGroup } : {}),
+          ...(targetMuscle ? { target_muscle: targetMuscle } : {}),
         },
       }),
+  });
+}
+
+/**
+ * The muscle heads present in this gym's catalogue.
+ *
+ * Server-derived rather than a static list, so a gym that has archived every
+ * rear-delt movement does not get a chip that returns nothing.
+ */
+export function useMuscleHeads(muscleGroup?: string) {
+  return useQuery({
+    queryKey: ['exercise-muscle-heads', muscleGroup ?? ''],
+    queryFn: () =>
+      api.get<{ data: { target_muscle: string; count: number }[] }>(
+        '/exercises/muscle-heads',
+        { params: muscleGroup ? { muscle_group: muscleGroup } : {} },
+      ),
+    // Only meaningful once a group is chosen; the all-groups list would be 20
+    // chips of every head in the library.
+    enabled: Boolean(muscleGroup),
   });
 }
 

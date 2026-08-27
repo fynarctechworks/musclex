@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Image, Pressable, ScrollView, View } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { DataList } from '@/ui/DataList';
 import { RowCard } from '@/ui/RowCard';
 import { SegmentedControl } from '@/ui/SegmentedControl';
-import { useExercises, useWorkoutPlans } from '@/api/queries';
-import { MUSCLE_GROUPS, describeDifficulty, describeGoal, describeMuscle, describeMuscleGroup } from '@/lib/training';
+import { useExercises, useMuscleHeads, useWorkoutPlans } from '@/api/queries';
+import { MUSCLE_GROUPS, describeDifficulty, describeGoal, describeMuscle, describeMuscleGroup, describeTargetMuscle } from '@/lib/training';
 import type { Exercise, WorkoutPlan } from '@/api/types';
 import { tokens } from '@/ui/tokens';
 
@@ -91,6 +91,7 @@ function ExercisesTab() {
   const [search, setSearch] = React.useState('');
   const [debounced, setDebounced] = React.useState('');
   const [group, setGroup] = React.useState<string>('');
+  const [head, setHead] = React.useState<string>('');
 
   React.useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim()), 300);
@@ -100,7 +101,9 @@ function ExercisesTab() {
   const query = useExercises({
     search: debounced || undefined,
     muscleGroup: group || undefined,
+    targetMuscle: head || undefined,
   });
+  const heads = useMuscleHeads(group || undefined).data?.data ?? [];
   const exercises = query.data?.data ?? [];
 
   return (
@@ -138,7 +141,13 @@ function ExercisesTab() {
             return (
               <Pressable
                 key={seg.value || 'all'}
-                onPress={() => setGroup(seg.value)}
+                onPress={() => {
+                  setGroup(seg.value);
+                  // A head belongs to one group; keeping "rear delts" selected
+                  // while switching to Legs would return nothing and look
+                  // broken.
+                  setHead('');
+                }}
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
                 accessibilityLabel={`Filter by ${seg.label}`}
@@ -155,6 +164,53 @@ function ExercisesTab() {
             );
           })}
         </ScrollView>
+
+        {/*
+          Sub-filter: the heads WITHIN the chosen group. Hidden until a group
+          is picked — across the whole library it would be twenty chips, which
+          is a worse way to find a movement than the search box right above it.
+          Also hidden when the group has only one head, where the chip would
+          filter nothing.
+        */}
+        {group && heads.length > 1 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8, paddingRight: 16 }}
+            keyboardShouldPersistTaps="handled">
+            {[{ target_muscle: '', count: 0 }, ...heads].map((h) => {
+              const active = head === h.target_muscle;
+              const label = h.target_muscle
+                ? `${describeTargetMuscle(h.target_muscle)} ${h.count}`
+                : 'All';
+              return (
+                <Pressable
+                  key={h.target_muscle || 'all'}
+                  onPress={() => setHead(h.target_muscle)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={
+                    h.target_muscle
+                      ? `Filter by ${describeTargetMuscle(h.target_muscle)}, ${h.count} exercises`
+                      : 'All heads'
+                  }
+                  className={
+                    active
+                      ? 'rounded-full border border-foreground bg-secondary'
+                      : 'rounded-full border border-border bg-card'
+                  }
+                  style={{ height: 30, justifyContent: 'center', paddingHorizontal: 12 }}
+                  testID={`exercise-head-${h.target_muscle || 'all'}`}>
+                  <Text
+                    className={active ? 'text-[13px] font-medium text-foreground' : 'text-[13px] text-muted-foreground'}
+                    numberOfLines={1}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        ) : null}
       </View>
 
       <DataList<Exercise>
@@ -171,6 +227,21 @@ function ExercisesTab() {
         }
         renderItem={({ item }) => (
           <RowCard
+            leading={
+              item.thumb_url ? (
+                <Image
+                  source={{ uri: item.thumb_url }}
+                  style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: tokens.border }}
+                  // The still, not the GIF: a hundred animating images in a
+                  // scrolling list is a lot of decode for no extra meaning.
+                  // The animation earns its place on a detail view.
+                  resizeMode="cover"
+                  // Decorative — the name beside it already says what it is.
+                  accessibilityElementsHidden
+                  importantForAccessibility="no"
+                />
+              ) : undefined
+            }
             title={item.name}
             subtitle={describeMuscle(item.muscle_group, item.target_muscle)}
             meta={item.equipment ?? undefined}

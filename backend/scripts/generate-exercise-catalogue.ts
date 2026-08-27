@@ -36,7 +36,20 @@ interface SourceExercise {
   equipment: string;
   category: string;
   secondaryMuscles?: string[];
+  gifUrl?: string;
+  thumbUrl?: string;
 }
+
+/**
+ * The dataset's CDN URLs point at a third party's GitHub via jsDelivr. Only
+ * the PATH is kept — `abductors/lever-seated-hip-abduction.gif` — and the
+ * origin is rebuilt at seed time from this deployment's own Supabase.
+ *
+ * Storing a path rather than a URL is what lets the same catalogue seed local
+ * and production without either one baking in the other's hostname.
+ */
+const mediaPath = (u?: string): string | null =>
+  u ? (u.split('ExerciseGymGifsDB@main/')[1] ?? null) : null;
 
 const MUSCLE_GROUP: Record<string, string> = {
   arms: 'arms', back: 'back', cardio: 'cardio', chest: 'chest',
@@ -80,6 +93,8 @@ const rows = source
     secondary_muscles: (e.secondaryMuscles ?? []).map((m) => m.replace(/-/g, '_')),
     equipment: e.equipment,
     tracking_type: trackingType(e),
+    media_path: mediaPath(e.gifUrl),
+    thumb_path: mediaPath(e.thumbUrl),
   }))
   .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -99,6 +114,9 @@ export interface CatalogueExercise {
   secondary_muscles: string[];
   equipment: string;
   tracking_type: string;
+  /** Path within the exercise-media bucket; origin added at seed time. */
+  media_path: string | null;
+  thumb_path: string | null;
 }
 
 export const EXERCISE_CATALOGUE: CatalogueExercise[] = ${JSON.stringify(rows, null, 2)};

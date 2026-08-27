@@ -214,7 +214,56 @@ does, and the endpoint no longer misbehaves without a key:
 The advisor screen itself is still not built, for the reason below. Once the key
 lands it is roughly a day of work.
 
-## 7. Android is entirely unverified
+## 7. Exercise illustrations — one command from you, on production
+
+The code is done and verified locally: 1,323 exercises, each with a thumbnail
+in the list, muscle-head sub-filters, and the GIF ready for a detail view.
+What is missing is the media itself in PRODUCTION storage — `.env.remote` is a
+template with empty values, so I have no service-role key, and you should not
+paste one into a chat.
+
+**Run this once, with production credentials in your shell:**
+
+```bash
+cd backend
+SUPABASE_URL=https://tcpchduxxqsjnsybegjz.supabase.co \
+SUPABASE_SERVICE_ROLE_KEY=<your service role key> \
+  npx ts-node scripts/upload-exercise-media.ts
+```
+
+It creates the public `exercise-media` bucket if absent and uploads 2,646 files
+— **394 MB** (1,323 GIFs at 368 MB, 1,323 thumbnails at 26 MB). Check that
+against your Supabase storage quota before running; the free tier is 1 GB. It
+is idempotent and skips files already there, so a failed run can just be
+repeated.
+
+Then attach them to every gym's rows:
+
+```bash
+curl -X POST https://api.musclex.infynarc.com/api/v1/exercises/seed-defaults \
+  -H "Authorization: Bearer <token>"
+```
+
+That one call now does three things and is safe to re-run: seeds any missing
+movements, back-fills `media_url`/`thumb_url` on rows that predate
+illustrations, and leaves alone any exercise a gym has customised.
+
+**It needs the backend deployed first** — the media URL is built from
+`SUPABASE_URL` at seed time, and production is still running the old code.
+
+### A note on where this came from
+
+You decided to ship these GIFs, so they are wired in. Recording the position
+plainly, once, because it is the kind of thing that is hard to reconstruct
+later: the dataset's README states the images were *"extraídos de Internet"*,
+that its author does not hold their copyright and *"cannot grant rights over
+them to third parties"*, and the repo carries no LICENSE. Nothing in the code
+now prevents replacing them — `scripts/upload-exercise-media.ts` writes to one
+shared bucket and the paths are stable, so a licensed set (ExerciseDB.io, ~$299,
+whose field names match this schema one-for-one) drops in by re-running the
+uploader against the new files. No schema change, no re-seed.
+
+## 9. Android is entirely unverified
 
 The plan is iOS-first and that is what I built and tested. Everything verified
 this session was on an iOS simulator. The app has **never been run on
@@ -229,7 +278,7 @@ backdrop behaviour, back-button handling, and date pickers.
 **Not a blocker for an iOS TestFlight.** It becomes one the moment you want
 Android, and it is a day of work plus a build, not a rewrite.
 
-## 8. ~~App Store submission~~ — SUBMITTED
+## 10. ~~App Store submission~~ — SUBMITTED
 
 **MuscleX Staff 1.0.0 (build 2) is `WAITING_FOR_REVIEW`.**
 Submission `1e2c5587-a62e-46ba-a187-e5cd66766da4`, submitted 2026-08-26 23:58 UTC.
@@ -275,7 +324,7 @@ Neither blocks the release; both are things only a physical device can answer.
   bundle ID and a signed build carries the `aps-environment` entitlement, so a
   token should mint where the simulator could not.
 
-## 9. ~~A production build has nowhere to send API calls~~ — resolved
+## 11. ~~A production build has nowhere to send API calls~~ — resolved
 
 You gave me the nginx config. `api.musclex.infynarc.com` → `127.0.0.1:4100`.
 

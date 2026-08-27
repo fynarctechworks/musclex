@@ -108,11 +108,20 @@ export class UpdateExerciseDto {
 export class ExercisesController {
   constructor(private readonly exercises: ExercisesService) {}
 
+
+  /** Muscle heads in this gym's catalogue, optionally within one group. */
+  @Get('muscle-heads')
+  @Permissions({ module: 'members', action: 'view' })
+  muscleHeads(@Query('muscle_group') muscleGroup?: string) {
+    return this.exercises.muscleHeads(muscleGroup);
+  }
+
   @Get()
   @Permissions({ module: 'members', action: 'view' })
   findAll(
     @Query('search') search?: string,
     @Query('muscle_group') muscleGroup?: string,
+    @Query('target_muscle') targetMuscle?: string,
     @Query('include_inactive') includeInactive?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -120,6 +129,7 @@ export class ExercisesController {
     return this.exercises.findAll({
       search,
       muscle_group: muscleGroup,
+      target_muscle: targetMuscle,
       include_inactive: includeInactive === 'true',
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
