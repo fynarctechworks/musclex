@@ -194,15 +194,19 @@ function ExercisesTab() {
                       ? `Filter by ${describeTargetMuscle(h.target_muscle)}, ${h.count} exercises`
                       : 'All heads'
                   }
+                  // Selected state is IDENTICAL to the group row above —
+                  // solid ink, white label. An outline-when-selected here read
+                  // as a different kind of control rather than as the same
+                  // control one level down. Only the height differs, which is
+                  // what keeps the two rows legible as a hierarchy.
                   className={
-                    active
-                      ? 'rounded-full border border-foreground bg-secondary'
-                      : 'rounded-full border border-border bg-card'
+                    active ? 'rounded-full bg-primary' : 'rounded-full border border-border bg-card'
                   }
                   style={{ height: 30, justifyContent: 'center', paddingHorizontal: 12 }}
                   testID={`exercise-head-${h.target_muscle || 'all'}`}>
                   <Text
-                    className={active ? 'text-[13px] font-medium text-foreground' : 'text-[13px] text-muted-foreground'}
+                    className={active ? 'text-[13px] font-medium' : 'text-[13px] text-muted-foreground'}
+                    style={active ? { color: tokens.card } : undefined}
                     numberOfLines={1}>
                     {label}
                   </Text>
