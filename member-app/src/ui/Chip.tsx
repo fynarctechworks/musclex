@@ -1,7 +1,7 @@
 import { Pressable } from 'react-native';
 import { Txt } from './index';
 import { Icon, type IconName } from './Icon';
-import { color, radius, space } from './theme';
+import { cn } from '@/lib/utils';
 
 /**
  * A pill-shaped filter chip.
@@ -37,21 +37,12 @@ export function Chip({
       onPress={onPress}
       accessibilityRole="radio"
       accessibilityState={{ selected: active }}
-      style={{
-        height: 34,
-        paddingHorizontal: space.lg,
-        borderRadius: radius.pill,
-        flexDirection: 'row',
-        gap: 5,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: active ? color.accentSoft : color.surface2,
-        borderWidth: 1,
-        borderColor: active ? color.accentEdge : color.line,
-      }}
-    >
+      className={cn(
+        'h-[34px] flex-row items-center justify-center gap-1.5 rounded-full border px-4 active:opacity-80',
+        active ? 'border-primary/30 bg-primary/5' : 'border-border bg-secondary',
+      )}>
       {icon ? <Icon name={icon} size={13} tone={active ? 'accent' : 't2'} decorative /> : null}
-      <Txt variant="caption" tone={active ? 'accent' : 't2'} style={{ fontWeight: '600' }}>
+      <Txt variant="caption" tone={active ? 'accent' : 't2'} className="font-semibold">
         {label}
       </Txt>
       {done ? <Icon name="check" size={13} tone="good" accessibilityLabel="covered" /> : null}

@@ -72,6 +72,12 @@ const SYMBOLS = {
   findPeople: 'person.badge.plus',
   routine: 'list.bullet.clipboard',
   assigned: 'checklist',
+
+  /** Routine row actions. `more` opens the ones that are not Start. */
+  share: 'square.and.arrow.up',
+  edit: 'pencil',
+  trash: 'trash',
+  more: 'ellipsis',
 } as const;
 
 export type IconName = keyof typeof SYMBOLS;

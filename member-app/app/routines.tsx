@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { Image, Pressable, ScrollView, Share, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Card, Empty, Icon, Label, Loading, Row, Txt } from '../src/ui';
+import { Button, Card, Empty, Icon, Label, Loading, Row, Txt, type IconName } from '../src/ui';
 import { Confirm, Notice } from '../src/ui/Notice';
-import { color, font, radius, space } from '../src/ui/theme';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import {
   useDeleteRoutine,
@@ -24,11 +23,20 @@ import {
  * gets their own editable version, and your later changes never reach them —
  * which is what "add it to mine" should mean, and avoids a workout silently
  * changing under someone mid-session.
+ *
+ * ONE PRIMARY ACTION PER CARD. This screen used to put Start, Edit, Share and
+ * Delete in one row at equal weight, so the thing a member came here to do sat
+ * beside the one that destroys the routine. Start now owns the card and the
+ * rest live behind a disclosure — the same four actions, ranked.
  */
 
 /** Where a share link points. Universal-link setup is a separate deploy step,
  *  so the code is also accepted directly for anyone who cannot open the URL. */
-const SHARE_BASE = (process.env.EXPO_PUBLIC_PAY_BASE_URL ?? 'https://app.musclex.infynarc.com') + '/r';
+const SHARE_BASE =
+  (process.env.EXPO_PUBLIC_PAY_BASE_URL ?? 'https://app.musclex.infynarc.com') + '/r';
+
+/** Placeholder ink — ink-4. RN takes a colour, not a class. */
+const PLACEHOLDER = '#a6a09b';
 
 export default function RoutinesScreen() {
   const insets = useSafeAreaInsets();
@@ -40,7 +48,13 @@ export default function RoutinesScreen() {
 
   const [code, setCode] = useState('');
   const [confirmId, setConfirmId] = useState<string | null>(null);
-  const [notice, setNotice] = useState<{ tone: 'error' | 'success'; title: string; body?: string } | null>(null);
+  /** Which card has its secondary actions open. One at a time. */
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{
+    tone: 'error' | 'success';
+    title: string;
+    body?: string;
+  } | null>(null);
 
   if (isLoading) return <Loading label="Loading routines" />;
   const routines = data?.routines ?? [];
@@ -50,10 +64,7 @@ export default function RoutinesScreen() {
     try {
       const res = await share.mutateAsync(id);
       const url = `${SHARE_BASE}/${res.token}`;
-      await Share.share({
-        message: `${name} — my workout routine on MuscleX:\n${url}`,
-        url,
-      });
+      await Share.share({ message: `${name} — my workout routine on MuscleX:\n${url}`, url });
     } catch (e) {
       setNotice({
         tone: 'error',
@@ -88,12 +99,11 @@ export default function RoutinesScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="My routines" />
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
-        keyboardShouldPersistTaps="handled"
-      >
+        contentContainerClassName="gap-3 px-4 pb-32"
+        keyboardShouldPersistTaps="handled">
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
         {routines.length === 0 ? (
@@ -111,111 +121,115 @@ export default function RoutinesScreen() {
           </>
         ) : (
           <>
-          <Button title="Create a routine" onPress={() => router.push('/routine-edit')} />
-          {routines.map((r) => (
-            <Card key={r.id}>
-              <Row style={{ alignItems: 'flex-start' }}>
-                <View style={{ flex: 1, paddingRight: space.md }}>
-                  <Txt variant="heading">{r.name}</Txt>
-                  <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>
-                    {r.exercises.length} exercises
-                    {r.importedFromLink ? ' · added from a link' : ''}
-                  </Txt>
-                </View>
-              </Row>
+            <Button title="Create a routine" onPress={() => router.push('/routine-edit')} />
+            {routines.map((r) => {
+              const open = openId === r.id;
+              const thumbs = r.exercises.filter((e) => e.thumbUrl).slice(0, 6);
+              return (
+                <Card key={r.id} className="gap-3">
+                  <Row className="items-start">
+                    <View className="flex-1 pr-3">
+                      <Txt variant="heading">{r.name}</Txt>
+                      <Txt variant="caption" tone="t3" className="mt-0.5">
+                        {r.exercises.length}{' '}
+                        {r.exercises.length === 1 ? 'exercise' : 'exercises'}
+                        {r.importedFromLink ? ' · added from a link' : ''}
+                      </Txt>
+                    </View>
+                  </Row>
 
-              <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.md, flexWrap: 'wrap' }}>
-                {r.exercises.slice(0, 6).map((e) =>
-                  e.thumbUrl ? (
-                    <Image
-                      key={e.exerciseId}
-                      source={{ uri: e.thumbUrl }}
-                      style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: radius.sm,
-                        backgroundColor: color.surface2,
+                  {thumbs.length ? (
+                    <View className="flex-row flex-wrap gap-2">
+                      {thumbs.map((e) => (
+                        <Image
+                          key={e.exerciseId}
+                          source={{ uri: e.thumbUrl! }}
+                          className="bg-secondary h-[42px] w-[42px] rounded-sm"
+                          // The name is already in the card's own label; a
+                          // per-thumbnail label would read the list twice.
+                          accessibilityElementsHidden
+                          importantForAccessibility="no"
+                        />
+                      ))}
+                    </View>
+                  ) : null}
+
+                  <Row className="gap-2">
+                    <View className="flex-1">
+                      <Button
+                        title="Start"
+                        size="sm"
+                        accessibilityLabel={`Start ${r.name}`}
+                        onPress={() => router.push(`/session?routine=${r.id}`)}
+                      />
+                    </View>
+                    <Pressable
+                      onPress={() => setOpenId(open ? null : r.id)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={`More actions for ${r.name}`}
+                      accessibilityState={{ expanded: open }}
+                      className="border-border bg-secondary h-9 w-11 items-center justify-center rounded-md border active:opacity-70">
+                      <Icon name="more" size={16} tone="t2" decorative />
+                    </Pressable>
+                  </Row>
+
+                  {open ? (
+                    <View className="border-border -mx-4 -mb-4 border-t">
+                      <RoutineAction
+                        icon="edit"
+                        label="Edit"
+                        first
+                        onPress={() => router.push(`/routine-edit?id=${r.id}`)}
+                      />
+                      <RoutineAction
+                        icon="share"
+                        label="Share a copy"
+                        onPress={() => onShare(r.id, r.name)}
+                      />
+                      <RoutineAction
+                        icon="trash"
+                        label="Delete"
+                        danger
+                        onPress={() => setConfirmId(r.id)}
+                      />
+                    </View>
+                  ) : null}
+
+                  {confirmId === r.id ? (
+                    <Confirm
+                      title={`Delete "${r.name}"?`}
+                      body="Workouts you already logged from it are kept."
+                      confirmLabel="Delete"
+                      onCancel={() => setConfirmId(null)}
+                      onConfirm={() => {
+                        del.mutate(r.id);
+                        setConfirmId(null);
+                        setOpenId(null);
                       }}
-                      accessibilityLabel={e.name}
                     />
-                  ) : null,
-                )}
-              </View>
-
-              <Row style={{ marginTop: space.lg, gap: space.sm }}>
-                <View style={{ flex: 1 }}>
-                  <Button
-                    title="Start"
-                    size="sm"
-                    onPress={() => router.push(`/session?routine=${r.id}`)}
-                  />
-                </View>
-                <Button
-                  title="Edit"
-                  variant="secondary"
-                  size="sm"
-                  onPress={() => router.push(`/routine-edit?id=${r.id}`)}
-                />
-                <Button
-                  title="Share"
-                  variant="secondary"
-                  size="sm"
-                  loading={share.isPending}
-                  onPress={() => onShare(r.id, r.name)}
-                />
-                <Button
-                  title="Delete"
-                  variant="quiet"
-                  size="sm"
-                  onPress={() => setConfirmId(r.id)}
-                />
-              </Row>
-
-              {confirmId === r.id ? (
-                <View style={{ marginTop: space.md }}>
-                  <Confirm
-                    title={`Delete "${r.name}"?`}
-                    body="Workouts you already logged from it are kept."
-                    confirmLabel="Delete"
-                    onCancel={() => setConfirmId(null)}
-                    onConfirm={() => {
-                      del.mutate(r.id);
-                      setConfirmId(null);
-                    }}
-                  />
-                </View>
-              ) : null}
-            </Card>
-          ))}
+                  ) : null}
+                </Card>
+              );
+            })}
           </>
         )}
 
         <Card>
           <Label>Add someone's routine</Label>
-          <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
-            Paste a share link or code. You get your own copy to edit — their later
-            changes will not touch it.
+          <Txt variant="small" tone="t2" className="mt-2">
+            Paste a share link or code. You get your own copy to edit — their later changes will
+            not touch it.
           </Txt>
-          <Row style={{ marginTop: space.md, gap: space.sm }}>
+          <Row className="mt-3 gap-2">
             <TextInput
               value={code}
               onChangeText={setCode}
               autoCapitalize="none"
               placeholder="Link or code"
-              placeholderTextColor={color.t4}
+              placeholderTextColor={PLACEHOLDER}
               accessibilityLabel="Routine link or code"
-              style={{
-                flex: 1,
-                height: 46,
-                borderRadius: radius.md,
-                backgroundColor: color.surface2,
-                borderWidth: 1,
-                borderColor: color.line,
-                color: color.t1,
-                paddingHorizontal: space.lg,
-                fontFamily: font,
-                fontSize: 15,
-              }}
+              className="border-border bg-secondary text-foreground h-12 flex-1 rounded-md border px-4 text-base"
             />
             <Button
               title="Add"
@@ -227,6 +241,41 @@ export default function RoutinesScreen() {
           </Row>
         </Card>
       </ScrollView>
+    </View>
+  );
+}
+
+/**
+ * One row in a card's disclosed actions. Full-bleed to the card edge so the
+ * group reads as a drawer belonging to the card rather than a list floating
+ * inside it.
+ */
+function RoutineAction({
+  icon,
+  label,
+  onPress,
+  first,
+  danger,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  first?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <View>
+      {first ? null : <View className="bg-border ml-12 h-px" />}
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        className="active:bg-secondary min-h-12 flex-row items-center gap-3 px-4 py-3">
+        <Icon name={icon} size={17} tone={danger ? 'accent' : 't2'} decorative />
+        <Txt variant="body" tone={danger ? 'accent' : 't1'}>
+          {label}
+        </Txt>
+      </Pressable>
     </View>
   );
 }
