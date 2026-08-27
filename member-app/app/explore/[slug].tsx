@@ -21,7 +21,7 @@ export default function ExploreDetailScreen() {
   if (isLoading) return <Loading label="Loading workout" />;
   if (isError || !data) {
     return (
-      <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+      <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
         <ScreenHeader title="Explore" />
         <Empty title="Workout unavailable" body="It may have been removed." />
       </View>
@@ -29,9 +29,9 @@ export default function ExploreDetailScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title={data.title} />
-      <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}>
+      <ScrollView contentContainerClassName="gap-3 px-4 pb-32">
         {added ? (
           <>
             <Notice
@@ -73,8 +73,8 @@ export default function ExploreDetailScreen() {
             <Card>
               <Label>What's in it</Label>
               {data.exercises.map((e, i) => (
-                <Row key={i} style={{ marginTop: space.md }}>
-                  <Txt variant="body" style={{ flex: 1, paddingRight: space.md }}>{e.name}</Txt>
+                <Row key={i} className="mt-3">
+                  <Txt variant="body" className="flex-1 pr-3">{e.name}</Txt>
                   <Txt variant="caption" tone="t3">
                     {e.targetDurationSeconds
                       ? `${e.targetSets ?? 1} × ${e.targetDurationSeconds}s`

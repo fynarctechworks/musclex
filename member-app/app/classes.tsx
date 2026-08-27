@@ -37,9 +37,9 @@ export default function ClassesScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Classes" />
-      <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}>
+      <ScrollView contentContainerClassName="gap-3 px-4 pb-32">
         {error ? (
           <Notice title="Could not update booking" body={error} onDismiss={() => setError(null)} />
         ) : null}
@@ -51,14 +51,14 @@ export default function ClassesScreen() {
           />
         ) : (
           Object.entries(groups).map(([day, items]) => (
-            <View key={day} style={{ gap: space.sm }}>
+            <View key={day} className="gap-2">
               <Txt variant="label" tone="t3">{day}</Txt>
               {items.map((c) => {
                 const full = c.seatsLeft <= 0 && !c.booked;
                 return (
                   <Card key={c.id} tone={c.booked ? 'good' : 'default'}>
-                    <Row style={{ alignItems: 'flex-start' }}>
-                      <View style={{ flex: 1, paddingRight: space.md }}>
+                    <Row className="items-start">
+                      <View className="flex-1 pr-3">
                         <Txt variant="heading">{c.title}</Txt>
                         <Txt variant="small" tone="t2" style={{ marginTop: 3 }}>
                           {timeOf(c.startsAt)}

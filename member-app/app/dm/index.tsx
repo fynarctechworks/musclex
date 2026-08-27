@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Card, Empty, Label, Loading, Row, Txt } from '../../src/ui';
+import { Card, Empty, Label, Loading, Row, Txt, Badge } from '../../src/ui';
 import { Chip } from '../../src/ui/Chip';
 import { ScreenHeader } from '../../src/ui/ScreenHeader';
 import { whenOf } from '../../src/lib/datetime';
@@ -90,11 +90,8 @@ export default function InboxScreen() {
                       <Txt variant="caption" tone="t4">{whenOf(c.lastMessage.at)}</Txt>
                     ) : null}
                     {c.unread > 0 ? (
-                      <View
-                        className="bg-primary mt-1 h-5 min-w-5 items-center justify-center rounded-full px-1.5">
-                        <Txt variant="caption" className="text-primary-foreground font-semibold">
-                          {c.unread}
-                        </Txt>
+                      <View className="mt-1">
+                        <Badge count={c.unread} />
                       </View>
                     ) : null}
                   </View>

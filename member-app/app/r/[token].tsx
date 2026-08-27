@@ -27,9 +27,9 @@ export default function SharedRoutineScreen() {
   if (isLoading) return <Loading label="Opening routine" />;
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Shared routine" />
-      <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: 0, gap: space.md }}>
+      <ScrollView contentContainerClassName="gap-3 px-4">
         {isError || !data ? (
           <Empty
             title="This link is not valid"
@@ -54,7 +54,7 @@ export default function SharedRoutineScreen() {
 
             <Card>
               <Txt variant="title">{data.name}</Txt>
-              <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+              <Txt variant="small" tone="t2" className="mt-2">
                 {data.exerciseCount} exercises
                 {data.importCount > 0
                   ? ` · added by ${data.importCount} ${data.importCount === 1 ? 'person' : 'people'}`
@@ -65,8 +65,8 @@ export default function SharedRoutineScreen() {
             <Card>
               <Label>What's in it</Label>
               {data.exercises.map((e, i) => (
-                <Row key={i} style={{ marginTop: space.md }}>
-                  <Txt variant="body" style={{ flex: 1 }}>{e.name}</Txt>
+                <Row key={i} className="mt-3">
+                  <Txt variant="body" className="flex-1">{e.name}</Txt>
                   {e.targetSets ? (
                     <Txt variant="caption" tone="t3">
                       {e.targetSets} sets{e.targetReps ? ` × ${e.targetReps}` : ''}

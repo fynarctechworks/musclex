@@ -1,8 +1,7 @@
 import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Icon, Card, Empty, Loading, Row, Txt } from '../src/ui';
-import { color, radius, space } from '../src/ui/theme';
+import { Icon, Card, Empty, Loading, Row, Txt, Badge } from '../src/ui';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { whenOf } from '../src/lib/datetime';
 import { useChatThreads } from '../src/api/queries';
@@ -21,9 +20,9 @@ export default function MessagesScreen() {
   const threads = data?.threads ?? [];
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Messages" />
-      <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.sm }}>
+      <ScrollView contentContainerClassName="gap-2 px-4 pb-32">
         {threads.length === 0 ? (
           <Empty
             title="No trainers yet"
@@ -38,27 +37,14 @@ export default function MessagesScreen() {
               accessibilityLabel={`Open chat with ${t.trainerName}`}
             >
               <Card>
-                <Row style={{ alignItems: 'flex-start' }}>
-                  <View style={{ flex: 1, paddingRight: space.md }}>
-                    <Row style={{ justifyContent: 'flex-start', gap: space.sm }}>
+                <Row className="items-start">
+                  <View className="flex-1 pr-3">
+                    <Row className="justify-start gap-2">
                       <Txt variant="bodyStrong">{t.trainerName}</Txt>
-                      {t.unreadCount > 0 ? (
-                        <View
-                          style={{
-                            minWidth: 20,
-                            height: 20,
-                            paddingHorizontal: 6,
-                            borderRadius: radius.pill,
-                            backgroundColor: color.accent,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Txt variant="caption" style={{ color: color.accentInk, fontWeight: '700' }}>
-                            {t.unreadCount}
-                          </Txt>
-                        </View>
-                      ) : null}
+                      <Badge
+                        count={t.unreadCount}
+                        label={`${t.unreadCount} unread from ${t.trainerName}`}
+                      />
                     </Row>
                     <Txt variant="small" tone="t2" numberOfLines={1} style={{ marginTop: 3 }}>
                       {t.lastMessage ?? 'Say hello to your trainer'}

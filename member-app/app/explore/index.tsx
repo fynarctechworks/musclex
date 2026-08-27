@@ -2,7 +2,6 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, Empty, Loading, Row, Txt } from '../../src/ui';
-import { color, radius, space } from '../../src/ui/theme';
 import { ScreenHeader } from '../../src/ui/ScreenHeader';
 import { useExplore } from '../../src/api/queries';
 
@@ -29,14 +28,14 @@ export default function ExploreScreen() {
   const categories = data?.categories ?? [];
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Explore" />
-      <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.xl }}>
+      <ScrollView contentContainerClassName="gap-6 px-4 pb-32">
         {categories.length === 0 ? (
           <Empty title="Nothing here yet" body="Ready-made workouts will appear here." />
         ) : (
           categories.map((cat) => (
-            <View key={cat.category} style={{ gap: space.sm }}>
+            <View key={cat.category} className="gap-2">
               <Txt variant="label" tone="t3">{cat.label}</Txt>
               {cat.workouts.map((w) => (
                 <Pressable
@@ -46,22 +45,12 @@ export default function ExploreScreen() {
                   accessibilityLabel={`Open ${w.title}`}
                 >
                   <Card>
-                    <Row style={{ alignItems: 'flex-start' }}>
-                      <View style={{ flex: 1, paddingRight: space.md }}>
+                    <Row className="items-start">
+                      <View className="flex-1 pr-3">
                         <Txt variant="heading">{w.title}</Txt>
-                        <Row style={{ justifyContent: 'flex-start', gap: space.sm, marginTop: space.sm }}>
-                          <View
-                            style={{
-                              paddingHorizontal: space.md,
-                              height: 24,
-                              borderRadius: radius.pill,
-                              backgroundColor: color.surface2,
-                              borderWidth: 1,
-                              borderColor: color.line,
-                              justifyContent: 'center',
-                            }}
-                          >
-                            <Txt variant="caption" tone="t2" style={{ fontWeight: '600' }}>
+                        <Row className="mt-2 justify-start gap-2">
+                          <View className="border-border bg-secondary h-6 justify-center rounded-full border px-3">
+                            <Txt variant="caption" tone="t2" className="font-semibold">
                               {DIFFICULTY[w.difficulty] ?? w.difficulty}
                             </Txt>
                           </View>
@@ -71,7 +60,7 @@ export default function ExploreScreen() {
                           </Txt>
                         </Row>
                         {w.addCount > 0 ? (
-                          <Txt variant="caption" tone="t4" style={{ marginTop: 4 }}>
+                          <Txt variant="caption" tone="t4" className="mt-1">
                             Added by {w.addCount} {w.addCount === 1 ? 'member' : 'members'}
                           </Txt>
                         ) : null}

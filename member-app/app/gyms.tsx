@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, Empty, Icon, Loading, Row, Txt } from '../src/ui';
-import { color, font, radius, space } from '../src/ui/theme';
+import { Field } from '../src/ui/Field';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { useNearbyGyms } from '../src/api/queries';
 
@@ -25,31 +25,21 @@ export default function GymsScreen() {
   const gyms = data?.gyms ?? [];
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Find a gym" />
-      <View style={{ paddingHorizontal: space.lg, paddingBottom: space.md }}>
-        <TextInput
+      <View className="px-4 pb-3">
+        <Field
           value={query}
           onChangeText={setQuery}
           placeholder="Search by name or city"
-          placeholderTextColor={color.t4}
           accessibilityLabel="Search gyms"
-          style={{
-            height: 46,
-            borderRadius: radius.md,
-            backgroundColor: color.surface,
-            borderWidth: 1,
-            borderColor: color.line,
-            color: color.t1,
-            paddingHorizontal: space.lg,
-            fontFamily: font,
-            fontSize: 15,
-          }}
+          returnKeyType="search"
+          autoCorrect={false}
         />
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.sm }}
+        contentContainerClassName="gap-2 px-4 pb-32"
         keyboardShouldPersistTaps="handled"
       >
         {isLoading ? (
@@ -66,11 +56,11 @@ export default function GymsScreen() {
         ) : (
           gyms.map((g, i) => (
             <Card key={g.tenantId ?? i}>
-              <Row style={{ alignItems: 'flex-start', gap: space.md }}>
+              <Row className="items-start gap-3">
                 <Icon name="location" size={20} tone="t3" decorative />
-                <View style={{ flex: 1 }}>
+                <View className="flex-1">
                   <Txt variant="bodyStrong">{g.gymName ?? g.branchName}</Txt>
-                  <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>
+                  <Txt variant="caption" tone="t3" className="mt-0.5">
                     {[g.branchName, g.address, g.city].filter(Boolean).join(' · ')}
                   </Txt>
                 </View>
@@ -82,7 +72,7 @@ export default function GymsScreen() {
           ))
         )}
 
-        <Txt variant="caption" tone="t4" style={{ textAlign: 'center', marginTop: space.md }}>
+        <Txt variant="caption" tone="t4" className="mt-3 text-center">
           Joining a gym happens at the gym. Once they add your number, sign in and it appears here.
         </Txt>
       </ScrollView>

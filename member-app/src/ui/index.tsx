@@ -222,6 +222,29 @@ export function Chip({ label, on }: { label: string; on?: boolean }) {
   );
 }
 
+/* ── Badge ───────────────────────────────────────────────────── */
+
+/**
+ * An unread count. Two screens list conversations and both drew this by hand;
+ * the number is the whole message, so it must never be the fill alone.
+ *
+ * `min-w-5` with horizontal padding rather than a fixed width, so a 2 and a 12
+ * are both round-ended rather than one being clipped.
+ */
+export function Badge({ count, label }: { count: number; label?: string }) {
+  if (count <= 0) return null;
+  return (
+    <View
+      className="bg-primary h-5 min-w-5 items-center justify-center rounded-full px-1.5"
+      accessible
+      accessibilityLabel={label ?? `${count} unread`}>
+      <Txt variant="caption" className="text-primary-foreground font-semibold">
+        {count}
+      </Txt>
+    </View>
+  );
+}
+
 /* ── Meter (occupancy, goals) ────────────────────────────────── */
 
 /**

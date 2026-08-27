@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Meter, Row, Txt } from '../src/ui';
 import { Notice } from '../src/ui/Notice';
-import { font, color, radius, space } from '../src/ui/theme';
+import { cn } from '@/lib/utils';
+import { Field } from '../src/ui/Field';
+import { chart } from '../src/ui/chart-colors';
 import { useQueryClient } from '@tanstack/react-query';
 import { qk, useUpdateMe } from '../src/api/queries';
 import { useUnits } from '../src/lib/use-units';
@@ -63,18 +65,17 @@ function Option({
       onPress={onPress}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
-      style={{
-        paddingHorizontal: space.lg,
-        height: 46,
-        justifyContent: 'center',
-        borderRadius: radius.md,
-        backgroundColor: selected ? color.accentSoft : color.surface2,
-        borderWidth: 1,
-        borderColor: selected ? color.accentEdge : color.line,
-        marginBottom: space.sm,
-      }}
-    >
-      <Txt variant="body" tone={selected ? 'accent' : 't1'} style={{ fontWeight: selected ? '600' : '400' }}>
+      // A full-width row, not a Chip: these are the only thing on the step and
+      // reading down a column of them is the point. A pill row would wrap into
+      // an arbitrary grid the member has to scan rather than read.
+      className={cn(
+        'mb-2 h-12 justify-center rounded-md border px-4 active:opacity-80',
+        selected ? 'border-primary/30 bg-primary/5' : 'border-border bg-secondary',
+      )}>
+      <Txt
+        variant="body"
+        tone={selected ? 'accent' : 't1'}
+        className={selected ? 'font-semibold' : undefined}>
         {label}
       </Txt>
     </Pressable>
@@ -136,22 +137,9 @@ export default function OnboardingScreen() {
     });
   }
 
-  const input = {
-    height: 52,
-    borderRadius: radius.md,
-    backgroundColor: color.surface2,
-    borderWidth: 1,
-    borderColor: color.line,
-    color: color.t1,
-    paddingHorizontal: space.lg,
-    fontFamily: font,
-    fontSize: 17,
-    marginBottom: space.sm,
-  } as const;
-
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top + space.lg }}>
-      <View style={{ paddingHorizontal: space.lg }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top + 16 }}>
+      <View className="px-4">
         <Row>
           <Txt variant="caption" tone="t3">
             Step {index + 1} of {STEPS.length}
@@ -164,11 +152,11 @@ export default function OnboardingScreen() {
             <Txt variant="small" tone="t3">{last ? 'Finish' : 'Skip'}</Txt>
           </Pressable>
         </Row>
-        <Meter value={index + 1} max={STEPS.length} tint={color.accent} />
+        <Meter value={index + 1} max={STEPS.length} tint={chart.accent} />
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingBottom: 140, gap: space.md }}
+        contentContainerClassName="gap-3 p-4 pb-36"
         keyboardShouldPersistTaps="handled"
       >
         {error ? <Notice title="Not saved" body={error} onDismiss={() => setError(null)} /> : null}
@@ -216,27 +204,29 @@ export default function OnboardingScreen() {
               Only used for BMI and calorie targets. You can change these any time.
             </Txt>
             <Card>
-              <Txt variant="caption" tone="t3" style={{ marginBottom: space.sm }}>Height (cm)</Txt>
-              <TextInput
+              <Txt variant="caption" tone="t3" className="mb-2">
+                Height (cm)
+              </Txt>
+              <Field
+                size="lg"
                 value={height}
                 onChangeText={setHeight}
                 keyboardType="number-pad"
                 placeholder="178"
-                placeholderTextColor={color.t4}
                 accessibilityLabel="Height in centimetres"
-                style={input}
+                className="mb-2"
               />
-              <Txt variant="caption" tone="t3" style={{ marginBottom: space.sm, marginTop: space.md }}>
+              <Txt variant="caption" tone="t3" className="mb-2 mt-3">
                 Weight ({u.weightUnit})
               </Txt>
-              <TextInput
+              <Field
+                size="lg"
                 value={weight}
                 onChangeText={setWeight}
                 keyboardType="decimal-pad"
                 placeholder="75"
-                placeholderTextColor={color.t4}
                 accessibilityLabel={`Weight in ${u.weightUnit}`}
-                style={input}
+                className="mb-2"
               />
             </Card>
           </>
@@ -244,14 +234,8 @@ export default function OnboardingScreen() {
       </ScrollView>
 
       <View
-        style={{
-          padding: space.lg,
-          paddingBottom: insets.bottom + space.lg,
-          borderTopWidth: 1,
-          borderTopColor: color.line,
-          backgroundColor: color.surface,
-        }}
-      >
+        className="border-border bg-card border-t p-4"
+        style={{ paddingBottom: insets.bottom + 16 }}>
         <Button
           title={last ? 'Finish' : 'Continue'}
           accessibilityLabel={last ? 'Finish setup' : 'Continue to next step'}

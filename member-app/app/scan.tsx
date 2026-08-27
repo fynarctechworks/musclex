@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Label, Row, Txt } from '../src/ui';
 import { Notice } from '../src/ui/Notice';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
-import { color, font, radius, space } from '../src/ui/theme';
+import { Field } from '../src/ui/Field';
 import { parseMemberCode, requestCameraPermission, scanningSupported } from '../src/lib/qr';
 
 /**
@@ -57,10 +57,10 @@ export default function ScanScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Scan a code" />
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
+        contentContainerClassName="gap-3 px-4 pb-32"
       >
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
@@ -68,17 +68,11 @@ export default function ScanScreen() {
           <Card>
             <Label>Camera</Label>
             {CameraView && granted ? (
-              <View
-                style={{
-                  height: 300,
-                  marginTop: space.md,
-                  borderRadius: radius.lg,
-                  overflow: 'hidden',
-                  backgroundColor: color.t1,
-                }}
-              >
+              // A near-black ground so the preview does not flash white while
+              // the camera warms up.
+              <View className="bg-foreground mt-3 h-[300px] overflow-hidden rounded-lg">
                 <CameraView
-                  style={{ flex: 1 }}
+                  className="flex-1"
                   barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
                   onBarcodeScanned={
                     handled ? undefined : ({ data }: { data: string }) => go(data)
@@ -86,7 +80,7 @@ export default function ScanScreen() {
                 />
               </View>
             ) : (
-              <View style={{ marginTop: space.md }}>
+              <View className="mt-3">
                 <Button title="Open the camera" variant="secondary" onPress={openCamera} />
               </View>
             )}
@@ -95,31 +89,17 @@ export default function ScanScreen() {
 
         <Card>
           <Label>Or paste their code</Label>
-          <Row style={{ marginTop: space.md, gap: space.sm }}>
-            <TextInput
+          <Row className="mt-3 gap-2">
+            <Field
               value={pasted}
               onChangeText={setPasted}
               placeholder="musclex://u/…"
-              placeholderTextColor={color.t4}
               accessibilityLabel="Paste a member code"
-              autoCapitalize="none"
-              style={{
-                flex: 1,
-                height: 46,
-                borderRadius: radius.md,
-                backgroundColor: color.surface2,
-                borderWidth: 1,
-                borderColor: color.line,
-                color: color.t1,
-                paddingHorizontal: space.lg,
-                fontFamily: font,
-                fontSize: 15,
-              }}
-            />
+              autoCapitalize="none" />
             <Button title="Go" size="sm" disabled={!pasted.trim()} onPress={() => go(pasted)} />
           </Row>
           {!scanningSupported() ? (
-            <Txt variant="caption" tone="t3" style={{ marginTop: space.sm }}>
+            <Txt variant="caption" tone="t3" className="mt-2">
               Scanning needs a camera — on this device, paste the code instead.
             </Txt>
           ) : null}
