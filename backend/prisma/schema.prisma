@@ -187,6 +187,7 @@ model AppUser {
   // The gym-less half: routines, a personal exercise catalogue, and meals.
   own_exercises AppUserExercise[]
   routines      AppUserRoutine[]
+  routine_schedule AppUserRoutineSchedule[]
   meal_logs     AppUserMealLog[]
   health_daily  AppUserHealthDaily[]
   events        AppUserEvent[]
@@ -1037,6 +1038,17 @@ model Member {
   join_date               DateTime?                   @db.Date
   last_visit_at           DateTime?                   @db.Timestamptz()
   created_at              DateTime                    @default(now()) @db.Timestamptz()
+  /// How far the member's weekly routine schedule has slid from the days they
+  /// actually chose, in days.
+  ///
+  /// Resuming a missed session shifts the whole week forward so a
+  /// Push/Pull/Legs cycle keeps its ORDER rather than its calendar. Holding
+  /// that as an offset applied at resolution time — rather than rewriting the
+  /// schedule rows — means the member's stated week survives: a Monday person
+  /// does not quietly become a Tuesday person, a second missed day does not
+  /// compound into a week nobody chose, and "back to my normal week" is a
+  /// reset to 0 rather than an unrecoverable edit.
+  schedule_offset_days    Int                         @default(0)
   updated_at              DateTime                    @default(now()) @updatedAt @db.Timestamptz()
 
   organization          Organization?             @relation(fields: [organization_id], references: [id])
@@ -1083,6 +1095,7 @@ model Member {
   workout_logs          WorkoutLog[]
   personal_records      PersonalRecord[]
   routines              MemberRoutine[]
+  routine_schedule      MemberRoutineSchedule[]
   meal_logs             MealLog[]
   water_logs            WaterLog[]
   nutrition_goal        NutritionGoal?
@@ -1365,6 +1378,15 @@ model WorkoutLog {
   member_id           String   @db.Uuid
   assigned_workout_id String?  @db.Uuid
   workout_plan_id     String?  @db.Uuid
+  /// Which of the member's own routines this session came from, when it came
+  /// from one at all.
+  ///
+  /// Nullable and expected to be null for most rows: an ad-hoc session
+  /// legitimately has no routine, and every row predating this column has
+  /// none. Without it the only answerable question was "did they train that
+  /// day" — which is far too weak to decide that a member missed their
+  /// scheduled leg day and to shift a whole week's plan on the strength of it.
+  routine_id          String?  @db.Uuid
   client_key          String? // client idempotency key (offline outbox); unique per gym
   /// When the session actually happened. `logged_at` is when it was WRITTEN —
   /// the two differ whenever a member records a workout after the fact.
@@ -1376,11 +1398,14 @@ model WorkoutLog {
   member          Member           @relation(fields: [member_id], references: [id], onDelete: Cascade)
   assigned_workout AssignedWorkout? @relation(fields: [assigned_workout_id], references: [id])
   workout_plan    WorkoutPlan?     @relation(fields: [workout_plan_id], references: [id])
+  routine         MemberRoutine?   @relation(fields: [routine_id], references: [id], onDelete: SetNull)
   sets            WorkoutSetLog[]
   records         PersonalRecord[]
 
   @@unique([gym_id, client_key])
   @@index([member_id, logged_at])
+  /// Answers "was yesterday's scheduled routine actually done" in one hit.
+  @@index([member_id, routine_id, logged_at])
   @@map("workout_logs")
   @@schema("studio_template")
 }
@@ -4960,9 +4985,41 @@ model MemberRoutine {
 
   member    Member                  @relation(fields: [member_id], references: [id], onDelete: Cascade)
   exercises MemberRoutineExercise[]
+  scheduled MemberRoutineSchedule[]
+  logs      WorkoutLog[]
 
   @@index([gym_id, member_id])
   @@map("member_routines")
+  @@schema("studio_template")
+}
+
+/// Which routine a gym member trains on each weekday.
+///
+/// Before this, a self-directed member had no plan at all: routines carried a
+/// name and a list of exercises and nothing else, so the home screen's
+/// "Nothing assigned today" was permanent for anyone without a trainer, and
+/// nothing could be "missed" because nothing was ever scheduled.
+model MemberRoutineSchedule {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gym_id     String   @db.Uuid
+  member_id  String   @db.Uuid
+  routine_id String   @db.Uuid
+  /// 0 = Sunday .. 6 = Saturday. A weekday with NO row is a rest day — not an
+  /// error, and not something to nag about.
+  weekday    Int      @db.SmallInt
+  created_at DateTime @default(now()) @db.Timestamptz()
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  member  Member        @relation(fields: [member_id], references: [id], onDelete: Cascade)
+  routine MemberRoutine @relation(fields: [routine_id], references: [id], onDelete: Cascade)
+
+  /// One weekday resolves to exactly one routine, enforced by the database
+  /// rather than by the app — a `weekday[]` column on the routine could not
+  /// express it.
+  @@unique([member_id, weekday])
+  @@index([gym_id, member_id])
+  @@index([routine_id])
+  @@map("member_routine_schedule")
   @@schema("studio_template")
 }
 
@@ -5690,9 +5747,33 @@ model AppUserRoutine {
 
   app_user  AppUser                  @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
   exercises AppUserRoutineExercise[]
+  scheduled AppUserRoutineSchedule[]
 
   @@index([app_user_id])
   @@map("app_user_routines")
+  @@schema("public")
+}
+
+/// The gym-less counterpart of member_routine_schedule.
+///
+/// Keyed by app_user and living in `public`, so it has NO gym_id and must
+/// never enter the tenant model set — injecting a gym filter here would
+/// reference a column that does not exist.
+model AppUserRoutineSchedule {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  app_user_id String   @db.Uuid
+  routine_id  String   @db.Uuid
+  /// 0 = Sunday .. 6 = Saturday. No row for a weekday means a rest day.
+  weekday     Int      @db.SmallInt
+  created_at  DateTime @default(now()) @db.Timestamptz()
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz()
+
+  app_user AppUser        @relation(fields: [app_user_id], references: [id], onDelete: Cascade)
+  routine  AppUserRoutine @relation(fields: [routine_id], references: [id], onDelete: Cascade)
+
+  @@unique([app_user_id, weekday])
+  @@index([routine_id])
+  @@map("app_user_routine_schedule")
   @@schema("public")
 }
 

@@ -42,7 +42,7 @@ export const TENANT_MODELS: ReadonlySet<string> = new Set<string>([
   'DashboardMetrics', 'DomainEvent', 'StaffPermissionOverride',
   'ExpenseCategory', 'ExpenseMetric', 'Exercise', 'WorkoutPlan',
   'WorkoutPlanExercise', 'AssignedWorkout', 'WorkoutLog', 'WorkoutSetLog',
-  'PersonalRecord', 'MemberRoutine', 'MemberRoutineExercise',
+  'PersonalRecord', 'MemberRoutine', 'MemberRoutineExercise', 'MemberRoutineSchedule',
   'FoodItem', 'MealLog', 'MealLogItem',
   'WaterLog', 'NutritionGoal', 'ExerciseFavorite', 'TrainerChatMessage',
   'MemberDeviceToken', 'Challenge', 'ChallengeParticipant',
