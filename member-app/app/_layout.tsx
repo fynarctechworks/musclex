@@ -8,6 +8,7 @@ import { AppState, View } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PortalHost } from '@rn-primitives/portal';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -168,6 +169,20 @@ export default function RootLayout() {
   }, []);
 
   return (
+    /*
+      GestureHandlerRootView must wrap everything.
+
+      react-native-gesture-handler was added for React Native Reusables, and
+      without this root the app RENDERS correctly and then answers nothing: the
+      screen is right, Fast Refresh updates it, and no touch anywhere reaches a
+      handler. It cost a long time to find precisely because nothing is broken
+      on screen — including a bare RN Pressable, which is what finally ruled out
+      every component and pointed here.
+
+      staff-app has carried one since it adopted RNR. member-app never needed it
+      until gesture-handler arrived with the same components.
+    */
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="dark" />
@@ -194,5 +209,6 @@ export default function RootLayout() {
         <PortalHost />
       </QueryClientProvider>
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
