@@ -67,6 +67,26 @@
   --color-muted: #f5f5f4;
   --color-muted-foreground: #79716b;
 
+  /*
+    The four-step ink ladder the app is written against. The preset defines only
+    foreground and muted-foreground, which is one secondary step where this app
+    uses three — a card can carry a title, a supporting line, a caption and a
+    disabled value, and collapsing those loses real hierarchy.
+
+    Both extra steps are taken from the same stone ramp the preset already uses,
+    so nothing here invents a colour:
+
+      ink      #0c0a09  stone-950  = foreground        titles, body
+      ink-2    #44403b  stone-700                      secondary body
+      ink-3    #79716b  stone-500  = muted-foreground  captions, metadata
+      ink-4    #a6a09b  stone-400                      DECORATIVE / DISABLED
+
+    ink-4 must never carry information on its own — it is below the contrast
+    floor for text and exists for disabled states and dividers.
+  */
+  --color-ink-2: #44403b;
+  --color-ink-4: #a6a09b;
+
   --color-accent: #f5f5f4;
   --color-accent-foreground: #1c1917;
 
