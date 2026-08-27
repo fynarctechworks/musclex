@@ -267,7 +267,7 @@ export function PresetGallery() {
           <DialogTrigger asChild>
             <Button variant="outline"><Text>Log food</Text></Button>
           </DialogTrigger>
-          <DialogContent className="w-[92%]">
+          <DialogContent>
             <DialogHeader>
               <DialogTitle>Log food</DialogTitle>
               <DialogDescription>Search or scan a barcode.</DialogDescription>
@@ -280,12 +280,20 @@ export function PresetGallery() {
         </Dialog>
       </Section>
 
-      <Section title="Alert dialog" hint="For destructive confirmation only — it cannot be dismissed by tapping outside.">
+      {/*
+        KNOWN DEFECT: this trigger does not open on iOS. Verified against the
+        UNPATCHED registry version too, so it is not something we introduced.
+        It very likely also needs the width fix dialog.tsx got — its overlay has
+        the same shrink-to-fit wrapper — but that cannot be confirmed until it
+        opens at all. Do not reach for AlertDialog in a screen until this is
+        resolved; the app's existing Confirm still works.
+      */}
+      <Section title="Alert dialog" hint="Does not open on iOS yet — see the note in the source.">
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="destructive"><Text>Delete this log</Text></Button>
           </AlertDialogTrigger>
-          <AlertDialogContent className="w-[92%]">
+          <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete this log?</AlertDialogTitle>
               <AlertDialogDescription>

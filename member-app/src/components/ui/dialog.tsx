@@ -56,7 +56,21 @@ function DialogOverlay({
           entering={FadeIn.duration(200).reduceMotion(ReduceMotion.System)}
           exiting={FadeOut.duration(150).reduceMotion(ReduceMotion.System)}
           as="Pressable">
+          {/*
+            NOTE (MuscleX): `w-full` here is load-bearing, not decoration.
+
+            This inner animated view carries no width of its own, and its parent
+            centres its children, so it shrinks to fit. DialogContent's own
+            `w-full` then resolves against an indefinite width and collapses —
+            the card ends up as wide as its longest line of text, and every
+            `w-full` inside it (the Input, most obviously) collapses with it.
+            Measured before the fix: content 219pt on a 420pt screen, input
+            126pt. An explicit style={{ width: '100%' }} on the content fails
+            in exactly the same way, because the problem is this wrapper, not
+            the class.
+          */}
           <NativeOnlyAnimatedView
+            className="w-full"
             entering={FadeIn.delay(50).reduceMotion(ReduceMotion.System)}
             exiting={FadeOut.duration(150).reduceMotion(ReduceMotion.System)}>
             <>{children}</>
