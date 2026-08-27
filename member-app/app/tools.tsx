@@ -3,7 +3,6 @@ import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Label, Row, Txt } from '../src/ui';
 import { Notice } from '../src/ui/Notice';
-import { color, space } from '../src/ui/theme';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { useComputeTools, useProfile } from '../src/api/queries';
 import { useUnits } from '../src/lib/use-units';

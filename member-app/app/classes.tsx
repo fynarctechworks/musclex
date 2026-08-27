@@ -3,7 +3,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import { Button, Card, Empty, Loading, Row, Txt } from '../src/ui';
 import { Notice } from '../src/ui/Notice';
-import { color, space } from '../src/ui/theme';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { useBookClass, useCancelBooking, useClasses } from '../src/api/queries';
 import { dayOf, timeOf } from '../src/lib/datetime';

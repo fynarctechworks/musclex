@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Label, Loading, Row, Txt } from '../../src/ui';
 import { Notice } from '../../src/ui/Notice';
 import { ScreenHeader } from '../../src/ui/ScreenHeader';
-import { color, space } from '../../src/ui/theme';
 import {
   useBlockPerson,
   useOpenConversation,
@@ -32,16 +31,16 @@ export default function PersonScreen() {
   if (isLoading || !data) return <Loading label="Loading" />;
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title={data.name || 'Person'} />
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
+        contentContainerClassName="gap-3 px-4 pb-32"
       >
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
         <Card>
           <Txt variant="title">{data.name || 'Someone'}</Txt>
-          <Row style={{ marginTop: space.lg, justifyContent: 'flex-start', gap: space.xl }}>
+          <Row className="mt-4 justify-start gap-6">
             <View>
               <Txt variant="heading">{data.followerCount}</Txt>
               <Txt variant="caption" tone="t3">followers</Txt>
@@ -56,7 +55,7 @@ export default function PersonScreen() {
         {data.isYou ? (
           <Card>
             <Label>This is you</Label>
-            <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+            <Txt variant="small" tone="t2" className="mt-2">
               Share your code from Find people and someone can add you.
             </Txt>
           </Card>

@@ -24,7 +24,6 @@ import { api } from '../src/api/endpoints';
 import { flush } from '../src/offline/outbox';
 import { warmStore } from '../src/offline/store';
 import { SessionProvider, useSession } from '../src/session';
-import { color } from '../src/ui/theme';
 import { Loading } from '../src/ui';
 
 // Imported for its side effect: expo-task-manager requires a background task
@@ -153,7 +152,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="dark" />
-        <View style={{ flex: 1, backgroundColor: color.bg }}>
+        <View className="bg-background flex-1">
           {booted && fontsReady ? (
             <SessionProvider initialAuthed={authed}>
               <Gate>

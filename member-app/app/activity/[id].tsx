@@ -7,7 +7,7 @@ import { Chip } from '../../src/ui/Chip';
 import { Confirm, Notice } from '../../src/ui/Notice';
 import { InfoDot, InfoNote, InfoBullet } from '../../src/ui/InfoTip';
 import { ScreenHeader } from '../../src/ui/ScreenHeader';
-import { color, space } from '../../src/ui/theme';
+import { chart as chartColors } from '../../src/ui/chart-colors';
 import { whenOf } from '../../src/lib/datetime';
 import { clock, pacePerKm } from '../../src/lib/recorder';
 import { useActivity, useDeleteActivity, useSports, useUpdateActivity } from '../../src/api/queries';
@@ -54,20 +54,20 @@ export default function ActivityScreen() {
       : null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title={sport?.label ?? 'Activity'} />
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
+        contentContainerClassName="gap-3 px-4 pb-32"
       >
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
         <Card>
           <Txt variant="title">{data.title || sport?.label || 'Activity'}</Txt>
-          <Txt variant="small" tone="t2" style={{ marginTop: 4 }}>
+          <Txt variant="small" tone="t2" className="mt-1">
             {whenOf(data.startedAt)}
           </Txt>
           {data.description ? (
-            <Txt variant="small" tone="t2" style={{ marginTop: space.md }}>
+            <Txt variant="small" tone="t2" className="mt-3">
               {data.description}
             </Txt>
           ) : null}
@@ -79,19 +79,19 @@ export default function ActivityScreen() {
               <Label>Route</Label>
               <Txt variant="caption" tone="t3">{routeSpanLabel(data.polyline)}</Txt>
             </Row>
-            <View style={{ marginTop: space.md }}>
+            <View className="mt-3">
               <RouteShape polyline={data.polyline} height={220} map />
             </View>
-            <Row style={{ marginTop: space.sm, justifyContent: 'flex-start', gap: space.lg }}>
-              <Dot tint={color.good} label="Start" />
-              <Dot tint={color.accent} label="Finish" />
+            <Row className="mt-2 justify-start gap-4">
+              <Dot tint={chartColors.good} label="Start" />
+              <Dot tint={chartColors.accent} label="Finish" />
             </Row>
           </Card>
         ) : null}
 
         <Card>
           <Label>Numbers</Label>
-          <Row style={{ marginTop: space.md, justifyContent: 'flex-start', gap: space.xl, flexWrap: 'wrap' }}>
+          <Row className="mt-3 flex-wrap justify-start gap-6">
             <Stat value={clock(data.elapsedSeconds * 1000)} unit="elapsed" />
             {data.movingSeconds ? (
               <Stat value={clock(data.movingSeconds * 1000)} unit="moving" />
@@ -110,11 +110,11 @@ export default function ActivityScreen() {
         {chart && chart.heartrate.some((v) => v != null) ? (
           <Card>
             <Label>Heart rate</Label>
-            <View style={{ marginTop: space.md }}>
+            <View className="mt-3">
               <ActivityChart
                 values={chart.heartrate}
                 distanceM={chart.distanceM}
-                tint={color.accent}
+                tint={chartColors.accent}
                 format={(v) => `${Math.round(v)} bpm`}
               />
             </View>
@@ -124,12 +124,12 @@ export default function ActivityScreen() {
         {chart && chart.pacePerKm.some((v) => v != null) ? (
           <Card>
             <Label>Pace</Label>
-            <View style={{ marginTop: space.md }}>
+            <View className="mt-3">
               {/* Inverted: faster is up, which is the only way people read it. */}
               <ActivityChart
                 values={chart.pacePerKm}
                 distanceM={chart.distanceM}
-                tint={color.water}
+                tint={chartColors.water}
                 invert
                 format={(v) => `${clock(v * 1000)}/km`}
               />
@@ -140,11 +140,11 @@ export default function ActivityScreen() {
         {chart && chart.altitude.some((v) => v != null) ? (
           <Card>
             <Label>Elevation</Label>
-            <View style={{ marginTop: space.md }}>
+            <View className="mt-3">
               <ActivityChart
                 values={chart.altitude}
                 distanceM={chart.distanceM}
-                tint={color.t3}
+                tint={chartColors.ink3}
                 fill
                 format={(v) => `${Math.round(v)} m`}
               />
@@ -158,7 +158,7 @@ export default function ActivityScreen() {
               <Label>Splits</Label>
               <Txt variant="caption" tone="t3">per km · avg bpm</Txt>
             </Row>
-            <View style={{ marginTop: space.md }}>
+            <View className="mt-3">
               <Splits splits={analysis.splits} format={(p) => clock(p * 1000)} />
             </View>
           </Card>
@@ -166,15 +166,15 @@ export default function ActivityScreen() {
 
         {analysis.zones.length > 0 ? (
           <Card>
-            <Row style={{ alignItems: 'center' }}>
+            <Row className="items-center">
               <Label>Time in zones</Label>
               <InfoDot open={zoneTip} onPress={() => setZoneTip((v) => !v)} label="How are zones worked out?" />
             </Row>
-            <View style={{ marginTop: space.md }}>
+            <View className="mt-3">
               <ZoneBars zones={analysis.zones} clock={clock} />
             </View>
             {analysis.zonesUnreadSeconds > 0 ? (
-              <Txt variant="caption" tone="t3" style={{ marginTop: space.md }}>
+              <Txt variant="caption" tone="t3" className="mt-3">
                 {clock(analysis.zonesUnreadSeconds * 1000)} with no reading — the strap dropped out.
               </Txt>
             ) : null}
@@ -197,7 +197,7 @@ export default function ActivityScreen() {
           <Card>
             <Label>Laps</Label>
             {data.laps.map((l) => (
-              <Row key={l.lapIndex} style={{ marginTop: space.md }}>
+              <Row key={l.lapIndex} className="mt-3">
                 <Txt variant="small" tone="t2">Lap {l.lapIndex + 1}</Txt>
                 <Txt variant="bodyStrong">
                   {clock(l.elapsedSeconds * 1000)}
@@ -210,7 +210,7 @@ export default function ActivityScreen() {
 
         <Card>
           <Label>Who can see this</Label>
-          <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.md, flexWrap: 'wrap' }}>
+          <View className="mt-3 flex-row flex-wrap gap-2">
             {VISIBILITY.map((v) => (
               <Chip
                 key={v.key}
@@ -221,7 +221,7 @@ export default function ActivityScreen() {
             ))}
           </View>
           {data.polyline ? (
-            <Txt variant="caption" tone="t3" style={{ marginTop: space.md }}>
+            <Txt variant="caption" tone="t3" className="mt-3">
               This activity has a route. Anyone you share it with can see where it started.
             </Txt>
           ) : null}

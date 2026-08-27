@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Label, Loading, Meter, Row, Txt } from '../../src/ui';
 import { Notice } from '../../src/ui/Notice';
 import { ScreenHeader } from '../../src/ui/ScreenHeader';
-import { color, space } from '../../src/ui/theme';
+import { chart } from '../../src/ui/chart-colors';
 import { backOrHome } from '../../src/lib/nav';
 import { daysLeft, formatMetric, METRIC_LABEL, progress } from '../../src/lib/challenge-metric';
 import {
@@ -40,16 +40,16 @@ export default function ChallengeScreen() {
   const onBoard = new Set(data.leaderboard.map((r) => r.id));
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title={data.title} />
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
+        contentContainerClassName="gap-3 px-4 pb-32"
       >
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
         <Card>
           <Label>{METRIC_LABEL[data.metric]}</Label>
-          <Txt variant="display" style={{ marginTop: space.sm }}>
+          <Txt variant="display" className="mt-2">
             {formatMetric(data.metric, me?.value ?? 0)}
           </Txt>
           <Txt variant="small" tone="t2">
@@ -61,10 +61,10 @@ export default function ChallengeScreen() {
             <Meter
               value={progress(data.target, me?.value ?? 0) * 100}
               max={100}
-              tint={(me?.value ?? 0) >= data.target ? color.good : color.accent}
+              tint={(me?.value ?? 0) >= data.target ? chart.good : chart.accent}
             />
           ) : null}
-          <Txt variant="caption" tone="t3" style={{ marginTop: space.md }}>
+          <Txt variant="caption" tone="t3" className="mt-3">
             {daysLeft(data.endsOn)} · {data.participantCount}{' '}
             {data.participantCount === 1 ? 'person' : 'people'}
           </Txt>
@@ -73,8 +73,8 @@ export default function ChallengeScreen() {
         <Card>
           <Label>Leaderboard</Label>
           {data.leaderboard.map((r) => (
-            <Row key={r.id} style={{ marginTop: space.md }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, flex: 1 }}>
+            <Row key={r.id} className="mt-3">
+              <View className="flex-1 flex-row items-center gap-3">
                 <Txt variant="bodyStrong" tone={r.rank === 1 ? 'accent' : 't3'}>
                   {r.rank}
                 </Txt>
@@ -91,7 +91,7 @@ export default function ChallengeScreen() {
         {/* Said before they are on a board, not discovered afterwards. */}
         <Card>
           <Label>What this shares</Label>
-          <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+          <Txt variant="small" tone="t2" className="mt-2">
             Everyone here sees your total for {METRIC_LABEL[data.metric].toLowerCase()} — not your
             activities. Anything you kept private stays private; it just counts toward the number.
           </Txt>
@@ -104,8 +104,8 @@ export default function ChallengeScreen() {
               .filter((p) => !onBoard.has(p.id))
               .slice(0, 5)
               .map((p) => (
-                <Row key={p.id} style={{ marginTop: space.md }}>
-                  <Txt variant="body" style={{ flex: 1 }}>{p.name || 'Someone'}</Txt>
+                <Row key={p.id} className="mt-3">
+                  <Txt variant="body" className="flex-1">{p.name || 'Someone'}</Txt>
                   <Button
                     title="Add"
                     variant="secondary"

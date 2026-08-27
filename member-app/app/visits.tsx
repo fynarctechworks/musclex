@@ -1,7 +1,6 @@
 import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
-import { color, space } from '../src/ui/theme';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { dayOf, timeOf } from '../src/lib/datetime';
 import { useVisits, useVisitSummary } from '../src/api/queries';

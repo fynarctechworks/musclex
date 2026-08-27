@@ -4,7 +4,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Label, Loading, Row, Txt } from '../../src/ui';
 import { Notice } from '../../src/ui/Notice';
-import { color, space } from '../../src/ui/theme';
 import { ScreenHeader } from '../../src/ui/ScreenHeader';
 import { useImportRoutine, useSharedRoutine } from '../../src/api/queries';
 

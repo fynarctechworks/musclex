@@ -2,7 +2,6 @@ import { Image, Pressable, ScrollView, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, Label, Loading, Row, Txt } from '../../src/ui';
-import { color, radius, space } from '../../src/ui/theme';
 import { ScreenHeader } from '../../src/ui/ScreenHeader';
 import { BarChart } from '../../src/features/Sparkline';
 import { shortDate } from '../../src/lib/datetime';
@@ -37,21 +36,21 @@ export default function ExerciseDetailScreen() {
     }));
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title={ex.name} />
-      <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}>
+      <ScrollView contentContainerClassName="gap-3 px-4 pb-32">
         <Card>
-          <Row style={{ alignItems: 'flex-start' }}>
-            <View style={{ flex: 1, paddingRight: space.md }}>
+          <Row className="items-start">
+            <View className="flex-1 pr-3">
               <Txt variant="caption" tone="t3">
                 {[ex.muscleGroup, ex.equipment].filter(Boolean).join(' · ') || 'Exercise'}
               </Txt>
               {history?.personalRecord ? (
-                <Txt variant="display" style={{ marginTop: space.sm }}>
+                <Txt variant="display" className="mt-2">
                   {u.fw(history.personalRecord.weight)}
                 </Txt>
               ) : (
-                <Txt variant="heading" tone="t2" style={{ marginTop: space.sm }}>
+                <Txt variant="heading" tone="t2" className="mt-2">
                   No record yet
                 </Txt>
               )}
@@ -89,12 +88,8 @@ export default function ExerciseDetailScreen() {
           <Card>
             <Image
               source={{ uri: ex.mediaUrl }}
-              style={{
-                width: '100%',
-                aspectRatio: 1,
-                borderRadius: radius.md,
-                backgroundColor: color.surface2,
-              }}
+              className="bg-secondary w-full rounded-md"
+              style={{ aspectRatio: 1 }}
               resizeMode="contain"
               accessibilityLabel={`Animation showing how to perform ${ex.name}`}
             />
@@ -104,7 +99,7 @@ export default function ExerciseDetailScreen() {
         {chart.length > 1 ? (
           <Card>
             <Label>Heaviest set</Label>
-            <View style={{ marginTop: space.md }}>
+            <View className="mt-3">
               <BarChart data={chart} />
             </View>
           </Card>
@@ -113,7 +108,7 @@ export default function ExerciseDetailScreen() {
         {ex.instructions ? (
           <Card>
             <Label>How to do it</Label>
-            <Txt variant="body" tone="t2" style={{ marginTop: space.sm, lineHeight: 22 }}>
+            <Txt variant="body" tone="t2" className="mt-2 leading-relaxed">
               {ex.instructions}
             </Txt>
           </Card>
@@ -122,14 +117,14 @@ export default function ExerciseDetailScreen() {
         <Card>
           <Label>Recent sessions</Label>
           {sessions.length === 0 ? (
-            <Txt variant="small" tone="t2" style={{ marginTop: space.md }}>
+            <Txt variant="small" tone="t2" className="mt-3">
               You have not logged this lift yet.
             </Txt>
           ) : (
             sessions.map((s) => (
-              <View key={s.loggedAt} style={{ marginTop: space.md }}>
+              <View key={s.loggedAt} className="mt-3">
                 <Txt variant="caption" tone="t3">{shortDate(s.loggedAt)}</Txt>
-                <Txt variant="body" style={{ marginTop: 2 }}>
+                <Txt variant="body" className="mt-0.5">
                   {s.sets.map((x) => `${u.fwc(x.weight)} × ${x.reps}`).join('  ·  ')}
                 </Txt>
               </View>

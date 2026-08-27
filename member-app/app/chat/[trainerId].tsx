@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Empty, Loading, Txt } from '../../src/ui';
-import { font, color, radius, space } from '../../src/ui/theme';
+import { cn } from '@/lib/utils';
+import { Field } from '../../src/ui/Field';
 import { ScreenHeader } from '../../src/ui/ScreenHeader';
 import { Notice } from '../../src/ui/Notice';
 import { timeOf } from '../../src/lib/datetime';
@@ -46,12 +47,12 @@ export default function TrainerChatScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}
+      className="bg-background flex-1" style={{ paddingTop: insets.top }}
     >
       <ScreenHeader title={name} />
       <ScrollView
         ref={scroller}
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, gap: space.sm }}
+        contentContainerClassName="gap-2 px-4"
       >
         {error ? <Notice title="Not sent" body={error} onDismiss={() => setError(null)} /> : null}
 
@@ -64,28 +65,22 @@ export default function TrainerChatScreen() {
           messages.map((m) => {
             const mine = m.sender === 'member';
             return (
+              // FILLED, like the coach thread and unlike the member-to-member
+              // DMs: a trainer exchange is read a message at a time, so the
+              // stronger contrast is worth it here.
               <View
                 key={m.id}
-                style={{
-                  alignSelf: mine ? 'flex-end' : 'flex-start',
-                  maxWidth: '84%',
-                  backgroundColor: mine ? color.accent : color.surface,
-                  borderColor: mine ? color.accent : color.line,
-                  borderWidth: 1,
-                  borderRadius: radius.lg,
-                  padding: space.md,
-                }}
-              >
-                <Txt variant="body" style={{ color: mine ? color.accentInk : color.t1 }}>
+                className={cn(
+                  'max-w-[84%] rounded-lg border p-3',
+                  mine ? 'border-primary bg-primary self-end' : 'border-border bg-card self-start',
+                )}>
+                <Txt variant="body" className={mine ? 'text-primary-foreground' : undefined}>
                   {m.body}
                 </Txt>
                 <Txt
                   variant="caption"
-                  style={{
-                    marginTop: 4,
-                    color: mine ? 'rgba(255,255,255,0.75)' : color.t4,
-                  }}
-                >
+                  tone={mine ? undefined : 't4'}
+                  className={cn('mt-1', mine && 'text-primary-foreground/75')}>
                   {timeOf(m.createdAt)}
                 </Txt>
               </View>
@@ -95,35 +90,15 @@ export default function TrainerChatScreen() {
       </ScrollView>
 
       <View
-        style={{
-          flexDirection: 'row',
-          gap: space.sm,
-          padding: space.lg,
-          paddingBottom: insets.bottom + space.md,
-          borderTopWidth: 1,
-          borderTopColor: color.line,
-          backgroundColor: color.surface,
-        }}
-      >
-        <TextInput
+        className="border-border bg-card flex-row gap-2 border-t p-4"
+        style={{ paddingBottom: insets.bottom + 12 }}>
+        <Field
           value={draft}
           onChangeText={setDraft}
           placeholder={`Message ${name}`}
-          placeholderTextColor={color.t4}
           accessibilityLabel="Message"
           onSubmitEditing={submit}
-          style={{
-            flex: 1,
-            height: 46,
-            borderRadius: radius.md,
-            backgroundColor: color.surface2,
-            borderWidth: 1,
-            borderColor: color.line,
-            color: color.t1,
-            paddingHorizontal: space.lg,
-            fontFamily: font,
-            fontSize: 15,
-          }}
+          className="flex-1"
         />
         <Button title="Send" size="sm" onPress={submit} disabled={!draft.trim()} loading={send.isPending} />
       </View>

@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Label, Row, Txt } from '../../src/ui';
 import { Chip } from '../../src/ui/Chip';
 import { Notice } from '../../src/ui/Notice';
+import { Field } from '../../src/ui/Field';
 import { ScreenHeader } from '../../src/ui/ScreenHeader';
-import { color, font, radius, space } from '../../src/ui/theme';
 import { useCreateActivity, useSports } from '../../src/api/queries';
 import type { SportType } from '../../src/api/types';
 
@@ -84,21 +84,21 @@ export default function NewActivityScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Add activity" />
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
+        contentContainerClassName="gap-3 px-4 pb-32"
       >
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
         <Card>
           <Label>Sport</Label>
           {groups.map(([group, list]) => (
-            <View key={group} style={{ marginTop: space.md }}>
-              <Txt variant="caption" tone="t4" style={{ marginBottom: space.sm }}>
+            <View key={group} className="mt-3">
+              <Txt variant="caption" tone="t4" className="mb-2">
                 {group.toUpperCase()}
               </Txt>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+              <View className="flex-row flex-wrap gap-2">
                 {list.map((s) => (
                   <Chip
                     key={s.key}
@@ -114,21 +114,21 @@ export default function NewActivityScreen() {
 
         <Card>
           <Label>How long</Label>
-          <Row style={{ marginTop: space.md, gap: space.sm }}>
-            <Field value={hours} onChange={setHours} placeholder="Hours" label="Hours" />
-            <Field value={minutes} onChange={setMinutes} placeholder="Minutes" label="Minutes" />
+          <Row className="mt-3 gap-2">
+            <NumField value={hours} onChange={setHours} placeholder="Hours" label="Hours" />
+            <NumField value={minutes} onChange={setMinutes} placeholder="Minutes" label="Minutes" />
           </Row>
           {chosen?.distanceBased ? (
-            <View style={{ marginTop: space.md }}>
-              <Field value={km} onChange={setKm} placeholder="Distance in km" label="Distance in km" />
+            <View className="mt-3">
+              <NumField value={km} onChange={setKm} placeholder="Distance in km" label="Distance in km" />
             </View>
           ) : null}
         </Card>
 
         <Card>
           <Label>Name it</Label>
-          <View style={{ marginTop: space.md }}>
-            <Field
+          <View className="mt-3">
+            <NumField
               value={title}
               onChange={setTitle}
               placeholder={chosen ? `${chosen.label} — optional` : 'Optional'}
@@ -144,7 +144,12 @@ export default function NewActivityScreen() {
   );
 }
 
-function Field({
+/**
+ * A labelled numeric box. Wraps the shared Field so this screen's four inputs
+ * cannot drift from each other; `label` doubles as the accessible name because
+ * the visible caption sits outside the box.
+ */
+function NumField({
   value,
   onChange,
   placeholder,
@@ -158,25 +163,13 @@ function Field({
   numeric?: boolean;
 }) {
   return (
-    <TextInput
+    <Field
       value={value}
       onChangeText={onChange}
       keyboardType={numeric ? 'decimal-pad' : 'default'}
       placeholder={placeholder}
-      placeholderTextColor={color.t4}
       accessibilityLabel={label}
-      style={{
-        flex: 1,
-        height: 46,
-        borderRadius: radius.md,
-        backgroundColor: color.surface2,
-        borderWidth: 1,
-        borderColor: color.line,
-        color: color.t1,
-        paddingHorizontal: space.lg,
-        fontFamily: font,
-        fontSize: 16,
-      }}
+      className="flex-1"
     />
   );
 }

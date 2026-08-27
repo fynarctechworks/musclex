@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Label, Loading, Row, Txt } from '../../src/ui';
 import { Chip } from '../../src/ui/Chip';
 import { Notice } from '../../src/ui/Notice';
+import { Field } from '../../src/ui/Field';
 import { ScreenHeader } from '../../src/ui/ScreenHeader';
-import { color, font, radius, space } from '../../src/ui/theme';
 import { whenOf } from '../../src/lib/datetime';
 import { clock } from '../../src/lib/recorder';
 import {
@@ -49,23 +49,23 @@ export default function ClubScreen() {
   const canPostEvents = club.myRole === 'owner' || club.myRole === 'admin';
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title={club.name} />
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
+        contentContainerClassName="gap-3 px-4 pb-32"
       >
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
         <Card>
-          <Row style={{ alignItems: 'flex-start' }}>
-            <View style={{ flex: 1, paddingRight: space.md }}>
+          <Row className="items-start">
+            <View className="flex-1 pr-3">
               <Txt variant="small" tone="t2">
                 {[club.city, `${club.memberCount} ${club.memberCount === 1 ? 'member' : 'members'}`]
                   .filter(Boolean)
                   .join(' · ')}
               </Txt>
               {club.description ? (
-                <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+                <Txt variant="small" tone="t2" className="mt-2">
                   {club.description}
                 </Txt>
               ) : null}
@@ -98,7 +98,7 @@ export default function ClubScreen() {
           />
         ) : (
           <>
-            <View style={{ flexDirection: 'row', gap: space.sm }}>
+            <View className="flex-row gap-2">
               <Chip label="Feed" active={tab === 'feed'} onPress={() => setTab('feed')} />
               <Chip label="Events" active={tab === 'events'} onPress={() => setTab('events')} />
               <Chip label="People" active={tab === 'people'} onPress={() => setTab('people')} />
@@ -113,15 +113,15 @@ export default function ClubScreen() {
               ) : (
                 (feed?.activities ?? []).map((a) => (
                   <Card key={a.id}>
-                    <Row style={{ alignItems: 'flex-start' }}>
-                      <View style={{ flex: 1 }}>
+                    <Row className="items-start">
+                      <View className="flex-1">
                         <Txt variant="bodyStrong">{a.mine ? 'You' : a.athlete.name || 'Someone'}</Txt>
-                        <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>
+                        <Txt variant="caption" tone="t3" className="mt-0.5">
                           {a.title || a.sportType} · {whenOf(a.startedAt)}
                         </Txt>
                       </View>
                     </Row>
-                    <Row style={{ marginTop: space.md, justifyContent: 'flex-start', gap: space.xl }}>
+                    <Row className="mt-3 justify-start gap-6">
                       {a.distanceM != null ? (
                         <Stat value={(a.distanceM / 1000).toFixed(2)} unit="km" />
                       ) : null}
@@ -137,26 +137,13 @@ export default function ClubScreen() {
                 {canPostEvents ? (
                   <Card>
                     <Label>Add an event</Label>
-                    <Row style={{ marginTop: space.md, gap: space.sm }}>
-                      <TextInput
+                    <Row className="mt-3 gap-2">
+                      <Field
                         value={eventTitle}
                         onChangeText={setEventTitle}
                         placeholder="What and where"
-                        placeholderTextColor={color.t4}
                         accessibilityLabel="Event title"
-                        style={{
-                          flex: 1,
-                          height: 46,
-                          borderRadius: radius.md,
-                          backgroundColor: color.surface2,
-                          borderWidth: 1,
-                          borderColor: color.line,
-                          color: color.t1,
-                          paddingHorizontal: space.lg,
-                          fontFamily: font,
-                          fontSize: 16,
-                        }}
-                      />
+            className="flex-1" />
                       <Button
                         title="Add"
                         size="sm"
@@ -183,7 +170,7 @@ export default function ClubScreen() {
                         }}
                       />
                     </Row>
-                    <Txt variant="caption" tone="t3" style={{ marginTop: space.sm }}>
+                    <Txt variant="caption" tone="t3" className="mt-2">
                       Starts a week from now by default.
                     </Txt>
                   </Card>
@@ -195,14 +182,14 @@ export default function ClubScreen() {
                   (events?.events ?? []).map((e) => (
                     <Card key={e.id}>
                       <Txt variant="bodyStrong">{e.title}</Txt>
-                      <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>
+                      <Txt variant="caption" tone="t3" className="mt-0.5">
                         {whenOf(e.startsAt)}
                         {e.locationName ? ` · ${e.locationName}` : ''}
                       </Txt>
-                      <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+                      <Txt variant="small" tone="t2" className="mt-2">
                         {e.attendeeCount} going
                       </Txt>
-                      <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.md }}>
+                      <View className="mt-3 flex-row gap-2">
                         <Chip
                           label="Going"
                           active={e.myStatus === 'going'}
@@ -234,7 +221,7 @@ export default function ClubScreen() {
               <Card>
                 <Label>Members</Label>
                 {(members?.members ?? []).map((m) => (
-                  <Row key={m.id} style={{ marginTop: space.md }}>
+                  <Row key={m.id} className="mt-3">
                     <Txt variant="body">{m.name || 'Someone'}</Txt>
                     <Txt variant="caption" tone="t3">{m.role}</Txt>
                   </Row>
