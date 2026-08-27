@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Loading, Row, Txt } from '../../src/ui';
 import { Notice } from '../../src/ui/Notice';
 import { ScreenHeader } from '../../src/ui/ScreenHeader';
-import { color, font, radius, space } from '../../src/ui/theme';
+import { cn } from '@/lib/utils';
+import { Field } from '../../src/ui/Field';
 import { timeOf } from '../../src/lib/datetime';
 import { useDirectMessages, useReport, useSendDirectMessage } from '../../src/api/queries';
 
@@ -34,7 +35,7 @@ export default function ThreadScreen() {
     <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Messages" />
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 40, gap: space.sm }}
+        contentContainerClassName="gap-2 px-4 pb-10"
       >
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
@@ -44,17 +45,15 @@ export default function ThreadScreen() {
           messages.map((m) => (
             <View
               key={m.id}
-              style={{
-                alignSelf: m.mine ? 'flex-end' : 'flex-start',
-                maxWidth: '82%',
-                backgroundColor: m.mine ? color.accentSoft : color.surface,
-                borderWidth: 1,
-                borderColor: m.mine ? color.accentEdge : color.line,
-                borderRadius: radius.lg,
-                paddingHorizontal: space.md,
-                paddingVertical: space.sm,
-              }}
-            >
+              // A TINTED bubble, not a filled one — unlike the coach thread.
+              // Person-to-person messages are read in long runs, and a column
+              // of solid red is tiring where a single reply is not.
+              className={cn(
+                'max-w-[82%] rounded-lg border px-3 py-2',
+                m.mine
+                  ? 'border-primary/30 bg-primary/5 self-end'
+                  : 'border-border bg-card self-start',
+              )}>
               <Txt variant="body" tone="t1">{m.body}</Txt>
               <Txt variant="caption" tone="t4" className="mt-0.5">{timeOf(m.at)}</Txt>
             </View>
@@ -63,34 +62,15 @@ export default function ThreadScreen() {
       </ScrollView>
 
       <View
-        style={{
-          padding: space.lg,
-          paddingBottom: space.lg + insets.bottom,
-          borderTopWidth: 1,
-          borderTopColor: color.line,
-          backgroundColor: color.surface,
-          gap: space.sm,
-        }}
-      >
+        className="border-border bg-card gap-2 border-t p-4"
+        style={{ paddingBottom: 16 + insets.bottom }}>
         <Row className="gap-2">
-          <TextInput
+          <Field
             value={draft}
             onChangeText={setDraft}
             placeholder="Message"
-            placeholderTextColor={color.t4}
             accessibilityLabel="Message"
-            style={{
-              flex: 1,
-              height: 46,
-              borderRadius: radius.md,
-              backgroundColor: color.surface2,
-              borderWidth: 1,
-              borderColor: color.line,
-              color: color.t1,
-              paddingHorizontal: space.lg,
-              fontFamily: font,
-              fontSize: 16,
-            }}
+            className="flex-1"
           />
           <Button
             title="Send"

@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Button, Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
 import { Confirm, Notice } from '../src/ui/Notice';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
-import { color, font, radius, space } from '../src/ui/theme';
+import { cn } from '@/lib/utils';
+import { Field } from '../src/ui/Field';
 import { useUnits } from '../src/lib/use-units';
 import { Icon } from '../src/ui/Icon';
 import {
@@ -176,22 +177,12 @@ export default function FriendsScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={s.kudosedByMe ? 'Remove kudos' : 'Give kudos'}
                   hitSlop={8}
-                  style={{
-                    paddingHorizontal: space.md,
-                    paddingVertical: space.sm,
-                    borderRadius: radius.pill,
-                    borderWidth: 1,
-                    borderColor: s.kudosedByMe ? color.accent : color.line,
-                    backgroundColor: s.kudosedByMe ? color.accentSoft : 'transparent',
-                  }}
-                >
-                  <Row style={{ gap: 6, justifyContent: 'flex-start' }}>
-                    <Icon
-                      name="kudos"
-                      size={14}
-                      tone={s.kudosedByMe ? 't1' : 't2'}
-              decorative
-                    />
+                  className={cn(
+                    'rounded-full border px-3 py-2 active:opacity-70',
+                    s.kudosedByMe ? 'border-primary bg-primary/5' : 'border-border',
+                  )}>
+                  <Row className="justify-start gap-1.5">
+                    <Icon name="kudos" size={14} tone={s.kudosedByMe ? 't1' : 't2'} decorative />
                     <Txt variant="caption" tone={s.kudosedByMe ? 't1' : 't2'}>
                       {s.kudosedByMe ? 'Kudos given' : 'Kudos'}
                       {s.kudosCount > 0 ? ` · ${s.kudosCount}` : ''}
@@ -217,25 +208,13 @@ export default function FriendsScreen() {
             By phone number only. There is no search by name, so nobody can find
             you unless they already have your number.
           </Txt>
-          <TextInput
+          <Field
             value={phone}
             onChangeText={setPhone}
             placeholder="Their phone number"
-            placeholderTextColor={color.t4}
             keyboardType="phone-pad"
             accessibilityLabel="Friend's phone number"
-            style={{
-              height: 46,
-              marginTop: space.md,
-              borderRadius: radius.md,
-              backgroundColor: color.surface2,
-              borderWidth: 1,
-              borderColor: color.line,
-              color: color.t1,
-              paddingHorizontal: space.lg,
-              fontFamily: font,
-              fontSize: 15,
-            }}
+            className="mt-3"
           />
           <SearchResults phone={phone} onNotice={setNotice} />
         </Card>

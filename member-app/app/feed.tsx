@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
 import { Notice } from '../src/ui/Notice';
+import { Field } from '../src/ui/Field';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
-import { color, font, radius, space } from '../src/ui/theme';
 import { activeMention, applyMention, matchPeople } from '../src/lib/mention-draft';
 import { whenOf } from '../src/lib/datetime';
 import { clock } from '../src/lib/recorder';
@@ -130,7 +130,7 @@ function FeedCard({
           </View>
         ) : null}
 
-        <Row style={{ marginTop: space.md, justifyContent: 'flex-start', gap: space.xl }}>
+        <Row className="mt-3 justify-start gap-6">
           {distanceBased && km != null ? <Stat value={km.toFixed(2)} unit="km" /> : null}
           <Stat value={clock(a.elapsedSeconds * 1000)} unit="time" />
           {a.elevationGainM ? (
@@ -140,7 +140,7 @@ function FeedCard({
         </Row>
       </Pressable>
 
-      <Row style={{ marginTop: space.lg, justifyContent: 'flex-start', gap: space.md }}>
+      <Row className="mt-4 justify-start gap-3">
         <Pressable
           onPress={() => kudos.mutate({ id: a.id, kudosed: a.kudosedByMe })}
           accessibilityRole="button"
@@ -242,15 +242,7 @@ function Comments({ activityId }: { activityId: string }) {
   const candidates = mention ? matchPeople(following?.people ?? [], mention.query) : [];
 
   return (
-    <View
-      style={{
-        marginTop: space.lg,
-        paddingTop: space.md,
-        borderTopWidth: 1,
-        borderTopColor: color.line,
-        gap: space.sm,
-      }}
-    >
+    <View className="border-border mt-4 gap-2 border-t pt-3">
       {isLoading ? (
         <Txt variant="small" tone="t3">Loading…</Txt>
       ) : comments.length === 0 ? (
@@ -277,15 +269,7 @@ function Comments({ activityId }: { activityId: string }) {
       )}
 
       {candidates.length ? (
-        <View
-          style={{
-            borderWidth: 1,
-            borderColor: color.line,
-            borderRadius: radius.md,
-            backgroundColor: color.surface2,
-            overflow: 'hidden',
-          }}
-        >
+        <View className="border-border bg-secondary overflow-hidden rounded-md border">
           {candidates.map((p) => (
             <Pressable
               key={p.id}
@@ -296,8 +280,7 @@ function Comments({ activityId }: { activityId: string }) {
               }}
               accessibilityRole="button"
               accessibilityLabel={`Mention ${p.name}`}
-              style={{ paddingVertical: space.sm, paddingHorizontal: space.md }}
-            >
+              className="active:bg-muted px-3 py-2">
               <Txt variant="small" tone="t1">{p.name}</Txt>
             </Pressable>
           ))}
@@ -305,7 +288,8 @@ function Comments({ activityId }: { activityId: string }) {
       ) : null}
 
       <Row className="mt-2 gap-2">
-        <TextInput
+        <Field
+          size="sm"
           value={draft}
           onChangeText={(t) => {
             setDraft(t);
@@ -315,20 +299,8 @@ function Comments({ activityId }: { activityId: string }) {
           }}
           onSelectionChange={(e) => setCaret(e.nativeEvent.selection.end)}
           placeholder="Say something, or @ someone"
-          placeholderTextColor={color.t4}
           accessibilityLabel="Write a comment"
-          style={{
-            flex: 1,
-            height: 42,
-            borderRadius: radius.md,
-            backgroundColor: color.surface2,
-            borderWidth: 1,
-            borderColor: color.line,
-            color: color.t1,
-            paddingHorizontal: space.md,
-            fontFamily: font,
-            fontSize: 15,
-          }}
+          className="flex-1"
         />
         <Button
           title="Post"
