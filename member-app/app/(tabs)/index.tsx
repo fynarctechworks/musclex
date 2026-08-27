@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Card, Empty, Label, Loading, Meter, Row, Txt } from '../../src/ui';
 import { InfoBullet, InfoDot, InfoNote } from '../../src/ui/InfoTip';
-import { levelColor, levelLabel } from '../../src/ui/theme';
+import { levelColor, levelLabel } from '../../src/ui/chart-colors';
 import { whenOf } from '../../src/lib/datetime';
 import {
   useGoals,

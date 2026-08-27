@@ -50,3 +50,23 @@ export const chart = {
 export function accentAlpha(a: number): string {
   return `rgba(193,0,7,${a})`;
 }
+
+/**
+ * Occupancy level → colour. The one place a level maps to a hue.
+ *
+ * Moved here from the old theme module with `levelLabel` below, because these
+ * two were the last thing keeping it alive. They belong together: a colour that
+ * means "busy" is useless without the word that says so, and separating them is
+ * how a chart ends up red with no explanation.
+ */
+export function levelColor(level?: string): string {
+  if (level === 'high') return chart.accent;
+  if (level === 'moderate') return chart.warn;
+  return chart.good;
+}
+
+export function levelLabel(level?: string): string {
+  if (level === 'high') return 'Busy';
+  if (level === 'moderate') return 'Filling up';
+  return 'Quiet';
+}
