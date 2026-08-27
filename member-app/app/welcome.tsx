@@ -51,9 +51,23 @@ export default function WelcomeScreen() {
   const router = useRouter();
 
   async function go() {
-    // Written BEFORE navigating, so a member who kills the app on the sign-in
-    // screen does not get introduced to it all over again.
-    await markWelcomeSeen();
+    /*
+      Written BEFORE navigating, so a member who kills the app on the sign-in
+      screen does not get introduced to it all over again.
+
+      But a FAILED write must never block the way forward. This flag lives in
+      SecureStore, which is backed by the keychain, and the keychain is not
+      always available — an unsigned build has no entitlement for it, and a
+      device can refuse for its own reasons. Awaiting it unguarded meant the
+      rejection propagated, router.replace never ran, and the only button on
+      the first screen of the app did nothing at all with no error shown.
+
+      The read side already tolerates this (see hasSeenWelcome in _layout,
+      which defaults to "seen"); the write side did not. Worst case now is
+      being introduced to the app twice, which is a far better failure than
+      being unable to start it.
+    */
+    await markWelcomeSeen().catch(() => {});
     router.replace('/sign-in');
   }
 
