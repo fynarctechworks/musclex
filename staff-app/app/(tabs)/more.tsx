@@ -4,7 +4,7 @@ import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   BarChart3, CalendarDays, Boxes, DoorOpen, Dumbbell, HeartPulse, LogOut, Megaphone, Package, Receipt, Settings, ShoppingCart,
-  ShieldCheck, Sparkles, Tablet, UserCog, Users2, type LucideIcon,
+  Info, ShieldCheck, Sparkles, Tablet, UserCog, Users2, type LucideIcon,
 } from 'lucide-react-native';
 
 import { Text } from '@/components/ui/text';
@@ -101,6 +101,13 @@ export const ENTRIES: Entry[] = [
    * cannot secure it.
    */
   { href: '/more/security',   label: 'Security',     icon: ShieldCheck, module: null, phase: '' },
+  /*
+   * Also ungated. The privacy-policy link inside it is an App Store
+   * requirement (Guideline 5.1.1(i) — "within the app in an easily accessible
+   * manner"), so hiding it behind a permission would put compliance at the
+   * mercy of a gym's role config.
+   */
+  { href: '/more/about',      label: 'About',        icon: Info,      module: null, phase: '' },
 ];
 
 export default function More() {
