@@ -57,7 +57,10 @@ export default function YouScreen() {
   // __DEV__ is stripped from a release bundle, so neither this row nor the
   // route behind it can reach a member's phone.
   const developer: Entry[] = __DEV__
-    ? [{ icon: 'info', label: 'Design system', hint: 'Tokens and components', href: '/gallery' }]
+    ? [
+        { icon: 'info', label: 'Design system', hint: 'Current: theme.ts tokens', href: '/gallery' },
+        { icon: 'star', label: 'Design system (preset)', hint: 'Target: shadcn bKsI1x32', href: '/design-system' },
+      ]
     : [];
 
   return (
