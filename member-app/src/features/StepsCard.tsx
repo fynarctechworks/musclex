@@ -3,7 +3,6 @@ import { TextInput, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Button, Card, Label, Meter, Row, Txt } from '../ui';
 import { InfoBullet, InfoDot, InfoNote } from '../ui/InfoTip';
-import { color, font, radius, space } from '../ui/theme';
 import { localDayKey } from '../lib/datetime';
 import {
   formatSteps,
@@ -37,6 +36,13 @@ import { useGoals, useHealthDaily, useLogSteps } from '../api/queries';
  */
 
 const MAX_STEPS = 200_000; // matches the server's HealthDailyInputDto cap
+
+/* Raw colours: `Meter` takes a tint string because its callers pick from data,
+   and RN's placeholder prop is not a class either. Values are the --color-*
+   tokens from global.css. */
+const SUCCESS = '#11823b';
+const ACCENT = '#c10007';
+const PLACEHOLDER = '#a6a09b';
 
 export function StepsCard() {
   const router = useRouter();
@@ -123,8 +129,8 @@ export function StepsCard() {
 
   return (
     <Card>
-      <Row style={{ alignItems: 'flex-start' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Row className="items-start">
+        <View className="flex-row items-center">
           <Label>Steps</Label>
           <InfoDot
             open={info}
@@ -145,7 +151,7 @@ export function StepsCard() {
         ) : null}
       </Row>
 
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginTop: space.sm }}>
+      <View className="mt-2 flex-row items-baseline gap-2">
         <Txt variant="display">{steps === null ? '—' : formatSteps(steps)}</Txt>
         {target != null ? (
           <Txt variant="small" tone="t2">/ {formatSteps(target)}</Txt>
@@ -155,12 +161,12 @@ export function StepsCard() {
       </View>
 
       {target != null && steps !== null ? (
-        <Meter value={steps} max={target} tint={met ? color.good : color.accent} />
+        <Meter value={steps} max={target} tint={met ? SUCCESS : ACCENT} />
       ) : null}
 
       {/* One line saying where the number came from. A member comparing this
           with their watch needs to know whether we measured it or they typed it. */}
-      <Txt variant="caption" tone="t3" style={{ marginTop: space.sm }}>
+      <Txt variant="caption" tone="t3" className="mt-2">
         {steps === null
           ? 'No steps recorded today.'
           : counted
@@ -169,7 +175,7 @@ export function StepsCard() {
       </Txt>
 
       {status === 'denied' ? (
-        <View style={{ marginTop: space.md }}>
+        <View className="mt-3">
           <Button
             title="Turn on step counting"
             variant="secondary"
@@ -188,27 +194,16 @@ export function StepsCard() {
 
       {editing ? (
         <>
-          <Row style={{ marginTop: space.md, gap: space.sm }}>
+          <Row className="mt-3 gap-2">
             <TextInput
               value={draft}
               onChangeText={setDraft}
               keyboardType="number-pad"
               placeholder="Steps today"
-              placeholderTextColor={color.t4}
+              placeholderTextColor={PLACEHOLDER}
               accessibilityLabel="Steps today"
               autoFocus
-              style={{
-                flex: 1,
-                height: 46,
-                borderRadius: radius.md,
-                backgroundColor: color.surface2,
-                borderWidth: 1,
-                borderColor: color.line,
-                color: color.t1,
-                paddingHorizontal: space.lg,
-                fontFamily: font,
-                fontSize: 16,
-              }}
+              className="border-border bg-secondary text-foreground h-12 flex-1 rounded-md border px-4 text-base"
             />
             <Button title="Save" size="sm" onPress={save} loading={log.isPending} />
             <Button
@@ -222,7 +217,7 @@ export function StepsCard() {
             />
           </Row>
           {error ? (
-            <Txt variant="caption" tone="accent" style={{ marginTop: space.sm }}>
+            <Txt variant="caption" tone="accent" className="mt-2">
               {error}
             </Txt>
           ) : null}
@@ -252,7 +247,7 @@ export function StepsCard() {
             </>
           )}
           {target == null ? (
-            <View style={{ marginTop: space.sm, alignItems: 'flex-start' }}>
+            <View className="mt-2 items-start">
               <Button
                 title="Set a step goal"
                 variant="secondary"

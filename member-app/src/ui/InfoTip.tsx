@@ -2,7 +2,6 @@ import { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 import { Icon } from './Icon';
 import { Txt } from './index';
-import { color, space } from './theme';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -42,8 +41,8 @@ export function InfoDot({
       // The glyph is 15px. Without the slop the target is a third of the 44pt
       // minimum — findable with a mouse, a coin-toss with a thumb.
       hitSlop={14}
-      style={({ pressed }) => ({ marginLeft: 6, opacity: pressed ? 0.5 : 1 })}
-    >
+      style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+      className="ml-1.5">
       {/* Darker when open rather than accent: red is this app's alert colour,
           and an "i" that turns red beside a streak reads as a problem. */}
       <Icon name="info" size={15} tone={open ? 't2' : 't4'} decorative />
@@ -57,28 +56,18 @@ export function InfoDot({
  */
 export function InfoNote({ children }: { children: ReactNode }) {
   return (
-    <View
-      style={{
-        marginTop: space.lg,
-        paddingTop: space.md,
-        borderTopWidth: 1,
-        borderTopColor: color.line,
-        gap: space.xs,
-      }}
-    >
-      {children}
-    </View>
+    <View className="border-border mt-4 gap-1 border-t pt-3">{children}</View>
   );
 }
 
 /** One item in a tip's list. The dot is decorative — the text carries it. */
 export function InfoBullet({ children }: { children: ReactNode }) {
   return (
-    <View style={{ flexDirection: 'row', gap: space.sm }}>
+    <View className="flex-row gap-2">
       <Txt variant="small" tone="t3">
         •
       </Txt>
-      <Txt variant="small" tone="t2" style={{ flex: 1 }}>
+      <Txt variant="small" tone="t2" className="flex-1">
         {children}
       </Txt>
     </View>

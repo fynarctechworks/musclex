@@ -1,6 +1,5 @@
 import { View } from 'react-native';
 import { Card, Row, Txt, Button } from './index';
-import { space } from './theme';
 
 /**
  * Inline status message.
@@ -23,8 +22,8 @@ export function Notice({
 }) {
   return (
     <Card tone={tone === 'error' ? 'accent' : tone === 'success' ? 'good' : 'default'}>
-      <Row style={{ alignItems: 'flex-start' }}>
-        <View style={{ flex: 1, paddingRight: space.md }}>
+      <Row className="items-start">
+        <View className="flex-1 pr-3">
           <Txt
             variant="bodyStrong"
             tone={tone === 'error' ? 'accent' : tone === 'success' ? 'good' : 't1'}
@@ -32,7 +31,7 @@ export function Notice({
             {title}
           </Txt>
           {body ? (
-            <Txt variant="small" tone="t2" style={{ marginTop: 4 }}>
+            <Txt variant="small" tone="t2" className="mt-1">
               {body}
             </Txt>
           ) : null}
@@ -63,15 +62,15 @@ export function Confirm({
     <Card tone="accent">
       <Txt variant="bodyStrong">{title}</Txt>
       {body ? (
-        <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+        <Txt variant="small" tone="t2" className="mt-2">
           {body}
         </Txt>
       ) : null}
-      <Row style={{ marginTop: space.lg, gap: space.sm }}>
-        <View style={{ flex: 1 }}>
+      <Row className="mt-4 gap-2">
+        <View className="flex-1">
           <Button title="Cancel" variant="secondary" onPress={onCancel} />
         </View>
-        <View style={{ flex: 1 }}>
+        <View className="flex-1">
           <Button title={confirmLabel} onPress={onConfirm} />
         </View>
       </Row>

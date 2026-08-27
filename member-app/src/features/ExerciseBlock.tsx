@@ -1,7 +1,7 @@
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, TextInput, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Card, Row, Txt } from '../ui';
-import { font, color, radius, space } from '../ui/theme';
+import { cn } from '@/lib/utils';
 import { useExerciseHistory } from '../api/queries';
 import { useUnits } from '../lib/use-units';
 
@@ -18,7 +18,24 @@ export type { WorkingSet };
  * *shows* the right numbers only needs a tap to commit.
  *
  * Values are kept as strings so a half-typed "6" never becomes 6kg on blur.
+ *
+ * COLUMN WIDTHS stay inline. The set/previous/input/tick grid has to line up
+ * between the header and every row, so the widths are defined once as shared
+ * constants rather than repeated as classes that could drift apart.
  */
+
+/** One column grid, shared by the header and every set row. */
+const COL = {
+  set: { width: 24 },
+  prev: { flex: 1 },
+  input: { width: 68 },
+  wide: { width: 144 },
+  tick: { width: 40 },
+} as const;
+
+/** Placeholder ink — ink-4, the decorative step. Inline: RN takes a prop. */
+const PLACEHOLDER = '#a6a09b';
+
 export function ExerciseBlock({
   exerciseId,
   name,
@@ -96,12 +113,21 @@ export function ExerciseBlock({
     ]);
   }
 
+  /** Shared by every numeric field so a done row cannot style differently. */
+  const inputClass = (done: boolean) =>
+    cn(
+      'h-10 rounded-md border text-center text-base font-semibold',
+      done
+        ? 'border-success/30 bg-success/10 text-foreground'
+        : 'border-border bg-secondary text-foreground',
+    );
+
   return (
     <Card>
-      <Row style={{ alignItems: 'flex-start' }}>
-        <View style={{ flex: 1, paddingRight: space.md }}>
+      <Row className="items-start">
+        <View className="flex-1 pr-3">
           <Txt variant="heading">{name}</Txt>
-          <Txt variant="caption" tone="t3" style={{ marginTop: 3 }}>
+          <Txt variant="caption" tone="t3" className="mt-0.5">
             {pr
               ? timed
                 ? `Best ${pr.reps}s`
@@ -111,34 +137,49 @@ export function ExerciseBlock({
                 : 'No history yet'}
           </Txt>
         </View>
-        <Pressable onPress={onRemove} hitSlop={10} accessibilityRole="button"
+        <Pressable
+          onPress={onRemove}
+          hitSlop={10}
+          accessibilityRole="button"
           accessibilityLabel={`Remove ${name}`}>
-          <Txt variant="caption" tone="t3">Remove</Txt>
+          <Txt variant="caption" tone="t3">
+            Remove
+          </Txt>
         </Pressable>
       </Row>
 
-      <View style={st.head}>
-        <Txt variant="caption" tone="t4" style={[st.cSet, st.headTxt]}>Set</Txt>
-        <Txt variant="caption" tone="t4" style={[st.cPrev, st.headTxt]}>Previous</Txt>
+      <View className="border-border mb-2 mt-4 flex-row items-center gap-2 border-t pt-3">
+        <Txt variant="label" tone="t4" style={COL.set}>
+          Set
+        </Txt>
+        <Txt variant="label" tone="t4" style={COL.prev}>
+          Previous
+        </Txt>
         {timed ? (
-          <Txt variant="caption" tone="t4" style={[st.cWide, st.headTxt]}>Seconds</Txt>
+          <Txt variant="label" tone="t4" style={COL.wide}>
+            Seconds
+          </Txt>
         ) : (
           <>
-            <Txt variant="caption" tone="t4" style={[st.cIn, st.headTxt]}>{u.weightUnit}</Txt>
-            <Txt variant="caption" tone="t4" style={[st.cIn, st.headTxt]}>Reps</Txt>
+            <Txt variant="label" tone="t4" style={COL.input}>
+              {u.weightUnit}
+            </Txt>
+            <Txt variant="label" tone="t4" style={COL.input}>
+              Reps
+            </Txt>
           </>
         )}
-        <View style={st.cTick} />
+        <View style={COL.tick} />
       </View>
 
       {sets.map((s, i) => {
         const p = previous[i];
         return (
-          <View key={i} style={st.row}>
-            <Txt variant="small" tone="t3" style={[st.cSet, { textAlign: 'center' }]}>
+          <View key={i} className="mb-2 flex-row items-center gap-2">
+            <Txt variant="small" tone="t3" className="text-center" style={COL.set}>
               {i + 1}
             </Txt>
-            <Txt variant="caption" tone="t3" style={st.cPrev}>
+            <Txt variant="caption" tone="t3" style={COL.prev}>
               {!p
                 ? '--'
                 : timed
@@ -160,9 +201,10 @@ export function ExerciseBlock({
                       ? String(p.durationSeconds)
                       : '30'
                 }
-                placeholderTextColor={color.t4}
+                placeholderTextColor={PLACEHOLDER}
                 accessibilityLabel={`Set ${i + 1} seconds`}
-                style={[st.input, st.cWide, s.done && st.inputDone]}
+                className={inputClass(s.done)}
+                style={COL.wide}
               />
             ) : (
               <>
@@ -172,19 +214,23 @@ export function ExerciseBlock({
                   editable={!s.done}
                   keyboardType="decimal-pad"
                   placeholder={s.target?.kg ?? (p ? u.w(p.weight) : '0')}
-                  placeholderTextColor={color.t4}
+                  placeholderTextColor={PLACEHOLDER}
                   accessibilityLabel={`Set ${i + 1} weight`}
-                  style={[st.input, st.cIn, s.done && st.inputDone]}
+                  className={inputClass(s.done)}
+                  style={COL.input}
                 />
                 <TextInput
                   value={s.reps}
                   onChangeText={(v) => patch(i, { reps: v })}
                   editable={!s.done}
                   keyboardType="number-pad"
-                  placeholder={s.target?.reps !== undefined ? String(s.target.reps) : p ? String(p.reps) : '0'}
-                  placeholderTextColor={color.t4}
+                  placeholder={
+                    s.target?.reps !== undefined ? String(s.target.reps) : p ? String(p.reps) : '0'
+                  }
+                  placeholderTextColor={PLACEHOLDER}
                   accessibilityLabel={`Set ${i + 1} reps`}
-                  style={[st.input, st.cIn, s.done && st.inputDone]}
+                  className={inputClass(s.done)}
+                  style={COL.input}
                 />
               </>
             )}
@@ -193,61 +239,26 @@ export function ExerciseBlock({
               accessibilityRole="checkbox"
               accessibilityState={{ checked: s.done }}
               accessibilityLabel={`Complete set ${i + 1}`}
-              style={[st.tick, st.cTick, s.done && st.tickDone]}
-            >
+              className={cn(
+                'h-10 items-center justify-center rounded-md border',
+                s.done ? 'border-success bg-success' : 'border-border bg-secondary',
+              )}
+              style={COL.tick}>
               <Icon name="check" size={15} tone={s.done ? 'inverse' : 't4'} decorative />
             </Pressable>
           </View>
         );
       })}
 
-      <Pressable onPress={addSet} style={st.add} accessibilityRole="button" accessibilityLabel="Add set">
-        <Txt variant="small" tone="t2" style={{ fontWeight: '600' }}>+ Add set</Txt>
+      <Pressable
+        onPress={addSet}
+        className="items-center py-2 active:opacity-70"
+        accessibilityRole="button"
+        accessibilityLabel="Add set">
+        <Txt variant="small" tone="t2" className="font-semibold">
+          + Add set
+        </Txt>
       </Pressable>
     </Card>
   );
 }
-
-const st = StyleSheet.create({
-  head: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    marginTop: space.lg,
-    paddingTop: space.md,
-    borderTopWidth: 1,
-    borderTopColor: color.line,
-    marginBottom: space.sm,
-  },
-  headTxt: { letterSpacing: 0.8, textTransform: 'uppercase' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: space.sm },
-  cSet: { width: 24 },
-  cPrev: { flex: 1 },
-  cIn: { width: 68 },
-  cWide: { width: 144 },
-  cTick: { width: 40 },
-  input: {
-    height: 40,
-    borderRadius: radius.md,
-    backgroundColor: color.surface2,
-    borderWidth: 1,
-    borderColor: color.line,
-    color: color.t1,
-    textAlign: 'center',
-    fontFamily: font,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  inputDone: { backgroundColor: color.goodSoft, borderColor: color.goodEdge },
-  tick: {
-    height: 40,
-    borderRadius: radius.md,
-    backgroundColor: color.surface2,
-    borderWidth: 1,
-    borderColor: color.line,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tickDone: { backgroundColor: color.good, borderColor: color.good },
-  add: { paddingVertical: space.sm, alignItems: 'center' },
-});
