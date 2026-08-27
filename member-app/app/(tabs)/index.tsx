@@ -230,22 +230,40 @@ export default function TodayScreen() {
             ) : (
               <View className="gap-1">
                 <Txt variant="heading">Nothing assigned today</Txt>
+                {/*
+                  Points at the + rather than describing the buttons that used
+                  to sit here. A card that says "start from empty or pick a
+                  routine" with nothing to press is worse than one that says
+                  where those choices live.
+                */}
                 <Txt variant="small" tone="t3">
-                  Train what you like — start from empty, or pick a routine you have saved.
+                  Train what you like — tap + below to start a workout or record an activity.
                 </Txt>
               </View>
             )}
-            <View className="gap-2">
-              <Button
-                title={data.todayWorkout ? 'Start workout' : 'Start a workout'}
-                onPress={() => router.push(data.todayWorkout ? '/session?assigned=1' : '/session')}
-              />
-              <Button
-                title={data.todayWorkout ? 'Log something else' : 'Use a saved routine'}
-                variant="secondary"
-                onPress={() => router.push(data.todayWorkout ? '/session' : '/routines')}
-              />
-            </View>
+            {/*
+              Only when there is a specific workout to start.
+
+              With nothing assigned, these two were the + in the nav bar spelled
+              out — the same two destinations, one screen further from the
+              member's thumb, on a card whose own heading already says there is
+              nothing to do. The + is reachable from every tab and now asks the
+              same question, so this repeated it rather than adding anything.
+
+              An ASSIGNED workout is different: `?assigned=1` starts that
+              particular session, which is not something the generic + can
+              offer, so the pair stays exactly where it was.
+            */}
+            {data.todayWorkout ? (
+              <View className="gap-2">
+                <Button title="Start workout" onPress={() => router.push('/session?assigned=1')} />
+                <Button
+                  title="Log something else"
+                  variant="secondary"
+                  onPress={() => router.push('/session')}
+                />
+              </View>
+            ) : null}
           </Card>
         </View>
       ) : null}

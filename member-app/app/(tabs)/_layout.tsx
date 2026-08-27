@@ -1,11 +1,13 @@
+import { useRef, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import { Tabs, useRouter, useSegments } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 
 import { Icon, Txt, type IconName } from '../../src/ui';
+import { StartMenu, startMenuHaptic } from '../../src/ui/StartMenu';
+import { WorkoutSourceSheet } from '../../src/ui/WorkoutSourceSheet';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -74,29 +76,41 @@ function TabItem({ icon, label, active }: { icon: IconName; label: string; activ
 }
 
 /**
- * The start-a-workout control, now INSIDE the bar.
+ * The start control, now INSIDE the bar.
  *
- * It is deliberately not a tab: it does not navigate to a section, it begins a
- * session. Keeping it in the bar rather than floating above it means it can no
- * longer cover the content of the screen behind it, and it stays one thumb
+ * It is deliberately not a tab: it does not navigate to a section, it starts
+ * something. Keeping it in the bar rather than floating above it means it can
+ * no longer cover the content of the screen behind it, and it stays one thumb
  * reach from everywhere.
+ *
+ * It ASKS rather than assuming. It used to drop straight into an empty gym
+ * workout, which decided for the member what "start" meant and left recording
+ * an outdoor activity feeling like a lesser feature buried in a list.
  */
-function StartButton() {
-  const router = useRouter();
+function StartButton({ onOpen }: { onOpen: (at: { x: number; y: number }) => void }) {
+  const ref = useRef<View>(null);
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Start a workout"
-      onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-        router.push('/session');
-      }}
-      // Its own margin rather than a gap on the row: this is the one control
-      // in the bar that is not a tab, and the space either side of it is what
-      // says so.
-      className="bg-primary mx-2 h-12 w-12 items-center justify-center rounded-full active:opacity-85">
-      <Icon name="add" size={24} tone="inverse" decorative />
-    </Pressable>
+    <View ref={ref} collapsable={false}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Start a workout or activity"
+        accessibilityHint="Opens a choice of gym workout or recording an activity"
+        onPress={() => {
+          startMenuHaptic();
+          // Measured rather than computed: the arc has to open around wherever
+          // this button actually is, and the bar's height moves with the
+          // device's safe-area inset.
+          ref.current?.measureInWindow((x, y, w, h) => {
+            onOpen({ x: x + w / 2, y: y + h / 2 });
+          });
+        }}
+        // Its own margin rather than a gap on the row: this is the one control
+        // in the bar that is not a tab, and the space either side of it is what
+        // says so.
+        className="bg-primary mx-2 h-12 w-12 items-center justify-center rounded-full active:opacity-85">
+        <Icon name="add" size={24} tone="inverse" decorative />
+      </Pressable>
+    </View>
   );
 }
 
@@ -107,6 +121,19 @@ function Bar() {
   // segments is ['(tabs)', <screen>] inside this layout; the bare tabs root is
   // the index screen.
   const current = segments[1] ?? 'index';
+
+  /*
+    Two questions, at most, and never both on screen at once.
+
+      closed  -> arc     the + was pressed: gym workout, or record an activity
+      arc     -> source  they chose gym: empty, or one of their routines
+      arc     -> /record they chose activity, which needs no second question
+
+    `anchor` is where the + actually is, measured when it is pressed rather
+    than computed here — the bar's height moves with the safe-area inset.
+  */
+  const [step, setStep] = useState<'closed' | 'arc' | 'source'>('closed');
+  const [anchor, setAnchor] = useState({ x: 0, y: 0 });
 
   const items = (
     <View className="flex-row items-center justify-center px-2 py-2">
@@ -122,7 +149,7 @@ function Bar() {
         </Pressable>
       ))}
 
-      <StartButton />
+      <StartButton onOpen={(at) => { setAnchor(at); setStep('arc'); }} />
 
       {TABS.slice(2).map((t) => (
         <Pressable
@@ -192,6 +219,31 @@ function Bar() {
           </View>
         )}
       </View>
+
+      <StartMenu
+        open={step === 'arc'}
+        anchor={anchor}
+        onClose={() => setStep('closed')}
+        onPick={(what) => {
+          if (what === 'activity') {
+            setStep('closed');
+            router.push('/record');
+            return;
+          }
+          // Straight from one modal to the next: closing the arc first would
+          // flash the screen behind it between the two questions.
+          setStep('source');
+        }}
+      />
+
+      <WorkoutSourceSheet
+        open={step === 'source'}
+        onClose={() => setStep('closed')}
+        onPick={(source) => {
+          setStep('closed');
+          router.push(source === 'empty' ? '/session' : '/routines');
+        }}
+      />
     </View>
   );
 }
