@@ -12,7 +12,16 @@ import { color, radius, space } from '../ui/theme';
  * Time is derived from `startedAt` rather than decremented, so it stays correct
  * if the JS thread stalls or the app is backgrounded mid-rest.
  */
-export function RestTimer({ startedAt, seconds }: { startedAt: number | null; seconds: number }) {
+export function RestTimer({
+  startedAt,
+  seconds,
+  bottomOffset = 0,
+}: {
+  startedAt: number | null;
+  seconds: number;
+  /** Lifts the timer clear of a fixed action bar. Without it the two overlap. */
+  bottomOffset?: number;
+}) {
   const [left, setLeft] = useState(0);
   const [extra, setExtra] = useState(0);
   const buzzed = useRef(false);
@@ -45,7 +54,7 @@ export function RestTimer({ startedAt, seconds }: { startedAt: number | null; se
   const ss = String(left % 60).padStart(2, '0');
 
   return (
-    <View style={st.wrap}>
+    <View style={[st.wrap, bottomOffset ? { bottom: space.lg + bottomOffset } : null]}>
       <View>
         <Txt variant="caption" tone="t3" style={{ letterSpacing: 1, textTransform: 'uppercase' }}>
           Rest

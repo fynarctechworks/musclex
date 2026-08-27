@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Button, Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
-import { color, font, radius, space } from '../src/ui/theme';
+import { Input } from '@/components/ui/input';
 import { useCreateRoutine, useLogWorkout, useRoutine, useTodayWorkout } from '../src/api/queries';
 import { ExerciseBlock } from '../src/features/ExerciseBlock';
 import { toPayload, totalDuration, totalVolume, type WorkingSet } from '../src/features/sets';
@@ -214,21 +214,19 @@ export default function SessionScreen() {
 
   if (done) {
     return (
-      <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
-        <ScrollView contentContainerStyle={{ padding: space.lg, gap: space.md }}>
-          <View style={{ alignItems: 'center', paddingVertical: space['2xl'] }}>
+      <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
+        <ScrollView contentContainerClassName="px-4 pb-10 gap-4">
+          <View className="items-center gap-3 py-10">
             {/* The heading underneath already says what happened, so this is
                 decorative — announcing it would repeat the sentence. */}
             <Icon
               name={done.prs.length ? 'goals' : done.queued ? 'import' : 'check'}
-              size={48}
+              size={44}
               tone={done.queued ? 't3' : 'accent'}
               decorative
             />
-            <Txt variant="title" style={{ marginTop: space.lg }}>
-              {done.queued ? 'Saved offline' : 'Workout saved'}
-            </Txt>
-            <Txt variant="small" tone="t2" style={{ marginTop: space.sm, textAlign: 'center' }}>
+            <Txt variant="title">{done.queued ? 'Saved offline' : 'Workout saved'}</Txt>
+            <Txt variant="small" tone="t3" className="text-center">
               {done.queued
                 ? 'Your sets are safe on this phone and will sync as soon as you have signal.'
                 : usingPlan
@@ -237,77 +235,67 @@ export default function SessionScreen() {
             </Txt>
           </View>
 
+          {/* What the session actually produced. A planks-only session moves no
+              load, so the third figure switches to time under tension rather
+              than reporting a truthful and useless 0 kg. */}
           <Card>
-            <Row>
-              <View style={{ flex: 1, alignItems: 'center' }}>
-                <Txt variant="heading">{done.minutes}</Txt>
-                <Txt variant="caption" tone="t3">minutes</Txt>
-              </View>
-              <View style={{ flex: 1, alignItems: 'center' }}>
-                <Txt variant="heading">{done.sets}</Txt>
-                <Txt variant="caption" tone="t3">sets</Txt>
-              </View>
-              <View style={{ flex: 1, alignItems: 'center' }}>
-                <Txt variant="heading">
-                  {done.volume > 0
+            <Row className="items-start">
+              <Summary value={String(done.minutes)} unit="minutes" />
+              <Summary value={String(done.sets)} unit="sets" />
+              <Summary
+                value={
+                  done.volume > 0
                     ? u.fv(done.volume)
-                    : `${Math.floor(done.seconds / 60)}m ${done.seconds % 60}s`}
-                </Txt>
-                <Txt variant="caption" tone="t3">
-                  {done.volume > 0 ? 'volume' : 'under tension'}
-                </Txt>
-              </View>
+                    : `${Math.floor(done.seconds / 60)}m ${done.seconds % 60}s`
+                }
+                unit={done.volume > 0 ? 'volume' : 'under tension'}
+              />
             </Row>
           </Card>
 
           {done.prs.length ? (
-            <Card tone="accent">
-              <Label>New personal record{done.prs.length > 1 ? 's' : ''}</Label>
-              {done.prs.map((pr) => (
-                <Row key={pr.exerciseId} style={{ marginTop: space.md }}>
-                  <Txt variant="bodyStrong">
-                    {blocks.find((b) => b.id === pr.exerciseId)?.name ?? 'Exercise'}
-                  </Txt>
-                  <Txt variant="heading">{u.fw(pr.weight)}</Txt>
-                </Row>
-              ))}
-              <Txt variant="caption" tone="t3" style={{ marginTop: space.md }}>
-                Detected by the server and added to your records.
-              </Txt>
-            </Card>
+            <View>
+              <Row className="mb-2">
+                <Label>New personal record{done.prs.length > 1 ? 's' : ''}</Label>
+              </Row>
+              <Card tone="accent" className="gap-3">
+                {done.prs.map((pr) => (
+                  <Row key={pr.exerciseId}>
+                    <Txt variant="body" className="flex-1 pr-3">
+                      {blocks.find((b) => b.id === pr.exerciseId)?.name ?? 'Exercise'}
+                    </Txt>
+                    <Txt variant="bodyStrong" tone="accent">
+                      {u.fw(pr.weight)}
+                    </Txt>
+                  </Row>
+                ))}
+                <Txt variant="caption" tone="t3">
+                  Detected by the server and added to your records.
+                </Txt>
+              </Card>
+            </View>
           ) : null}
 
           {/* Offered only for a session the member built themselves: a
               trainer's plan and an existing routine are already saved. */}
           {!usingPlan && !routine && !savedRoutine && blocksForRoutine.length ? (
-            <Card>
-              <Label>Repeat this workout?</Label>
-              <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
-                Save it as a routine and it will be one tap next week.
-              </Txt>
-              <Row style={{ marginTop: space.md, gap: space.sm }}>
-                <TextInput
+            <View>
+              <Row className="mb-2">
+                <Label>Repeat this workout?</Label>
+              </Row>
+              <Card className="gap-3">
+                <Txt variant="small" tone="t3">
+                  Save it as a routine and it will be one tap next week.
+                </Txt>
+                <Input
                   value={routineName}
                   onChangeText={setRoutineName}
                   placeholder="Name it, e.g. Push Day A"
-                  placeholderTextColor={color.t4}
                   accessibilityLabel="Routine name"
-                  style={{
-                    flex: 1,
-                    height: 46,
-                    borderRadius: radius.md,
-                    backgroundColor: color.surface2,
-                    borderWidth: 1,
-                    borderColor: color.line,
-                    color: color.t1,
-                    paddingHorizontal: space.lg,
-                    fontFamily: font,
-                    fontSize: 15,
-                  }}
+                  returnKeyType="done"
                 />
                 <Button
-                  title="Save"
-                  size="sm"
+                  title="Save routine"
                   disabled={!routineName.trim()}
                   loading={saveRoutine.isPending}
                   onPress={async () => {
@@ -322,13 +310,18 @@ export default function SessionScreen() {
                     }
                   }}
                 />
-              </Row>
-            </Card>
+              </Card>
+            </View>
           ) : null}
 
           {savedRoutine ? (
             <Card tone="good">
-              <Txt variant="bodyStrong" tone="good">Saved to My routines</Txt>
+              <Row className="justify-start gap-2">
+                <Icon name="check" size={18} tone="good" decorative />
+                <Txt variant="bodyStrong" tone="good">
+                  Saved to My routines
+                </Txt>
+              </Row>
             </Card>
           ) : null}
 
@@ -339,26 +332,51 @@ export default function SessionScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
-      <Row style={{ paddingHorizontal: space.lg, paddingBottom: space.md }}>
-        <View style={{ flex: 1, paddingRight: space.md }}>
-          <Txt variant="title" numberOfLines={1}>
-            {usingPlan ? plan!.title : (routine?.name ?? 'Workout')}
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
+      {/*
+        THE SESSION BAR.
+
+        A workout is a timed thing, so the clock is a first-class element rather
+        than the third item in a subtitle. Tabular figures, so the digits do not
+        jitter every second as the widths change.
+      */}
+      <View className="border-border bg-card border-b px-4 pb-3">
+        <Row>
+          <Pressable
+            onPress={close}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Close this workout">
+            <Txt variant="small" tone="t2">
+              Close
+            </Txt>
+          </Pressable>
+          <Txt
+            variant="bodyStrong"
+            className="tabular-nums"
+            accessibilityLabel={`Elapsed ${Math.floor(elapsed / 60)} minutes`}>
+            {clock}
           </Txt>
-          <Txt variant="small" tone="t2" style={{ marginTop: 2 }}>
-            {usingPlan && plan!.assignedBy ? `Set by ${plan!.assignedBy} · ` : ''}
-            {clock} · {payload.length} sets · {effortLabel}
-          </Txt>
-        </View>
-        <Pressable onPress={close} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
-          <Txt variant="small" tone="t2">Close</Txt>
-        </Pressable>
-      </Row>
+        </Row>
+        <Txt variant="title" numberOfLines={1} className="mt-1">
+          {usingPlan ? plan!.title : (routine?.name ?? 'Workout')}
+        </Txt>
+        {/* Before anything is logged this would read "0 sets · 0 kg" — two
+            zeros reporting that the session has not started, which the member
+            already knows. It says what to do instead, and becomes a running
+            total the moment there is one to show. */}
+        <Txt variant="caption" tone="t3">
+          {usingPlan && plan!.assignedBy ? `Set by ${plan!.assignedBy} · ` : ''}
+          {payload.length
+            ? `${payload.length} ${payload.length === 1 ? 'set' : 'sets'} · ${effortLabel}`
+            : 'Tick a set as you finish it'}
+        </Txt>
+      </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 180, gap: space.md }}
-        keyboardShouldPersistTaps="handled"
-      >
+        contentContainerClassName="px-4 pt-4 gap-3"
+        contentContainerStyle={{ paddingBottom: 220 }}
+        keyboardShouldPersistTaps="handled">
         {(wantAssigned && planLoading) || routineLoading ? (
           <Loading label={routineLoading ? 'Loading routine' : 'Loading your plan'} />
         ) : blocks.length === 0 ? (
@@ -369,6 +387,7 @@ export default function SessionScreen() {
                 ? 'Your trainer has not set a workout for today. Add exercises to log a session of your own.'
                 : "Your last session's weights and reps are filled in automatically, so most sets are a single tap."
             }
+            action={<Button title="Add exercises" onPress={() => setPickerOpen(true)} />}
           />
         ) : (
           blocks.map((b, i) => (
@@ -389,38 +408,67 @@ export default function SessionScreen() {
 
         {error ? (
           <Card tone="accent">
-            <Txt variant="small" tone="accent">{error}</Txt>
-          </Card>
-        ) : null}
-
-        {confirmDiscard ? (
-          <Card tone="accent">
-            <Txt variant="bodyStrong">Discard this workout?</Txt>
-            <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
-              {payload.length} logged {payload.length === 1 ? 'set' : 'sets'} will be lost.
+            <Txt variant="small" tone="accent">
+              {error}
             </Txt>
-            <Row style={{ marginTop: space.lg, gap: space.sm }}>
-              <View style={{ flex: 1 }}>
-                <Button title="Keep logging" variant="secondary" onPress={() => setConfirmDiscard(false)} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Button title="Discard" onPress={() => backOrHome(router)} />
-              </View>
-            </Row>
           </Card>
         ) : null}
 
-        <Button title="+ Add exercises" variant="secondary" onPress={() => setPickerOpen(true)} />
+        {/* Adding belongs with the list it adds to, so it stays in the scroll.
+            Only Finish is pinned. */}
+        {blocks.length ? (
+          <Button title="Add exercises" variant="secondary" onPress={() => setPickerOpen(true)} />
+        ) : null}
+      </ScrollView>
 
+      {/*
+        THE ACTION BAR.
+
+        Finish used to sit at the bottom of the scroll, so ending a session
+        meant scrolling back past every exercise you had just logged — with
+        sweaty hands, mid-gym. It is pinned now, and carries the set count so
+        the number you are committing is visible at the moment you commit it.
+      */}
+      <View
+        className="border-border bg-card absolute inset-x-0 bottom-0 border-t px-4 pt-3"
+        style={{ paddingBottom: insets.bottom + 12 }}>
         <Button
           title={payload.length ? `Finish · ${payload.length} sets` : 'Complete a set to finish'}
           onPress={finish}
           disabled={!payload.length}
           loading={log.isPending}
         />
-      </ScrollView>
+      </View>
 
-      <RestTimer startedAt={restAt} seconds={REST_SECONDS} />
+      {/* Lifted clear of the action bar; at the default offset the two overlap. */}
+      <RestTimer startedAt={restAt} seconds={REST_SECONDS} bottomOffset={72 + insets.bottom} />
+
+      {/*
+        Discarding is destructive and cannot be undone by pressing back, so it
+        is a real dialog rather than a card that appears further down a scroll
+        the member may not be looking at.
+      */}
+      {confirmDiscard ? (
+        <View className="absolute inset-0 items-center justify-center bg-black/50 px-6">
+          <Card className="w-full gap-4 p-5">
+            <View className="gap-1">
+              <Txt variant="heading">Discard this workout?</Txt>
+              <Txt variant="small" tone="t3">
+                {payload.length} logged {payload.length === 1 ? 'set' : 'sets'} will be lost. This
+                cannot be undone.
+              </Txt>
+            </View>
+            <View className="gap-2">
+              <Button
+                title="Keep logging"
+                variant="secondary"
+                onPress={() => setConfirmDiscard(false)}
+              />
+              <Button title="Discard workout" onPress={() => backOrHome(router)} />
+            </View>
+          </Card>
+        </View>
+      ) : null}
 
       <ExercisePicker
         visible={pickerOpen}
@@ -441,6 +489,18 @@ export default function SessionScreen() {
           ]);
         }}
       />
+    </View>
+  );
+}
+
+function Summary({ value, unit }: { value: string; unit: string }) {
+  return (
+    <View className="flex-1 items-center gap-0.5" accessibilityRole="text"
+      accessibilityLabel={`${value} ${unit}`}>
+      <Txt variant="heading">{value}</Txt>
+      <Txt variant="caption" tone="t3">
+        {unit}
+      </Txt>
     </View>
   );
 }
