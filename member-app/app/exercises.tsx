@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Icon, Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
-import { font, color, radius, space } from '../src/ui/theme';
+import { Icon, Empty, Label, ListCard, Loading, Row, Txt } from '../src/ui';
+import { Input } from '@/components/ui/input';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { Chip } from '../src/ui/Chip';
 import { useExercises } from '../src/api/queries';
@@ -38,26 +38,16 @@ export default function ExercisesScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Exercises" />
-      <View style={{ paddingHorizontal: space.lg, paddingBottom: space.md }}>
-        <TextInput
+      <View className="px-4 pb-3">
+        <Input
           value={query}
           onChangeText={setQuery}
           placeholder="Search the library"
-          placeholderTextColor={color.t4}
           accessibilityLabel="Search exercises"
-          style={{
-            height: 46,
-            borderRadius: radius.md,
-            backgroundColor: color.surface,
-            borderWidth: 1,
-            borderColor: color.line,
-            color: color.t1,
-            paddingHorizontal: space.lg,
-            fontFamily: font,
-            fontSize: 15,
-          }}
+          returnKeyType="search"
+          autoCorrect={false}
         />
       </View>
 
@@ -65,7 +55,7 @@ export default function ExercisesScreen() {
         horizontal
         showsHorizontalScrollIndicator={false}
         style={{ flexGrow: 0 }}
-        contentContainerStyle={{ gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.md }}
+        contentContainerClassName="gap-2 px-4 pb-3"
       >
         {MUSCLES.map((m) => (
           <Chip
@@ -87,7 +77,7 @@ export default function ExercisesScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           style={{ flexGrow: 0 }}
-          contentContainerStyle={{ gap: space.sm, paddingHorizontal: space.lg, paddingBottom: space.md }}
+          contentContainerClassName="gap-2 px-4 pb-3"
         >
           <Chip label="All" active={head === null} onPress={() => setHead(null)} />
           {sections
@@ -104,7 +94,7 @@ export default function ExercisesScreen() {
       ) : null}
 
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.sm }}
+        contentContainerClassName="px-4 pb-28 gap-4"
         keyboardShouldPersistTaps="handled"
       >
         {isLoading ? (
@@ -124,19 +114,36 @@ export default function ExercisesScreen() {
           visible
             .filter((sec) => sec.list.length > 0)
             .map((sec) => (
-              <View key={sec.head.key} style={{ gap: space.sm }}>
-                <View style={{ marginTop: space.sm }}>
+              <View key={sec.head.key}>
+                <Row className="mb-2">
                   <Label>{sec.head.label}</Label>
-                </View>
-                {sec.list.map((e) => (
-                  <ExerciseRow key={e.id} e={e} onPress={() => router.push(`/exercise/${e.id}`)} />
-                ))}
+                  <Txt variant="caption" tone="t4">
+                    {sec.list.length}
+                  </Txt>
+                </Row>
+                <ListCard>
+                  {sec.list.map((e, i) => (
+                    <ExerciseRow
+                      key={e.id}
+                      e={e}
+                      first={i === 0}
+                      onPress={() => router.push(`/exercise/${e.id}`)}
+                    />
+                  ))}
+                </ListCard>
               </View>
             ))
         ) : (
-          items.map((e) => (
-            <ExerciseRow key={e.id} e={e} onPress={() => router.push(`/exercise/${e.id}`)} />
-          ))
+          <ListCard>
+            {items.map((e, i) => (
+              <ExerciseRow
+                key={e.id}
+                e={e}
+                first={i === 0}
+                onPress={() => router.push(`/exercise/${e.id}`)}
+              />
+            ))}
+          </ListCard>
         )}
       </ScrollView>
     </View>
@@ -151,47 +158,52 @@ export default function ExercisesScreen() {
 function ExerciseRow({
   e,
   onPress,
+  first,
 }: {
   e: ExerciseListItem;
   onPress: () => void;
+  first?: boolean;
 }) {
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Open ${e.name}`}>
-      <Card>
-        <Row>
-          {/* The still, not the GIF: forty animating images in a scrolling list
-              is a lot of decode for no extra meaning — the animation earns its
-              place on the detail screen. */}
-          {e.thumbUrl ? (
-            <Image
-              source={{ uri: e.thumbUrl }}
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: radius.sm,
-                backgroundColor: color.surface2,
-                marginRight: space.md,
-              }}
-              // Decorative: the name beside it already says what this is, so
-              // announcing the image again would just be noise.
-              accessibilityElementsHidden
-              importantForAccessibility="no"
-            />
-          ) : null}
-          <View style={{ flex: 1, paddingRight: space.md }}>
-            <Txt variant="bodyStrong">{e.name}</Txt>
-            <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>
-              {[e.muscleGroup, e.equipment].filter(Boolean).join(' · ') || 'Exercise'}
-            </Txt>
+    <View>
+      {first ? null : <View className="bg-border ml-16 h-px" />}
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${e.name}. ${[e.muscleGroup, e.equipment].filter(Boolean).join(', ')}${
+          e.favorited ? '. Favourite' : ''
+        }`}
+        className="active:bg-secondary flex-row items-center gap-3 px-3 py-2.5">
+        {/* The still, not the GIF: forty animating images in a scrolling list is
+            a lot of decode for no extra meaning — the animation earns its place
+            on the detail screen. */}
+        {e.thumbUrl ? (
+          <Image
+            source={{ uri: e.thumbUrl }}
+            className="bg-secondary h-12 w-12 rounded-md"
+            // Decorative: the name beside it already says what this is, so
+            // announcing the image again would just be noise.
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+          />
+        ) : (
+          // A placeholder rather than nothing, so rows with and without media
+          // keep the same text alignment down the list.
+          <View className="bg-secondary h-12 w-12 items-center justify-center rounded-md">
+            <Icon name="exercises" size={18} tone="t4" decorative />
           </View>
-          {e.favorited ? (
-            <Icon name="star" size={16} tone="accent" filled accessibilityLabel="Favourite" />
-          ) : null}
-          <View style={{ marginLeft: space.sm }}>
-            <Icon name="chevron" size={16} tone="t4" decorative />
-          </View>
-        </Row>
-      </Card>
-    </Pressable>
+        )}
+        <View className="flex-1">
+          <Txt variant="body" numberOfLines={1}>
+            {e.name}
+          </Txt>
+          <Txt variant="caption" tone="t3" numberOfLines={1}>
+            {[e.muscleGroup, e.equipment].filter(Boolean).join(' · ') || 'Exercise'}
+          </Txt>
+        </View>
+        {e.favorited ? <Icon name="star" size={15} tone="accent" filled decorative /> : null}
+        <Icon name="chevron" size={16} tone="t4" decorative />
+      </Pressable>
+    </View>
   );
 }
