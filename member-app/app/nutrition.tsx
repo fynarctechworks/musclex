@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Label, Loading, Meter, Row, Txt } from '../src/ui';
-import { font, color, radius, space } from '../src/ui/theme';
+import { Input } from '@/components/ui/input';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { Notice } from '../src/ui/Notice';
 import { useFoods, useLogMeal, useLogWater, useNutrition, useSetNutritionGoal } from '../src/api/queries';
@@ -20,11 +20,26 @@ import {
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 
 /** A macro column with its own meter, so over/under reads at a glance. */
-function Macro({ label, value, goal, tint }: { label: string; value: number; goal: number; tint: string }) {
+function Macro({
+  label,
+  value,
+  goal,
+  tint,
+}: {
+  label: string;
+  value: number;
+  goal: number;
+  tint: string;
+}) {
   return (
-    <View style={{ flex: 1 }}>
+    <View
+      className="flex-1"
+      accessibilityRole="text"
+      accessibilityLabel={`${label}: ${Math.round(value)} of ${goal} grams`}>
       <Txt variant="bodyStrong">{Math.round(value)}g</Txt>
-      <Txt variant="caption" tone="t3">{label} · {goal}g</Txt>
+      <Txt variant="caption" tone="t3">
+        {label} · {goal}g
+      </Txt>
       <Meter value={value} max={goal} tint={tint} />
     </View>
   );
@@ -76,28 +91,16 @@ export default function NutritionScreen() {
     }
   }
 
-  const input = {
-    height: 48,
-    borderRadius: radius.md,
-    backgroundColor: color.surface2,
-    borderWidth: 1,
-    borderColor: color.line,
-    color: color.t1,
-    paddingHorizontal: space.lg,
-    fontFamily: font,
-    fontSize: 16,
-  } as const;
-
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Nutrition" />
-      <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}>
+      <ScrollView contentContainerClassName="px-4 pb-28 gap-5">
         {notice ? (
           <Notice {...notice} onDismiss={() => setNotice(null)} />
         ) : null}
 
-        <Card>
-          <Row>
+        <View>
+          <Row className="mb-2">
             <Label>Calories</Label>
             {/* Editing a target writes to /nutrition/goal, which is gym-only.
                 Offering the button to someone with no gym would open an editor
@@ -115,33 +118,48 @@ export default function NutritionScreen() {
               />
             ) : null}
           </Row>
-          <Row style={{ alignItems: 'baseline', marginTop: space.sm }}>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7 }}>
+          <Card className="gap-3">
+          <Row className="items-baseline">
+            <View className="flex-row items-baseline gap-1.5">
               <Txt variant="display">{Math.round(totals.kcal)}</Txt>
-              <Txt variant="small" tone="t2">/ {goal.kcal} kcal</Txt>
+              <Txt variant="small" tone="t3">
+                of {goal.kcal} kcal
+              </Txt>
             </View>
+            {/* Over the target is worth saying plainly rather than as a
+                negative number the member has to interpret. */}
             <Txt variant="small" tone={totals.kcal > goal.kcal ? 'accent' : 't2'}>
-              {Math.max(0, goal.kcal - Math.round(totals.kcal))} left
+              {totals.kcal > goal.kcal
+                ? `${Math.round(totals.kcal) - goal.kcal} over`
+                : `${goal.kcal - Math.round(totals.kcal)} left`}
             </Txt>
           </Row>
-          <Meter value={totals.kcal} max={goal.kcal} tint={color.accent} />
+          <Meter value={totals.kcal} max={goal.kcal} tint="#c10007" />
           {/* Say whose target this is. Without a gym there is nowhere to store a
               personal one yet, so the bar is drawn against a general default —
               and a default presented as "your goal" is the app inventing a
               number and attributing it to the member. */}
           {!who.hasGym ? (
-            <Txt variant="caption" tone="t3" style={{ marginTop: space.sm }}>
+            <Txt variant="caption" tone="t3">
               Measured against a general daily target, not one you have set.
             </Txt>
           ) : null}
           {editingGoal ? (
-            <View style={{ marginTop: space.md, gap: space.sm }}>
+            <View className="border-border gap-2 border-t pt-3">
               <Txt variant="caption" tone="t3">Daily calories</Txt>
-              <TextInput value={gKcal} onChangeText={setGKcal} keyboardType="number-pad"
-                accessibilityLabel="Calorie target" placeholderTextColor={color.t4} style={input} />
+              <Input
+                value={gKcal}
+                onChangeText={setGKcal}
+                keyboardType="number-pad"
+                accessibilityLabel="Calorie target"
+              />
               <Txt variant="caption" tone="t3">Protein (g)</Txt>
-              <TextInput value={gProtein} onChangeText={setGProtein} keyboardType="number-pad"
-                accessibilityLabel="Protein target" placeholderTextColor={color.t4} style={input} />
+              <Input
+                value={gProtein}
+                onChangeText={setGProtein}
+                keyboardType="number-pad"
+                accessibilityLabel="Protein target"
+              />
               <Button
                 title="Save targets"
                 loading={setGoal.isPending}
@@ -165,74 +183,78 @@ export default function NutritionScreen() {
             </View>
           ) : null}
 
-          <Row style={{ marginTop: space.lg, gap: space.md }}>
-            <Macro label="Protein" value={totals.proteinG} goal={goal.proteinG} tint={color.protein} />
-            <Macro label="Carbs" value={totals.carbsG} goal={goal.carbsG} tint={color.carbs} />
-            <Macro label="Fat" value={totals.fatG} goal={goal.fatG} tint={color.fat} />
+          <Row className="items-start gap-4">
+            <Macro label="Protein" value={totals.proteinG} goal={goal.proteinG} tint="#2563eb" />
+            <Macro label="Carbs" value={totals.carbsG} goal={goal.carbsG} tint="#b45309" />
+            <Macro label="Fat" value={totals.fatG} goal={goal.fatG} tint="#7c3aed" />
           </Row>
-        </Card>
+          </Card>
+        </View>
 
-        <Card>
-          <Row>
+        <View>
+          <Row className="mb-2">
             <Label>Water</Label>
-            <Button
-              title="+250ml"
-              variant="secondary"
-              size="sm"
-              loading={water.isPending}
-              onPress={() => water.mutate(250)}
-            />
           </Row>
-          <Row style={{ alignItems: 'baseline', marginTop: space.sm }}>
-            <Txt variant="heading">{(data.waterMl / 1000).toFixed(1)}L</Txt>
-            <Txt variant="small" tone="t2">/ {(goal.waterMl / 1000).toFixed(1)}L</Txt>
-          </Row>
-          <Meter value={data.waterMl} max={goal.waterMl} tint={color.water} />
-        </Card>
+          <Card className="gap-3">
+            <Row className="items-baseline">
+              <View className="flex-row items-baseline gap-1.5">
+                <Txt variant="heading">{(data.waterMl / 1000).toFixed(1)}L</Txt>
+                <Txt variant="small" tone="t3">
+                  of {(goal.waterMl / 1000).toFixed(1)}L
+                </Txt>
+              </View>
+              <Button
+                title="+250ml"
+                variant="secondary"
+                size="sm"
+                loading={water.isPending}
+                onPress={() => water.mutate(250)}
+              />
+            </Row>
+            <Meter value={data.waterMl} max={goal.waterMl} tint="#0276b3" />
+          </Card>
+        </View>
 
         <WaterReminders />
 
-        <Card>
-          <Row>
+        <View>
+          <Row className="mb-2">
             <Label>Today's meals</Label>
-            <Button title="+ Log" variant="secondary" size="sm" onPress={() => setOpen(true)} />
           </Row>
-          {data.meals.length === 0 ? (
-            <Txt variant="small" tone="t2" style={{ marginTop: space.md }}>
-              Nothing logged yet today.
-            </Txt>
-          ) : (
-            data.meals.map((m) => (
-              <Row key={m.id} style={{ marginTop: space.md }}>
-                <View style={{ flex: 1 }}>
-                  <Txt variant="bodyStrong" style={{ textTransform: 'capitalize' }}>{m.mealType}</Txt>
-                  <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>
-                    {m.items.map((i) => i.name).join(', ')}
+          <Card className="gap-3">
+            {data.meals.length === 0 ? (
+              <Txt variant="small" tone="t3">
+                Nothing logged yet today.
+              </Txt>
+            ) : (
+              data.meals.map((m) => (
+                <Row key={m.id} className="items-start">
+                  <View className="flex-1 pr-3">
+                    <Txt variant="body" className="capitalize">
+                      {m.mealType}
+                    </Txt>
+                    <Txt variant="caption" tone="t3">
+                      {m.items.map((i) => i.name).join(', ')}
+                    </Txt>
+                  </View>
+                  <Txt variant="small" tone="t2">
+                    {m.items.reduce((a, i) => a + (i.kcal ?? 0), 0)} kcal
                   </Txt>
-                </View>
-                <Txt variant="small" tone="t2">
-                  {m.items.reduce((a, i) => a + (i.kcal ?? 0), 0)} kcal
-                </Txt>
-              </Row>
-            ))
-          )}
-        </Card>
+                </Row>
+              ))
+            )}
+            {/* The point of this screen. It was a small secondary button in a
+                card header, weighted the same as '+250ml' water. */}
+            <Button title="Log a meal" onPress={() => setOpen(true)} />
+          </Card>
+        </View>
       </ScrollView>
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: color.scrim, justifyContent: 'flex-end' }}>
+        <View className="flex-1 justify-end bg-black/40">
           <View
-            style={{
-              backgroundColor: color.bg,
-              borderTopLeftRadius: radius.xl,
-              borderTopRightRadius: radius.xl,
-              borderTopWidth: 1,
-              borderColor: color.line,
-              padding: space.lg,
-              paddingBottom: insets.bottom + space.lg,
-              gap: space.md,
-            }}
-          >
+            className="bg-background border-border gap-4 rounded-t-2xl border-t px-4 pt-4"
+            style={{ paddingBottom: insets.bottom + 16 }}>
             <Row>
               <Txt variant="heading">Log a meal</Txt>
               <Pressable onPress={() => setOpen(false)} hitSlop={10} accessibilityRole="button"
@@ -241,56 +263,49 @@ export default function NutritionScreen() {
               </Pressable>
             </Row>
 
-            <View style={{ flexDirection: 'row', gap: space.sm }}>
+            <View className="flex-row gap-2">
               {MEALS.map((m) => (
                 <Pressable
                   key={m}
                   onPress={() => setMealType(m)}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: mealType === m }}
-                  style={{
-                    flex: 1,
-                    height: 36,
-                    borderRadius: radius.pill,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: mealType === m ? color.accentSoft : color.surface2,
-                    borderWidth: 1,
-                    borderColor: mealType === m ? color.accentEdge : color.line,
-                  }}
-                >
-                  <Txt variant="caption" tone={mealType === m ? 'accent' : 't2'}
-                    style={{ fontWeight: '600', textTransform: 'capitalize' }}>
+                  className={
+                    mealType === m
+                      ? 'border-primary/40 bg-primary/10 h-9 flex-1 items-center justify-center rounded-full border'
+                      : 'border-border bg-secondary h-9 flex-1 items-center justify-center rounded-full border'
+                  }>
+                  <Txt
+                    variant="caption"
+                    tone={mealType === m ? 'accent' : 't2'}
+                    className="font-semibold capitalize">
                     {m}
                   </Txt>
                 </Pressable>
               ))}
             </View>
 
-            <TextInput value={name} onChangeText={setName} placeholder="What did you eat?"
-              placeholderTextColor={color.t4} accessibilityLabel="Food name" style={input} />
+            <Input
+              value={name}
+              onChangeText={setName}
+              placeholder="What did you eat?"
+              accessibilityLabel="Food name"
+            />
             {/* Catalogue matches fill both fields at once; typing a name the gym
                 already knows should not also mean typing its calories. */}
             {(foodResults?.foods ?? []).length > 0 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: space.sm }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerClassName="gap-2">
                 {foodResults!.foods.slice(0, 8).map((f) => (
                   <Pressable
                     key={f.id}
                     onPress={() => { setName(f.name); setKcal(String(f.kcal ?? '')); }}
                     accessibilityRole="button"
                     accessibilityLabel={`Use ${f.name}`}
-                    style={{
-                      paddingHorizontal: space.lg,
-                      height: 34,
-                      borderRadius: radius.pill,
-                      backgroundColor: color.surface2,
-                      borderWidth: 1,
-                      borderColor: color.line,
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Txt variant="caption" tone="t2" style={{ fontWeight: '600' }}>
+                    className="border-border bg-secondary h-9 justify-center rounded-full border px-4">
+                    <Txt variant="caption" tone="t2" className="font-semibold">
                       {f.name}{f.kcal ? ` · ${f.kcal}` : ''}
                     </Txt>
                   </Pressable>
@@ -298,9 +313,13 @@ export default function NutritionScreen() {
               </ScrollView>
             ) : null}
 
-            <TextInput value={kcal} onChangeText={setKcal} placeholder="Calories (optional)"
-              placeholderTextColor={color.t4} keyboardType="number-pad"
-              accessibilityLabel="Calories" style={input} />
+            <Input
+              value={kcal}
+              onChangeText={setKcal}
+              placeholder="Calories (optional)"
+              keyboardType="number-pad"
+              accessibilityLabel="Calories"
+            />
 
             <Button title="Log meal" onPress={addMeal} disabled={!name.trim()} loading={meal.isPending} />
           </View>
@@ -334,13 +353,17 @@ function WaterReminders() {
   // that rather than hiding the card and implying the feature is iOS-only.
   if (!remindersSupported()) {
     return (
-      <Card>
-        <Label>Drink reminders</Label>
-        <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
-          Not available while previewing in Expo Go on Android. They work normally
-          in the installed app.
-        </Txt>
-      </Card>
+      <View>
+        <Row className="mb-2">
+          <Label>Drink reminders</Label>
+        </Row>
+        <Card>
+          <Txt variant="small" tone="t3">
+            Not available while previewing in Expo Go on Android. They work normally in the
+            installed app.
+          </Txt>
+        </Card>
+      </View>
     );
   }
 
@@ -392,28 +415,26 @@ function WaterReminders() {
         />
       </Row>
 
-      <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
-        {settings.enabled ? describe(settings) : 'A quiet nudge through the day so you do not finish at 6pm on one glass.'}
+      <Txt variant="small" tone="t3">
+        {settings.enabled
+          ? describe(settings)
+          : 'A quiet nudge through the day so you do not finish at 6pm on one glass.'}
       </Txt>
 
       {settings.enabled ? (
         <>
-          <Row style={{ gap: space.sm, marginTop: space.md, justifyContent: 'flex-start' }}>
+          <Row className="justify-start gap-2">
             {INTERVAL_CHOICES.map((c) => (
               <Pressable
                 key={c.minutes}
                 onPress={() => commit({ ...settings, everyMinutes: c.minutes })}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: settings.everyMinutes === c.minutes }}
-                style={{
-                  paddingHorizontal: space.md,
-                  paddingVertical: space.sm,
-                  borderRadius: radius.pill,
-                  borderWidth: 1,
-                  borderColor: settings.everyMinutes === c.minutes ? color.accent : color.line,
-                  backgroundColor: settings.everyMinutes === c.minutes ? color.accentSoft : 'transparent',
-                }}
-              >
+                className={
+                  settings.everyMinutes === c.minutes
+                    ? 'border-primary/40 bg-primary/10 rounded-full border px-3 py-2'
+                    : 'border-border rounded-full border px-3 py-2'
+                }>
                 <Txt variant="caption" tone={settings.everyMinutes === c.minutes ? 't1' : 't2'}>
                   {c.label}
                 </Txt>
@@ -421,7 +442,7 @@ function WaterReminders() {
             ))}
           </Row>
 
-          <Row style={{ gap: space.sm, marginTop: space.md }}>
+          <Row className="gap-2">
             <HourField
               label="From"
               value={settings.startHour}
@@ -436,11 +457,7 @@ function WaterReminders() {
         </>
       ) : null}
 
-      {notice ? (
-        <View style={{ marginTop: space.md }}>
-          <Notice {...notice} onDismiss={() => setNotice(null)} />
-        </View>
-      ) : null}
+      {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
     </Card>
   );
 }
@@ -472,17 +489,7 @@ function HourField({ label, value, onChange }: { label: string; value: number; o
         }}
         keyboardType="number-pad"
         accessibilityLabel={`${label} hour`}
-        style={{
-          height: 42,
-          borderRadius: radius.sm,
-          backgroundColor: color.surface2,
-          borderWidth: 1,
-          borderColor: color.line,
-          color: color.t1,
-          paddingHorizontal: space.md,
-          fontFamily: font,
-          fontSize: 15,
-        }}
+        className="border-border bg-secondary text-foreground h-10 rounded-md border px-3 text-base"
       />
     </View>
   );
