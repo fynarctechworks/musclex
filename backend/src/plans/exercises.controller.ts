@@ -149,6 +149,12 @@ export class ExercisesController {
     return this.exercises.seedDefaults();
   }
 
+  @Get(':id')
+  @Permissions({ module: 'members', action: 'view' })
+  findOne(@Param('id', new ParseUUIDPipe()) id: string) {
+    return this.exercises.findOne(id);
+  }
+
   @Patch(':id')
   @Permissions({ module: 'members', action: 'edit' })
   update(

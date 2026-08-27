@@ -655,6 +655,15 @@ export function useExercises(
   });
 }
 
+/** One exercise, for the detail view. */
+export function useExercise(id?: string) {
+  return useQuery({
+    queryKey: ['exercise', id ?? ''],
+    queryFn: () => api.get<Exercise>(`/exercises/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
 /**
  * The muscle heads present in this gym's catalogue.
  *

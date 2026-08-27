@@ -97,6 +97,22 @@ export class ExercisesService {
     });
   }
 
+  /**
+   * One exercise, for the detail view.
+   *
+   * Explicit `gym_id` in the WHERE, like `update` below and for the same
+   * reason: fetch-by-id is not covered by the gym_id auto-injection, so a bare
+   * findUnique here would hand any gym's exercise to any caller who knew the
+   * id. `findFirst` with both columns is the pattern this file already uses.
+   */
+  async findOne(id: string) {
+    const row = await this.tenant.client.exercise.findFirst({
+      where: { id, gym_id: getTenantGymId()! },
+    });
+    if (!row) throw new NotFoundException('Exercise not found');
+    return row;
+  }
+
   async update(id: string, input: Partial<ExerciseInput>) {
     // Explicit gym filter first: update-by-id is not covered by the gym_id
     // auto-injection (the known findUnique/​update fails-open class).

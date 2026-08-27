@@ -245,7 +245,7 @@ function ExercisesTab() {
             title={item.name}
             subtitle={describeMuscle(item.muscle_group, item.target_muscle)}
             meta={item.equipment ?? undefined}
-            chevron={false}
+            onPress={() => router.push(`/exercise/${item.id}`)}
             testID={`exercise-${item.id}`}
           />
         )}

@@ -259,6 +259,8 @@ export type Exercise = {
   /** The head actually trained — 'front_delt', not just 'shoulders'. */
   target_muscle?: string | null;
   secondary_muscles?: string[] | null;
+  /** 'reps' or 'duration' — cardio and held stretches are timed. */
+  tracking_type?: string | null;
   equipment?: string | null;
   media_url?: string | null;
   thumb_url?: string | null;
