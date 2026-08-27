@@ -30,14 +30,6 @@ import { otpConfigured, supabase } from './supabase';
 const ACCESS = 'musclex.member.access';
 const REFRESH = 'musclex.member.refresh';
 const TENANT = 'musclex.member.tenant';
-/**
- * Whether this install has already shown the welcome screen.
- *
- * Kept alongside the tokens rather than in the API, because it is a property of
- * this PHONE, not of the person: someone who signs out should not be introduced
- * to the app a second time, and someone installing on a new device should.
- */
-const WELCOMED = 'musclex.member.welcomed';
 
 /**
  * Neither of these may THROW.
@@ -79,14 +71,6 @@ async function read(key: string): Promise<string | null> {
   } catch {
     return null;
   }
-}
-
-export async function hasSeenWelcome(): Promise<boolean> {
-  return (await read(WELCOMED)) === '1';
-}
-
-export async function markWelcomeSeen(): Promise<void> {
-  await put(WELCOMED, '1');
 }
 
 export interface Tokens {

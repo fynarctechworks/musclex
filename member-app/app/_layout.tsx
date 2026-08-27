@@ -19,7 +19,7 @@ import {
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
-import { hasSeenWelcome, restoreSession } from '../src/api/auth';
+import { restoreSession } from '../src/api/auth';
 import { api } from '../src/api/endpoints';
 import { flush } from '../src/offline/outbox';
 import { warmStore } from '../src/offline/store';
@@ -59,35 +59,8 @@ function Gate({ children }: { children: React.ReactNode }) {
   const { authed, ready } = useSession();
   const segments = useSegments();
   const router = useRouter();
-  const inWelcome = segments[0] === 'welcome';
-  // Welcome counts as an auth screen: it sits in front of sign-in and must not
-  // be treated as app content to redirect away from.
-  const inAuth = segments[0] === 'sign-in' || inWelcome;
+  const inAuth = segments[0] === 'sign-in';
   const inOnboarding = segments[0] === 'onboarding';
-
-  /*
-    Whether this install has been introduced to the app yet. Undefined while we
-    are still reading it — the redirect below waits, because sending someone to
-    sign-in and then bouncing them to welcome a frame later is worse than a
-    brief hold on the splash.
-  */
-  const [welcomed, setWelcomed] = useState<boolean | null>(null);
-  useEffect(() => {
-    let alive = true;
-    hasSeenWelcome()
-      // Belt and braces. `hasSeenWelcome` no longer rejects, but this value
-      // gates the redirect: if it ever stayed null the app would sit on the
-      // "Signing in" spinner with no way forward, which is exactly the failure
-      // a missing keychain entitlement produced. Defaulting to "seen" sends
-      // them to sign-in — a returning member's normal path.
-      .catch(() => true)
-      .then((v) => {
-        if (alive) setWelcomed(v);
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   // Only asked once we have a session, and only to decide whether this member
   // has been through onboarding.
@@ -103,12 +76,6 @@ function Gate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!ready) return;
     if (!authed) {
-      if (welcomed === null) return; // still reading the flag
-      // A brand-new install is introduced before it is asked to sign in.
-      if (!welcomed) {
-        if (!inWelcome) router.replace('/welcome');
-        return;
-      }
       if (!inAuth) router.replace('/sign-in');
       return;
     }
@@ -117,7 +84,7 @@ function Gate({ children }: { children: React.ReactNode }) {
       return;
     }
     if (needsOnboarding && !inOnboarding) router.replace('/onboarding');
-  }, [authed, ready, inAuth, inWelcome, welcomed, inOnboarding, needsOnboarding, router]);
+  }, [authed, ready, inAuth, inOnboarding, needsOnboarding, router]);
 
   if (!ready) return <Loading label="Starting" />;
   if (!authed && !inAuth) return <Loading label="Signing in" />;
