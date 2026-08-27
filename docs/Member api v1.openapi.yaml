@@ -678,6 +678,103 @@ paths:
                   - properties:
                       data: { $ref: "#/components/schemas/RazorpayOrder" }
 
+  /routines/schedule:
+    get:
+      tags: [Workouts]
+      summary: The member's weekly routine schedule
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/RoutineSchedule" }
+    put:
+      tags: [Workouts]
+      summary: Set or clear the routine for one weekday
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RoutineScheduleDayInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/RoutineSchedule" }
+  /routines/schedule/today:
+    get:
+      tags: [Workouts]
+      summary: What the member is meant to train today
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data: { $ref: "#/components/schemas/TodayPlan" }
+  /routines/schedule/missed:
+    get:
+      tags: [Workouts]
+      summary: Yesterday's planned routine, if it was planned and not done
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data:
+                        oneOf:
+                          - $ref: "#/components/schemas/MissedDay"
+                          - type: "null"
+  /routines/schedule/resume:
+    post:
+      tags: [Workouts]
+      summary: Take up yesterday's missed session and shift the week forward
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          offsetDays: { type: integer }
+  /routines/schedule/reset:
+    post:
+      tags: [Workouts]
+      summary: Back to the member's normal week — clears any accumulated shift
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - properties:
+                      data:
+                        type: object
+                        properties:
+                          offsetDays: { type: integer }
   /workouts/today:
     get:
       tags: [Workouts]
@@ -2041,6 +2138,62 @@ components:
         title: { type: string }
         assignedBy: { type: string, nullable: true }
         exerciseCount: { type: integer }
+        # Where this workout came from. 'assigned' is a trainer's; 'routine' is
+        # one the member scheduled themselves. The home card words itself
+        # differently for each, and only 'routine' can be reordered by the
+        # member's own week.
+        source: { type: string, enum: [assigned, routine] }
+        # Present only when source is 'routine' — what /session?routine=<id>
+        # needs to load it.
+        routineId: { type: string, nullable: true }
+    # What the member is meant to train today, and why there may be nothing.
+    # Three states the home card must show differently: a routine, a
+    # deliberate rest day, and nothing set up at all. Collapsing the last two
+    # is what made the old card claim "nothing assigned" to a member with a
+    # full week planned who simply had Sunday off.
+    TodayPlan:
+      type: object
+      properties:
+        routine:
+          nullable: true
+          allOf: [{ $ref: '#/components/schemas/ScheduledRoutine' }]
+        restDay: { type: boolean }
+        unscheduled: { type: boolean }
+    ScheduledRoutine:
+      type: object
+      properties:
+        routineId: { type: string }
+        name: { type: string }
+        exerciseCount: { type: integer }
+    # Yesterday's planned routine, when it was planned and not done.
+    MissedDay:
+      type: object
+      properties:
+        routine: { $ref: '#/components/schemas/ScheduledRoutine' }
+        date: { type: string, format: date }
+        weekdayName: { type: string }
+    RoutineSchedule:
+      type: object
+      properties:
+        days:
+          type: array
+          items:
+            type: object
+            properties:
+              weekday: { type: integer, minimum: 0, maximum: 6 }
+              routine:
+                nullable: true
+                allOf: [{ $ref: '#/components/schemas/ScheduledRoutine' }]
+        # How far the member's week has slid from the days they chose, because
+        # they resumed a missed session. 0 means they are on their normal week.
+        offsetDays: { type: integer }
+    RoutineScheduleDayInput:
+      type: object
+      required: [weekday]
+      properties:
+        weekday: { type: integer, minimum: 0, maximum: 6 }
+        # Null clears the day — which is how a rest day is expressed.
+        routineId: { type: string, nullable: true }
     Workout:
       type: object
       properties:
@@ -2160,6 +2313,17 @@ components:
         weightKg: { type: number, nullable: true }
         bmi: { type: number, nullable: true }
         waistCm: { type: number, nullable: true }
+        # These were already returned by member-data.service and present in the
+        # committed generated types, but had never been written back into this
+        # spec — so regenerating dropped them. Restored from the mapper, which
+        # is what actually ships.
+        bodyFatPct: { type: number, nullable: true }
+        muscleMassKg: { type: number, nullable: true }
+        chestCm: { type: number, nullable: true }
+        hipsCm: { type: number, nullable: true }
+        armsCm: { type: number, nullable: true }
+        thighsCm: { type: number, nullable: true }
+        calvesCm: { type: number, nullable: true }
         recordedAt: { type: string, format: date-time }
 
     UploadTarget:

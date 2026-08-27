@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { TenantPrisma } from '../../prisma/tenant-prisma.accessor';
 import { FriendPublisherService } from './friend-publisher.service';
+import { MemberRoutineScheduleService } from './member-routine-schedule.service';
 import { MemberException } from '../common/member-exception';
 import { CurrentMemberContext } from '../decorators/current-member.decorator';
 import { toNumber } from './mappers';
@@ -38,6 +39,7 @@ export class MemberWorkoutService {
   constructor(
     private readonly tenant: TenantPrisma,
     private readonly friendPublisher: FriendPublisherService,
+    private readonly schedule: MemberRoutineScheduleService,
   ) {}
 
   /** Today's assigned workout (full detail) or null if nothing is assigned. */
@@ -68,17 +70,45 @@ export class MemberWorkoutService {
     };
   }
 
-  /** Compact summary for the home dashboard card (or null). */
+  /**
+   * Compact summary for the home dashboard card (or null).
+   *
+   * Falls through: a trainer's assignment for today wins, and failing that the
+   * routine the member scheduled themselves for this weekday.
+   *
+   * The fall-through is the point. This used to read ONLY assigned_workouts,
+   * so a member without a trainer had no path to a non-null value and the most
+   * prominent card on the home screen said "Nothing assigned today" every day
+   * forever — against the app's own line that a gym is a bonus rather than a
+   * requirement. Null now means what it says: nothing planned today.
+   */
   async getTodaySummary(
     member: CurrentMemberContext,
+    tzOffsetMinutes = 0,
   ): Promise<WorkoutSummaryData | null> {
     const assigned = await this.findTodaysAssignment(member.memberId);
-    if (!assigned) return null;
+    if (assigned) {
+      return {
+        id: assigned.id,
+        title: assigned.workout_plan.title,
+        assignedBy: assigned.assigned_by?.full_name ?? null,
+        exerciseCount: assigned.workout_plan.exercises.length,
+        source: 'assigned',
+        routineId: null,
+      };
+    }
+
+    const plan = await this.schedule.getTodayPlan(member, tzOffsetMinutes);
+    if (!plan.routine) return null;
     return {
-      id: assigned.id,
-      title: assigned.workout_plan.title,
-      assignedBy: assigned.assigned_by?.full_name ?? null,
-      exerciseCount: assigned.workout_plan.exercises.length,
+      id: plan.routine.routineId,
+      title: plan.routine.name,
+      // Nobody assigned it — the member did. Saying "assigned by" anyone here
+      // would be a small lie the card would repeat daily.
+      assignedBy: null,
+      exerciseCount: plan.routine.exerciseCount,
+      source: 'routine',
+      routineId: plan.routine.routineId,
     };
   }
 

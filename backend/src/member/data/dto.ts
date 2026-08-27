@@ -16,6 +16,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -1452,4 +1453,21 @@ export class PersonalMealCreateDto {
   /** Offline-outbox idempotency key. */
   @IsOptional() @IsString() @MaxLength(100)
   clientKey?: string;
+}
+
+/**
+ * One day of the weekly routine schedule.
+ *
+ * `routineId: null` CLEARS the day, which is how a rest day is expressed — the
+ * absence of a row rather than a special "rest" routine. That is why the field
+ * is nullable rather than merely optional: omitting it and explicitly clearing
+ * it are different intents, and the controller must be able to tell them apart.
+ */
+export class RoutineScheduleDayDto {
+  /** 0 = Sunday .. 6 = Saturday, matching the DB check constraint. */
+  @IsInt() @Min(0) @Max(6)
+  weekday!: number;
+
+  @IsOptional() @ValidateIf((_, v) => v !== null) @IsUUID()
+  routineId?: string | null;
 }

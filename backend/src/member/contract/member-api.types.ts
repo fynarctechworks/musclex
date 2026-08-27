@@ -1247,6 +1247,226 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/routines/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The member's weekly routine schedule */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["RoutineSchedule"];
+                        };
+                    };
+                };
+            };
+        };
+        /** Set or clear the routine for one weekday */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RoutineScheduleDayInput"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["RoutineSchedule"];
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/routines/schedule/today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What the member is meant to train today */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["TodayPlan"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/routines/schedule/missed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Yesterday's planned routine, if it was planned and not done */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: components["schemas"]["MissedDay"] | null;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/routines/schedule/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Take up yesterday's missed session and shift the week forward */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: {
+                                offsetDays?: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/routines/schedule/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Back to the member's normal week — clears any accumulated shift */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Envelope"] & {
+                            data?: {
+                                offsetDays?: number;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/workouts/today": {
         parameters: {
             query?: never;
@@ -3037,6 +3257,36 @@ export interface components {
             title?: string;
             assignedBy?: string | null;
             exerciseCount?: number;
+            /** @enum {string} */
+            source?: "assigned" | "routine";
+            routineId?: string | null;
+        };
+        TodayPlan: {
+            routine?: components["schemas"]["ScheduledRoutine"] | null;
+            restDay?: boolean;
+            unscheduled?: boolean;
+        };
+        ScheduledRoutine: {
+            routineId?: string;
+            name?: string;
+            exerciseCount?: number;
+        };
+        MissedDay: {
+            routine?: components["schemas"]["ScheduledRoutine"];
+            /** Format: date */
+            date?: string;
+            weekdayName?: string;
+        };
+        RoutineSchedule: {
+            days?: {
+                weekday?: number;
+                routine?: components["schemas"]["ScheduledRoutine"] | null;
+            }[];
+            offsetDays?: number;
+        };
+        RoutineScheduleDayInput: {
+            weekday: number;
+            routineId?: string | null;
         };
         Workout: {
             id?: string;
@@ -3127,13 +3377,6 @@ export interface components {
         BodyMetricInput: {
             weightKg?: number;
             waistCm?: number;
-            bodyFatPct?: number;
-            muscleMassKg?: number;
-            chestCm?: number;
-            hipsCm?: number;
-            armsCm?: number;
-            thighsCm?: number;
-            calvesCm?: number;
             /** Format: date-time */
             recordedAt?: string;
         };
@@ -3325,12 +3568,6 @@ export interface components {
             id?: string;
             name?: string;
             muscleGroup?: string | null;
-            /** Primary mover at head level, e.g. side_delt. */
-            targetMuscle?: string | null;
-            /** Everything else the movement loads. */
-            secondaryMuscles?: string[];
-            /** Lightweight still for list rows. */
-            thumbUrl?: string | null;
             equipment?: string | null;
             mediaUrl?: string | null;
             hasInstructions?: boolean;

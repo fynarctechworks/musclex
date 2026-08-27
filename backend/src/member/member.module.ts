@@ -25,6 +25,7 @@ import { PersonalizationService } from './data/personalization.service';
 import { MemberStreakService } from './data/member-streak.service';
 import { MemberCheckInService } from './data/member-checkin.service';
 import { MemberWorkoutService } from './data/member-workout.service';
+import { MemberRoutineScheduleService } from './data/member-routine-schedule.service';
 import { MemberPlanService } from './data/member-plan.service';
 import { MemberCoachService } from './data/member-coach.service';
 import { MemberClassService } from './data/member-class.service';
@@ -45,6 +46,7 @@ import { MemberCoreController } from './data/member-core.controller';
 import { MemberPublicController } from './data/member-public.controller';
 import { MemberCheckInController } from './data/member-checkin.controller';
 import { MemberWorkoutController } from './data/member-workout.controller';
+import { MemberRoutineScheduleController } from './data/member-routine-schedule.controller';
 import { MemberPlanController } from './data/member-plan.controller';
 import { MemberCoachController } from './data/member-coach.controller';
 import { MemberClassController } from './data/member-class.controller';
@@ -114,6 +116,7 @@ import { MemberIdentityController } from './data/member-identity.controller';
     MemberPublicController,
     MemberCheckInController,
     MemberWorkoutController,
+    MemberRoutineScheduleController,
     MemberPlanController,
     MemberCoachController,
     MemberClassController,
@@ -153,6 +156,7 @@ import { MemberIdentityController } from './data/member-identity.controller';
     MemberStreakService,
     MemberCheckInService,
     MemberWorkoutService,
+    MemberRoutineScheduleService,
     MemberPlanService,
     MemberCoachService,
     MemberClassService,

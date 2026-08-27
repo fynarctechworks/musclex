@@ -401,7 +401,9 @@ export class MemberDataService {
         this.occupancyForBranch(m.branch_id),
         this.streak.getStreakDays(member.memberId, tzOffsetMinutes),
         this.streak.getTodayActivity(member.memberId, tzOffsetMinutes),
-        this.workouts.getTodaySummary(member),
+        // The member's own weekday, not the server's — a schedule keyed on
+        // weekday is meaningless if the two disagree about what day it is.
+        this.workouts.getTodaySummary(member, tzOffsetMinutes),
         this.nextClassForBranch(m.branch_id),
         this.nutrition.getTodaySummary(member),
       ]);

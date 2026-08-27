@@ -51,7 +51,10 @@ describe('MemberWorkoutService.stats — day keying', () => {
       workoutLog: { findMany: jest.fn().mockResolvedValue(logs) },
       personalRecord: { findMany: jest.fn().mockResolvedValue([]) },
     };
-    service = new MemberWorkoutService({ client: prisma } as any, {} as any);
+    // The schedule service is only reached when there is no assignment; these
+    // tests are all about logged sets, so a null plan keeps it out of the way.
+    const schedule = { getTodayPlan: jest.fn().mockResolvedValue({ routine: null }) } as any;
+    service = new MemberWorkoutService({ client: prisma } as any, {} as any, schedule);
   };
 
   it('files a small-hours session under the member\'s day, not UTC\'s', async () => {
@@ -133,7 +136,10 @@ describe('MemberWorkoutService.stats — the body map', () => {
       workoutLog: { findMany: jest.fn().mockResolvedValue(logs) },
       personalRecord: { findMany: jest.fn().mockResolvedValue([]) },
     };
-    service = new MemberWorkoutService({ client: prisma } as any, {} as any);
+    // The schedule service is only reached when there is no assignment; these
+    // tests are all about logged sets, so a null plan keeps it out of the way.
+    const schedule = { getTodayPlan: jest.fn().mockResolvedValue({ routine: null }) } as any;
+    service = new MemberWorkoutService({ client: prisma } as any, {} as any, schedule);
   };
 
   const log = (muscles: (string | null)[], group: string | null = 'chest') => ({

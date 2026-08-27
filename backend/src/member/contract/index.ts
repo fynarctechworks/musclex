@@ -72,6 +72,10 @@ export type ProgressData = Schemas['Progress'];
 export type BodyMetricData = Schemas['BodyMetric'];
 export type UploadTargetData = Schemas['UploadTarget'];
 export type SetLogData = Schemas['SetLog'];
+export type TodayPlanData = Schemas['TodayPlan'];
+export type ScheduledRoutineData = Schemas['ScheduledRoutine'];
+export type MissedDayData = Schemas['MissedDay'];
+export type RoutineScheduleData = Schemas['RoutineSchedule'];
 export type BodyMetricInput = Schemas['BodyMetricInput'];
 
 // ── Nutrition (V2.1) ──────────────────────────────────────────────

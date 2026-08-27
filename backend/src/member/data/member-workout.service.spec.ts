@@ -34,7 +34,8 @@ describe('MemberWorkoutService', () => {
       publishSession: jest.fn().mockResolvedValue(undefined),
       publishPrs: jest.fn().mockResolvedValue(undefined),
     } as any;
-    service = new MemberWorkoutService({ client: prisma } as any, friendPublisher);
+    const schedule = { getTodayPlan: jest.fn().mockResolvedValue({ routine: null }) } as any;
+    service = new MemberWorkoutService({ client: prisma } as any, friendPublisher, schedule);
   });
 
   it('getTodayWorkout filters the assignment by the authenticated member_id', async () => {
@@ -117,5 +118,56 @@ describe('MemberWorkoutService', () => {
 
     expect(result).toEqual({ logId: 'existing-log', newPersonalRecords: [] });
     expect(prisma.workoutLog.create).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * THE HOME CARD'S FALL-THROUGH.
+ *
+ * getTodaySummary used to read ONLY assigned_workouts, so a member without a
+ * trainer had no path to a non-null value and the most prominent card on the
+ * home screen said "Nothing assigned today" every day, forever.
+ */
+describe('getTodaySummary falls through to the member\'s own schedule', () => {
+  const MEMBER = { memberId: 'm1', tenantId: 'g1', appUserId: 'a1', isGymMember: true } as any;
+
+  const build = (assignment: unknown, plan: unknown) =>
+    new MemberWorkoutService(
+      { client: { assignedWorkout: { findFirst: jest.fn().mockResolvedValue(assignment) } } } as any,
+      {} as any,
+      { getTodayPlan: jest.fn().mockResolvedValue(plan) } as any,
+    );
+
+  it('prefers a trainer assignment and marks it as such', async () => {
+    const svc = build(
+      {
+        id: 'a1',
+        workout_plan: { title: 'Coach leg day', exercises: [{}, {}] },
+        assigned_by: { full_name: 'Priya' },
+      },
+      { routine: { routineId: 'r1', name: 'Push', exerciseCount: 5 } },
+    );
+    const s = await svc.getTodaySummary(MEMBER);
+    expect(s).toMatchObject({ title: 'Coach leg day', assignedBy: 'Priya', source: 'assigned' });
+  });
+
+  it("uses the member's scheduled routine when no trainer assigned one", async () => {
+    const svc = build(null, { routine: { routineId: 'r1', name: 'Push', exerciseCount: 5 } });
+    const s = await svc.getTodaySummary(MEMBER);
+    expect(s).toEqual({
+      id: 'r1',
+      title: 'Push',
+      // Nobody assigned it — the member did. Naming anyone here would be a
+      // small lie the card would repeat every day.
+      assignedBy: null,
+      exerciseCount: 5,
+      source: 'routine',
+      routineId: 'r1',
+    });
+  });
+
+  it('is null only when there is genuinely nothing planned', async () => {
+    const svc = build(null, { routine: null, restDay: true, unscheduled: false });
+    await expect(svc.getTodaySummary(MEMBER)).resolves.toBeNull();
   });
 });
