@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Icon, Label, Loading, Row, Txt } from '../ui';
 import { Notice } from '../ui/Notice';
 import { Chip } from '../ui/Chip';
-import { color, font, radius, space } from '../ui/theme';
+import { cn } from '@/lib/utils';
 import {
   useCreateCustomExercise,
   useExerciseDetail,
@@ -35,6 +35,13 @@ import type { ExerciseListItem } from '../api/types';
  * sensible to hold in memory.
  */
 
+/* Raw colours for the props that are not classes: RN's placeholderTextColor,
+   and the scrim behind the sheets. Values are the --color-* tokens. */
+const PLACEHOLDER = '#a6a09b';
+const SCRIM = 'rgba(12,10,9,0.35)';
+
+/** Both sheets are bottom sheets with the same corner treatment. */
+const SHEET = 'bg-background rounded-t-xl';
 
 function ExerciseRow({
   item,
@@ -59,43 +66,27 @@ function ExerciseRow({
       accessibilityRole="checkbox"
       accessibilityState={{ checked: selected }}
       accessibilityLabel={`${selected ? 'Remove' : 'Add'} ${item.name}`}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: space.md,
-        padding: space.md,
-        borderRadius: radius.lg,
-        borderWidth: 1,
-        borderColor: selected ? color.accentEdge : color.line,
-        backgroundColor: selected ? color.accentSoft : color.surface,
-      }}
-    >
+      className={cn(
+        'flex-row items-center gap-3 rounded-lg border p-3 active:opacity-80',
+        selected ? 'border-primary/30 bg-primary/5' : 'border-border bg-card',
+      )}>
       {/* The light still, never the GIF: forty animated GIFs in a scrolling
           list would pull megabytes to render 40px thumbnails. */}
       {item.thumbUrl || item.mediaUrl ? (
         <Image
           source={{ uri: item.thumbUrl ?? item.mediaUrl! }}
-          style={{ width: 40, height: 40, borderRadius: radius.sm, backgroundColor: color.surface2 }}
+          className="bg-secondary h-10 w-10 rounded-sm"
           accessibilityLabel=""
         />
       ) : (
-        <View
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: radius.sm,
-            backgroundColor: color.surface2,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
+        <View className="bg-secondary h-10 w-10 items-center justify-center rounded-sm">
           <Icon name="gym" size={18} tone="t4" decorative />
         </View>
       )}
 
-      <View style={{ flex: 1 }}>
+      <View className="flex-1">
         <Txt variant="bodyStrong">{item.name}</Txt>
-        <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>
+        <Txt variant="caption" tone="t3" className="mt-0.5">
           {subtitle}
           {item.isCustom ? ' · yours' : ''}
         </Txt>
@@ -131,17 +122,10 @@ function ExerciseRow({
       </Pressable>
 
       <View
-        style={{
-          width: 26,
-          height: 26,
-          borderRadius: 13,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: selected ? color.accent : 'transparent',
-          borderWidth: selected ? 0 : 1.5,
-          borderColor: color.lineStrong,
-        }}
-      >
+        className={cn(
+          'h-[26px] w-[26px] items-center justify-center rounded-full',
+          selected ? 'bg-primary' : 'border-[1.5px] border-ink-4',
+        )}>
         {selected ? <Icon name="check" size={14} tone="inverse" decorative /> : null}
       </View>
     </Pressable>
@@ -244,49 +228,29 @@ export function ExercisePicker({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={dismiss}>
-      <View style={{ flex: 1, backgroundColor: color.scrim, justifyContent: 'flex-end' }}>
-        <View
-          style={{
-            backgroundColor: color.bg,
-            borderTopLeftRadius: radius.xl,
-            borderTopRightRadius: radius.xl,
-            borderTopWidth: 1,
-            borderColor: color.line,
-            paddingTop: space.lg,
-            height: '88%',
-          }}
-        >
-          <Row style={{ paddingHorizontal: space.lg, marginBottom: space.md }}>
+      <View className="flex-1 justify-end" style={{ backgroundColor: SCRIM }}>
+        <View className={cn(SHEET, 'border-border h-[88%] border-t pt-4')}>
+          <Row className="mb-3 px-4">
             <Txt variant="heading">Add exercises</Txt>
             <Pressable onPress={dismiss} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
               <Txt variant="small" tone="t2">Close</Txt>
             </Pressable>
           </Row>
 
-          <View style={{ paddingHorizontal: space.lg, gap: space.md }}>
+          <View className="gap-3 px-4">
             <TextInput
               value={query}
               onChangeText={setQuery}
               placeholder="Search your gym's library"
-              placeholderTextColor={color.t4}
+              placeholderTextColor={PLACEHOLDER}
               accessibilityLabel="Search exercises"
-              style={{
-                height: 46,
-                borderRadius: radius.md,
-                backgroundColor: color.surface2,
-                borderWidth: 1,
-                borderColor: color.line,
-                color: color.t1,
-                paddingHorizontal: space.lg,
-                fontFamily: font,
-                fontSize: 15,
-              }}
+              className="border-border bg-secondary text-foreground h-12 rounded-md border px-4 text-base"
             />
 
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: space.sm, paddingRight: space.lg }}
+              contentContainerClassName="gap-2 pr-4"
             >
               <Chip
                 label="Favourites"
@@ -314,7 +278,7 @@ export function ExercisePicker({
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ gap: space.sm, paddingRight: space.lg }}
+                contentContainerClassName="gap-2 pr-4"
               >
                 <Chip label="All" active={head === null} onPress={() => setHead(null)} />
                 {sections
@@ -335,7 +299,7 @@ export function ExercisePicker({
           </View>
 
           <ScrollView
-            contentContainerStyle={{ padding: space.lg, gap: space.sm, paddingBottom: space.xl }}
+            contentContainerClassName="gap-2 p-4 pb-8"
             keyboardShouldPersistTaps="handled"
           >
             {isLoading ? (
@@ -353,28 +317,30 @@ export function ExercisePicker({
               visibleSections
                 .filter((sec) => sec.list.length > 0)
                 .map((sec) => (
-                  <View key={sec.head.key} style={{ gap: space.sm, marginBottom: space.md }}>
-                    <Row style={{ marginTop: space.sm }}>
-                      <View style={{ flex: 1 }}>
-                        <Row style={{ justifyContent: 'flex-start', gap: space.sm }}>
-                          <Txt variant="label" tone="t3">{sec.head.label}</Txt>
+                  <View key={sec.head.key} className="mb-3 gap-2">
+                    <Row className="mt-2">
+                      <View className="flex-1">
+                        <Row className="justify-start gap-2">
+                          <Txt variant="label" tone="t3">
+                            {sec.head.label}
+                          </Txt>
                           {covered.has(sec.head.key) ? (
-                            <Row style={{ gap: 4, justifyContent: 'flex-start' }}>
+                            <Row className="justify-start gap-1">
                               <Icon name="check" size={12} tone="good" decorative />
-                              <Txt variant="caption" tone="good" style={{ fontWeight: '700' }}>
+                              <Txt variant="caption" tone="good" className="font-semibold">
                                 covered
                               </Txt>
                             </Row>
                           ) : null}
                         </Row>
-                        <Txt variant="caption" tone="t4" style={{ marginTop: 2 }}>
+                        <Txt variant="caption" tone="t4" className="mt-0.5">
                           {sec.head.hint}
                         </Txt>
                       </View>
                     </Row>
                     {sec.list.map((e) =>
                       inSession.has(e.id) ? (
-                        <View key={e.id} style={{ opacity: 0.45 }}>
+                        <View key={e.id} className="opacity-45">
                           <Card>
                             <Row>
                               <Txt variant="bodyStrong">{e.name}</Txt>
@@ -397,7 +363,7 @@ export function ExercisePicker({
             ) : (
               items.map((e) =>
                 inSession.has(e.id) ? (
-                  <View key={e.id} style={{ opacity: 0.45 }}>
+                  <View key={e.id} className="opacity-45">
                     <Card>
                       <Row>
                         <Txt variant="bodyStrong">{e.name}</Txt>
@@ -423,7 +389,7 @@ export function ExercisePicker({
             <Card>
               <Label>New exercise</Label>
               {createError ? (
-                <View style={{ marginTop: space.sm }}>
+                <View className="mt-2">
                   <Notice title="Could not add it" body={createError}
                     onDismiss={() => setCreateError(null)} />
                 </View>
@@ -433,48 +399,34 @@ export function ExercisePicker({
                 onChangeText={setNewName}
                 autoFocus
                 placeholder="Exercise name"
-                placeholderTextColor={color.t4}
+                placeholderTextColor={PLACEHOLDER}
                 accessibilityLabel="New exercise name"
-                style={{
-                  height: 46,
-                  marginTop: space.md,
-                  borderRadius: radius.md,
-                  backgroundColor: color.surface2,
-                  borderWidth: 1,
-                  borderColor: color.line,
-                  color: color.t1,
-                  paddingHorizontal: space.lg,
-                  fontFamily: font,
-                  fontSize: 15,
-                }}
+                className="border-border bg-secondary text-foreground mt-3 h-12 rounded-md border px-4 text-base"
               />
-              <Row style={{ marginTop: space.md }}>
-                <Txt variant="small" tone="t2">Tracked by time, not reps</Txt>
+              <Row className="mt-3">
+                <Txt variant="small" tone="t2">
+                  Tracked by time, not reps
+                </Txt>
                 <Pressable
                   onPress={() => setNewTimed((v) => !v)}
                   accessibilityRole="switch"
                   accessibilityState={{ checked: newTimed }}
                   accessibilityLabel="Track by time"
-                  style={{
-                    width: 46,
-                    height: 28,
-                    borderRadius: radius.pill,
-                    padding: 3,
-                    backgroundColor: newTimed ? color.accent : color.surface2,
-                    borderWidth: 1,
-                    borderColor: newTimed ? color.accent : color.line,
-                    alignItems: newTimed ? 'flex-end' : 'flex-start',
-                  }}
-                >
-                  <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: color.surface }} />
+                  className={cn(
+                    'h-7 w-[46px] rounded-full border p-[3px]',
+                    newTimed
+                      ? 'border-primary bg-primary items-end'
+                      : 'border-border bg-secondary items-start',
+                  )}>
+                  <View className="bg-card h-5 w-5 rounded-full" />
                 </Pressable>
               </Row>
-              <Row style={{ marginTop: space.lg, gap: space.sm }}>
-                <View style={{ flex: 1 }}>
+              <Row className="mt-4 gap-2">
+                <View className="flex-1">
                   <Button title="Cancel" variant="secondary"
                     onPress={() => { setCreating(false); setNewName(''); setCreateError(null); }} />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View className="flex-1">
                   <Button
                     title="Add"
                     loading={createCustom.isPending}
@@ -524,16 +476,10 @@ export function ExercisePicker({
         </ScrollView>
 
           <View
-            style={{
-              padding: space.lg,
-              paddingBottom: insets.bottom + space.lg,
-              borderTopWidth: 1,
-              borderTopColor: color.line,
-              backgroundColor: color.surface,
-            }}
-          >
+            className="border-border bg-card border-t p-4"
+            style={{ paddingBottom: insets.bottom + 16 }}>
             {heads ? (
-              <Txt variant="caption" tone="t3" style={{ marginBottom: space.sm, textAlign: 'center' }}>
+              <Txt variant="caption" tone="t3" className="mb-2 text-center">
                 {covered.size === heads.length
                   ? `All ${heads.length} heads covered — that is a complete ${muscle} session.`
                   : `${covered.size} of ${heads.length} covered · missing ${heads
@@ -564,21 +510,14 @@ export function ExercisePicker({
         transparent
         onRequestClose={() => setInfoId(null)}
       >
-        <View style={{ flex: 1, backgroundColor: color.scrim, justifyContent: 'flex-end' }}>
+        <View className="flex-1 justify-end" style={{ backgroundColor: SCRIM }}>
           <View
-            style={{
-              backgroundColor: color.bg,
-              borderTopLeftRadius: radius.xl,
-              borderTopRightRadius: radius.xl,
-              paddingTop: space.lg,
-              paddingBottom: insets.bottom + space.lg,
-              maxHeight: '70%',
-            }}
-          >
-            <Row style={{ paddingHorizontal: space.lg, marginBottom: space.md }}>
-              <View style={{ flex: 1, paddingRight: space.md }}>
+            className={cn(SHEET, 'max-h-[70%] pt-4')}
+            style={{ paddingBottom: insets.bottom + 16 }}>
+            <Row className="mb-3 px-4">
+              <View className="flex-1 pr-3">
                 <Txt variant="heading">{detail?.name ?? 'Exercise'}</Txt>
-                <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>
+                <Txt variant="caption" tone="t3" className="mt-0.5">
                   {[detail?.muscleGroup, detail?.equipment].filter(Boolean).join(' · ')}
                 </Txt>
               </View>
@@ -591,22 +530,16 @@ export function ExercisePicker({
                 <Txt variant="small" tone="t2">Close</Txt>
               </Pressable>
             </Row>
-            <ScrollView contentContainerStyle={{ paddingHorizontal: space.lg }}>
+            <ScrollView contentContainerClassName="px-4">
               {detail?.mediaUrl ? (
                 <Image
                   source={{ uri: detail.mediaUrl }}
-                  style={{
-                    width: '100%',
-                    height: 180,
-                    borderRadius: radius.lg,
-                    backgroundColor: color.surface2,
-                    marginBottom: space.lg,
-                  }}
+                  className="bg-secondary mb-4 h-[180px] w-full rounded-lg"
                   resizeMode="contain"
                   accessibilityLabel={`${detail.name} demonstration`}
                 />
               ) : null}
-              <Txt variant="body" tone="t2" style={{ lineHeight: 23 }}>
+              <Txt variant="body" tone="t2" className="leading-relaxed">
                 {detail?.instructions ?? 'No instructions recorded for this exercise.'}
               </Txt>
             </ScrollView>
