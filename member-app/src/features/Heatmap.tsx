@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Txt } from '../ui';
-import { color, radius } from '../ui/theme';
+import { chart } from '../ui/chart-colors';
 import { decodePolyline, projectRoutes, routePath } from '../lib/route';
 import { TileLayer } from './TileLayer';
 
@@ -21,7 +21,7 @@ import { TileLayer } from './TileLayer';
 export function Heatmap({
   polylines,
   height = 320,
-  tint = color.accent,
+  tint = chart.accent,
   map = false,
 }: {
   polylines: string[];
@@ -44,15 +44,12 @@ export function Heatmap({
     [tracks, width, height],
   );
 
-  const frame = {
-    height,
-    borderRadius: radius.md,
-    backgroundColor: color.surface2,
-    overflow: 'hidden' as const,
-  };
+  // Height is a prop, so the frame keeps an inline style; everything flat
+  // about it is a class.
+  const FRAME = 'bg-secondary overflow-hidden rounded-md';
 
   if (!projected) {
-    return <View onLayout={onLayout} style={frame} />;
+    return <View onLayout={onLayout} className={FRAME} style={{ height }} />;
   }
 
   /*
@@ -64,7 +61,7 @@ export function Heatmap({
   const alpha = Math.max(0.06, Math.min(0.5, 8 / Math.max(1, projected.paths.length)));
 
   return (
-    <View onLayout={onLayout} style={frame}>
+    <View onLayout={onLayout} className={FRAME} style={{ height }}>
       {map && <TileLayer frame={projected.frame} />}
       <Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
         {projected.paths.map((pts, i) => (
@@ -81,7 +78,7 @@ export function Heatmap({
         ))}
       </Svg>
       {projected.clipped > 0 && (
-        <View style={{ position: 'absolute', left: 8, bottom: 6 }}>
+        <View className="absolute bottom-1.5 left-2">
           <Txt variant="caption" tone="t3">
             {projected.clipped} {projected.clipped === 1 ? 'route is' : 'routes are'} outside this area
           </Txt>

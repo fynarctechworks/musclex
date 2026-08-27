@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Line, Path, Rect } from 'react-native-svg';
 import { Txt } from '../ui';
-import { color, space } from '../ui/theme';
+import { chart } from '../ui/chart-colors';
 import type { FormPoint } from '../api/types';
 
 /**
@@ -78,23 +78,23 @@ export function FormChart({ series, height = 150 }: { series: FormPoint[]; heigh
               y={H - pad - (p.load / loadMax) * (H * 0.25)}
               width={barW}
               height={(p.load / loadMax) * (H * 0.25)}
-              fill={color.t4}
+              fill={chart.ink4}
               opacity={0.35}
             />
           ) : null,
         )}
         {showZero && (
-          <Line x1={pad} y1={zeroY} x2={W - pad} y2={zeroY} stroke={color.t4} strokeWidth={1} strokeDasharray="3 3" />
+          <Line x1={pad} y1={zeroY} x2={W - pad} y2={zeroY} stroke={chart.ink4} strokeWidth={1} strokeDasharray="3 3" />
         )}
-        <Path d={path((p) => p.fatigue)} stroke={color.accent} strokeWidth={2} fill="none" />
-        <Path d={path((p) => p.fitness)} stroke={color.water} strokeWidth={2} fill="none" />
-        <Path d={path((p) => p.form)} stroke={color.good} strokeWidth={2} fill="none" strokeDasharray="4 3" />
+        <Path d={path((p) => p.fatigue)} stroke={chart.accent} strokeWidth={2} fill="none" />
+        <Path d={path((p) => p.fitness)} stroke={chart.water} strokeWidth={2} fill="none" />
+        <Path d={path((p) => p.form)} stroke={chart.good} strokeWidth={2} fill="none" strokeDasharray="4 3" />
       </Svg>
-      <View style={{ flexDirection: 'row', gap: space.md, marginTop: space.sm, flexWrap: 'wrap' }}>
-        <Key tint={color.water} label="Fitness" />
-        <Key tint={color.accent} label="Fatigue" />
-        <Key tint={color.good} label="Form" />
-        <Key tint={color.t4} label="Daily load" />
+      <View className="mt-2 flex-row flex-wrap gap-3">
+        <Key tint={chart.water} label="Fitness" />
+        <Key tint={chart.accent} label="Fatigue" />
+        <Key tint={chart.good} label="Form" />
+        <Key tint={chart.ink4} label="Daily load" />
       </View>
     </View>
   );

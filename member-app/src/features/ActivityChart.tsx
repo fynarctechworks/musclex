@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Path, Line } from 'react-native-svg';
 import { Txt } from '../ui';
-import { color, space } from '../ui/theme';
+import { accentAlpha, chart } from '../ui/chart-colors';
 
 /**
  * One recorded series against distance.
@@ -18,7 +18,7 @@ export function ActivityChart({
   values,
   distanceM,
   height = 110,
-  tint = color.accent,
+  tint = chart.accent,
   /** Pace reads better inverted — faster is up, which is what people expect. */
   invert = false,
   fill = false,
@@ -72,7 +72,7 @@ export function ActivityChart({
     <View onLayout={onLayout}>
       <Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
         <Line x1={pad} y1={height - pad} x2={width - pad} y2={height - pad}
-          stroke={color.line} strokeWidth={1} />
+          stroke={chart.line} strokeWidth={1} />
         {fill &&
           runs.map((d, i) => (
             <Path key={`f${i}`} d={`${d} L${width - pad},${height - pad} L${pad},${height - pad} Z`}
@@ -115,14 +115,14 @@ export function Splits({
   const span = slowest - fastest || 1;
 
   return (
-    <View style={{ gap: space.sm }}>
+    <View className="gap-2">
       {splits.map((s) => {
         // Faster split → longer bar.
         const t = s.complete && s.pacePerKm > 0 ? 1 - (s.pacePerKm - fastest) / span : 0;
         const pct = 20 + t * 80;
         const best = s.complete && s.pacePerKm === fastest && paces.length > 1;
         return (
-          <View key={s.index} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+          <View key={s.index} className="flex-row items-center gap-2">
             <Txt variant="caption" tone="t3" style={{ width: 26 }}>
               {s.complete ? s.index : `${(s.distanceM / 1000).toFixed(2)}`}
             </Txt>
@@ -132,7 +132,7 @@ export function Splits({
                   width: `${pct}%`,
                   height: 18,
                   borderRadius: 4,
-                  backgroundColor: best ? color.accent : color.accentSoft,
+                  backgroundColor: best ? chart.accent : accentAlpha(0.07),
                   opacity: s.complete ? 1 : 0.4,
                 }}
               />
@@ -169,12 +169,12 @@ export function ZoneBars({
 
   // Zone 1 cool to zone 5 hot. Deliberately not the app accent alone: the
   // point of the chart is telling the bands apart at a glance.
-  const TINTS = [color.water, color.good, color.warn, color.accent, color.accentText];
+  const TINTS = [chart.water, chart.good, chart.warn, chart.accent, '#9f0712'];
 
   return (
-    <View style={{ gap: space.sm }}>
+    <View className="gap-2">
       {[...zones].reverse().map((z) => (
-        <View key={z.zone} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+        <View key={z.zone} className="flex-row items-center gap-2">
           <Txt variant="caption" tone="t3" style={{ width: 62 }}>{z.name}</Txt>
           <View style={{ flex: 1, height: 16, justifyContent: 'center' }}>
             <View
@@ -182,7 +182,7 @@ export function ZoneBars({
                 width: `${Math.max(1, (z.seconds / longest) * 100)}%`,
                 height: 16,
                 borderRadius: 4,
-                backgroundColor: TINTS[z.zone - 1] ?? color.accent,
+                backgroundColor: TINTS[z.zone - 1] ?? chart.accent,
                 opacity: z.seconds > 0 ? 1 : 0.15,
               }}
             />

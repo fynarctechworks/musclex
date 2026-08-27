@@ -2,7 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import { Txt } from '../ui';
-import { color, space } from '../ui/theme';
+import { accentAlpha, chart } from '../ui/chart-colors';
 import { MIRROR_X, REGIONS, regionTotals, shade, type Side } from '../lib/body-map';
 
 /**
@@ -18,12 +18,15 @@ import { MIRROR_X, REGIONS, regionTotals, shade, type Side } from '../lib/body-m
  * if you know what somebody actually lifted.
  */
 
+/* Five steps from untouched to hardest-worked. The middle three are the accent
+   at rising alpha, so the ramp is one hue getting stronger rather than a
+   sequence of unrelated colours. */
 const FILL = [
-  color.surface2,
-  'rgba(225,6,0,0.18)',
-  'rgba(225,6,0,0.36)',
-  'rgba(225,6,0,0.62)',
-  color.accent,
+  chart.track,
+  accentAlpha(0.18),
+  accentAlpha(0.36),
+  accentAlpha(0.62),
+  chart.accent,
 ] as const;
 
 export function BodyMap({ byMuscle }: { byMuscle: { muscle: string; sets: number }[] }) {
@@ -31,15 +34,15 @@ export function BodyMap({ byMuscle }: { byMuscle: { muscle: string; sets: number
   const max = Math.max(0, ...totals.values());
 
   return (
-    <View style={{ flexDirection: 'row', gap: space.lg, justifyContent: 'center' }}>
+    <View className="flex-row justify-center gap-4">
       {(['front', 'back'] as Side[]).map((side) => (
-        <View key={side} style={{ alignItems: 'center', flex: 1 }}>
+        <View key={side} className="flex-1 items-center">
           <Svg viewBox="0 0 100 220" width="100%" height={220}>
             {/* Head and torso outline, so the shapes read as a body rather
                 than a bar chart standing up. */}
-            <Rect x={40} y={8} width={20} height={24} rx={10} fill={color.surface2} />
-            <Rect x={22} y={38} width={56} height={78} rx={14} fill={color.surface2} />
-            <Rect x={28} y={116} width={44} height={92} rx={16} fill={color.surface2} />
+            <Rect x={40} y={8} width={20} height={24} rx={10} fill={chart.track} />
+            <Rect x={22} y={38} width={56} height={78} rx={14} fill={chart.track} />
+            <Rect x={28} y={116} width={44} height={92} rx={16} fill={chart.track} />
 
             {REGIONS.filter((r) => r.side === side).map((r) => {
               const fill = FILL[shade(totals.get(r.key) ?? 0, max)];
@@ -63,7 +66,7 @@ export function BodyMap({ byMuscle }: { byMuscle: { muscle: string; sets: number
               );
             })}
           </Svg>
-          <Txt variant="caption" tone="t3" style={{ marginTop: space.xs }}>
+          <Txt variant="caption" tone="t3" className="mt-1">
             {side === 'front' ? 'Front' : 'Back'}
           </Txt>
         </View>

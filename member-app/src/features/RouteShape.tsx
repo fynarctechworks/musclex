@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { Txt } from '../ui';
-import { color, radius, space } from '../ui/theme';
+import { chart } from '../ui/chart-colors';
 import { MIN_SHAPE_POINTS, decodePolyline, projectRoute, routePath } from '../lib/route';
 import { TileLayer } from './TileLayer';
 
@@ -23,7 +23,7 @@ export function RouteShape({
   polyline,
   height = 160,
   showEnds = true,
-  tint = color.accent,
+  tint = chart.accent,
   map = false,
 }: {
   polyline: string | null | undefined;
@@ -55,8 +55,8 @@ export function RouteShape({
 
   const frame = {
     height,
-    borderRadius: radius.md,
-    backgroundColor: color.surface2,
+    borderRadius: 11,
+    backgroundColor: chart.track,
     overflow: 'hidden' as const,
   };
 
@@ -86,14 +86,14 @@ export function RouteShape({
       <Svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
         {/* A wider, paler stroke under the line reads as a casing and keeps
             the route legible where it crosses itself. */}
-        <Path d={d} stroke={color.surface} strokeWidth={5} fill="none"
+        <Path d={d} stroke={chart.surface} strokeWidth={5} fill="none"
           strokeLinejoin="round" strokeLinecap="round" />
         <Path d={d} stroke={tint} strokeWidth={2.5} fill="none"
           strokeLinejoin="round" strokeLinecap="round" />
         {showEnds && (
           <>
-            <Circle cx={start.x} cy={start.y} r={4} fill={color.good} stroke={color.surface} strokeWidth={1.5} />
-            <Circle cx={end.x} cy={end.y} r={4} fill={tint} stroke={color.surface} strokeWidth={1.5} />
+            <Circle cx={start.x} cy={start.y} r={4} fill={chart.good} stroke={chart.surface} strokeWidth={1.5} />
+            <Circle cx={end.x} cy={end.y} r={4} fill={tint} stroke={chart.surface} strokeWidth={1.5} />
           </>
         )}
       </Svg>

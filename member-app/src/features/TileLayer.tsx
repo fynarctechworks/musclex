@@ -1,6 +1,6 @@
 import { Image, View } from 'react-native';
 import { Txt } from '../ui';
-import { color } from '../ui/theme';
+import { chart } from '../ui/chart-colors';
 import { TILE_ATTRIBUTION, tilesFor } from '../lib/tiles';
 import type { ViewFrame } from '../lib/route';
 
@@ -35,7 +35,7 @@ export function TileLayer({ frame, dim = true }: { frame: ViewFrame; dim?: boole
       ))}
       {/* Streets are busy. A wash over the map keeps the route the brightest
           thing in the frame without hiding what is underneath it. */}
-      {dim && <View style={{ ...StyleSheetAbsolute, backgroundColor: color.surface, opacity: 0.35 }} />}
+      {dim && <View style={{ ...StyleSheetAbsolute, backgroundColor: chart.surface, opacity: 0.35 }} />}
       <View style={{ position: 'absolute', right: 4, bottom: 2 }}>
         {/* Attribution is a licence condition of every tile provider worth
             using, so it is rendered by the layer itself rather than left to
