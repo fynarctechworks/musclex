@@ -415,3 +415,51 @@ These no longer need you. Kept as a record of what changed.
   permission and then misread it as an app bug. Exact matches now win.
 - **The Tools-bubble collision** is now only a nuisance for automation, not for
   users; it is a dev-client overlay and does not exist in a release build.
+
+---
+
+# Member-app redesign — autonomous session, 2026-08-28
+
+Appended below the staff-app notes above, which I very nearly destroyed by
+overwriting this file — restored from git, nothing lost. Session detail lives in
+`docs/MEMBER_APP_REDESIGN_LOG.md`; only things needing YOU are repeated here.
+
+## Waiting on you
+
+### M1. Routine-schedule migration is still unapplied in production
+`backend/prisma/manual-migrations/2026-08-28-routine-schedule.sql` is on the
+LOCAL dev DB only. Rehearsed against prod and rolled back; idempotent, proven by
+running it twice in one transaction. Untouched per your instruction and
+CLAUDE.md #1. The feature works locally and will 500 in prod until this runs.
+
+### M2. Gym-less (app_user) schedule service is undesigned
+`app_user_routine_schedule` has a table but no service, so a member with no gym
+cannot schedule. Hooks are gated on `hasGym` — that gate is the one place to
+change. Not designed: you told me not to lock in scheduling *behaviour*, and the
+open questions are behavioural (does an independent user get the same missed-day
+shift? the same week model?). No code written.
+
+### M3. The three dead tab routes — deletable, but ONE has a live link
+
+Correcting myself: I first wrote that `(tabs)/index.tsx` imports `OccupancyCard`
+from `./gym`. That is backwards. `gym.tsx` imports it FROM `index.tsx`, so
+nothing depends on gym.tsx at all.
+
+Where each actually stands (all three are `href: null`, so none is reachable as
+a tab):
+
+| File | Safe to delete? |
+|---|---|
+| `app/(tabs)/gym.tsx` (221) | **Yes.** Nothing imports it. Its one dependency points the other way. |
+| `app/(tabs)/me.tsx` (196) | **Yes.** Nothing imports it, nothing links to `/me`. |
+| `app/(tabs)/progress.tsx` (283) | **No — not yet.** `(tabs)/you.tsx:32` links to `/progress`, so the route still resolves and a member tapping "Progress" in You lands on it. Deleting it breaks that row. |
+
+These three are also the ONLY remaining importers of `src/ui/theme.ts`. Delete
+gym + me and the old theme module has one caller left; sort out `/progress` and
+it can go entirely.
+
+**Still not deleted** — deletion is irreversible and you asked to confirm
+(CLAUDE.md #6). The decision on `/progress` is genuinely yours: either that
+screen gets redesigned and kept, or the You row goes and the screen with it.
+That is a product call about whether members get a progress screen, not a
+cleanup task.
