@@ -38,7 +38,15 @@
   self-contained follow-up, not a silent extra dependency.
 */
 @theme {
-  --color-background: #ffffff;
+  /*
+    DEVIATION FROM THE PRESET, deliberate. bKsI1x32 ships background and card
+    both at #ffffff. This app is built out of cards, and a white card on a white
+    canvas can only be held by its border — which reads as an outlined box, not
+    a surface, and is one of the things the old design already got wrong.
+    #fafaf9 is stone-50, so the palette stays the preset's own; it is the single
+    token we move away from it.
+  */
+  --color-background: #fafaf9;
   --color-foreground: #0c0a09;
 
   --color-card: #ffffff;
@@ -89,6 +97,27 @@
   --color-carbs: #b45309;
   --color-fat: #7c3aed;
   --color-water: #0276b3;
+
+  /*
+    Inter, per the preset. React Native registers each weight as a separate
+    family, so --font-sans alone cannot carry bold — a `font-bold` class sets
+    the weight but leaves the family on Regular, and iOS then fakes the bold by
+    smearing the glyphs. The three extra families below exist so a heading can
+    name the real cut: font-medium-face / font-semibold-face / font-bold-face.
+    Named with a -face suffix deliberately: font-medium and font-bold are
+    Tailwind's own WEIGHT utilities and must not be shadowed.
+
+    WHEN TO USE WHICH. Compared side by side on device at 24pt, iOS's synthetic
+    bold and the real cut are very close — close enough that patching all 21
+    RNR components to name a family is not worth it, and they keep using plain
+    font-semibold / font-bold. Reach for a -face family on DISPLAY type only:
+    screen titles and the big numbers, where the text is large enough for the
+    difference to show and important enough to be worth naming.
+  */
+  --font-sans: Inter_400Regular;
+  --font-medium-face: Inter_500Medium;
+  --font-semibold-face: Inter_600SemiBold;
+  --font-bold-face: Inter_700Bold;
 
   /* Radius ladder derived exactly as the preset derives it from --radius:
      0.875rem = 14px, times 0.6 / 0.8 / 1 / 1.4 / 1.8, rounded to whole px

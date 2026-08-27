@@ -8,6 +8,13 @@ import { AppState, View } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PortalHost } from '@rn-primitives/portal';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  useFonts,
+} from '@expo-google-fonts/inter';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
@@ -121,6 +128,21 @@ function Gate({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  /*
+    Inter is what the design system specifies. React Native has no variable-font
+    story here, so each weight registers as its own family — the names below are
+    what --font-sans and the weight tokens in src/global.css point at.
+
+    Rendering is held until they resolve. A frame of the system face followed by
+    a swap is the single most obvious "unfinished app" tell there is, and this
+    screen already waits on the session restore anyway.
+  */
+  const [fontsReady] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
   const [booted, setBooted] = useState(false);
   const [authed, setAuthed] = useState(false);
 
@@ -150,7 +172,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <StatusBar style="dark" />
         <View style={{ flex: 1, backgroundColor: color.bg }}>
-          {booted ? (
+          {booted && fontsReady ? (
             <SessionProvider initialAuthed={authed}>
               <Gate>
                 <Slot />

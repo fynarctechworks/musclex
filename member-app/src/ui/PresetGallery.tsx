@@ -107,9 +107,9 @@ export function PresetGallery() {
         </Text>
       </View>
 
-      <Section title="Surfaces" hint="background and card are both pure white in this preset — a card is held by its border, not its tone.">
+      <Section title="Surfaces" hint="card is white on a stone-50 canvas — the one token we moved off the preset, so cards read as surfaces rather than outlined boxes.">
         <Grid>
-          <Cell><Swatch className="bg-background" name="background" hex="#ffffff" border /></Cell>
+          <Cell><Swatch className="bg-background" name="background" hex="#fafaf9" /></Cell>
           <Cell><Swatch className="bg-card" name="card" hex="#ffffff" border /></Cell>
           <Cell><Swatch className="bg-popover" name="popover" hex="#ffffff" border /></Cell>
           <Cell><Swatch className="bg-secondary" name="secondary" hex="#f4f4f5" /></Cell>

@@ -43,7 +43,10 @@ function DialogOverlay({
     <FullWindowOverlay>
       <DialogPrimitive.Overlay
         className={cn(
-          'absolute bottom-0 left-0 right-0 top-0 z-50 flex items-center justify-center bg-black/50 p-2',
+          // p-6, not the registry's p-2: at 8pt the card lands 404pt wide on a
+          // 420pt screen, which is wider than any iOS alert and reads as a
+          // takeover rather than a dialog.
+          'absolute bottom-0 left-0 right-0 top-0 z-50 flex items-center justify-center bg-black/50 p-6',
           Platform.select({
             web: 'animate-in fade-in-0 fixed cursor-default [&>*]:cursor-auto',
           }),
