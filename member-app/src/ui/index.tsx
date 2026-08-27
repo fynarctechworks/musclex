@@ -350,4 +350,69 @@ export function RowLink({
   );
 }
 
+/** One row in a LinkGroup. `href` is passed straight back to the caller's router. */
+export interface LinkEntry {
+  icon: IconName;
+  label: string;
+  hint?: string;
+  href: string;
+}
+
+/**
+ * A titled group of links, optionally with an action on the right of its
+ * heading. Train, Community and You each had their own copy of this — same
+ * markup, three chances to drift.
+ *
+ * The heading sits OUTSIDE the card. A group is not itself a surface, and
+ * putting its title inside meant every list started with a line of scaffolding
+ * where its first real row should be.
+ */
+export function LinkGroup({
+  title,
+  entries,
+  onGo,
+  action,
+  onAction,
+  actionLabel,
+}: {
+  title: string;
+  entries: LinkEntry[];
+  onGo: (href: string) => void;
+  action?: string;
+  onAction?: () => void;
+  actionLabel?: string;
+}) {
+  if (entries.length === 0) return null;
+  return (
+    <View>
+      <Row className="mb-2">
+        <Label>{title}</Label>
+        {action && onAction ? (
+          <Pressable
+            onPress={onAction}
+            accessibilityRole="button"
+            accessibilityLabel={actionLabel ?? action}
+            hitSlop={10}>
+            <Txt variant="caption" tone="t3">
+              {action} ›
+            </Txt>
+          </Pressable>
+        ) : null}
+      </Row>
+      <ListCard>
+        {entries.map((e, i) => (
+          <RowLink
+            key={e.href + e.label}
+            icon={e.icon}
+            label={e.label}
+            hint={e.hint}
+            first={i === 0}
+            onPress={() => onGo(e.href)}
+          />
+        ))}
+      </ListCard>
+    </View>
+  );
+}
+
 export { Icon, type IconName } from './Icon';

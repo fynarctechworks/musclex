@@ -2,8 +2,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button, Card, Label, ListCard, Loading, Row, RowLink, Txt } from '../../src/ui';
-import { type IconName } from '../../src/ui/Icon';
+import { Button, Card, Label, LinkGroup, Loading, Row, Txt, type LinkEntry } from '../../src/ui';
 import { useWho } from '../../src/lib/use-capabilities';
 
 /**
@@ -23,21 +22,15 @@ import { useWho } from '../../src/lib/use-capabilities';
  * should not present it two different ways.
  */
 
-interface Entry {
-  icon: IconName;
-  label: string;
-  hint: string;
-  href: string;
-}
-
 export default function TrainScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const who = useWho();
+  const go = (h: string) => router.push(h as never);
 
   if (who.loading) return <Loading label="Loading" />;
 
-  const yours: Entry[] = [
+  const yours: LinkEntry[] = [
     { icon: 'routine', label: 'My routines', hint: 'Workouts you have saved', href: '/routines' },
     {
       icon: 'exercises',
@@ -56,7 +49,7 @@ export default function TrainScreen() {
   // Only what this member can actually reach. Every one of these 403s without a
   // gym, so an independent user sees this whole group disappear rather than a
   // list of doors that refuse to open.
-  const gym: Entry[] = [
+  const gym: LinkEntry[] = [
     who.can.classBooking && {
       icon: 'classes',
       label: 'Classes',
@@ -81,7 +74,7 @@ export default function TrainScreen() {
       hint: 'Scan at the front desk',
       href: '/scan',
     },
-  ].filter(Boolean) as Entry[];
+  ].filter(Boolean) as LinkEntry[];
 
   return (
     <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
@@ -100,14 +93,10 @@ export default function TrainScreen() {
           <Button title="Start a workout" onPress={() => router.push('/session')} />
         </Card>
 
-        <Group title="Yours" entries={yours} onGo={(h) => router.push(h as never)} />
+        <LinkGroup title="Yours" entries={yours} onGo={go} />
 
         {gym.length > 0 ? (
-          <Group
-            title={who.gymName ?? 'Your gym'}
-            entries={gym}
-            onGo={(h) => router.push(h as never)}
-          />
+          <LinkGroup title={who.gymName ?? 'Your gym'} entries={gym} onGo={go} />
         ) : (
           /*
             Not an error and not a nag. An independent user is a legitimate user
@@ -140,32 +129,3 @@ export default function TrainScreen() {
   );
 }
 
-function Group({
-  title,
-  entries,
-  onGo,
-}: {
-  title: string;
-  entries: Entry[];
-  onGo: (href: string) => void;
-}) {
-  return (
-    <View>
-      <Row className="mb-2">
-        <Label>{title}</Label>
-      </Row>
-      <ListCard>
-        {entries.map((e, i) => (
-          <RowLink
-            key={e.href + e.label}
-            icon={e.icon}
-            label={e.label}
-            hint={e.hint}
-            first={i === 0}
-            onPress={() => onGo(e.href)}
-          />
-        ))}
-      </ListCard>
-    </View>
-  );
-}
