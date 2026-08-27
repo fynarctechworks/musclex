@@ -1,10 +1,10 @@
 import { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, Text, TextProps, View, ViewProps } from 'react-native';
+import { ActivityIndicator, Pressable, TextProps, View, ViewProps } from 'react-native';
 
 import { Button as RnrButton } from '@/components/ui/button';
 import { Text as RnrText } from '@/components/ui/text';
 import { cn } from '@/lib/utils';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -288,6 +288,66 @@ export function Empty({
 
 export function Row({ className, ...rest }: ViewProps & { className?: string }) {
   return <View {...rest} className={cn('flex-row items-center justify-between', className)} />;
+}
+
+/* ── Lists ───────────────────────────────────────────────────── */
+
+/**
+ * A grouped list of links — the single most repeated shape in this app. Train,
+ * You and most of the 48 deep routes are lists of "icon, label, hint, chevron",
+ * and each one used to hand-roll the row, the divider and the pressed state.
+ *
+ * Extracted so they cannot drift: one place decides how tall a row is, how it
+ * responds to a press, and what a divider looks like.
+ */
+export function ListCard({ children, className }: { children: ReactNode; className?: string }) {
+  return <Card className={cn('overflow-hidden p-0', className)}>{children}</Card>;
+}
+
+export function RowLink({
+  icon,
+  label,
+  hint,
+  onPress,
+  first,
+  danger,
+}: {
+  icon: IconName;
+  label: string;
+  hint?: string;
+  onPress: () => void;
+  /** Suppresses the divider on the first row of a group. */
+  first?: boolean;
+  /** For sign-out and the like. Carries a colour AND stays a plain verb. */
+  danger?: boolean;
+}) {
+  return (
+    <View>
+      {first ? null : <View className="bg-border ml-14 h-px" />}
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        // The hint is part of the label, not a separate announcement: read on
+        // its own, "Form cues and your records" gives no idea what it opens.
+        accessibilityLabel={hint ? `${label}. ${hint}` : label}
+        // 56 is above the 44pt minimum with room for two lines of text at
+        // larger Dynamic Type sizes before anything clips.
+        className="min-h-14 flex-row items-center gap-3 px-4 py-3 active:bg-secondary">
+        <Icon name={icon} size={20} tone={danger ? 'accent' : 't2'} decorative />
+        <View className="flex-1">
+          <Txt variant="body" tone={danger ? 'accent' : 't1'}>
+            {label}
+          </Txt>
+          {hint ? (
+            <Txt variant="caption" tone="t3">
+              {hint}
+            </Txt>
+          ) : null}
+        </View>
+        <Icon name="chevron" size={16} tone="t4" decorative />
+      </Pressable>
+    </View>
+  );
 }
 
 export { Icon, type IconName } from './Icon';
