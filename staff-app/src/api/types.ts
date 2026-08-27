@@ -256,6 +256,9 @@ export type Exercise = {
   id: string;
   name: string;
   muscle_group?: string | null;
+  /** The head actually trained — 'front_delt', not just 'shoulders'. */
+  target_muscle?: string | null;
+  secondary_muscles?: string[] | null;
   equipment?: string | null;
   media_url?: string | null;
   instructions?: string | null;

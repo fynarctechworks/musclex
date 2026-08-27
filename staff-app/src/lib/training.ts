@@ -41,6 +41,57 @@ export function describeMuscleGroup(g?: string | null): string {
 }
 
 /**
+ * The muscle head, spelled the way a trainer says it.
+ *
+ * titleiseSlug alone gives "Front Delt" and "Lats", which is close, but the
+ * anatomical names are what a trainer writing a programme actually uses, and
+ * the picker groups by this — so it has to read as the same vocabulary.
+ */
+const TARGET_MUSCLE_LABELS: Record<string, string> = {
+  front_delt: 'Front delts',
+  side_delt: 'Side delts',
+  rear_delt: 'Rear delts',
+  upper_chest: 'Upper chest',
+  mid_chest: 'Mid chest',
+  lower_chest: 'Lower chest',
+  spinal_erectors: 'Spinal erectors',
+  lats: 'Lats',
+  traps: 'Traps',
+  abs: 'Abs',
+  glutes: 'Glutes',
+  quads: 'Quads',
+  hamstrings: 'Hamstrings',
+  calves: 'Calves',
+  biceps: 'Biceps',
+  triceps: 'Triceps',
+  forearms: 'Forearms',
+  adductors: 'Adductors',
+  abductors: 'Abductors',
+  cardiovascular_system: 'Cardio',
+};
+
+export function describeTargetMuscle(m?: string | null): string | null {
+  if (!m) return null;
+  return TARGET_MUSCLE_LABELS[m] ?? titleiseSlug(m, '');
+}
+
+/**
+ * "Core · Abs" — the bucket and the head it actually trains.
+ *
+ * Collapses to just the bucket when the head repeats it, so a cardio movement
+ * does not read "Cardio · Cardio".
+ */
+export function describeMuscle(
+  group?: string | null,
+  target?: string | null,
+): string {
+  const g = describeMuscleGroup(group);
+  const t = describeTargetMuscle(target);
+  if (!t || t.toLowerCase() === g.toLowerCase()) return g;
+  return `${g} · ${t}`;
+}
+
+/**
  * The prescription line: "3 × 10 @ 40kg · 60s rest".
  *
  * Every part is optional because gyms prescribe differently — some set reps

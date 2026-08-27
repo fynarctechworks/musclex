@@ -48,6 +48,12 @@ export class ExercisesService {
           id: true,
           name: true,
           muscle_group: true,
+          // The head the movement actually trains — "front_delt", not just
+          // "shoulders". The catalogue carries it and the picker groups by it,
+          // but the list endpoint was dropping it, so staff only ever saw the
+          // coarse bucket.
+          target_muscle: true,
+          secondary_muscles: true,
           equipment: true,
           media_url: true,
           instructions: true,
