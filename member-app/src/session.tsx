@@ -26,7 +26,25 @@ export function SessionProvider({
   initialAuthed: boolean;
   children: React.ReactNode;
 }) {
+  /*
+    `initialAuthed` SEEDS this state; it does not own it.
+
+    The root layout can remount while the app is running, and it re-runs its
+    session restore when it does. Seeding from a prop alone meant a remount
+    reset a signed-in member back to whatever that restore had last resolved —
+    which, on any device where the keychain refuses a write, is `false`. The
+    member signed in, the layout remounted, and the gate sent them straight
+    back to sign-in: sign-in looked like it silently bounced.
+
+    Signing in is therefore recorded here as well, and a later seed can only
+    ever turn the session ON, never off. Only signOut and a REFUSED refresh end
+    a session — the two places that actually know it is over.
+  */
   const [authed, setAuthed] = useState(initialAuthed);
+
+  useEffect(() => {
+    if (initialAuthed) setAuthed(true);
+  }, [initialAuthed]);
   const qc = useQueryClient();
 
   const signIn = useCallback(

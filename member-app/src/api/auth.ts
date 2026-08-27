@@ -27,6 +27,22 @@ import { otpConfigured, supabase } from './supabase';
  * server has MEMBER_DEV_OTP set.
  */
 
+/**
+ * An in-memory mirror of what SHOULD be in the keychain.
+ *
+ * `put` is allowed to fail — the keychain is genuinely unavailable on a locked
+ * device, after a restore from backup, and in any build whose entitlements are
+ * missing (a plain simulator build is exactly that case). It returns false
+ * rather than throwing, which is right.
+ *
+ * What was wrong was treating that as merely "the session will not survive a
+ * restart". `restoreSession` is called on every mount of the root layout, not
+ * only at launch, so a refused write meant the very next remount read null and
+ * signed the member straight back out — sign-in appeared to bounce. Reading
+ * through to this mirror keeps a refused write costing only what it should.
+ */
+const memory: { access?: string; refresh?: string } = {};
+
 const ACCESS = 'musclex.member.access';
 const REFRESH = 'musclex.member.refresh';
 const TENANT = 'musclex.member.tenant';
@@ -81,6 +97,10 @@ export interface Tokens {
 
 async function persist(tokens: Tokens, tenantId?: string) {
   setToken(tokens.accessToken);
+  // Held regardless of whether the keychain accepts it, so a refused write
+  // costs persistence across a RESTART, never the session in hand.
+  memory.access = tokens.accessToken;
+  if (tokens.refreshToken) memory.refresh = tokens.refreshToken;
   await put(ACCESS, tokens.accessToken);
   if (tokens.refreshToken) await put(REFRESH, tokens.refreshToken);
   if (tenantId) await put(TENANT, tenantId);
@@ -88,7 +108,7 @@ async function persist(tokens: Tokens, tenantId?: string) {
 
 /** Rehydrate on launch. Returns true when a usable session was restored. */
 export async function restoreSession(): Promise<boolean> {
-  const access = await read(ACCESS);
+  const access = (await read(ACCESS)) ?? memory.access;
   if (!access) return false;
   setToken(access);
   return true;
@@ -181,7 +201,7 @@ export { otpConfigured };
  * Returns false when the refresh itself is rejected — that IS a real sign-out.
  */
 export async function refresh(): Promise<boolean> {
-  const refreshToken = await read(REFRESH);
+  const refreshToken = (await read(REFRESH)) ?? memory.refresh;
   if (!refreshToken) return false;
   try {
     const res = await fetch(`${API_BASE}/auth/refresh`, {
@@ -208,6 +228,10 @@ export async function refresh(): Promise<boolean> {
 
 export async function signOut() {
   setToken(null);
+  // The mirror is the session as much as the keychain is; clearing one without
+  // the other would let a signed-out member be restored on the next mount.
+  delete memory.access;
+  delete memory.refresh;
   await Promise.all([put(ACCESS, null), put(REFRESH, null), put(TENANT, null)]);
   // Drop the Supabase session too, or the next sign-in silently reuses the
   // previous person's verified phone.
