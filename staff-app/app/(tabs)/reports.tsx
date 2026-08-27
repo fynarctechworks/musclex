@@ -11,6 +11,7 @@ import { Can } from '@/rbac/Gate';
 import { useFinanceDashboard, useMonthlyReport } from '@/api/queries';
 import { useSession } from '@/auth/SessionProvider';
 import { formatCurrency, formatCurrencyCompact, titleiseSlug } from '@/lib/format';
+import { TabBackRow } from '@/ui/TabBackRow';
 import { tokens } from '@/ui/tokens';
 
 /**
@@ -40,6 +41,7 @@ export default function Reports() {
         module="reports"
         fallback={<EmptyState title="Reports" body="You do not have access to reports." />}>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 16 }}>
+          <TabBackRow tab="reports" />
           <Text className="text-2xl font-semibold text-foreground">Reports</Text>
 
           {finance.isLoading ? (

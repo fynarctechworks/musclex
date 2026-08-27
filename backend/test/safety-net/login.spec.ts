@@ -79,6 +79,8 @@ describe('SAFETY-NET / AuthService.login', () => {
       mockSubPolicy as any,
       mockRazorpay,
       mockEmail,
+      // Exercise catalogue seeding at studio provisioning.
+      { seedDefaults: jest.fn() } as any,
     );
 
     // Replace the real Supabase client with a controllable stub.

@@ -13,6 +13,7 @@ import { Meter } from '@/ui/Meter';
 import { groupSessionsByDay, useSessionsInMonth } from '@/api/queries';
 import { formatDate, formatTime, toLocalISODate } from '@/lib/format';
 import type { ClassSession } from '@/api/types';
+import { TabBackRow } from '@/ui/TabBackRow';
 import { tokens } from '@/ui/tokens';
 
 /**
@@ -41,6 +42,7 @@ export default function Schedule() {
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: tokens.background }}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 16 }}>
+        <TabBackRow tab="schedule" />
         <Text className="text-2xl font-semibold text-foreground">Schedule</Text>
 
         <ScheduleCalendar selected={day} onSelect={setDay} onMonthChange={setMonth} marks={marks} />

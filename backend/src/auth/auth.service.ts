@@ -14,6 +14,7 @@ import { PublicPrismaService } from '../prisma/public-prisma.service';
 import { randomBytes, createCipheriv, createDecipheriv, pbkdf2Sync } from 'crypto';
 import { tenantContext } from '../common/tenant-context';
 import { EmailService } from '../email/email.service';
+import { ExercisesService } from '../plans/exercises.service';
 import { EmailTemplateId } from '../email/email.types';
 import {
   LoginDto,
@@ -80,6 +81,7 @@ export class AuthService {
     private subscriptionPolicy: SubscriptionPolicyService,
     private razorpay: RazorpayService,
     private emailService: EmailService,
+    private exercises: ExercisesService,
   ) {
     this.supabase = createClient(
       this.configService.get<string>('SUPABASE_URL', ''),
@@ -1512,6 +1514,33 @@ export class AuthService {
       } catch (e) {
         this.logger.warn(`Organization creation in tenant schema: ${e}`);
       }
+    }
+
+    /*
+     * Seed the exercise catalogue.
+     *
+     * A new gym used to open with an EMPTY exercise library, because
+     * `POST /exercises/seed-defaults` existed but nothing ever called it —
+     * seeding was a manual step that only somebody who knew about the endpoint
+     * would take. The result is a Training tab with nothing in it and a member
+     * app that looks broken on day one, which is exactly what the demo gym
+     * created for App Review did.
+     *
+     * Deliberately non-fatal: a gym with no exercises is a poor first run, but
+     * a gym that fails to provision because a catalogue insert hiccuped is
+     * worse. The endpoint stays, and is idempotent, so this can be re-run.
+     */
+    try {
+      // gymId is the THIRD argument and is mandatory — runInTenantContext
+      // throws without it rather than deriving it from the schema name.
+      // Omitting it made the seed fail silently into the catch below.
+      await this.runInTenantContext(
+        schemaName,
+        () => this.exercises.seedDefaults(),
+        studio.id,
+      );
+    } catch (e) {
+      this.logger.warn(`Exercise catalogue seed skipped for ${schemaName}: ${e}`);
     }
 
     // Set up user metadata — advance to next onboarding step

@@ -5,6 +5,7 @@ import { AuthService } from '../../src/auth/auth.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { PublicPrismaService } from '../../src/prisma/public-prisma.service';
 import { EmailService } from '../../src/email/email.service';
+import { ExercisesService } from '../../src/plans/exercises.service';
 import { TenantPrisma } from '../../src/prisma/tenant-prisma.accessor';
 import { AuthIdentityService } from '../../src/auth/auth-identity.service';
 import { AuthDeviceService } from '../../src/auth/auth-device.service';
@@ -115,6 +116,9 @@ describe('AuthService', () => {
         { provide: RazorpayService, useValue: mockRazorpayService },
         // AuthService now sends verification/welcome mail.
         { provide: EmailService, useValue: { send: jest.fn(), sendRaw: jest.fn() } },
+        // AuthService seeds the exercise catalogue when a studio is provisioned,
+        // so a new gym does not open with an empty Training tab.
+        { provide: ExercisesService, useValue: { seedDefaults: jest.fn() } },
       ],
     }).compile();
 

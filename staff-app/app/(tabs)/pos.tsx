@@ -20,6 +20,7 @@ import { useSession } from '@/auth/SessionProvider';
 import { useToast } from '@/ui/Toast';
 import { formatCurrency, toAmount } from '@/lib/format';
 import type { Product } from '@/api/types';
+import { TabBackRow } from '@/ui/TabBackRow';
 import { tokens } from '@/ui/tokens';
 
 type PayMethod = 'cash' | 'card' | 'upi';
@@ -100,6 +101,7 @@ export default function Pos() {
         action="create"
         fallback={<EmptyState title="Not available" body="Your role does not include selling." />}>
         <View className="gap-3 px-4 pb-3 pt-2">
+          <TabBackRow tab="pos" />
           <Text className="text-2xl font-semibold text-foreground">Shop</Text>
           <Input
             value={search}

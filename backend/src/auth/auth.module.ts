@@ -18,6 +18,7 @@ import { AuthApiKeyController } from './auth-api-key.controller';
 import { TwoFactorService } from './two-factor.service';
 import { TwoFactorController, TwoFactorRecoveryController } from './two-factor.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { PlansModule } from '../plans/plans.module';
 import { SccSyncService } from '../common/services/scc-sync.service';
 import { RazorpayService } from '../payments/razorpay.service';
 
@@ -26,6 +27,8 @@ import { RazorpayService } from '../payments/razorpay.service';
   imports: [
     PrismaModule,
     EventEmitterModule,
+    // AuthService seeds the exercise catalogue when a studio is provisioned.
+    PlansModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

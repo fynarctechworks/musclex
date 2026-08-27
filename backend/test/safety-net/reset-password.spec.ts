@@ -29,6 +29,8 @@ describe('SAFETY-NET / AuthService.resetPassword', () => {
       { emit: noop } as any,
       stub, stub, stub,
       { send: jest.fn() } as any,
+      // Exercise catalogue seeding at studio provisioning.
+      { seedDefaults: jest.fn() } as any,
     );
 
     mockSupabase = {

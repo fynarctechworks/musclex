@@ -18,6 +18,7 @@ import { callNumber } from '@/lib/contact';
 import { formatRelative, titleiseSlug } from '@/lib/format';
 import { describeLeadStatus, leadVariant, nextStatus } from '@/lib/leads';
 import type { Lead } from '@/api/types';
+import { TabBackRow } from '@/ui/TabBackRow';
 import { tokens } from '@/ui/tokens';
 
 /**
@@ -74,6 +75,7 @@ export default function Marketing() {
       <SafeAreaView edges={[]} style={{ flex: 1, backgroundColor: tokens.background }}>
         <Can module="marketing">
           <View className="gap-3 px-4 pb-3 pt-3">
+            <TabBackRow tab="marketing" />
             {funnel.data ? (
               <View className="flex-row gap-3">
                 <View className="flex-1">

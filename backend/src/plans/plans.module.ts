@@ -16,6 +16,6 @@ import { ExercisesService } from './exercises.service';
   imports: [PrismaModule],
   controllers: [WorkoutPlansController, DietPlansController, ExercisesController],
   providers: [WorkoutPlansService, DietPlansService, StaffResolverService, ExercisesService],
-  exports: [WorkoutPlansService, DietPlansService],
+  exports: [WorkoutPlansService, DietPlansService, ExercisesService],
 })
 export class PlansModule {}
