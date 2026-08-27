@@ -24,19 +24,34 @@ const { join } = require('path') as { join: (...parts: string[]) => string };
 const root = join(__dirname, '..', '..', '..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
 
+import { ICON_SYMBOLS } from '../Icon';
+
 describe('the icon set', () => {
-  it('maps every semantic name to a different vendor glyph', () => {
-    const src = read('src/ui/Icon.tsx');
-    const block = src.slice(src.indexOf('const GLYPHS = {'), src.indexOf('} as const;'));
-    const pairs = [...block.matchAll(/^ {2}([a-zA-Z]+):\s*([A-Za-z0-9_]+),/gm)];
+  // Reads the exported map rather than parsing the source, which is what broke
+  // this test when the icons moved from Iconsax components to SF Symbol names:
+  // the assertion is about the mapping, not about how the file is written.
+  it('maps every semantic name to a different symbol', () => {
+    const pairs = Object.entries(ICON_SYMBOLS);
     expect(pairs.length).toBeGreaterThan(30);
 
     const byGlyph = new Map<string, string[]>();
-    for (const [, name, glyph] of pairs) {
+    for (const [name, glyph] of pairs) {
       byGlyph.set(glyph, [...(byGlyph.get(glyph) ?? []), name]);
     }
     const shared = [...byGlyph.entries()].filter(([, names]) => names.length > 1);
     expect(shared).toEqual([]);
+  });
+
+  // Every symbol is a real one. A name that does not exist in SF Symbols
+  // renders an empty view rather than failing, so a typo here is invisible on
+  // device until someone notices a hole in a row.
+  it('uses only well-formed SF Symbol names', () => {
+    for (const symbol of Object.values(ICON_SYMBOLS)) {
+      expect(symbol).toMatch(/^[a-z0-9]+(\.[a-z0-9]+)*$/);
+      // A .fill is selected by the `filled` prop against HAS_FILL, never named
+      // here — a name ending in .fill would have no outline state at all.
+      expect(symbol).not.toMatch(/\.fill$/);
+    }
   });
 });
 

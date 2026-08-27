@@ -1,126 +1,115 @@
-import {
-  Activity,
-  Add,
-  ArrowRight2,
-  Award,
-  Book1,
-  Calendar,
-  Card,
-  Chart2,
-  Clock,
-  Cup,
-  Danger,
-  Drop,
-  Flash,
-  Health,
-  Home2,
-  InfoCircle,
-  CalendarTick,
-  ClipboardText,
-  ClipboardTick,
-  Flag,
-  Gallery,
-  Global,
-  ImportCurve,
-  Like1,
-  Location,
-  Lock1,
-  LogoutCurve,
-  Medal,
-  MessageText1,
-  Note1,
-  People,
-  Profile,
-  Refresh,
-  Ruler,
-  ScanBarcode,
-  MedalStar,
-  Chart1,
-  Rank,
-  SearchNormal1,
-  Star1,
-  TickCircle,
-  Weight,
-} from 'iconsax-react-native';
-import { View } from 'react-native';
-import { color } from './theme';
+import { Platform, View } from 'react-native';
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 
 /**
- * Semantic icon layer over Iconsax.
+ * ────────────────────────────────────────────────────────────────
+ * ICONS — SF Symbols
+ * ────────────────────────────────────────────────────────────────
  *
- * Screens name what an icon MEANS, never which vendor glyph it is, so swapping
- * icon sets is one file rather than thirty. Iconsax's `variant` is fixed per
- * usage here: filled for the active tab, outline everywhere else, because
- * mixing weights in one row is what makes an icon set look assembled rather
- * than chosen.
+ * Screens name what an icon MEANS, never which glyph it is, so the vendor is a
+ * single file rather than thirty. That layer is why moving off Iconsax onto
+ * Apple's own set touched no screen at all.
+ *
+ * SF Symbols are drawn by the system rather than shipped as an icon font, so
+ * they carry the platform's optical sizing and weight, they align on the text
+ * baseline the way a native app's do, and they follow whatever Apple ships next
+ * without a bundle change. Nothing in an icon font can match that on iOS.
+ *
+ * Every name below was checked against the catalogue in SF Symbols 8.0 —
+ * `symbols_with_enhanced_keywords.plist` inside the app bundle — rather than
+ * guessed. Two first choices did not survive that check: there is no `whistle`
+ * for a coach and no `rosette` for a plan.
+ *
+ * ONE GLYPH, ONE MEANING. The map is asserted to be injective in the tests: the
+ * eye learns a symbol means one thing, and an interface where it means three
+ * reads as assembled from whatever was to hand.
  */
 
-const GLYPHS = {
-  today: Home2,
-  gym: Weight,
-  progress: Chart2,
-  me: Profile,
-  add: Add,
-  chevron: ArrowRight2,
-  classes: Calendar,
-  nutrition: Note1,
-  community: People,
-  coach: Flash,
-  messages: MessageText1,
-  exercises: Book1,
-  membership: Card,
-  plan: Award,
-  visits: Clock,
-  tools: Ruler,
-  referral: Cup,
-  body: Health,
-  goals: Medal,
-  water: Drop,
-  streak: Activity,
-  info: InfoCircle,
-  star: Star1,
-  check: TickCircle,
-  alert: Danger,
-  retry: Refresh,
-  signout: LogoutCurve,
-  location: Location,
-  scan: ScanBarcode,
+const SYMBOLS = {
+  today: 'house',
+  gym: 'dumbbell',
+  progress: 'chart.line.uptrend.xyaxis',
+  me: 'person',
+  add: 'plus',
+  chevron: 'chevron.right',
+  classes: 'calendar',
+  nutrition: 'fork.knife',
+  community: 'person.2',
+  /** No `whistle` exists. A verified person is the nearest true thing. */
+  coach: 'person.crop.circle.badge.checkmark',
+  messages: 'bubble.left',
+  exercises: 'book',
+  membership: 'creditcard',
+  /** Distinct from `routine` and `assigned` on purpose — all three are lists. */
+  plan: 'list.clipboard',
+  visits: 'clock',
+  tools: 'ruler',
+  referral: 'gift',
+  body: 'heart.text.square',
+  goals: 'medal',
+  water: 'drop',
+  streak: 'flame',
+  info: 'info.circle',
+  star: 'star',
+  check: 'checkmark.circle',
+  alert: 'exclamationmark.triangle',
+  retry: 'arrow.clockwise',
+  signout: 'rectangle.portrait.and.arrow.right',
+  location: 'location',
+  scan: 'qrcode.viewfinder',
 
-  /*
-    Added to retire the emoji that were doing structural work: 👏 for kudos,
-    🏅/🔒 on badges, 🏆 and 📥 in the session summary. Emoji render from
-    whatever font the OS ships, so they ignore the theme, change shape between
-    Android versions, and cannot take a tint — which is why they read as
-    unfinished next to a real icon set.
-  */
-  kudos: Like1,
-  badge: MedalStar,
-  locked: Lock1,
-  import: ImportCurve,
+  kudos: 'hand.thumbsup',
+  badge: 'medal.star',
+  locked: 'lock',
+  import: 'square.and.arrow.down',
 
-  /*
-    One glyph, one meaning.
-
-    Building the new hub tabs, a handful of icons were reused across unrelated
-    rows because the set was smaller than the number of things that needed
-    naming — "Progress photos" and "Training calendar" both ended up wearing
-    the TODAY tab's icon, and "My routines", "Assigned plan" and "Challenges"
-    all wore the same shield. On screen that reads as an interface assembled
-    from whatever was to hand: the eye learns a glyph means one thing, then
-    finds it meaning three.
-  */
-  photos: Gallery,
-  calendar: CalendarTick,
-  target: Flag,
-  clubs: Global,
-  challenge: Rank,
-  feed: Chart1,
-  findPeople: SearchNormal1,
-  routine: ClipboardText,
-  assigned: ClipboardTick,
+  photos: 'photo.on.rectangle',
+  calendar: 'calendar.badge.checkmark',
+  target: 'flag',
+  clubs: 'person.3',
+  challenge: 'trophy',
+  feed: 'square.stack',
+  findPeople: 'person.badge.plus',
+  routine: 'list.bullet.clipboard',
+  assigned: 'checklist',
 } as const;
 
-export type IconName = keyof typeof GLYPHS;
+export type IconName = keyof typeof SYMBOLS;
+
+/** Exported for the test that asserts no two names share a symbol. */
+export const ICON_SYMBOLS = SYMBOLS;
+
+/**
+ * Which of the symbols above actually ship a solid cut.
+ *
+ * SF Symbols treats a fill as a SEPARATE NAME — `house` and `house.fill` — not
+ * as a weight, so asking for a heavier weight does not produce one. Only 23 of
+ * the 43 have a `.fill`, and naming one that does not exist renders nothing at
+ * all, so the set is enumerated rather than assumed. Checked against the 8.0
+ * catalogue; re-run that check if a symbol here changes.
+ */
+const HAS_FILL = new Set<IconName>([
+  'today', 'gym', 'me', 'community', 'exercises', 'plan', 'visits', 'referral',
+  'body', 'water', 'streak', 'info', 'star', 'check', 'alert', 'location',
+  'kudos', 'locked', 'import', 'target', 'clubs', 'feed', 'routine',
+]);
+
+/**
+ * The ink ladder, as literals.
+ *
+ * SymbolView takes a colour, not a class — it renders a native view, and
+ * uniwind has nothing to hand it. These are the same values as the tokens in
+ * src/global.css and the test pins them together so they cannot drift.
+ */
+const TINT = {
+  t1: '#0c0a09',
+  t2: '#44403b',
+  t3: '#79716b',
+  t4: '#a6a09b',
+  accent: '#c10007',
+  good: '#11823b',
+  inverse: '#ffffff',
+} as const;
 
 /**
  * An icon is decorative or meaningful, and the component makes you say which.
@@ -130,7 +119,7 @@ export type IconName = keyof typeof GLYPHS;
  * set is done. Screen readers announce the second and must skip the first, or
  * every labelled button reads its own name twice.
  *
- *   <Icon name="check" decorative />              hidden from the reader
+ *   <Icon name="check" decorative />                 hidden from the reader
  *   <Icon name="check" accessibilityLabel="Done" />  announced
  *
  * One of the two is required, so a new icon cannot quietly default to silence.
@@ -148,18 +137,10 @@ export function Icon({
 }: {
   name: IconName;
   size?: number;
-  tone?: 't1' | 't2' | 't3' | 't4' | 'accent' | 'good' | 'inverse';
+  tone?: keyof typeof TINT;
   filled?: boolean;
 } & IconSemantics) {
-  const Glyph = GLYPHS[name];
-  const tint =
-    tone === 'accent'
-      ? color.accent
-      : tone === 'good'
-        ? color.good
-        : tone === 'inverse'
-          ? color.accentInk
-          : color[tone];
+  const tint = TINT[tone];
 
   /*
     Three platforms, three different props, and none of them is a superset:
@@ -181,9 +162,50 @@ export function Icon({
         'aria-label': semantics.accessibilityLabel,
       } as const);
 
+  /*
+    SF Symbols are an Apple technology and exist only on Apple's platforms.
+    Rather than ship a second icon set for the sake of Android and web — which
+    would guarantee the two drift — those platforms get a tinted placeholder of
+    the correct SIZE, so layout is identical everywhere and only the glyph is
+    missing. Android is not a shipping target today; when it becomes one this is
+    the single place that needs a real answer.
+  */
+  if (Platform.OS !== 'ios') {
+    return (
+      <View
+        {...a11y}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 4,
+          backgroundColor: tint,
+          opacity: 0.25,
+        }}
+      />
+    );
+  }
+
   return (
-    <View {...a11y}>
-      <Glyph size={size} color={tint} variant={filled ? 'Bold' : 'Linear'} />
+    <View {...a11y} style={{ width: size, height: size }}>
+      <SymbolView
+        // The solid cut where the symbol has one — the active tab — and the
+        // outline where it does not. Naming a .fill that does not exist renders
+        // an empty view, so this can never be a blind concatenation.
+        name={
+          (filled && HAS_FILL.has(name)
+            ? `${SYMBOLS[name]}.fill`
+            : SYMBOLS[name]) as SymbolViewProps['name']
+        }
+        size={size}
+        tintColor={tint}
+        // Monochrome, always. A hierarchical or multicolour rendering pulls the
+        // system's own palette in and stops the icon answering to our tokens.
+        type="monochrome"
+        weight="regular"
+        fallback={
+          <View style={{ width: size, height: size, backgroundColor: tint, opacity: 0.25 }} />
+        }
+      />
     </View>
   );
 }
