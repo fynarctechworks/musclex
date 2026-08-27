@@ -6,7 +6,6 @@ import { Button, Card, Label, Loading, Row, Txt } from '../src/ui';
 import { Chip } from '../src/ui/Chip';
 import { Notice } from '../src/ui/Notice';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
-import { color, space } from '../src/ui/theme';
 import { backOrHome } from '../src/lib/nav';
 import {
   accept,
@@ -235,7 +234,7 @@ export default function RecordScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader
         title="Record"
         onBack={() => {
@@ -250,23 +249,23 @@ export default function RecordScreen() {
           backOrHome(router);
         }}
       />
-      <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 120, gap: space.md }}
-      >
+      <ScrollView contentContainerClassName="px-4 pb-28 gap-4">
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
         {/* A recording the app died holding. Offered, not auto-resumed: silently
             restarting somebody's run is a worse surprise than losing it, and
             the elapsed time would be wrong either way. */}
         {orphan && !s ? (
-          <Card tone="accent">
-            <Label>Unfinished recording</Label>
-            <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
-              {(orphan.state.distanceM / 1000).toFixed(2)} km over {clock(orphan.state.elapsedMs)},
-              from a session that did not get saved.
-            </Txt>
-            <Row style={{ marginTop: space.md, gap: space.sm }}>
-              <View style={{ flex: 1 }}>
+          <Card tone="accent" className="gap-3">
+            <View className="gap-1">
+              <Txt variant="bodyStrong">Unfinished recording</Txt>
+              <Txt variant="small" tone="t2">
+                {(orphan.state.distanceM / 1000).toFixed(2)} km over {clock(orphan.state.elapsedMs)},
+                from a session that did not get saved.
+              </Txt>
+            </View>
+            <Row className="gap-2">
+              <View className="flex-1">
                 <Button
                   title="Save it"
                   size="sm"
@@ -278,7 +277,7 @@ export default function RecordScreen() {
                   }}
                 />
               </View>
-              <View style={{ flex: 1 }}>
+              <View className="flex-1">
                 <Button
                   title="Discard"
                   variant="secondary"
@@ -294,39 +293,56 @@ export default function RecordScreen() {
         ) : null}
 
         {!s ? (
-          <Card>
-            <Label>Sport</Label>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.md }}>
-              {sports.slice(0, 12).map((t) => (
-                <Chip key={t.key} label={t.label} active={t.key === sport} onPress={() => setSport(t.key)} />
-              ))}
-            </View>
-            <Txt variant="caption" tone="t3" style={{ marginTop: space.md }}>
-              {sports.length} sports available.
-            </Txt>
-          </Card>
+          <View>
+            <Row className="mb-2">
+              <Label>Sport</Label>
+              <Txt variant="caption" tone="t4">{sports.length} available</Txt>
+            </Row>
+            <Card>
+              <View className="flex-row flex-wrap gap-2">
+                {sports.slice(0, 12).map((t) => (
+                  <Chip
+                    key={t.key}
+                    label={t.label}
+                    active={t.key === sport}
+                    onPress={() => setSport(t.key)}
+                  />
+                ))}
+              </View>
+            </Card>
+          </View>
         ) : null}
 
-        <Card tone={s?.autoPaused ? 'accent' : 'default'}>
-          <Label>{s ? (s.paused ? 'Paused' : s.autoPaused ? 'Auto-paused' : 'Recording') : 'Ready'}</Label>
-          <Txt variant="display" style={{ marginTop: space.sm }}>
-            {clock(s?.elapsedMs ?? 0)}
-          </Txt>
+        <Card tone={s?.autoPaused ? 'accent' : 'default'} className="gap-4 p-5">
+          <View className="gap-1">
+            {/* The state is a word, not a colour. Auto-paused and paused look
+                the same at a glance otherwise, and they mean different things:
+                one the member chose, one the app decided. */}
+            <Row>
+              <Label>
+                {s ? (s.paused ? 'Paused' : s.autoPaused ? 'Auto-paused' : 'Recording') : 'Ready'}
+              </Label>
+              {s && !s.paused && !s.autoPaused ? (
+                <View className="flex-row items-center gap-1.5">
+                  <View className="bg-success h-1.5 w-1.5 rounded-full" />
+                  <Txt variant="caption" tone="good" className="font-semibold">
+                    live
+                  </Txt>
+                </View>
+              ) : null}
+            </Row>
+            {/* Tabular figures: a clock whose digits change width every second
+                jitters, and this one is the largest thing on the screen. */}
+            <Txt variant="display" className="tabular-nums">
+              {clock(s?.elapsedMs ?? 0)}
+            </Txt>
+          </View>
 
           {gpsSport ? (
-            <Row style={{ marginTop: space.lg, alignItems: 'flex-end' }}>
-              <View>
-                <Txt variant="heading">{distanceKm.toFixed(2)}</Txt>
-                <Txt variant="caption" tone="t3">km</Txt>
-              </View>
-              <View style={{ alignItems: 'center' }}>
-                <Txt variant="heading">{pace ? clock(pace * 1000) : '--'}</Txt>
-                <Txt variant="caption" tone="t3">/km</Txt>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Txt variant="heading">{Math.round(s?.elevationGainM ?? 0)}</Txt>
-                <Txt variant="caption" tone="t3">m climb</Txt>
-              </View>
+            <Row className="items-start">
+              <Metric value={distanceKm.toFixed(2)} unit="km" />
+              <Metric value={pace ? clock(pace * 1000) : '--'} unit="/km" align="center" />
+              <Metric value={String(Math.round(s?.elevationGainM ?? 0))} unit="m climb" align="end" />
             </Row>
           ) : null}
 
@@ -334,31 +350,29 @@ export default function RecordScreen() {
               on every fix — cheap at a few hundred points, and it is the only
               way to see that GPS is actually working before you finish. */}
           {s && gpsSport && s.points.length > 1 ? (
-            <View style={{ marginTop: space.lg }}>
-              <RouteShape polyline={livePolyline} height={170} />
-            </View>
+            <RouteShape polyline={livePolyline} height={170} />
           ) : null}
 
           {s ? (
-            <Txt variant="caption" tone="t3" style={{ marginTop: space.md }}>
+            <Txt variant="caption" tone="t3">
               {s.points.length} fixes · moving {clock(s.movingMs)}
             </Txt>
           ) : null}
 
-          <View style={{ marginTop: space.lg, gap: space.sm }}>
+          <View className="gap-2">
             {!s ? (
               <Button title="Start" onPress={start} />
             ) : (
               <>
-                <Row style={{ gap: space.sm }}>
-                  <View style={{ flex: 1 }}>
+                <Row className="gap-2">
+                  <View className="flex-1">
                     <Button
                       title={s.paused ? 'Resume' : 'Pause'}
                       variant="secondary"
                       onPress={() => setBoth(s.paused ? resumeRec(s) : pauseRec(s))}
                     />
                   </View>
-                  <View style={{ flex: 1 }}>
+                  <View className="flex-1">
                     <Button title="Finish" onPress={finish} />
                   </View>
                 </Row>
@@ -374,8 +388,7 @@ export default function RecordScreen() {
                   }}
                   accessibilityRole="button"
                   accessibilityLabel="Discard this recording"
-                  style={{ alignItems: 'center', paddingVertical: space.sm }}
-                >
+                  className="items-center py-2">
                   <Txt variant="small" tone="t3">Discard</Txt>
                 </Pressable>
               </>
@@ -387,14 +400,18 @@ export default function RecordScreen() {
         {/* Offered while recording, so the trip to system settings is a
             choice the member makes rather than something Start did to them. */}
         {s && !background ? (
-          <Card tone={leftApp ? 'accent' : 'default'}>
-            <Label>{leftApp ? 'Time away was not counted' : 'Screen must stay on'}</Label>
-            <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
-              {leftApp
-                ? 'Recording only runs while this screen is open, so the time you spent in another app was not counted.'
-                : 'Right now the route only records while this screen is open.'}
-            </Txt>
-            <View style={{ marginTop: space.md }}>
+          <Card tone={leftApp ? 'accent' : 'default'} className="gap-3">
+            <View className="gap-1">
+              <Txt variant="bodyStrong">
+                {leftApp ? 'Time away was not counted' : 'Screen must stay on'}
+              </Txt>
+              <Txt variant="small" tone="t2">
+                {leftApp
+                  ? 'Recording only runs while this screen is open, so the time you spent in another app was not counted.'
+                  : 'Right now the route only records while this screen is open.'}
+              </Txt>
+            </View>
+            <View>
               <Button
                 title="Let it record with the screen off"
                 variant="secondary"
@@ -416,24 +433,52 @@ export default function RecordScreen() {
         ) : null}
 
         {s && background ? (
-          <Card>
-            <Label>Recording in the background</Label>
-            <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+          <Card className="gap-1">
+            <Txt variant="bodyStrong">Recording in the background</Txt>
+            <Txt variant="small" tone="t2">
               You can lock your phone. Your route keeps recording until you press Finish.
             </Txt>
           </Card>
         ) : null}
 
         {perm === false ? (
-          <Card>
-            <Label>Location</Label>
-            <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
+          <Card className="gap-1">
+            <Txt variant="bodyStrong">Location is off</Txt>
+            <Txt variant="small" tone="t2">
               Without location access we can still time an activity, but there will be no route,
               distance or pace.
             </Txt>
           </Card>
         ) : null}
       </ScrollView>
+    </View>
+  );
+}
+
+/**
+ * One live figure. Tabular so the row does not shift as the numbers tick, and
+ * labelled as a unit rather than announced as a bare number.
+ */
+function Metric({
+  value,
+  unit,
+  align = 'start',
+}: {
+  value: string;
+  unit: string;
+  align?: 'start' | 'center' | 'end';
+}) {
+  return (
+    <View
+      className={align === 'center' ? 'items-center' : align === 'end' ? 'items-end' : ''}
+      accessibilityRole="text"
+      accessibilityLabel={`${value} ${unit}`}>
+      <Txt variant="heading" className="tabular-nums">
+        {value}
+      </Txt>
+      <Txt variant="caption" tone="t3">
+        {unit}
+      </Txt>
     </View>
   );
 }
