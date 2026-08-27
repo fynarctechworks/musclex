@@ -5,6 +5,11 @@
     "types": [
       "jest",
       "expo/types"
-    ]
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
   }
 }

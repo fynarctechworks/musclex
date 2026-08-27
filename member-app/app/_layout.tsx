@@ -1,3 +1,8 @@
+// uniwind reads the compiled tokens from here. This import must stay at the
+// top of the app entry: without it every className silently resolves to
+// nothing — not a wrong style, no style at all.
+import '../src/global.css';
+
 import { useEffect, useState } from 'react';
 import { AppState, View } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';

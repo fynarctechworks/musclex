@@ -1,0 +1,120 @@
+@import 'tailwindcss';
+@import 'uniwind';
+
+/*
+  Tailwind v4 emits only the theme variables that a generated utility actually
+  references, and it generates utilities only from files it scans. Its automatic
+  source detection did not reach this app's screens, so the whole @theme block
+  compiled to nothing and every className resolved to no style at all. Naming
+  the roots explicitly is what makes the tokens reach the bundle.
+*/
+@source '../app';
+@source '../src';
+
+/*
+  MuscleX member — design tokens.
+
+  PROVENANCE. Generated from the shadcn preset `bKsI1x32`:
+    style base-luma · base colour stone · theme red · radius large (0.875rem)
+    · icons lucide · menu default/subtle · font Inter
+  The preset was applied with `shadcn init --preset bKsI1x32` into a scratch
+  project and the emitted CSS copied here, rather than transcribed by eye.
+
+  WHY HEX AND NOT OKLCH. The preset emits oklch(). React Native's colour parser
+  returns null for oklch() and oklab() — verified directly against
+  @react-native/normalize-colors — so a token left in oklch is not a slightly
+  wrong colour, it is no colour at all. Every value below was converted
+  oklch -> sRGB hex and cross-checked against a browser canvas rasterisation of
+  the same string; all 22 matched exactly.
+
+  LIGHT ONLY. app.json pins userInterfaceStyle to "light" and nothing in the app
+  reads useColorScheme, so the preset's .dark block is recorded at the bottom
+  for whenever dark mode is wired, but is inert today. Leaving it out entirely
+  would mean re-deriving it later from a preset that may have moved on.
+
+  FONT. The preset asks for Inter. Shipping it needs expo-font plus the TTFs,
+  which neither app has, and staff-app runs the system face for the same reason.
+  --font-sans therefore resolves to the platform face; swapping it is a
+  self-contained follow-up, not a silent extra dependency.
+*/
+@theme {
+  --color-background: #ffffff;
+  --color-foreground: #0c0a09;
+
+  --color-card: #ffffff;
+  --color-card-foreground: #0c0a09;
+
+  --color-popover: #ffffff;
+  --color-popover-foreground: #0c0a09;
+
+  /* Red primary, straight from the preset. Note this app is not staff-app:
+     there is no "delete a member" here, so primary and destructive being
+     neighbouring reds is not the hazard it would be in the admin app. */
+  --color-primary: #c10007;
+  --color-primary-foreground: #fef2f2;
+
+  --color-secondary: #f4f4f5;
+  --color-secondary-foreground: #18181b;
+
+  --color-muted: #f5f5f4;
+  --color-muted-foreground: #79716b;
+
+  --color-accent: #f5f5f4;
+  --color-accent-foreground: #1c1917;
+
+  --color-destructive: #e7000b;
+  --color-destructive-foreground: #ffffff;
+
+  --color-border: #e7e5e4;
+  --color-input: #e7e5e4;
+  --color-ring: #a6a09b;
+
+  --color-chart-1: #d6d3d1;
+  --color-chart-2: #79716b;
+  --color-chart-3: #57534d;
+  --color-chart-4: #44403b;
+  --color-chart-5: #292524;
+
+  /*
+    NOT FROM THE PRESET — kept because the product needs them and shadcn has no
+    equivalent. Dropping these would not be a restyle, it would delete meaning:
+    a macro ring with no protein/carbs/fat hues cannot be read at all.
+  */
+  --color-success: #11823b;
+  --color-success-foreground: #ffffff;
+  --color-warning: #a36108;
+  --color-warning-foreground: #ffffff;
+
+  --color-protein: #2563eb;
+  --color-carbs: #b45309;
+  --color-fat: #7c3aed;
+  --color-water: #0276b3;
+
+  /* Radius ladder derived exactly as the preset derives it from --radius:
+     0.875rem = 14px, times 0.6 / 0.8 / 1 / 1.4 / 1.8, rounded to whole px
+     because RN takes numbers, not rem. */
+  --radius-sm: 8px;
+  --radius-md: 11px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 25px;
+  --radius-pill: 999px;
+}
+
+/*
+  The preset's dark palette, converted the same way. Inert until app.json stops
+  pinning "light" and a colour-scheme provider exists.
+
+  .dark {
+    --color-background: #0c0a09;  --color-foreground: #fafaf9;
+    --color-card: #1c1917;        --color-card-foreground: #fafaf9;
+    --color-popover: #1c1917;     --color-popover-foreground: #fafaf9;
+    --color-primary: #9f0712;     --color-primary-foreground: #fef2f2;
+    --color-secondary: #27272a;   --color-secondary-foreground: #fafafa;
+    --color-muted: #292524;       --color-muted-foreground: #a6a09b;
+    --color-accent: #292524;      --color-accent-foreground: #fafaf9;
+    --color-destructive: #ff6467;
+    --color-border: #ffffff1a;    --color-input: #ffffff26;
+    --color-ring: #79716b;
+  }
+*/
