@@ -17,7 +17,22 @@ export interface Home {
     mealLogged: boolean;
     streakAtRisk: boolean;
   };
-  todayWorkout: { id?: string; title?: string; exerciseCount?: number } | null;
+  /**
+   * What to train today — a trainer's assignment, or the routine the member
+   * scheduled for this weekday. `source` says which, because the card words
+   * itself differently: an assignment names the trainer, a routine does not
+   * (nobody assigned it — the member did).
+   *
+   * Null now genuinely means "nothing planned today". It used to mean "no
+   * trainer", which for a self-directed member was every day forever.
+   */
+  todayWorkout: {
+    id?: string;
+    title?: string;
+    exerciseCount?: number;
+    source?: 'assigned' | 'routine';
+    routineId?: string | null;
+  } | null;
   nextClass: { id: string; title: string; startsAt: string; seatsLeft: number } | null;
   occupancy: Occupancy;
   nutrition: { kcal: number; kcalGoal: number; waterMl: number; waterGoal: number };
@@ -1068,4 +1083,43 @@ export interface WaterDay {
   amountMl: number;
   /** Null when the member has not set one — a default is NOT their target. */
   goalMl: number | null;
+}
+
+
+/** One routine as it appears in a schedule slot. */
+export interface ScheduledRoutine {
+  routineId: string;
+  name: string;
+  exerciseCount: number;
+}
+
+/**
+ * What the member is meant to train today.
+ *
+ * Three states, deliberately distinct: a routine, a rest day they chose, and
+ * nothing set up at all. Collapsing the last two is what made the old home card
+ * tell someone with a full week planned that they had nothing assigned.
+ */
+export interface TodayPlan {
+  routine: ScheduledRoutine | null;
+  restDay: boolean;
+  unscheduled: boolean;
+}
+
+/** Yesterday's planned routine, when it was planned and not done. */
+export interface MissedDay {
+  routine: ScheduledRoutine;
+  /** YYYY-MM-DD in the member's own days. */
+  date: string;
+  weekdayName: string;
+}
+
+export interface RoutineSchedule {
+  /** Always seven, Sunday first. A null routine is a rest day. */
+  days: { weekday: number; routine: ScheduledRoutine | null }[];
+  /**
+   * How far the week has slid from the days the member chose, because they
+   * resumed a missed session. 0 means they are on their normal week.
+   */
+  offsetDays: number;
 }

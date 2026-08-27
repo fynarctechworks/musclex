@@ -7,7 +7,15 @@ import { Button, Card, Empty, Label, Loading, Meter, Row, Txt } from '../../src/
 import { InfoBullet, InfoDot, InfoNote } from '../../src/ui/InfoTip';
 import { levelColor, levelLabel } from '../../src/ui/theme';
 import { whenOf } from '../../src/lib/datetime';
-import { useGoals, useHome, useLogWater, useOccupancy } from '../../src/api/queries';
+import {
+  useGoals,
+  useHome,
+  useLogWater,
+  useMissedYesterday,
+  useOccupancy,
+  useResumeMissed,
+  useTodayPlan,
+} from '../../src/api/queries';
 import { useWho } from '../../src/lib/use-capabilities';
 import { PendingBanner } from '../../src/features/PendingBanner';
 import { StepsCard } from '../../src/features/StepsCard';
@@ -168,7 +176,13 @@ export default function TodayScreen() {
   const { data: liveOcc } = useOccupancy(who.hasGym && !!data);
   const { data: goals } = useGoals();
   const water = useLogWater();
+  // Distinguishes a rest day the member CHOSE from having nothing planned —
+  // /home alone reports both as a null todayWorkout.
+  const { data: plan } = useTodayPlan();
+  const { data: missed } = useMissedYesterday();
+  const resume = useResumeMissed();
   const [streakInfo, setStreakInfo] = useState(false);
+  const [dismissedMissed, setDismissedMissed] = useState(false);
 
   if (who.loading || (who.hasGym && isLoading)) return <Loading label="Loading your day" />;
 
@@ -195,6 +209,47 @@ export default function TodayScreen() {
       }>
       <PendingBanner />
 
+      {/*
+        ── YESTERDAY ────────────────────────────────────────────────────────
+        Asked once, about yesterday only. Someone back from a week away gets
+        one question rather than a backlog of six — the point is to help them
+        resume, not to present a debt.
+
+        Above the greeting because it is a question, and a question the member
+        has to answer changes what the rest of the screen means: resuming
+        shifts the whole week, so today's card below would be answering the
+        wrong day.
+      */}
+      {missed && !dismissedMissed ? (
+        <Card tone="accent" className="gap-3 p-5">
+          <View className="gap-1">
+            <Txt variant="heading">You missed {missed.weekdayName}</Txt>
+            <Txt variant="small" tone="t2">
+              {missed.routine.name} was planned. Pick it up now and the rest of your week moves
+              with it, or let it go and carry on with today.
+            </Txt>
+          </View>
+          <View className="gap-2">
+            <Button
+              title={`Do ${missed.routine.name} now`}
+              loading={resume.isPending}
+              onPress={() => {
+                // The shift and the session are one action: resuming moves the
+                // week, then drops straight into the workout that was missed.
+                resume.mutate(undefined, {
+                  onSuccess: () => router.push(`/session?routine=${missed.routine.routineId}`),
+                });
+              }}
+            />
+            <Button
+              title="Skip to today's"
+              variant="secondary"
+              onPress={() => setDismissedMissed(true)}
+            />
+          </View>
+        </Card>
+      ) : null}
+
       <View>
         {/* The greeting comes from /home for a gym member and from the context
             call otherwise, so it is never blank while the gym data is absent. */}
@@ -220,27 +275,56 @@ export default function TodayScreen() {
           <Card className="gap-4 p-5">
             {data.todayWorkout ? (
               <View className="gap-1">
-                <Txt variant="title">{data.todayWorkout.title ?? 'Assigned workout'}</Txt>
+                <Txt variant="title">{data.todayWorkout.title ?? 'Workout'}</Txt>
+                {/*
+                  Whose plan this is, said honestly.
+
+                  This line used to read "set by your trainer" unconditionally,
+                  which was true while the card could ONLY ever show a trainer's
+                  assignment. Now that it also shows the routine the member
+                  scheduled themselves, saying a trainer set it would be a small
+                  lie the card repeated every day.
+                */}
                 <Txt variant="small" tone="t3">
-                  {data.todayWorkout.exerciseCount
-                    ? `${data.todayWorkout.exerciseCount} exercises · set by your trainer`
-                    : 'Set by your trainer'}
+                  {[
+                    data.todayWorkout.exerciseCount
+                      ? `${data.todayWorkout.exerciseCount} exercises`
+                      : null,
+                    data.todayWorkout.source === 'routine'
+                      ? 'from your schedule'
+                      : 'set by your trainer',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Txt>
+              </View>
+            ) : plan?.restDay ? (
+              /*
+                A rest day the member CHOSE, which is a different thing from
+                having nothing planned — and the old card could say neither. It
+                offers no action: the point of a rest day is that there is
+                nothing to do, and a button here would undo it.
+              */
+              <View className="gap-1">
+                <Txt variant="heading">Rest day</Txt>
+                <Txt variant="small" tone="t3">
+                  Nothing scheduled for today. Training anyway is always an option — tap + below.
                 </Txt>
               </View>
             ) : (
               <View className="gap-1">
-                <Txt variant="heading">Nothing assigned today</Txt>
+                <Txt variant="heading">Nothing planned today</Txt>
                 {/*
-                  Points at the + rather than describing the buttons that used
-                  to sit here. A card that says "start from empty or pick a
-                  routine" with nothing to press is worse than one that says
-                  where those choices live.
+                  Points at the + rather than describing buttons that are no
+                  longer here. For a member with no schedule this also offers
+                  the thing that fixes it permanently, once, quietly.
                 */}
                 <Txt variant="small" tone="t3">
                   Train what you like — tap + below to start a workout or record an activity.
                 </Txt>
               </View>
             )}
+
             {/*
               Only when there is a specific workout to start.
 
@@ -256,7 +340,22 @@ export default function TodayScreen() {
             */}
             {data.todayWorkout ? (
               <View className="gap-2">
-                <Button title="Start workout" onPress={() => router.push('/session?assigned=1')} />
+                {/*
+                  The two sources start DIFFERENTLY and must not share a route.
+                  `?assigned=1` loads the trainer's assignment; a scheduled
+                  routine has none, so sending it there would open an empty
+                  session and look like the card had lied about what it holds.
+                */}
+                <Button
+                  title="Start workout"
+                  onPress={() =>
+                    router.push(
+                      data.todayWorkout?.source === 'routine' && data.todayWorkout.routineId
+                        ? `/session?routine=${data.todayWorkout.routineId}`
+                        : '/session?assigned=1',
+                    )
+                  }
+                />
                 <Button
                   title="Log something else"
                   variant="secondary"

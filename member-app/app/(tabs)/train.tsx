@@ -33,6 +33,12 @@ export default function TrainScreen() {
   const yours: LinkEntry[] = [
     { icon: 'routine', label: 'My routines', hint: 'Workouts you have saved', href: '/routines' },
     {
+      icon: 'calendar',
+      label: 'Your week',
+      hint: 'What you train each day',
+      href: '/schedule',
+    },
+    {
       icon: 'exercises',
       label: 'Exercise library',
       hint: 'Form cues and your records',

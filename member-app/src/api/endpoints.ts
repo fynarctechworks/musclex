@@ -93,6 +93,9 @@ import type {
   VisitSummary,
   Weekly,
   WorkoutLogResult,
+  MissedDay,
+  RoutineSchedule,
+  TodayPlan,
 } from './types';
 
 export const api = {
@@ -455,6 +458,23 @@ export const api = {
 
   /* ── Routines (personal, shareable by link) ──────────────── */
   routines: () => request<{ routines: Routine[] }>('/routines'),
+
+  // ── The weekly routine schedule ─────────────────────────────────
+  // `tz` is minutes east of UTC, the same convention home and check-in use.
+  // It matters more here than almost anywhere: a schedule keyed on WEEKDAY is
+  // meaningless if the server's Monday and the member's Monday differ.
+  routineSchedule: () => request<RoutineSchedule>('/routines/schedule'),
+  setRoutineScheduleDay: (weekday: number, routineId: string | null) =>
+    request<RoutineSchedule>('/routines/schedule', {
+      method: 'PUT',
+      body: { weekday, routineId },
+    }),
+  todayPlan: () => request<TodayPlan>(`/routines/schedule/today?tz=${tz()}`),
+  missedYesterday: () => request<MissedDay | null>(`/routines/schedule/missed?tz=${tz()}`),
+  resumeMissed: () =>
+    request<{ offsetDays: number }>('/routines/schedule/resume', { method: 'POST' }),
+  resetScheduleShift: () =>
+    request<{ offsetDays: number }>('/routines/schedule/reset', { method: 'POST' }),
   routine: (id: string) => request<Routine>(`/routines/${id}`),
   createRoutine: (body: {
     name: string;

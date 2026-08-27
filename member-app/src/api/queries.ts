@@ -1454,3 +1454,106 @@ export function useAcceptSentRoutine() {
     },
   });
 }
+
+/**
+ * ────────────────────────────────────────────────────────────────
+ * THE WEEKLY ROUTINE SCHEDULE
+ * ────────────────────────────────────────────────────────────────
+ *
+ * Which routine the member trains on each weekday, and the prompt that appears
+ * when they missed yesterday's.
+ *
+ * GYM MEMBERS ONLY for now. These endpoints read the tenant schema, so a
+ * gym-less member gets a 403 — the public-schema half
+ * (app_user_routine_schedule) has a table but no service behind it yet. The
+ * `enabled` gate is what keeps an independent user from firing a request that
+ * can only fail; when the gym-less service lands, this is the single place that
+ * changes.
+ */
+export function useRoutineSchedule() {
+  const who = useHasGym();
+  return useQuery({
+    queryKey: ['routine-schedule'] as const,
+    queryFn: api.routineSchedule,
+    enabled: !who.loading && who.hasGym,
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * What the member is meant to train today, and WHY there may be nothing.
+ *
+ * /home's todayWorkout says what to train but reports a chosen rest day and a
+ * member with no schedule identically, as null. The home card has to word those
+ * two differently, so it asks here for the reason.
+ */
+export function useTodayPlan() {
+  const who = useHasGym();
+  return useQuery({
+    queryKey: ['today-plan'] as const,
+    queryFn: api.todayPlan,
+    enabled: !who.loading && who.hasGym,
+    staleTime: 60_000,
+  });
+}
+
+export function useSetScheduleDay() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ weekday, routineId }: { weekday: number; routineId: string | null }) =>
+      api.setRoutineScheduleDay(weekday, routineId),
+    onSuccess: (schedule) => {
+      // The server returns the whole week, so seed it rather than refetch.
+      qc.setQueryData(['routine-schedule'], schedule);
+      // Today's card and the missed prompt both read from the schedule.
+      qc.invalidateQueries({ queryKey: qk.home });
+      qc.invalidateQueries({ queryKey: ['today-plan'] });
+      qc.invalidateQueries({ queryKey: ['missed-yesterday'] });
+    },
+  });
+}
+
+/**
+ * Yesterday's planned routine, when it was planned and not done.
+ *
+ * Not cached for long: it is a question about a day boundary, and a member who
+ * leaves the app open across midnight should not still be asked about the day
+ * before last.
+ */
+export function useMissedYesterday() {
+  const who = useHasGym();
+  return useQuery({
+    queryKey: ['missed-yesterday'] as const,
+    queryFn: api.missedYesterday,
+    enabled: !who.loading && who.hasGym,
+    staleTime: 60_000,
+  });
+}
+
+/** "Do it now" — take up yesterday's session and slide the rest of the week. */
+export function useResumeMissed() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.resumeMissed,
+    onSuccess: () => {
+      // The whole week has shifted, so everything that reads it is now stale.
+      qc.invalidateQueries({ queryKey: ['routine-schedule'] });
+      qc.invalidateQueries({ queryKey: ['missed-yesterday'] });
+      qc.invalidateQueries({ queryKey: ['today-plan'] });
+      qc.invalidateQueries({ queryKey: qk.home });
+    },
+  });
+}
+
+/** "Back to my normal week" — clears any accumulated shift. */
+export function useResetScheduleShift() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.resetScheduleShift,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['routine-schedule'] });
+      qc.invalidateQueries({ queryKey: ['today-plan'] });
+      qc.invalidateQueries({ queryKey: qk.home });
+    },
+  });
+}
