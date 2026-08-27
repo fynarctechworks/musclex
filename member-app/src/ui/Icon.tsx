@@ -78,6 +78,9 @@ const SYMBOLS = {
   edit: 'pencil',
   trash: 'trash',
   more: 'ellipsis',
+  /** Reordering a routine's exercises. */
+  up: 'arrow.up',
+  down: 'arrow.down',
 } as const;
 
 export type IconName = keyof typeof SYMBOLS;

@@ -3,10 +3,10 @@ import { Image, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { Button, Card, Empty, Loading, Row, Txt } from '../src/ui';
+import { Button, Card, Empty, Icon, Loading, Row, Txt, type IconName } from '../src/ui';
 import { Notice } from '../src/ui/Notice';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
-import { color, font, radius, space } from '../src/ui/theme';
+import { cn } from '@/lib/utils';
 import { ExercisePicker } from '../src/features/ExercisePicker';
 import { useCreateRoutine, useRoutine, useUpdateRoutine } from '../src/api/queries';
 import { useUnits } from '../src/lib/use-units';
@@ -56,6 +56,12 @@ type Row = {
 };
 
 const blankSet = (): SetTarget => ({ reps: '', kg: '', secs: '' });
+
+/** Placeholder ink — ink-4. RN takes a colour value, not a class. */
+const PLACEHOLDER = '#a6a09b';
+
+/** The set-row grid. Shared by the header and every row so they cannot drift. */
+const COL = { num: { width: 44 }, act: { width: 34 } } as const;
 
 /** Sets a newly added exercise starts with — enough to edit, few enough to trim. */
 const DEFAULT_SETS = 3;
@@ -250,32 +256,21 @@ export default function RoutineEditScreen() {
   const busy = create.isPending || update.isPending;
 
   return (
-    <View style={{ flex: 1, backgroundColor: color.bg, paddingTop: insets.top }}>
+    <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title={editing ? 'Edit routine' : 'New routine'} />
 
       <ScrollView
-        contentContainerStyle={{ padding: space.lg, paddingTop: 0, paddingBottom: 140, gap: space.md }}
-        keyboardShouldPersistTaps="handled"
-      >
+        contentContainerClassName="gap-3 px-4 pb-36"
+        keyboardShouldPersistTaps="handled">
         {error ? <Notice tone="error" title={error} onDismiss={() => setError(null)} /> : null}
 
         <TextInput
           value={name}
           onChangeText={setName}
           placeholder="Routine name, e.g. Push day"
-          placeholderTextColor={color.t4}
+          placeholderTextColor={PLACEHOLDER}
           accessibilityLabel="Routine name"
-          style={{
-            height: 50,
-            borderRadius: radius.md,
-            backgroundColor: color.surface2,
-            borderWidth: 1,
-            borderColor: color.line,
-            color: color.t1,
-            paddingHorizontal: space.lg,
-            fontFamily: font,
-            fontSize: 16,
-          }}
+          className="border-border bg-secondary text-foreground h-[50px] rounded-md border px-4 text-base"
         />
 
         {rows.length === 0 ? (
@@ -288,43 +283,48 @@ export default function RoutineEditScreen() {
             const timed = r.trackingType === 'duration';
             return (
               <Card key={r.exerciseId}>
-                <Row style={{ alignItems: 'flex-start' }}>
+                <Row className="items-start">
                   {r.thumbUrl ? (
                     <Image
                       source={{ uri: r.thumbUrl }}
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: radius.sm,
-                        backgroundColor: color.surface2,
-                        marginRight: space.md,
-                      }}
-                      accessibilityLabel={r.name}
+                      className="bg-secondary mr-3 h-11 w-11 rounded-sm"
+                      // The name sits right beside it; announcing the image
+                      // too would read the exercise twice.
+                      accessibilityElementsHidden
+                      importantForAccessibility="no"
                     />
                   ) : null}
-                  <View style={{ flex: 1 }}>
-                    <Txt variant="body" style={{ fontWeight: '600' }}>{r.name}</Txt>
-                    <Txt variant="caption" tone="t3" style={{ marginTop: 2 }}>
+                  <View className="flex-1">
+                    <Txt variant="bodyStrong">{r.name}</Txt>
+                    <Txt variant="caption" tone="t3" className="mt-0.5">
                       {i + 1} of {rows.length}
                       {timed ? ' · timed' : ''}
                     </Txt>
                   </View>
                 </Row>
 
-                <Row style={{ marginTop: space.md, marginBottom: 2 }}>
-                  <Txt variant="caption" tone="t3" style={{ width: 44 }}>Set</Txt>
-                  <View style={{ flex: 1 }}>
-                    <Txt variant="caption" tone="t3">{timed ? 'Seconds' : 'Reps'}</Txt>
+                <Row className="mb-0.5 mt-3">
+                  <Txt variant="label" tone="t3" style={COL.num}>
+                    Set
+                  </Txt>
+                  <View className="flex-1">
+                    <Txt variant="label" tone="t3">
+                      {timed ? 'Seconds' : 'Reps'}
+                    </Txt>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Txt variant="caption" tone="t3">{u.weightUnit}</Txt>
+                  <View className="flex-1">
+                    <Txt variant="label" tone="t3">
+                      {u.weightUnit}
+                    </Txt>
                   </View>
-                  <View style={{ width: 34 }} />
+                  <View style={COL.act} />
                 </Row>
 
                 {r.sets.map((st, si) => (
-                  <Row key={si} style={{ gap: space.sm, marginTop: space.sm }}>
-                    <Txt variant="body" tone="t2" style={{ width: 44 }}>{si + 1}</Txt>
+                  <Row key={si} className="mt-2 gap-2">
+                    <Txt variant="body" tone="t2" style={COL.num}>
+                      {si + 1}
+                    </Txt>
                     <Field
                       value={timed ? st.secs : st.reps}
                       onChange={(t) => patchSet(i, si, timed ? { secs: t } : { reps: t })}
@@ -339,7 +339,7 @@ export default function RoutineEditScreen() {
                       decimal
                     />
                     <Small
-                      label="×"
+                      icon="trash"
                       disabled={r.sets.length === 1}
                       onPress={() => removeSet(i, si)}
                       hint={`Remove set ${si + 1}`}
@@ -347,24 +347,28 @@ export default function RoutineEditScreen() {
                   </Row>
                 ))}
 
-                <Row style={{ marginTop: space.md, justifyContent: 'flex-start' }}>
-                  <Small label="+ Set" onPress={() => addSet(i)} hint={`Add a set to ${r.name}`} />
-                  <Txt variant="caption" tone="t3" style={{ marginLeft: space.md }}>
+                <Row className="mt-3 justify-start">
+                  <Small label="Add set" onPress={() => addSet(i)} hint={`Add a set to ${r.name}`} />
+                  <Txt variant="caption" tone="t3" className="ml-3 flex-1">
                     Leave a box empty to repeat the set above.
                   </Txt>
                 </Row>
 
-                <Row style={{ marginTop: space.md, gap: space.sm, justifyContent: 'flex-start' }}>
-                  <Small label="↑" disabled={i === 0} onPress={() => move(i, -1)} hint="Move up" />
+                <Row className="border-border mt-3 justify-start gap-2 border-t pt-3">
+                  {/* Reordering is the common edit, so it stays two plain taps
+                      rather than a drag — a drag inside a scroll view fights
+                      the scroll and is far harder to hit accurately. */}
+                  <Small icon="up" disabled={i === 0} onPress={() => move(i, -1)} hint="Move up" />
                   <Small
-                    label="↓"
+                    icon="down"
                     disabled={i === rows.length - 1}
                     onPress={() => move(i, 1)}
                     hint="Move down"
                   />
-                  <View style={{ flex: 1 }} />
+                  <View className="flex-1" />
                   <Small
                     label="Remove"
+                    danger
                     onPress={() => setRows((rs) => rs.filter((_, n) => n !== i))}
                     hint={`Remove ${r.name}`}
                   />
@@ -378,18 +382,8 @@ export default function RoutineEditScreen() {
       </ScrollView>
 
       <View
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          padding: space.lg,
-          paddingBottom: insets.bottom + space.lg,
-          backgroundColor: color.bg,
-          borderTopWidth: 1,
-          borderTopColor: color.line,
-        }}
-      >
+        className="border-border bg-background absolute bottom-0 left-0 right-0 border-t p-4"
+        style={{ paddingBottom: insets.bottom + 16 }}>
         <Button
           title={editing ? 'Save changes' : 'Create routine'}
           loading={busy}
@@ -425,40 +419,40 @@ function Field({
   decimal?: boolean;
 }) {
   return (
-    <View style={{ flex: 1 }}>
+    <View className="flex-1">
       <TextInput
         value={value}
         onChangeText={onChange}
         keyboardType={decimal ? 'decimal-pad' : 'number-pad'}
         placeholder={placeholder}
-        placeholderTextColor={color.t4}
+        placeholderTextColor={PLACEHOLDER}
         accessibilityLabel={label}
-        style={{
-          height: 42,
-          borderRadius: radius.sm,
-          backgroundColor: color.surface2,
-          borderWidth: 1,
-          borderColor: color.line,
-          color: color.t1,
-          paddingHorizontal: space.md,
-          fontFamily: font,
-          fontSize: 15,
-        }}
+        className="border-border bg-secondary text-foreground h-[42px] rounded-sm border px-3 text-base"
       />
     </View>
   );
 }
 
+/**
+ * A small bordered control. Takes EITHER an icon or a label, never both — the
+ * arrows and the bin are unambiguous as glyphs, while "Add set" and "Remove"
+ * are clearer as words. Both carry `hint` as the accessible label, so an
+ * icon-only control is never announced as an unnamed button.
+ */
 function Small({
   label,
+  icon,
   onPress,
   disabled,
   hint,
+  danger,
 }: {
-  label: string;
+  label?: string;
+  icon?: IconName;
   onPress: () => void;
   disabled?: boolean;
   hint: string;
+  danger?: boolean;
 }) {
   return (
     <Pressable
@@ -468,16 +462,17 @@ function Small({
       accessibilityLabel={hint}
       accessibilityState={{ disabled: !!disabled }}
       hitSlop={8}
-      style={{
-        paddingHorizontal: space.md,
-        paddingVertical: space.sm,
-        borderRadius: radius.sm,
-        borderWidth: 1,
-        borderColor: color.line,
-        opacity: disabled ? 0.35 : 1,
-      }}
-    >
-      <Txt variant="caption" tone="t2">{label}</Txt>
+      className={cn(
+        'border-border min-h-9 items-center justify-center rounded-sm border px-3 py-2 active:opacity-70',
+        disabled && 'opacity-35',
+      )}>
+      {icon ? (
+        <Icon name={icon} size={15} tone={danger ? 'accent' : 't2'} decorative />
+      ) : (
+        <Txt variant="caption" tone={danger ? 'accent' : 't2'}>
+          {label}
+        </Txt>
+      )}
     </Pressable>
   );
 }
