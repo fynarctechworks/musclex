@@ -1,4 +1,14 @@
 /**
+ * SUPERSEDED by `exercise-catalogue.data.ts`, which seeds the full 1,323
+ * movements every new gym now starts with. Nothing imports this any more.
+ *
+ * Kept rather than deleted because it is the only hand-curated list here — 51
+ * movements someone chose deliberately — and if a "starter" tier is ever
+ * wanted again, re-deriving that judgement from a 1,323-row dump is not
+ * something anyone will enjoy. Delete it once that is definitively not wanted.
+ */
+
+/**
  * Starter exercise catalog.
  *
  * A fresh tenant previously had ZERO exercises — no seed existed anywhere in

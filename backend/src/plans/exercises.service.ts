@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { TenantPrisma } from '../prisma/tenant-prisma.accessor';
 import { getTenantGymId } from '../common/tenant-context';
-import { EXERCISE_SEED } from './exercise-seed.data';
+import { EXERCISE_CATALOGUE } from './exercise-catalogue.data';
 
 export interface ExerciseInput {
   name: string;
@@ -114,21 +114,30 @@ export class ExercisesService {
   }
 
   /**
-   * Populate the starter catalog. Idempotent: only inserts names the gym
-   * doesn't already have, so it is safe to re-run and never overwrites a
-   * gym's own curation.
+   * Populate the starter catalogue — the full 1,323-movement library, not a
+   * 51-entry sample.
+   *
+   * A gym that opens with fifty exercises looks like a demo. The library is
+   * also what the MEMBER app browses, so a thin catalogue makes the consumer
+   * app look empty on day one too, which is the failure this exists to
+   * prevent.
+   *
+   * Idempotent: only inserts names the gym does not already have, so it is
+   * safe to re-run and never overwrites a gym's own curation or renames.
+   *
+   * Reads the existing names in ONE query rather than checking per row —
+   * 1,323 round trips inside studio provisioning would make signup crawl.
    */
   async seedDefaults() {
     const gymId = getTenantGymId()!;
     const existing = await this.tenant.client.exercise.findMany({
-      where: { name: { in: EXERCISE_SEED.map((e) => e.name) } },
       select: { name: true },
     });
     const have = new Set(existing.map((e) => e.name));
-    const toCreate = EXERCISE_SEED.filter((e) => !have.has(e.name));
+    const toCreate = EXERCISE_CATALOGUE.filter((e) => !have.has(e.name));
 
     if (toCreate.length === 0) {
-      return { created: 0, skipped: EXERCISE_SEED.length, total: EXERCISE_SEED.length };
+      return { created: 0, skipped: EXERCISE_CATALOGUE.length, total: EXERCISE_CATALOGUE.length };
     }
 
     await this.tenant.client.exercise.createMany({
@@ -136,7 +145,10 @@ export class ExercisesService {
         gym_id: gymId,
         name: e.name,
         muscle_group: e.muscle_group,
+        target_muscle: e.target_muscle,
+        secondary_muscles: e.secondary_muscles,
         equipment: e.equipment,
+        tracking_type: e.tracking_type,
         is_active: true,
       })),
       skipDuplicates: true,
@@ -145,8 +157,8 @@ export class ExercisesService {
     this.logger.log(`Seeded ${toCreate.length} exercises for gym ${gymId}`);
     return {
       created: toCreate.length,
-      skipped: EXERCISE_SEED.length - toCreate.length,
-      total: EXERCISE_SEED.length,
+      skipped: EXERCISE_CATALOGUE.length - toCreate.length,
+      total: EXERCISE_CATALOGUE.length,
     };
   }
 }
