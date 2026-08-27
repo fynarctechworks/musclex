@@ -25,7 +25,13 @@ export default function SignInScreen() {
 
   const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState(realOtp ? '' : (process.env.EXPO_PUBLIC_DEV_PHONE ?? ''));
-  const [code, setCode] = useState('');
+  /*
+    Prefilled in dev for the same reason the phone number is: no SMS goes out,
+    the bypass code is fixed, and typing it by hand is friction that teaches
+    nothing. In a real build this is empty and the member types what they were
+    sent.
+  */
+  const [code, setCode] = useState(realOtp ? '' : (process.env.EXPO_PUBLIC_DEV_OTP ?? '000000'));
   const [choices, setChoices] = useState<TenantChoice[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -142,23 +148,51 @@ export default function SignInScreen() {
               keyboardType="number-pad"
               autoFocus
               maxLength={6}
-              placeholder="000000"
+              placeholder="Enter the 6-digit code"
               placeholderTextColor={color.t4}
               accessibilityLabel="Verification code"
-              style={[input, { letterSpacing: 8, textAlign: 'center', fontWeight: '700' }]}
+              // The letter-spacing only applies once there is something to
+              // space out; on the placeholder it turns a sentence into gaps.
+              style={[
+                input,
+                code
+                  ? { letterSpacing: 8, textAlign: 'center', fontWeight: '700' }
+                  : { textAlign: 'center' },
+              ]}
             />
             <View style={{ marginTop: space.lg }}>
-              <Button title="Sign in" onPress={() => verify()} disabled={code.length < 4} loading={busy} />
+              <Button
+                title="Sign in"
+                onPress={() => verify()}
+                disabled={code.length < 4}
+                loading={busy}
+              />
+              {/* A disabled primary with no explanation reads as a broken
+                  button — you press it, nothing happens, and nothing tells you
+                  why. */}
+              {code.length < 4 ? (
+                <Txt variant="caption" tone="t3" style={{ marginTop: space.sm, textAlign: 'center' }}>
+                  Enter the code to continue.
+                </Txt>
+              ) : null}
             </View>
-            <Row style={{ marginTop: space.md }}>
+            {/*
+              Separated from the primary action deliberately. These two used to
+              sit immediately under Sign in, so a near-miss on a DISABLED
+              primary landed on "Change number" and threw the member back to
+              the start — which looks exactly like the sign-in button undoing
+              itself.
+            */}
+            <Row style={{ marginTop: space['2xl'] }}>
               <Pressable
                 onPress={() => { setStep('phone'); setCode(''); setError(null); }}
                 accessibilityRole="button"
                 accessibilityLabel="Change number"
+                hitSlop={8}
               >
                 <Txt variant="small" tone="t3">Change number</Txt>
               </Pressable>
-              <Pressable onPress={sendCode} accessibilityRole="button" accessibilityLabel="Resend code">
+              <Pressable onPress={sendCode} accessibilityRole="button" accessibilityLabel="Resend code" hitSlop={8}>
                 <Txt variant="small" tone="t3">Resend</Txt>
               </Pressable>
             </Row>
