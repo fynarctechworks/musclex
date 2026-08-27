@@ -6,7 +6,7 @@ import { Chip } from '../src/ui/Chip';
 import { InfoDot, InfoNote, InfoBullet } from '../src/ui/InfoTip';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { FormChart } from '../src/features/FormChart';
-import { color, space } from '../src/ui/theme';
+import { chart } from '../src/ui/chart-colors';
 import { clock } from '../src/lib/recorder';
 import { useUnits } from '../src/lib/use-units';
 import {
@@ -51,11 +51,11 @@ export default function TrainingScreen() {
   const toggle = (k: string) => setTip((t) => (t === k ? null : k));
 
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + space['2xl'] }}>
+    <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
       <ScreenHeader title="Training" />
 
       {!hasAnything && (
-        <View style={{ paddingHorizontal: space.lg }}>
+        <View className="px-4">
           <Empty
             title="Nothing to measure yet"
             body="Record an activity or log a gym session and your fitness, fatigue and projections build from there."
@@ -64,22 +64,26 @@ export default function TrainingScreen() {
       )}
 
       {(basis?.activities ?? 0) > 0 && today && (
-        <View style={{ paddingHorizontal: space.lg, gap: space.lg }}>
+        <View className="gap-4 px-4">
           <Card>
-            <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Row>
               <Label>Form today</Label>
               <InfoDot open={tip === 'form'} onPress={() => toggle('form')} label="What is form?" />
             </Row>
 
-            <Txt variant="display" style={{ marginTop: space.xs }}>
+            <Txt variant="display" className="mt-1">
               {today.form > 0 ? `+${today.form}` : today.form}
             </Txt>
-            <Txt variant="bodyStrong" style={{ color: color.accentText }}>{today.label}</Txt>
-            <Txt variant="small" tone="t3" style={{ marginTop: space.xs }}>{today.detail}</Txt>
+            <Txt variant="bodyStrong" tone="accent">
+              {today.label}
+            </Txt>
+            <Txt variant="small" tone="t3" className="mt-1">
+              {today.detail}
+            </Txt>
 
-            <Row style={{ gap: space.xl, marginTop: space.lg, justifyContent: 'flex-start' }}>
-              <Stat label="Fitness" value={String(today.fitness)} tint={color.water} />
-              <Stat label="Fatigue" value={String(today.fatigue)} tint={color.accent} />
+            <Row className="mt-4 justify-start gap-6">
+              <Stat label="Fitness" value={String(today.fitness)} tint={chart.water} />
+              <Stat label="Fatigue" value={String(today.fatigue)} tint={chart.accent} />
             </Row>
 
             {tip === 'form' && (
@@ -100,19 +104,19 @@ export default function TrainingScreen() {
           </Card>
 
           <Card>
-            <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Row>
               <Label>Last {days} days</Label>
-              <Row style={{ gap: space.sm }}>
+              <Row className="gap-2">
                 {RANGES.map((r) => (
                   <Chip key={r} label={`${r}d`} active={days === r} onPress={() => setDays(r)} />
                 ))}
               </Row>
             </Row>
-            <View style={{ marginTop: space.md }}>
+            <View className="mt-3">
               <FormChart series={load?.series ?? []} />
             </View>
             {!!basis && basis.estimated > 0 && (
-              <Txt variant="caption" tone="t3" style={{ marginTop: space.md }}>
+              <Txt variant="caption" tone="t3" className="mt-3">
                 {basis.withHeartRate === 0
                   ? `Estimated from duration and sport — none of your ${basis.activities} sessions had a heart rate.`
                   : `${basis.withHeartRate} of ${basis.activities} sessions used heart rate; the rest are estimated from duration.`}
@@ -123,25 +127,25 @@ export default function TrainingScreen() {
       )}
 
       {!!races?.from && races.predictions.length > 0 && (
-        <View style={{ paddingHorizontal: space.lg, marginTop: space.lg }}>
+        <View className="mt-4 px-4">
           <Card>
             <Label>Race predictions</Label>
-            <Txt variant="caption" tone="t3" style={{ marginTop: space.xs }}>
+            <Txt variant="caption" tone="t3" className="mt-1">
               From your fastest recent run — {(races.from.distanceM / 1000).toFixed(1)} km
               in {clock(races.from.seconds * 1000)}.
             </Txt>
-            <View style={{ marginTop: space.md, gap: space.sm }}>
+            <View className="mt-3 gap-2">
               {races.predictions.map((p) => (
                 <Row key={p.distanceM} style={{ justifyContent: 'space-between' }}>
                   <Txt>{raceName(p.distanceM)}</Txt>
-                  <Row style={{ gap: space.md, alignItems: 'baseline' }}>
+                  <Row className="items-baseline gap-3">
                     <Txt variant="caption" tone="t3">{pace(p.pacePerKm)}/km</Txt>
                     <Txt variant="bodyStrong">{clock(p.seconds * 1000)}</Txt>
                   </Row>
                 </Row>
               ))}
             </View>
-            <Txt variant="caption" tone="t3" style={{ marginTop: space.md }}>
+            <Txt variant="caption" tone="t3" className="mt-3">
               Distances far from what you have actually run are left out on purpose —
               a marathon time guessed from a 5k is fiction.
             </Txt>
@@ -150,16 +154,16 @@ export default function TrainingScreen() {
       )}
 
       {lifts.length > 0 && (
-        <View style={{ paddingHorizontal: space.lg, marginTop: space.lg }}>
+        <View className="mt-4 px-4">
           <Card>
-            <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Row>
               <Label>Projected one-rep max</Label>
               <InfoDot open={tip === '1rm'} onPress={() => toggle('1rm')} label="How is this worked out?" />
             </Row>
-            <View style={{ marginTop: space.md, gap: space.md }}>
+            <View className="mt-3 gap-3">
               {lifts.map((l) => (
-                <Row key={l.exerciseId} style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <View style={{ flex: 1, paddingRight: space.md }}>
+                <Row key={l.exerciseId} className="items-start">
+                  <View className="flex-1 pr-3">
                     <Txt>{l.name}</Txt>
                     <Txt variant="caption" tone="t3">
                       from {u.fwc(l.fromWeight)} × {l.fromReps}
@@ -195,9 +199,12 @@ export default function TrainingScreen() {
 function Stat({ label, value, tint }: { label: string; value: string; tint: string }) {
   return (
     <View>
-      <Row style={{ alignItems: 'center', gap: 6 }}>
-        <View style={{ width: 10, height: 3, borderRadius: 2, backgroundColor: tint }} />
-        <Txt variant="caption" tone="t3">{label}</Txt>
+      <Row className="items-center gap-1.5">
+        {/* A short rule in the series colour, matching the chart's own key. */}
+        <View className="h-[3px] w-2.5 rounded-sm" style={{ backgroundColor: tint }} />
+        <Txt variant="caption" tone="t3">
+          {label}
+        </Txt>
       </Row>
       <Txt variant="title">{value}</Txt>
     </View>
