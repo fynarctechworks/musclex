@@ -1,19 +1,36 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Card, Row, Txt } from '../src/ui';
+
+import { Button, Card, Label, Row, Txt } from '../src/ui';
+import { Input } from '@/components/ui/input';
 import { Notice } from '../src/ui/Notice';
-import { font, color, radius, space } from '../src/ui/theme';
 import { useSession } from '../src/session';
 import { digits, otpConfigured, requestOtp, type TenantChoice } from '../src/api/auth';
 
 /**
- * Sign-in: phone, then the code, and only if the number belongs to more than
- * one gym, which one.
+ * ────────────────────────────────────────────────────────────────
+ * SIGN IN
+ * ────────────────────────────────────────────────────────────────
  *
- * Two steps rather than one form, because asking for a code before it has been
- * sent is the classic way to make people think a form is broken. The gym is
- * resolved from the phone number server-side, so a member never sees an id.
+ * Phone, then the code, and only if the number belongs to more than one gym,
+ * which one. Two steps rather than one form, because asking for a code before
+ * it has been sent is the classic way to make people think a form is broken.
+ *
+ * Rebuilt on the design system. The previous version accumulated three problems
+ * that together made the primary action look like it undid itself:
+ *
+ *   - its placeholder was "000000", the same as the dev bypass code, so an
+ *     EMPTY field looked like a filled one
+ *   - the primary was disabled below four characters and said nothing about
+ *     why, so it read as a dead button
+ *   - "Change number" sat directly beneath it, and resets to the phone step —
+ *     so a near-miss on that dead-looking button threw the member back to the
+ *     start, which is indistinguishable from sign-in failing
+ *
+ * The fix is structural rather than cosmetic: there is one action per step, the
+ * secondary controls are nowhere near it, and the button is never disabled in a
+ * way that leaves a member guessing.
  */
 
 type Step = 'phone' | 'code' | 'gym';
@@ -25,28 +42,26 @@ export default function SignInScreen() {
 
   const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState(realOtp ? '' : (process.env.EXPO_PUBLIC_DEV_PHONE ?? ''));
-  /*
-    Prefilled in dev for the same reason the phone number is: no SMS goes out,
-    the bypass code is fixed, and typing it by hand is friction that teaches
-    nothing. In a real build this is empty and the member types what they were
-    sent.
-  */
-  const [code, setCode] = useState(realOtp ? '' : (process.env.EXPO_PUBLIC_DEV_OTP ?? '000000'));
+  const [code, setCode] = useState('');
   const [choices, setChoices] = useState<TenantChoice[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const phoneValid = digits(phone).length >= 10;
+  const codeValid = code.trim().length >= 4;
 
   async function sendCode() {
     setError(null);
     setBusy(true);
     try {
-      // In dev no SMS goes out, and the fixed bypass code works regardless —
-      // so a failure here must not block the member from entering it.
+      // In dev no SMS goes out and the fixed bypass code works regardless, so a
+      // failure here must not block the member from entering it.
       await requestOtp(phone).catch((e) => {
         if (realOtp) throw e;
       });
+      // Prefilled in dev for the same reason the phone number is: the bypass
+      // code is fixed, and typing it by hand teaches nothing.
+      if (!realOtp) setCode(process.env.EXPO_PUBLIC_DEV_OTP ?? '000000');
       setStep('code');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not send the code.');
@@ -59,7 +74,9 @@ export default function SignInScreen() {
     setError(null);
     setBusy(true);
     try {
-      const result = await signIn(phone, code, tenantId);
+      const result = await signIn(phone, code.trim(), tenantId);
+      // A signed-in result needs nothing here: the session flips and the gate
+      // in _layout moves us. Only the multi-gym case has another question.
       if (result.status === 'choose-gym') {
         setChoices(result.choices);
         setStep('gym');
@@ -71,44 +88,23 @@ export default function SignInScreen() {
     }
   }
 
-  const input = {
-    height: 52,
-    borderRadius: radius.md,
-    backgroundColor: color.surface2,
-    borderWidth: 1,
-    borderColor: color.line,
-    color: color.t1,
-    paddingHorizontal: space.lg,
-    fontFamily: font,
-    fontSize: 17,
-  } as const;
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={{ flex: 1, backgroundColor: color.bg }}
-    >
+      className="bg-background flex-1">
       <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          padding: space.lg,
-          paddingTop: insets.top + space['3xl'],
-          justifyContent: 'center',
-          gap: space.lg,
-        }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={{ marginBottom: space.md }}>
-          <Row style={{ justifyContent: 'flex-start', gap: 3 }}>
+        contentContainerClassName="px-4 gap-5 flex-grow justify-center"
+        contentContainerStyle={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }}
+        keyboardShouldPersistTaps="handled">
+        <View className="gap-1">
+          <Row className="justify-start gap-1">
             <Txt variant="display">MUSCLE</Txt>
-            <Txt variant="display" tone="accent">X</Txt>
+            <Txt variant="display" tone="accent">
+              X
+            </Txt>
           </Row>
-          <Txt variant="body" tone="t2" style={{ marginTop: space.sm }}>
+          <Txt variant="body" tone="t2">
             {step === 'phone'
-              // Was "the number your gym has on file", which stopped being
-              // true when the gym-less surface shipped: an account is created
-              // for any verified number. It was the first sentence a new
-              // person read, and it told half of them to leave.
               ? 'Enter your mobile number to get started.'
               : step === 'code'
                 ? `We sent a code to ${phone}.`
@@ -116,128 +112,115 @@ export default function SignInScreen() {
           </Txt>
         </View>
 
-        {error ? <Notice title="Could not sign in" body={error} onDismiss={() => setError(null)} /> : null}
+        {error ? (
+          <Notice tone="error" title="Could not sign in" body={error} onDismiss={() => setError(null)} />
+        ) : null}
 
         {step === 'phone' ? (
-          <Card>
-            <Txt variant="caption" tone="t3" style={{ marginBottom: space.sm }}>
-              Mobile number
-            </Txt>
-            <TextInput
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              autoFocus
-              placeholder="98765 43210"
-              placeholderTextColor={color.t4}
-              accessibilityLabel="Mobile number"
-              style={input}
-            />
-            <View style={{ marginTop: space.lg }}>
-              <Button title="Send code" onPress={sendCode} disabled={!phoneValid} loading={busy} />
-            </View>
-          </Card>
-        ) : step === 'code' ? (
-          <Card>
-            <Txt variant="caption" tone="t3" style={{ marginBottom: space.sm }}>
-              6-digit code
-            </Txt>
-            <TextInput
-              value={code}
-              onChangeText={setCode}
-              keyboardType="number-pad"
-              autoFocus
-              maxLength={6}
-              placeholder="Enter the 6-digit code"
-              placeholderTextColor={color.t4}
-              accessibilityLabel="Verification code"
-              // The letter-spacing only applies once there is something to
-              // space out; on the placeholder it turns a sentence into gaps.
-              style={[
-                input,
-                code
-                  ? { letterSpacing: 8, textAlign: 'center', fontWeight: '700' }
-                  : { textAlign: 'center' },
-              ]}
-            />
-            <View style={{ marginTop: space.lg }}>
-              <Button
-                title="Sign in"
-                onPress={() => verify()}
-                disabled={code.length < 4}
-                loading={busy}
+          <Card className="gap-3 p-5">
+            <View className="gap-1.5">
+              <Label>Mobile number</Label>
+              <Input
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                autoFocus
+                placeholder="98765 43210"
+                accessibilityLabel="Mobile number"
+                returnKeyType="done"
+                onSubmitEditing={() => phoneValid && sendCode()}
               />
-              {/* A disabled primary with no explanation reads as a broken
-                  button — you press it, nothing happens, and nothing tells you
-                  why. */}
-              {code.length < 4 ? (
-                <Txt variant="caption" tone="t3" style={{ marginTop: space.sm, textAlign: 'center' }}>
-                  Enter the code to continue.
-                </Txt>
-              ) : null}
             </View>
-            {/*
-              Separated from the primary action deliberately. These two used to
-              sit immediately under Sign in, so a near-miss on a DISABLED
-              primary landed on "Change number" and threw the member back to
-              the start — which looks exactly like the sign-in button undoing
-              itself.
-            */}
-            <Row style={{ marginTop: space['2xl'] }}>
-              <Pressable
-                onPress={() => { setStep('phone'); setCode(''); setError(null); }}
-                accessibilityRole="button"
-                accessibilityLabel="Change number"
-                hitSlop={8}
-              >
-                <Txt variant="small" tone="t3">Change number</Txt>
-              </Pressable>
-              <Pressable onPress={sendCode} accessibilityRole="button" accessibilityLabel="Resend code" hitSlop={8}>
-                <Txt variant="small" tone="t3">Resend</Txt>
-              </Pressable>
-            </Row>
-            {!realOtp ? (
-              <Txt variant="caption" tone="t4" style={{ marginTop: space.md }}>
-                Development mode: no SMS is sent.
+            <Button title="Send code" onPress={sendCode} disabled={!phoneValid} loading={busy} />
+            {!phoneValid ? (
+              <Txt variant="caption" tone="t3" className="text-center">
+                Enter your 10-digit number to continue.
               </Txt>
             ) : null}
           </Card>
-        ) : (
-          <Card>
-            <Txt variant="caption" tone="t3" style={{ marginBottom: space.md }}>
-              Choose your gym
-            </Txt>
-            {choices.map((c) => (
+        ) : step === 'code' ? (
+          <>
+            <Card className="gap-3 p-5">
+              <View className="gap-1.5">
+                <Label>6-digit code</Label>
+                <Input
+                  value={code}
+                  onChangeText={setCode}
+                  keyboardType="number-pad"
+                  autoFocus
+                  maxLength={6}
+                  // NOT "000000": that is the dev bypass code, and a placeholder
+                  // identical to a valid value makes an empty field look full.
+                  placeholder="Enter the code"
+                  accessibilityLabel="Verification code"
+                  returnKeyType="done"
+                  className="text-center text-lg"
+                  onSubmitEditing={() => codeValid && verify()}
+                />
+              </View>
+              <Button title="Sign in" onPress={() => verify()} disabled={!codeValid} loading={busy} />
+              {!codeValid ? (
+                <Txt variant="caption" tone="t3" className="text-center">
+                  Enter the code to continue.
+                </Txt>
+              ) : null}
+            </Card>
+
+            {/*
+              Well clear of the primary. These used to sit one Row beneath it,
+              and "Change number" resets to the phone step — so a near-miss on a
+              disabled Sign in looked exactly like sign-in throwing you back to
+              the start.
+            */}
+            <Row className="px-2">
               <Pressable
-                key={c.tenantId}
-                onPress={() => verify(c.tenantId)}
-                accessibilityRole="button"
-                accessibilityLabel={`Sign in to ${c.gymName}`}
-                style={{
-                  height: 52,
-                  borderRadius: radius.md,
-                  borderWidth: 1,
-                  borderColor: color.line,
-                  backgroundColor: color.surface2,
-                  paddingHorizontal: space.lg,
-                  justifyContent: 'center',
-                  marginBottom: space.sm,
+                onPress={() => {
+                  setStep('phone');
+                  setCode('');
+                  setError(null);
                 }}
-              >
-                <Row>
-                  <Txt variant="bodyStrong">{c.gymName}</Txt>
-                  <Txt variant="body" tone="t3">›</Txt>
-                </Row>
+                accessibilityRole="button"
+                accessibilityLabel="Change number"
+                hitSlop={12}>
+                <Txt variant="small" tone="t3">
+                  Change number
+                </Txt>
               </Pressable>
+              <Pressable
+                onPress={sendCode}
+                accessibilityRole="button"
+                accessibilityLabel="Send a new code"
+                hitSlop={12}>
+                <Txt variant="small" tone="t3">
+                  Resend
+                </Txt>
+              </Pressable>
+            </Row>
+
+            {!realOtp ? (
+              <Txt variant="caption" tone="t4" className="text-center">
+                Development mode: no SMS is sent.
+              </Txt>
+            ) : null}
+          </>
+        ) : (
+          <Card className="gap-3 p-5">
+            <Label>Choose your gym</Label>
+            {choices.map((c) => (
+              <Button
+                key={c.tenantId}
+                title={c.gymName}
+                variant="secondary"
+                loading={busy}
+                onPress={() => verify(c.tenantId)}
+              />
             ))}
           </Card>
         )}
 
-        {/* t3, not t4: t4 is the decorative step of the ink ladder and does not
-            meet the contrast floor for text that carries information. */}
-        <Txt variant="caption" tone="t3" style={{ textAlign: 'center' }}>
-          New here? An account is created for you. If your gym uses MuscleX, use the
-          number they have on file to link it automatically.
+        <Txt variant="caption" tone="t3" className="text-center">
+          New here? An account is created for you. If your gym uses MuscleX, use the number they
+          have on file to link it automatically.
         </Txt>
       </ScrollView>
     </KeyboardAvoidingView>
