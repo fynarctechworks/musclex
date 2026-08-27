@@ -32,14 +32,28 @@ const selfManaged = (sql: string) => /^\s*BEGIN\s*;/im.test(sql);
 
 (async () => {
   if (!FILES.length) { console.error('no .sql files given'); process.exit(1); }
-  if (!process.argv.includes('--commit')) {
-    console.error('refusing to run without --commit (these files COMMIT themselves; there is no dry run)');
+  const commit = process.argv.includes('--commit');
+  const rehearse = process.argv.includes('--rehearse');
+  if (commit === rehearse) {
+    console.error('pass exactly one of --commit or --rehearse');
     process.exit(1);
+  }
+  // A file that opens its own transaction ends ours, so the closing ROLLBACK
+  // would undo nothing and still report success. Refuse rather than lie.
+  if (rehearse) {
+    const bad = FILES.filter((f) => selfManaged(fs.readFileSync(f, 'utf8')));
+    if (bad.length) {
+      console.error('cannot rehearse — these files manage their own transaction, so a rollback would be a no-op:');
+      bad.forEach((f) => console.error('    ' + label(f)));
+      console.error('  run them with --commit, or remove their BEGIN/COMMIT.');
+      process.exit(1);
+    }
   }
   const c = new Client({ connectionString: process.env.DATABASE_URL });
   await c.connect();
-  console.log(`${FILES.length} files -> production\n`);
+  console.log(`${FILES.length} files -> production | mode: ${commit ? 'COMMIT' : 'REHEARSE (rollback)'}\n`);
 
+  if (rehearse) await c.query('BEGIN');
   let pending = [...FILES];
   const done: string[] = [];
   let pass = 0;
@@ -52,12 +66,16 @@ const selfManaged = (sql: string) => /^\s*BEGIN\s*;/im.test(sql);
       const own = selfManaged(sql);
       try {
         const t0 = process.hrtime.bigint();
-        if (own) await c.query(sql);
+        if (rehearse) {
+          await c.query('SAVEPOINT s');
+          await c.query(sql);
+          await c.query('RELEASE SAVEPOINT s');
+        } else if (own) await c.query(sql);
         else { await c.query('BEGIN'); await c.query(sql); await c.query('COMMIT'); }
         console.log(`  ok    ${label(f)}${own ? ' [own tx]' : ''}  (${(Number(process.hrtime.bigint() - t0) / 1e6).toFixed(0)}ms)`);
         done.push(f);
       } catch (e: any) {
-        try { await c.query('ROLLBACK'); } catch { /* already out of a tx */ }
+        try { await c.query(rehearse ? 'ROLLBACK TO SAVEPOINT s' : 'ROLLBACK'); } catch { /* already out of a tx */ }
         console.log(`  defer ${label(f)}  (${e.message})`);
         failed.push({ f, msg: e.message });
       }
@@ -70,6 +88,14 @@ const selfManaged = (sql: string) => /^\s*BEGIN\s*;/im.test(sql);
     }
     pending = failed.map(x => x.f);
   }
-  console.log(`\napplied ${done.length}/${FILES.length} in ${pass} pass(es).`);
+  if (rehearse) {
+    await c.query('ROLLBACK');
+    // Prove the rollback took effect rather than asserting it.
+    const r = await c.query('SELECT count(*)::int AS n FROM pg_class WHERE relname = $1', ['expense_metrics']);
+    console.log(`\nrehearsed ${done.length}/${FILES.length} in ${pass} pass(es), then ROLLED BACK.`);
+    console.log(`  post-rollback sanity: ${r.rows[0].n} relation(s) named expense_metrics (was the same before)`);
+  } else {
+    console.log(`\napplied ${done.length}/${FILES.length} in ${pass} pass(es).`);
+  }
   await c.end();
 })();
