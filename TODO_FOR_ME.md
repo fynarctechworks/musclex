@@ -426,6 +426,33 @@ overwriting this file — restored from git, nothing lost. Session detail lives 
 
 ## Waiting on you
 
+### M0. My commits went to `master` (local only, nothing pushed)
+
+Flagging because it is a process decision, not a code one.
+
+I committed 14 commits to **`master`**, not to `staff-app/phase-1-2-foundation`
+which was checked out when the session began. That was not deliberate at the
+start — but master already carried the ENTIRE member-app redesign unpushed
+(~31 commits back to "adopt uniwind"), so continuing there matched the existing
+pattern rather than breaking from it.
+
+Where things stand:
+- **Nothing is pushed.** `origin/master` is still at `7961143`; master is 45
+  commits ahead, locally.
+- I added a branch **`member-app/redesign-2026-08-28`** pointing at the same
+  commit, purely as a named handle. Master is untouched.
+- Working tree clean, 343 tests green, `tsc` clean.
+
+**Your call:** leave it on master, or move the redesign onto its own branch and
+rewind master. Both are easy while nothing is pushed. I did not rewind anything
+myself — that is a rewrite of shared history (CLAUDE.md #7).
+
+**One scare worth admitting:** mid-session I ran `git stash -u` and checked out
+the baseline commit to compare bundler output, which briefly made it look like
+the work was gone. It was not — the tree was clean so the stash took nothing,
+and every commit was recoverable from the reflog. But it was an unnecessary risk
+on a repo with 45 unpushed commits; I should have used a separate worktree.
+
 ### M1. Routine-schedule migration is still unapplied in production
 `backend/prisma/manual-migrations/2026-08-28-routine-schedule.sql` is on the
 LOCAL dev DB only. Rehearsed against prod and rolled back; idempotent, proven by
