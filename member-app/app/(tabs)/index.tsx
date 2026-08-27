@@ -2,68 +2,43 @@ import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Card, Chip, Empty, Label, Loading, Meter, Row, Txt } from '../../src/ui';
+
+import { Button, Card, Empty, Label, Loading, Meter, Row, Txt } from '../../src/ui';
 import { InfoBullet, InfoDot, InfoNote } from '../../src/ui/InfoTip';
-import { color, levelColor, levelLabel, space } from '../../src/ui/theme';
+import { levelColor, levelLabel } from '../../src/ui/theme';
 import { whenOf } from '../../src/lib/datetime';
 import { useGoals, useHome, useLogWater, useOccupancy } from '../../src/api/queries';
 import { useWho } from '../../src/lib/use-capabilities';
 import { PendingBanner } from '../../src/features/PendingBanner';
 import { StepsCard } from '../../src/features/StepsCard';
 import type { Occupancy } from '../../src/api/types';
-import { Icon } from '../../src/ui/Icon';
+import { Icon, type IconName } from '../../src/ui/Icon';
 
 /**
  * TODAY — what to do now, for whichever of two people is holding the phone.
  *
- * `GET /home` is GYM-ONLY. It returns a clean 403 to someone with no gym, and
- * this screen used to call it unconditionally — so an independent member's
- * first screen after signing in was an error state, and under it a column of
- * cards about a gym they have never been to: how busy it is right now, what
- * class is on next, what their trainer assigned. All empty, all irrelevant.
+ * `GET /home` is GYM-ONLY. It returns a clean 403 to someone with no gym, so
+ * the gym block is drawn only when the server says there is a gym, and the
+ * self-tracking half — water, steps, goals, activities — is drawn for everyone,
+ * because it is what works without one.
  *
- * Now the gym block is drawn only when the server says there is a gym, and the
- * self-tracking block — water, steps, goals, workouts — is drawn for everyone,
- * because it is the half that works without one.
+ * ── The composition ─────────────────────────────────────────────────────────
  *
- * Order for a gym member: streak, then how busy the gym is (the reason to come
- * NOW), then today's workout, then fuel. For an independent member the gym
- * block simply is not there, and today's own numbers move to the top.
+ * Redesigned around one question: what does this person do next? Everything is
+ * ranked by how actionable it is, not by how interesting the data is.
+ *
+ *   1  The action. One thing, given real size, with the primary button.
+ *   2  Your day. The three marks that claim a day, as something to complete.
+ *   3  Context. Gym occupancy and the next class — reasons to come NOW, but
+ *      nothing to do here, so they are strips rather than cards.
+ *   4  Passive totals. Fuel and steps, which are records rather than prompts.
+ *
+ * The old screen gave all six the same weight, so a new member's first read was
+ * a streak of 0 above a gym at 0/40 — four zeros stacked, presented as
+ * achievements. Nothing here prints a bare zero: an empty streak asks to be
+ * started, an empty day shows three marks to claim, and empty fuel shows the
+ * goal rather than the absence.
  */
-
-export function OccupancyCard({ occ }: { occ: Occupancy }) {
-  const tint = levelColor(occ.level);
-  return (
-    <Card>
-      <Row style={{ alignItems: 'flex-start' }}>
-        <View>
-          <Label>In the gym right now</Label>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginTop: space.sm }}>
-            <Txt variant="display">{occ.current}</Txt>
-            <Txt variant="small" tone="t2">
-              / {occ.capacity || '--'} capacity
-            </Txt>
-          </View>
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Txt variant="bodyStrong" style={{ color: tint }}>
-            {levelLabel(occ.level)}
-          </Txt>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
-            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color.good }} />
-            <Txt variant="caption" tone="good" style={{ fontWeight: '600' }}>
-              live
-            </Txt>
-          </View>
-        </View>
-      </Row>
-      <Meter value={occ.current} max={occ.capacity} tint={tint} />
-      <Txt variant="caption" tone="t3" style={{ marginTop: space.sm }}>
-        Counted from gym check-ins, refreshed every 30 seconds.
-      </Txt>
-    </Card>
-  );
-}
 
 /** Tab bar height plus the raised action button that sits above it. The
  *  device's own home-indicator inset is added on top at render. */
@@ -74,6 +49,115 @@ function greetingFor(firstName: string | null): string {
   const h = new Date().getHours();
   const part = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
   return firstName ? `${part}, ${firstName}` : part;
+}
+
+/**
+ * A quiet header above a group. Replaces the card-with-a-Label pattern for
+ * everything that is not itself a surface, so the screen has fewer boxes and
+ * more air.
+ */
+function SectionHead({
+  children,
+  action,
+  onAction,
+  actionLabel,
+}: {
+  children: string;
+  action?: string;
+  onAction?: () => void;
+  actionLabel?: string;
+}) {
+  return (
+    <Row className="mb-2">
+      <Label>{children}</Label>
+      {action && onAction ? (
+        <Pressable
+          onPress={onAction}
+          accessibilityRole="button"
+          accessibilityLabel={actionLabel ?? action}
+          hitSlop={10}>
+          <Txt variant="caption" tone="t3">
+            {action} ›
+          </Txt>
+        </Pressable>
+      ) : null}
+    </Row>
+  );
+}
+
+/**
+ * One of the three marks that claim a day.
+ *
+ * Was a Chip in a row, which read as a filter. As a tile it reads as something
+ * to complete — three of them side by side, two filled, is a progress bar made
+ * of nouns. Done state carries an icon as well as the fill, because colour must
+ * never be the only indicator.
+ */
+function Mark({ label, icon, done }: { label: string; icon: IconName; done: boolean }) {
+  return (
+    <View
+      accessibilityRole="text"
+      accessibilityLabel={`${label}: ${done ? 'done' : 'not yet'}`}
+      className={
+        done
+          ? 'border-success/30 bg-success/10 flex-1 items-center gap-1 rounded-md border py-2.5'
+          : 'border-border bg-secondary flex-1 items-center gap-1 rounded-md border py-2.5'
+      }>
+      <Icon name={done ? 'check' : icon} size={16} tone={done ? 'good' : 't4'} decorative />
+      <Txt variant="caption" tone={done ? 'good' : 't3'} className="font-medium">
+        {label}
+      </Txt>
+    </View>
+  );
+}
+
+/**
+ * Occupancy, as a strip.
+ *
+ * Was a full card carrying a display number, a meter and a sentence explaining
+ * that it refreshes every thirty seconds — plumbing, given the same weight as
+ * the reason to come in. The number that matters is how busy it is; the
+ * mechanism moved into the info tip where someone can ask for it.
+ */
+export function OccupancyCard({ occ }: { occ: Occupancy }) {
+  const [how, setHow] = useState(false);
+  const tint = levelColor(occ.level);
+  return (
+    <Card>
+      <Row>
+        <View className="flex-row items-center">
+          <Label>In the gym now</Label>
+          <InfoDot open={how} onPress={() => setHow((v) => !v)} label="How this is counted" />
+        </View>
+        <View className="flex-row items-center gap-1.5">
+          <View className="bg-success h-1.5 w-1.5 rounded-full" />
+          <Txt variant="caption" tone="good" className="font-semibold">
+            live
+          </Txt>
+        </View>
+      </Row>
+      <Row className="mt-2 items-baseline">
+        <View className="flex-row items-baseline gap-1.5">
+          <Txt variant="title">{occ.current}</Txt>
+          <Txt variant="small" tone="t3">
+            of {occ.capacity || '--'}
+          </Txt>
+        </View>
+        <Txt variant="bodyStrong" style={{ color: tint }}>
+          {levelLabel(occ.level)}
+        </Txt>
+      </Row>
+      <Meter value={occ.current} max={occ.capacity} tint={tint} />
+      {how ? (
+        <InfoNote>
+          <Txt variant="small" tone="t2">
+            Counted from gym check-ins and refreshed every 30 seconds, so it can lag a minute
+            behind the door.
+          </Txt>
+        </InfoNote>
+      ) : null}
+    </Card>
+  );
 }
 
 export default function TodayScreen() {
@@ -96,291 +180,280 @@ export default function TodayScreen() {
   const occ = liveOcc ?? data?.occupancy;
   const n = data?.nutrition;
   const openGoals = (goals?.goals ?? []).filter((g) => g.status === 'active').slice(0, 3);
+  const marks = [t?.checkedIn, t?.workoutLogged, t?.mealLogged].filter(Boolean).length;
 
   return (
     <ScrollView
+      className="bg-background"
       contentContainerStyle={{
-        padding: space.lg,
-        paddingTop: insets.top + space.md,
+        paddingTop: insets.top + 12,
         paddingBottom: TAB_BAR_CLEARANCE + insets.bottom,
-        gap: space.md,
       }}
+      contentContainerClassName="px-4 gap-5"
       refreshControl={
-        <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={color.t3} />
-      }
-    >
+        <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#79716b" />
+      }>
       <PendingBanner />
 
-      <View style={{ marginBottom: space.xs }}>
+      <View>
         {/* The greeting comes from /home for a gym member and from the context
             call otherwise, so it is never blank while the gym data is absent. */}
         <Txt variant="title">{data?.greeting ?? greetingFor(who.firstName)}</Txt>
         {data?.membership?.planName ? (
-          <Txt variant="small" tone="t2" style={{ marginTop: 4 }}>
+          <Txt variant="small" tone="t3" className="mt-0.5">
             {data.membership.planName}
           </Txt>
         ) : null}
       </View>
 
       {/*
-        THE INDEPENDENT MEMBER'S DAY.
-
-        Steps, water, weight and goals are the whole self-tracking surface that
-        works without a gym. For someone with no gym this IS their Today, so it
-        comes first and nothing about a gym appears above it.
+        ── 1. THE ACTION ────────────────────────────────────────────────────
+        The one thing a member opened the app to do. It gets the largest
+        surface on the screen and the only primary button, so the eye has
+        somewhere to land before it starts reading.
       */}
-      {!who.hasGym ? (
-        <>
-          <StepsCard />
-          <Card>
-            <Row>
-              <Label>Water</Label>
-              <Button
-                title="+250ml"
-                variant="secondary"
-                size="sm"
-                loading={water.isPending}
-                onPress={() => water.mutate(250)}
-              />
-            </Row>
-          </Card>
-          {openGoals.length > 0 ? (
-            <Card>
-              <Row>
-                <Label>Your goals</Label>
-                <Pressable
-                  onPress={() => router.push('/settings/goals')}
-                  accessibilityRole="button"
-                  accessibilityLabel="See all goals"
-                  hitSlop={10}
-                >
-                  <Txt variant="caption" tone="t3">All goals ›</Txt>
-                </Pressable>
-              </Row>
-              <View style={{ marginTop: space.md, gap: space.sm }}>
-                {openGoals.map((g) => (
-                  <Row key={g.id}>
-                    <Txt variant="body">{g.title}</Txt>
-                    <Txt variant="caption" tone="t3">
-                      {g.currentValue ?? 0}
-                      {g.targetValue ? ` / ${g.targetValue}` : ''} {g.unit ?? ''}
-                    </Txt>
-                  </Row>
-                ))}
+      {who.hasGym && data && t ? (
+        <View>
+          <SectionHead action="My plan" onAction={() => router.push('/plan')} actionLabel="See your plan">
+            Today's workout
+          </SectionHead>
+          <Card className="gap-4 p-5">
+            {data.todayWorkout ? (
+              <View className="gap-1">
+                <Txt variant="title">{data.todayWorkout.title ?? 'Assigned workout'}</Txt>
+                <Txt variant="small" tone="t3">
+                  {data.todayWorkout.exerciseCount
+                    ? `${data.todayWorkout.exerciseCount} exercises · set by your trainer`
+                    : 'Set by your trainer'}
+                </Txt>
               </View>
-            </Card>
-          ) : null}
-          <Card>
-            <Label>Record an activity</Label>
-            <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
-              Track a run, ride or walk with GPS. No gym needed.
-            </Txt>
-            <View style={{ marginTop: space.md }}>
-              <Button title="Start recording" onPress={() => router.push('/record')} />
+            ) : (
+              <View className="gap-1">
+                <Txt variant="heading">Nothing assigned today</Txt>
+                <Txt variant="small" tone="t3">
+                  Train what you like — start from empty, or pick a routine you have saved.
+                </Txt>
+              </View>
+            )}
+            <View className="gap-2">
+              <Button
+                title={data.todayWorkout ? 'Start workout' : 'Start a workout'}
+                onPress={() => router.push(data.todayWorkout ? '/session?assigned=1' : '/session')}
+              />
+              <Button
+                title={data.todayWorkout ? 'Log something else' : 'Use a saved routine'}
+                variant="secondary"
+                onPress={() => router.push(data.todayWorkout ? '/session' : '/routines')}
+              />
             </View>
           </Card>
-        </>
+        </View>
       ) : null}
 
       {/*
-        THE GYM MEMBER'S DAY.
-
-        Everything from here down needs /home, which is gym-only. It used to
-        render unconditionally, so a member with no gym got a streak of zero, a
-        gym that was '0 / 40 capacity', a workout 'assigned by your trainer'
-        they do not have, and a class schedule for a branch they have never
-        visited — four cards of nothing, above the fold.
+        ── 2. YOUR DAY ──────────────────────────────────────────────────────
+        Three marks to claim, and the streak as their consequence rather than
+        as a headline. A member with no streak is asked to start one; they are
+        never shown a 0 and left to interpret it.
       */}
       {who.hasGym && data && t ? (
-        <>
-        {/*
-          ORDER IS THE HIERARCHY.
-
-          Previously six cards of identical weight — streak, occupancy, workout,
-          class, fuel — so the eye had nowhere to land and the first thing a new
-          member read was a streak of 0. Now the one thing they came to DO leads,
-          the streak is a strip rather than a headline, and anything the gym has
-          nothing to say about collapses instead of printing "Nothing scheduled".
-        */}
-        <Card>
-          <Row>
-            <Label>Today's workout</Label>
-            <Pressable onPress={() => router.push('/plan')} accessibilityRole="button"
-              accessibilityLabel="See your plan">
-              <Txt variant="caption" tone="t3">My plan ›</Txt>
-            </Pressable>
-          </Row>
-          {data.todayWorkout ? (
-            <>
-              <Txt variant="heading" style={{ marginTop: space.sm }}>
-                {data.todayWorkout.title ?? 'Assigned workout'}
-              </Txt>
-              <Txt variant="small" tone="t2" style={{ marginTop: 2 }}>
-                {data.todayWorkout.exerciseCount
-                  ? `${data.todayWorkout.exerciseCount} exercises`
-                  : 'Set by your trainer'}
-              </Txt>
-            </>
-          ) : (
-            <Txt variant="small" tone="t2" style={{ marginTop: space.sm }}>
-              No workout assigned by your trainer today.
-            </Txt>
-          )}
-          <View style={{ marginTop: space.lg, gap: space.sm }}>
-            <Button
-              title={data.todayWorkout ? 'Start workout' : 'Start an empty workout'}
-              onPress={() =>
-                router.push(data.todayWorkout ? '/session?assigned=1' : '/session')
-              }
-            />
-            {data.todayWorkout ? (
-              <Button
-                title="Log something else"
-                variant="secondary"
-                size="sm"
-                onPress={() => router.push('/session')}
-              />
-            ) : (
-              <Button
-                title="Use a saved routine"
-                variant="secondary"
-                size="sm"
-                onPress={() => router.push('/routines')}
-              />
-            )}
-          </View>
-        </Card>
-  
-      {/* Streak. Turns accent only when it is genuinely at risk, so the colour
-            keeps meaning something. */}
-        <Card tone={t.streakAtRisk ? 'accent' : 'default'}>
-          <Row style={{ alignItems: 'flex-start' }}>
-            <View>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Label>Streak</Label>
+        <View>
+          <SectionHead>Your day</SectionHead>
+          <Card tone={t.streakAtRisk ? 'accent' : 'default'} className="gap-3">
+            <Row>
+              <View className="flex-row items-center">
+                <Txt variant="bodyStrong">
+                  {data.streak.days > 0
+                    ? `${data.streak.days}-day streak`
+                    : marks > 0
+                      ? 'Streak starts today'
+                      : 'Start a streak today'}
+                </Txt>
                 <InfoDot
                   open={streakInfo}
                   onPress={() => setStreakInfo((v) => !v)}
                   label="What counts as a streak day"
                 />
               </View>
-              <View
-                style={{ flexDirection: 'row', alignItems: 'baseline', gap: 7, marginTop: space.sm }}
-              >
-                <Txt variant="display">{data.streak.days}</Txt>
-                <Txt variant="small" tone="t2">
-                  {data.streak.days === 1 ? 'day' : 'days'}
-                </Txt>
-              </View>
-            </View>
-            {/* State is already carried by the card tone AND the sentence below,
-                so colour is never the only indicator here. */}
-            <Icon
-              name={t.streakAtRisk ? 'alert' : 'streak'}
-              size={28}
-              tone={t.streakAtRisk ? 'accent' : 't3'}
-              accessibilityLabel={t.streakAtRisk ? 'Streak at risk' : 'Streak running'}
-            />
-          </Row>
-          {t.streakAtRisk ? (
-            <Txt variant="small" tone="accent" style={{ marginTop: space.md }}>
-              Nothing logged yet today. One set keeps it alive.
-            </Txt>
-          ) : null}
-          <View style={{ flexDirection: 'row', gap: 7, marginTop: space.lg, flexWrap: 'wrap' }}>
-            <Chip label="Checked in" on={t.checkedIn} />
-            <Chip label="Workout" on={t.workoutLogged} />
-            <Chip label="Meal" on={t.mealLogged} />
-          </View>
-          {/* The rule is the server's (MemberStreakService): any ONE of the three
-              marks above claims the day, and the run may end today OR yesterday,
-              so today is never already lost.
-  
-              This copy describes THAT streak only. The one on Progress is a
-              different number — workout logs alone — so do not lift this text
-              over there without changing it. */}
-          {streakInfo ? (
-            <InfoNote>
-              <Txt variant="small" tone="t2">Any one of these marks the day:</Txt>
-              <InfoBullet>Check in at the gym</InfoBullet>
-              <InfoBullet>Log a workout</InfoBullet>
-              <InfoBullet>Log a meal</InfoBullet>
-              <Txt variant="small" tone="t2" style={{ marginTop: space.xs }}>
-                Doing all three still counts as one day. Your streak is how many days in a row you
-                have marked — it only resets after a full day with nothing logged.
+              <Txt variant="caption" tone="t3">
+                {marks} of 3 marked
               </Txt>
-            </InfoNote>
-          ) : null}
-        </Card>
-  
-        {occ ? <OccupancyCard occ={occ} /> : null}
-  
-        {/* Only when there IS a next class. An empty card reading "Nothing
-            scheduled at your branch" is a whole card spent saying nothing, and
-            it was the second thing a new member read. Classes remain one tap
-            away on the Train tab either way. */}
-        {data.nextClass ? (
-        <Pressable onPress={() => router.push('/classes')} accessibilityRole="button"
-          accessibilityLabel="See all classes">
-        <Card>
-          <Row>
-            <Label>Next class</Label>
-            <Txt variant="caption" tone="t3">All classes ›</Txt>
-          </Row>
-          <Row style={{ marginTop: space.sm }}>
-            <View style={{ flex: 1 }}>
-              <Txt variant="heading">{data.nextClass.title}</Txt>
-              <Txt variant="small" tone="t2" style={{ marginTop: 2 }}>
-                {whenOf(data.nextClass.startsAt)} · {data.nextClass.seatsLeft} seats left
-              </Txt>
-            </View>
-          </Row>
-        </Card>
-        </Pressable>
-        ) : null}
-
-        <Card>
-          <Row>
-            <Label>Fuel</Label>
-            <View style={{ flexDirection: 'row', gap: space.sm }}>
-              <Button
-                title="+250ml"
-                variant="secondary"
-                size="sm"
-                loading={water.isPending}
-                onPress={() => water.mutate(250)}
-              />
-              <Button
-                title="Log food"
-                variant="secondary"
-                size="sm"
-                onPress={() => router.push('/nutrition')}
-              />
-            </View>
-          </Row>
-          {n ? (
-            <Row style={{ marginTop: space.md, alignItems: 'flex-end' }}>
-              <View>
-                <Txt variant="heading">{n.kcal}</Txt>
-                <Txt variant="caption" tone="t3">
-                  / {n.kcalGoal} kcal
-                </Txt>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Txt variant="heading">{(n.waterMl / 1000).toFixed(1)}L</Txt>
-                <Txt variant="caption" tone="t3">
-                  / {(n.waterGoal / 1000).toFixed(1)}L water
-                </Txt>
-              </View>
             </Row>
+
+            <View className="flex-row gap-2">
+              <Mark label="Check in" icon="scan" done={!!t.checkedIn} />
+              <Mark label="Workout" icon="gym" done={!!t.workoutLogged} />
+              <Mark label="Meal" icon="nutrition" done={!!t.mealLogged} />
+            </View>
+
+            {t.streakAtRisk ? (
+              <Txt variant="small" tone="accent">
+                Nothing logged yet today. Any one of these keeps it alive.
+              </Txt>
+            ) : null}
+
+            {/* The rule is the server's (MemberStreakService): any ONE of the three
+                marks claims the day, and the run may end today OR yesterday, so
+                today is never already lost.
+
+                This copy describes THAT streak only. The one on Progress is a
+                different number — workout logs alone — so do not lift this text
+                over there without changing it. */}
+            {streakInfo ? (
+              <InfoNote>
+                <Txt variant="small" tone="t2">
+                  Any one of these marks the day:
+                </Txt>
+                <InfoBullet>Check in at the gym</InfoBullet>
+                <InfoBullet>Log a workout</InfoBullet>
+                <InfoBullet>Log a meal</InfoBullet>
+                <Txt variant="small" tone="t2" className="mt-1">
+                  Doing all three still counts as one day. Your streak is how many days in a row you
+                  have marked — it only resets after a full day with nothing logged.
+                </Txt>
+              </InfoNote>
+            ) : null}
+          </Card>
+        </View>
+      ) : null}
+
+      {/*
+        ── 3. CONTEXT ───────────────────────────────────────────────────────
+        Reasons to go in now. Real information, but nothing to do here, so it
+        sits below the things that are actionable.
+      */}
+      {who.hasGym && data ? (
+        <View className="gap-3">
+          {occ ? <OccupancyCard occ={occ} /> : null}
+
+          {/* Only when there IS a next class. An empty card reading "Nothing
+              scheduled at your branch" is a whole card spent saying nothing, and
+              it was the second thing a new member read. Classes remain one tap
+              away on the Train tab either way. */}
+          {data.nextClass ? (
+            <Pressable
+              onPress={() => router.push('/classes')}
+              accessibilityRole="button"
+              accessibilityLabel={`Next class: ${data.nextClass.title}. See all classes.`}>
+              <Card>
+                <Row>
+                  <View className="flex-1 gap-0.5">
+                    <Label>Next class</Label>
+                    <Txt variant="bodyStrong">{data.nextClass.title}</Txt>
+                    <Txt variant="small" tone="t3">
+                      {whenOf(data.nextClass.startsAt)} · {data.nextClass.seatsLeft} seats left
+                    </Txt>
+                  </View>
+                  <Icon name="chevron" size={18} tone="t4" decorative />
+                </Row>
+              </Card>
+            </Pressable>
           ) : null}
-        </Card>
-  
-        {/* Below Fuel, not above it: both are passive daily totals, and the top
-            of this screen is reserved for the things a member can act on. */}
+        </View>
+      ) : null}
+
+      {/*
+        ── THE INDEPENDENT MEMBER'S DAY ─────────────────────────────────────
+        Steps, water, weight and goals are the whole self-tracking surface that
+        works without a gym. For someone with no gym this IS their Today, so
+        recording an activity is their primary action and leads.
+      */}
+      {!who.hasGym ? (
+        <>
+          <View>
+            <SectionHead>Move</SectionHead>
+            <Card className="gap-4 p-5">
+              <View className="gap-1">
+                <Txt variant="heading">Record an activity</Txt>
+                <Txt variant="small" tone="t3">
+                  Track a run, ride or walk with GPS. No gym needed.
+                </Txt>
+              </View>
+              <Button title="Start recording" onPress={() => router.push('/record')} />
+            </Card>
+          </View>
+
+          {openGoals.length > 0 ? (
+            <View>
+              <SectionHead
+                action="All goals"
+                onAction={() => router.push('/settings/goals')}
+                actionLabel="See all goals">
+                Your goals
+              </SectionHead>
+              <Card className="gap-2.5">
+                {openGoals.map((g) => (
+                  <Row key={g.id}>
+                    <Txt variant="body" className="flex-1 pr-3">
+                      {g.title}
+                    </Txt>
+                    <Txt variant="caption" tone="t3">
+                      {g.currentValue ?? 0}
+                      {g.targetValue ? ` / ${g.targetValue}` : ''} {g.unit ?? ''}
+                    </Txt>
+                  </Row>
+                ))}
+              </Card>
+            </View>
+          ) : null}
         </>
       ) : null}
 
+      {/*
+        ── 4. PASSIVE TOTALS ────────────────────────────────────────────────
+        Records rather than prompts, so they close the screen. Fuel shows its
+        goal as a bar: "0" alone says nothing, "0 of 2,000" says what is left.
+      */}
+      <View>
+        <SectionHead>Fuel</SectionHead>
+        <Card className="gap-4">
+          <View className="flex-row gap-4">
+            <View className="flex-1">
+              <View className="flex-row items-baseline gap-1">
+                <Txt variant="heading">{n?.kcal ?? 0}</Txt>
+                <Txt variant="caption" tone="t3">
+                  of {n?.kcalGoal ?? 2000} kcal
+                </Txt>
+              </View>
+              <Meter
+                value={n?.kcal ?? 0}
+                max={n?.kcalGoal ?? 2000}
+                tint="#b45309"
+              />
+            </View>
+            <View className="flex-1">
+              <View className="flex-row items-baseline gap-1">
+                <Txt variant="heading">{((n?.waterMl ?? 0) / 1000).toFixed(1)}L</Txt>
+                <Txt variant="caption" tone="t3">
+                  of {((n?.waterGoal ?? 2500) / 1000).toFixed(1)}L
+                </Txt>
+              </View>
+              <Meter value={n?.waterMl ?? 0} max={n?.waterGoal ?? 2500} tint="#0276b3" />
+            </View>
+          </View>
+          <View className="flex-row gap-2">
+            <Button
+              title="+250ml"
+              variant="secondary"
+              size="sm"
+              className="flex-1"
+              loading={water.isPending}
+              onPress={() => water.mutate(250)}
+            />
+            <Button
+              title="Log food"
+              variant="secondary"
+              size="sm"
+              className="flex-1"
+              onPress={() => router.push('/nutrition')}
+            />
+          </View>
+        </Card>
+      </View>
+
+      {/* Once, for everyone. It used to render inside the no-gym block AND
+          again unconditionally below, so a member without a gym got two
+          identical step cards. */}
       <StepsCard />
     </ScrollView>
   );
