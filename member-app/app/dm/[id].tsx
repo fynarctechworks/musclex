@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { Field } from '../../src/ui/Field';
 import { timeOf } from '../../src/lib/datetime';
 import { useDirectMessages, useReport, useSendDirectMessage } from '../../src/api/queries';
+import { clearDraft, draftKey, readDraft, writeDraft } from '../../src/lib/drafts';
 
 /**
  * ONE THREAD.
@@ -24,7 +25,19 @@ export default function ThreadScreen() {
   const send = useSendDirectMessage();
   const report = useReport();
 
-  const [draft, setDraft] = useState('');
+  /*
+    Seeded from the saved draft. This screen is pushed over a tab, and leaving
+    it unmounts the composer — a half-typed message used to vanish silently.
+  */
+  const draftId = draftKey('dm', String(id));
+  const [draft, setDraftState] = useState(() => readDraft(draftId));
+
+  // Single path for changing the text, so nothing can update the box without
+  // persisting it.
+  const setDraft = (text: string) => {
+    setDraftState(text);
+    writeDraft(draftId, text);
+  };
   const [notice, setNotice] = useState<{ tone: 'error' | 'success'; title: string; body?: string } | null>(null);
 
   if (isLoading) return <Loading label="Loading messages" />;

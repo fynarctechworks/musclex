@@ -23,6 +23,7 @@ import { restoreSession } from '../src/api/auth';
 import { api } from '../src/api/endpoints';
 import { flush } from '../src/offline/outbox';
 import { warmStore } from '../src/offline/store';
+import { hydrate } from '../src/lib/kv';
 import { SessionProvider, useSession } from '../src/session';
 import { Loading } from '../src/ui';
 
@@ -117,6 +118,10 @@ export default function RootLayout() {
     // Open the outbox store now, so the first write is never the one that waits
     // for it — that write is often the one made with no signal.
     warmStore();
+    // Load saved drafts and preferences into their synchronous cache before the
+    // first screen mounts. Reads are sync because a comment box has to seed its
+    // text on the FIRST render, not a tick later; this is what fills it.
+    void hydrate();
     restoreSession()
       .then(setAuthed)
       .catch(() => setAuthed(false))
