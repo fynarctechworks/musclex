@@ -39,6 +39,8 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
 }));
 
+/* Mutated in place by the empty-state case — the mock factory closes over
+   this array, so splicing it is what makes the screen see no routines. */
 const ROUTINES = [
   {
     id: 'r1',
@@ -70,10 +72,42 @@ const Wrap = ({ children }: { children: React.ReactNode }) => (
   </SafeAreaProvider>
 );
 
+const ORIGINAL = [...ROUTINES];
 afterEach(() => {
   pushed.length = 0;
+  ROUTINES.splice(0, ROUTINES.length, ...ORIGINAL);
   cleanup();
 });
+
+/* Walked rather than JSON.stringify'd: props hold circular context objects and
+   stringifying any real subtree throws. */
+
+/** Every accessibilityLabel in the subtree, including inside `accessible` nodes. */
+function labelsIn(node: any, out: string[] = []): string[] {
+  if (Array.isArray(node)) {
+    for (const n of node) labelsIn(n, out);
+    return out;
+  }
+  if (!node || typeof node !== 'object') return out;
+  const label = node.props?.accessibilityLabel ?? node.props?.['aria-label'];
+  if (typeof label === 'string') out.push(label);
+  if (node.children) labelsIn(node.children, out);
+  return out;
+}
+
+/** First node of the given type in the rendered tree, or null. */
+function findByType(node: any, type: string): any {
+  if (Array.isArray(node)) {
+    for (const n of node) {
+      const hit = findByType(n, type);
+      if (hit) return hit;
+    }
+    return null;
+  }
+  if (!node || typeof node !== 'object') return null;
+  if (node.type === type) return node;
+  return node.children ? findByType(node.children, type) : null;
+}
 
 describe('my routines', () => {
   it('renders a saved routine', async () => {
@@ -88,6 +122,41 @@ describe('my routines', () => {
     await render(<RoutinesScreen />, { wrapper: Wrap });
     fireEvent.press(screen.getByLabelText("Start Rahul's Push Day"));
     expect(pushed).toEqual(['/session?routine=r1']);
+  });
+
+  /*
+    Reachability, not decoration. On a large phone the Create button sat at the
+    top of a scrolling list, roughly 85% up the screen and outside the arc a
+    right thumb covers one-handed — so it moved to a pinned bar at the bottom.
+
+    Asserted as "one Create button, and it is outside the ScrollView" because
+    that is the property that makes it reachable. Pinning pixel positions would
+    fail on the next spacing change while proving nothing about the thumb.
+  */
+  it('puts Create in a pinned bar, not in the scrolling list', async () => {
+    await render(<RoutinesScreen />, { wrapper: Wrap });
+
+    // Exactly one: the in-flow copy was removed, not duplicated.
+    expect(screen.getAllByLabelText('Create a routine')).toHaveLength(1);
+
+    const scroller = findByType(screen.toJSON(), 'RCTScrollView');
+    expect(scroller).toBeTruthy();
+    expect(labelsIn(scroller)).not.toContain('Create a routine');
+  });
+
+  /*
+    The empty state is a single screenful with nothing to scroll past, and the
+    button belongs beside the words explaining what a routine is. Pinning it
+    there would strand it below an otherwise empty screen.
+  */
+  it('leaves Create in the flow when there are no routines', async () => {
+    ROUTINES.splice(0, ROUTINES.length);
+    await render(<RoutinesScreen />, { wrapper: Wrap });
+
+    expect(screen.getByText('No routines yet')).toBeTruthy();
+    const scroller = findByType(screen.toJSON(), 'RCTScrollView');
+    expect(scroller).toBeTruthy();
+    expect(labelsIn(scroller)).toContain('Create a routine');
   });
 
   it('keeps Delete behind the disclosure, not beside Start', async () => {

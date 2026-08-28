@@ -33,6 +33,11 @@ import {
 
 /** Where a share link points. Universal-link setup is a separate deploy step,
  *  so the code is also accepted directly for anyone who cannot open the URL. */
+/** Height of the pinned Create bar, above the safe area: p-4 top (16) + a
+ *  size="lg" Button (h-12 = 48) + p-4 bottom (16). Named so the scroll
+ *  padding that clears it cannot drift away from the bar itself. */
+const CREATE_BAR_H = 80;
+
 const SHARE_BASE =
   (process.env.EXPO_PUBLIC_PAY_BASE_URL ?? 'https://app.musclex.infynarc.com') + '/r';
 
@@ -101,7 +106,12 @@ export default function RoutinesScreen() {
     <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="My routines" />
       <ScrollView
-        contentContainerClassName="gap-3 px-4 pb-32"
+        contentContainerClassName="gap-3 px-4"
+        // Clears the pinned bar so the last card can always be scrolled out
+        // from under it.
+        contentContainerStyle={{
+          paddingBottom: (routines.length ? CREATE_BAR_H : 0) + insets.bottom + 24,
+        }}
         keyboardShouldPersistTaps="handled">
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
@@ -120,7 +130,6 @@ export default function RoutinesScreen() {
           </>
         ) : (
           <>
-            <Button title="Create a routine" onPress={() => router.push('/routine-edit')} />
             {routines.map((r) => {
               const open = openId === r.id;
               const thumbs = r.exercises.filter((e) => e.thumbUrl).slice(0, 6);
@@ -240,6 +249,20 @@ export default function RoutinesScreen() {
           </Row>
         </Card>
       </ScrollView>
+
+      {/* Pinned rather than sitting above the list: this is the one action a
+          member comes here to take that is not on a card, and at the top of a
+          scrolling list it sat outside the thumb's reach on a large phone.
+          Only when there ARE routines — the empty state is a single screenful
+          with nothing to scroll past, and the button belongs with the words
+          explaining it. */}
+      {routines.length ? (
+        <View
+          className="border-border bg-background absolute bottom-0 left-0 right-0 border-t p-4"
+          style={{ paddingBottom: insets.bottom + 16 }}>
+          <Button title="Create a routine" onPress={() => router.push('/routine-edit')} />
+        </View>
+      ) : null}
     </View>
   );
 }
