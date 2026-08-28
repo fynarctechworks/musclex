@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { api } from './endpoints';
 import { write, flush, pendingCount } from '../offline/outbox';
 import type {
@@ -805,8 +810,25 @@ export function useRsvp(clubId: string) {
 
 /* ── Feed ──────────────────────────────────────────────────── */
 
+/**
+ * The feed, a page at a time.
+ *
+ * `api.feed` has always returned a `nextBefore` cursor and this hook used to
+ * throw it away, so the feed stopped at page one with no way to reach anything
+ * older — which reads to a member as "nobody I follow has done anything
+ * lately" rather than as a page boundary.
+ *
+ * `getNextPageParam` returns undefined when the server sends a null cursor,
+ * which is what tells React Query it has reached the end.
+ */
 export function useFeed() {
-  return useQuery({ queryKey: qk.feed, queryFn: () => api.feed(), staleTime: 30_000 });
+  return useInfiniteQuery({
+    queryKey: qk.feed,
+    queryFn: ({ pageParam }: { pageParam?: string }) => api.feed(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last: { nextBefore: string | null }) => last.nextBefore ?? undefined,
+    staleTime: 30_000,
+  });
 }
 
 export function useFollowing() {
@@ -851,16 +873,22 @@ export function useToggleKudos() {
     onMutate: async ({ id, kudosed }) => {
       await qc.cancelQueries({ queryKey: qk.feed });
       const prev = qc.getQueryData(qk.feed);
+      // The cache is paged now, so the activity could be on any page — map
+      // every page rather than just the first. Missing this left kudos on
+      // anything below the first page waiting for the round trip.
       qc.setQueryData(qk.feed, (old: any) =>
-        !old ? old : {
+        !old?.pages ? old : {
           ...old,
-          activities: old.activities.map((a: any) =>
-            a.id !== id ? a : {
-              ...a,
-              kudosedByMe: !kudosed,
-              kudosCount: a.kudosCount + (kudosed ? -1 : 1),
-            },
-          ),
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            activities: page.activities.map((a: any) =>
+              a.id !== id ? a : {
+                ...a,
+                kudosedByMe: !kudosed,
+                kudosCount: a.kudosCount + (kudosed ? -1 : 1),
+              },
+            ),
+          })),
         },
       );
       return { prev };

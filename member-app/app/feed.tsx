@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
+import { Button, Card, Empty, Label, Row, Txt } from '../src/ui';
 import { Notice } from '../src/ui/Notice';
 import { Field } from '../src/ui/Field';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { activeMention, applyMention, matchPeople } from '../src/lib/mention-draft';
 import { whenOf } from '../src/lib/datetime';
+import { shouldFetchNextPage } from '../src/lib/paging';
+import { clearDraft, draftKey, readDraft, writeDraft } from '../src/lib/drafts';
 import { clock } from '../src/lib/recorder';
 import {
   useActivityComments,
@@ -22,6 +24,7 @@ import {
 import type { CommentSegment, FeedActivity, SportType } from '../src/api/types';
 import { RouteShape } from '../src/features/RouteShape';
 import { Icon } from '../src/ui/Icon';
+import { SkeletonList } from '../src/ui/Skeleton';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -38,46 +41,93 @@ import { Icon } from '../src/ui/Icon';
 export default function FeedScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { data, isLoading, refetch } = useFeed();
+  const {
+    data,
+    isLoading,
+    refetch,
+    isRefetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useFeed();
   const { data: sportData } = useSports();
   const [open, setOpen] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: 'error' | 'success'; title: string } | null>(null);
 
-  if (isLoading) return <Loading label="Loading your feed" />;
 
-  const items = data?.activities ?? [];
+  // Every page, flattened. The cursor lives in the query cache, so this is the
+  // whole of the paging the screen has to know about.
+  const items = data?.pages.flatMap((p) => p.activities) ?? [];
   const sports = new Map((sportData?.sports ?? []).map((s: SportType) => [s.key, s]));
 
   return (
     <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Feed" />
-      <ScrollView
+      {/*
+        A FlatList rather than a ScrollView of every card.
+
+        This was a mapped ScrollView, which mounts every activity at once and
+        only ever held page one — the cursor the server returns was thrown
+        away, so there was no way to reach anything older. Windowing matters
+        more here than anywhere else in the app: a feed card can carry a route
+        map, so a few hundred of them mounted at once is real memory.
+      */}
+      <FlatList
+        data={items}
+        keyExtractor={(a) => a.id}
         contentContainerClassName="gap-3 px-4 pb-32"
-      >
-        {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
-
-        {items.length === 0 ? (
-          <Empty
-            title="Nothing here yet"
-            body="Follow someone, or record an activity of your own — yours show up here too."
-          />
-        ) : (
-          items.map((a) => (
-            <FeedCard
-              key={a.id}
-              activity={a}
-              sportLabel={sports.get(a.sportType)?.label ?? a.sportType}
-              distanceBased={sports.get(a.sportType)?.distanceBased ?? false}
-              commentsOpen={open === a.id}
-              onToggleComments={() => setOpen(open === a.id ? null : a.id)}
-              onBlocked={() => setNotice({ tone: 'success', title: 'Blocked' })}
-              onOpen={() => (a.mine ? router.push(`/activity/${a.id}`) : undefined)}
+        refreshControl={
+          // Replaces a "Refresh" button that sat at the BOTTOM of the list, so
+          // reloading meant scrolling past everything first.
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#79716b" />
+        }
+        ListHeaderComponent={
+          notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null
+        }
+        ListEmptyComponent={
+          /*
+            While the first page is in flight this is a skeleton, not the empty
+            state: telling somebody "nothing here yet" before the request has
+            landed is a different claim from "you follow nobody", and they used
+            to be indistinguishable.
+          */
+          isLoading ? (
+            <SkeletonList count={3} tall label="Loading your feed" />
+          ) : (
+            <Empty
+              title="Nothing here yet"
+              body="Follow someone, or record an activity of your own — yours show up here too."
+              action={
+                <Button title="Find people to follow" onPress={() => router.push('/people')} />
+              }
             />
-          ))
+          )
+        }
+        onEndReachedThreshold={0.5}
+        onEndReached={() => {
+          // Guarded: onEndReached fires repeatedly while the user sits at the
+          // bottom, and without this each fire starts another page request.
+          if (shouldFetchNextPage({ hasNextPage, isFetchingNextPage })) fetchNextPage();
+        }}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <View className="py-6">
+              <ActivityIndicator color="#79716b" />
+            </View>
+          ) : null
+        }
+        renderItem={({ item: a }) => (
+          <FeedCard
+            activity={a}
+            sportLabel={sports.get(a.sportType)?.label ?? a.sportType}
+            distanceBased={sports.get(a.sportType)?.distanceBased ?? false}
+            commentsOpen={open === a.id}
+            onToggleComments={() => setOpen(open === a.id ? null : a.id)}
+            onBlocked={() => setNotice({ tone: 'success', title: 'Blocked' })}
+            onOpen={() => (a.mine ? router.push(`/activity/${a.id}`) : undefined)}
+          />
         )}
-
-        <Button title="Refresh" variant="secondary" size="sm" onPress={() => refetch()} />
-      </ScrollView>
+      />
     </View>
   );
 }
@@ -232,8 +282,23 @@ function Comments({ activityId }: { activityId: string }) {
   const { data: following } = useFollowing();
   const add = useAddComment();
   const del = useDeleteComment();
-  const [draft, setDraft] = useState('');
+  /*
+    Seeded from the saved draft rather than from ''.
+
+    Tabs navigate with router.replace(), so leaving the feed unmounts this box
+    entirely — a comment typed halfway and abandoned to go and check something
+    used to be gone on return, silently.
+  */
+  const key = draftKey('comment', activityId);
+  const [draft, setDraftState] = useState(() => readDraft(key));
   const [caret, setCaret] = useState(0);
+
+  // One place that both updates the box and persists it, so no path can change
+  // the text without saving it.
+  const setDraft = (text: string) => {
+    setDraftState(text);
+    writeDraft(key, text);
+  };
 
   const comments = data?.comments ?? [];
   // Only people the member follows — a picker over every member in the product
@@ -311,6 +376,7 @@ function Comments({ activityId }: { activityId: string }) {
             const body = draft.trim();
             if (!body) return;
             setDraft('');
+            clearDraft(key);
             await add.mutateAsync({ id: activityId, body });
           }}
         />
