@@ -67,10 +67,17 @@ export function LogoMark({
  * underneath it and match the weight of the screen around it — which a bitmap
  * of a wordmark cannot do as the type scale changes.
  */
-export function Wordmark({ variant = 'display' }: { variant?: 'display' | 'title' }) {
+export function Wordmark({
+  variant = 'display',
+  align = 'start',
+}: {
+  variant?: 'display' | 'title';
+  /** Row defaults to space-between, which would push MUSCLE and X apart. */
+  align?: 'start' | 'center';
+}) {
   return (
     <Row
-      className="justify-start gap-1"
+      className={align === 'center' ? 'justify-center gap-1' : 'justify-start gap-1'}
       accessibilityRole="header"
       accessibilityLabel="MuscleX">
       <Txt variant={variant}>MUSCLE</Txt>

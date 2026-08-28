@@ -97,18 +97,31 @@ export default function SignInScreen() {
         contentContainerClassName="px-4 gap-5 flex-grow justify-center"
         contentContainerStyle={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }}
         keyboardShouldPersistTaps="handled">
-        <View className="gap-1">
-          {/* The mark above the wordmark: this is the one screen with room for
-              both, and the first thing anybody sees of the product. */}
-          <LogoMark height={40} />
-          <Wordmark />
-          <Txt variant="body" tone="t2">
-            {step === 'phone'
-              ? 'Enter your mobile number to get started.'
-              : step === 'code'
-                ? `We sent a code to ${phone}.`
-                : 'Your number is registered at more than one gym.'}
-          </Txt>
+        {/*
+          ── Brand ────────────────────────────────────────────────────────
+          Centred, with real room around it, matching staff-app's front door
+          so the two apps read as one product. The mark carries the only red
+          on the screen; the primary button takes its colour from the design
+          system, not from here.
+
+          Spacing is `style` rather than gap-* classes deliberately. staff-app
+          documented that gap-5/pb-9 silently render as NO spacing on device
+          while other classes on the same element apply — explicit values are
+          unambiguous, and this is the screen where a collapsed header would
+          be most visible.
+        */}
+        <View className="items-center" style={{ gap: 20, paddingBottom: 12 }}>
+          <LogoMark height={44} />
+          <View className="items-center" style={{ gap: 6 }}>
+            <Wordmark align="center" />
+            <Txt variant="body" tone="t2" className="text-center">
+              {step === 'phone'
+                ? 'Enter your mobile number to get started.'
+                : step === 'code'
+                  ? `We sent a code to ${phone}.`
+                  : 'Your number is registered at more than one gym.'}
+            </Txt>
+          </View>
         </View>
 
         {error ? (
