@@ -239,6 +239,17 @@ export function ExerciseBlock({
               accessibilityRole="checkbox"
               accessibilityState={{ checked: s.done }}
               accessibilityLabel={`Complete set ${i + 1}`}
+              /*
+                The visual box is 40pt so the row's columns still line up, but
+                the TOUCH area is grown past it to clear Apple's 44pt minimum.
+                This is the most-repeated tap in the product and it is made
+                with sweaty hands, often one-handed, without looking — the two
+                points it was short are the ones that get missed.
+
+                hitSlop rather than a bigger box: widening the column steals
+                width from the weight and reps fields beside it.
+              */
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
               className={cn(
                 'h-10 items-center justify-center rounded-md border',
                 s.done ? 'border-success bg-success' : 'border-border bg-secondary',
@@ -252,7 +263,9 @@ export function ExerciseBlock({
 
       <Pressable
         onPress={addSet}
-        className="items-center py-2 active:opacity-70"
+        // py-2 around small text lands near 34pt — under the 44pt minimum, on
+        // another control pressed mid-set.
+        className="min-h-[44px] items-center justify-center py-2 active:opacity-70"
         accessibilityRole="button"
         accessibilityLabel="Add set">
         <Txt variant="small" tone="t2" className="font-semibold">
