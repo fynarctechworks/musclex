@@ -32,6 +32,7 @@ import { Loading } from '../src/ui';
 // is simply never called. Importing it does nothing else — no permission is
 // requested and no tracking starts until a recording asks for it.
 import '../src/lib/background-location';
+import { SplashGate } from '../src/ui/SplashGate';
 
 /**
  * A logged set must never be lost to a slow network, so mutations never retry
@@ -157,17 +158,25 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="dark" />
-        <View className="bg-background flex-1">
-          {booted && fontsReady ? (
-            <SessionProvider initialAuthed={authed}>
-              <Gate>
-                <Slot />
-              </Gate>
-            </SessionProvider>
-          ) : (
-            <Loading label="Starting" />
-          )}
-        </View>
+        {/*
+          The splash holds until the app is genuinely ready, then hands over.
+
+          This used to render a "Starting" spinner while booting, so a launch
+          went branded native splash -> grey spinner -> app. SplashGate draws
+          the same mark on the same white the native splash used, so there is
+          nothing to see at the handover.
+        */}
+        <SplashGate ready={booted && fontsReady}>
+          <View className="bg-background flex-1">
+            {booted && fontsReady ? (
+              <SessionProvider initialAuthed={authed}>
+                <Gate>
+                  <Slot />
+                </Gate>
+              </SessionProvider>
+            ) : null}
+          </View>
+        </SplashGate>
         {/*
           Every portal-backed overlay renders into this host: dialog,
           alert-dialog, select and tooltip. Without it those components fail
