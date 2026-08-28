@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Notice } from '../src/ui/Notice';
 import { useSession } from '../src/session';
 import { digits, otpConfigured, requestOtp, type TenantChoice } from '../src/api/auth';
-import { LogoMark, Wordmark } from '../src/ui/Logo';
+import { LogoMark } from '../src/ui/Logo';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -111,17 +111,17 @@ export default function SignInScreen() {
           be most visible.
         */}
         <View className="items-center" style={{ gap: 20, paddingBottom: 12 }}>
-          <LogoMark height={44} />
-          <View className="items-center" style={{ gap: 6 }}>
-            <Wordmark align="center" />
-            <Txt variant="body" tone="t2" className="text-center">
-              {step === 'phone'
-                ? 'Enter your mobile number to get started.'
-                : step === 'code'
-                  ? `We sent a code to ${phone}.`
-                  : 'Your number is registered at more than one gym.'}
-            </Txt>
-          </View>
+          {/* The mark alone. It IS the wordmark's logo — setting MUSCLEX in
+              type underneath it said the same name twice, once as a drawing
+              and once as text. */}
+          <LogoMark height={52} />
+          <Txt variant="body" tone="t2" className="text-center">
+            {step === 'phone'
+              ? 'Enter your mobile number to get started.'
+              : step === 'code'
+                ? `We sent a code to ${phone}.`
+                : 'Your number is registered at more than one gym.'}
+          </Txt>
         </View>
 
         {error ? (
