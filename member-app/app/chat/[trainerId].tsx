@@ -9,6 +9,7 @@ import { ScreenHeader } from '../../src/ui/ScreenHeader';
 import { Notice } from '../../src/ui/Notice';
 import { timeOf } from '../../src/lib/datetime';
 import { useChatMessages, useChatThreads, useSendChat } from '../../src/api/queries';
+import { clearDraft, draftKey, readDraft, writeDraft } from '../../src/lib/drafts';
 
 /** One conversation with a trainer. Polls while open; a person may reply at any time. */
 export default function TrainerChatScreen() {
@@ -17,7 +18,19 @@ export default function TrainerChatScreen() {
   const { data, isLoading } = useChatMessages(trainerId ?? null);
   const { data: threads } = useChatThreads();
   const send = useSendChat(trainerId ?? '');
-  const [draft, setDraft] = useState('');
+  /*
+    Seeded from the saved draft. This screen is pushed over a tab, and leaving
+    it unmounts the composer — a half-typed message used to vanish silently.
+  */
+  const draftId = draftKey('chat', String(trainerId));
+  const [draft, setDraftState] = useState(() => readDraft(draftId));
+
+  // Single path for changing the text, so nothing can update the box without
+  // persisting it.
+  const setDraft = (text: string) => {
+    setDraftState(text);
+    writeDraft(draftId, text);
+  };
   const [error, setError] = useState<string | null>(null);
   const scroller = useRef<ScrollView>(null);
 

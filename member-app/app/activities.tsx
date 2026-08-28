@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
+import { Button, Card, Empty, Label, Row, Txt } from '../src/ui';
 import { Chip } from '../src/ui/Chip';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { shortDate } from '../src/lib/datetime';
@@ -10,6 +10,7 @@ import { clock } from '../src/lib/recorder';
 import { useActivities, useSports } from '../src/api/queries';
 import type { ActivitySummary, SportType } from '../src/api/types';
 import { RouteShape } from '../src/features/RouteShape';
+import { SkeletonList } from '../src/ui/Skeleton';
 
 /**
  * ACTIVITIES — everything recorded, any sport.
@@ -22,10 +23,9 @@ export default function ActivitiesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [sport, setSport] = useState<string | null>(null);
-  const { data, isLoading } = useActivities(sport ?? undefined);
+  const { data, isLoading, refetch, isRefetching } = useActivities(sport ?? undefined);
   const { data: sportData } = useSports();
 
-  if (isLoading) return <Loading label="Loading activities" />;
 
   const items = data?.activities ?? [];
   const sports: SportType[] = sportData?.sports ?? [];
@@ -40,6 +40,9 @@ export default function ActivitiesScreen() {
     <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Activities" />
       <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#79716b" />
+        }
         contentContainerClassName="gap-3 px-4 pb-32"
       >
         <Button title="Record an activity" onPress={() => router.push('/record')} />
@@ -64,10 +67,16 @@ export default function ActivitiesScreen() {
           </View>
         ) : null}
 
-        {items.length === 0 ? (
+        {isLoading ? (
+          <SkeletonList count={4} label="Loading activities" />
+        ) : items.length === 0 ? (
           <Empty
             title="Nothing recorded yet"
             body="Start a recording, or add an activity you did elsewhere."
+            // The body named two ways forward and offered neither. Recording is
+            // the primary one, so it becomes the button; adding by hand stays
+            // in the prose because it is the rarer case.
+            action={<Button title="Record an activity" onPress={() => router.push('/record')} />}
           />
         ) : (
           items.map((a) => (

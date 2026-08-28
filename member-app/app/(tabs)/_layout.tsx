@@ -306,8 +306,12 @@ export default function TabLayout() {
         <Tabs.Screen name="community" />
         <Tabs.Screen name="you" />
         {/* Kept as routes so existing deep links and pushes still resolve, but
-            no longer their own tabs. */}
-        <Tabs.Screen name="gym" options={{ href: null }} />
+            no longer their own tabs.
+
+            "gym" is gone entirely: it was the retired Gym tab, unreachable
+            (href: null AND no inbound route) since the consolidation. Its
+            check-in card became /check-in, its branch list moved there too,
+            and everything else already lived on Community or Train. */}
         <Tabs.Screen name="progress" options={{ href: null }} />
         <Tabs.Screen name="me" options={{ href: null }} />
       </Tabs>

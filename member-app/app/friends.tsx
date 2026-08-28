@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -42,7 +42,7 @@ export default function FriendsScreen() {
   const router = useRouter();
   const u = useUnits();
 
-  const { data: friends, isLoading } = useFriends();
+  const { data: friends, isLoading, refetch, isRefetching } = useFriends();
   const { data: feed } = useFriendFeed();
   const { data: inbox } = useRoutineInbox();
   const { data: prefs } = useSharePrefs();
@@ -77,6 +77,9 @@ export default function FriendsScreen() {
     <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Friends" />
       <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#79716b" />
+        }
         contentContainerClassName="gap-3 px-4 pb-32"
         keyboardShouldPersistTaps="handled"
       >
@@ -149,6 +152,17 @@ export default function FriendsScreen() {
               list.length === 0
                 ? 'Add a friend by their phone number to see what they are training.'
                 : 'Your friends have not shared a workout yet. Sharing is off until each person turns it on.'
+            }
+            /*
+              Only when there is something to DO. With no friends yet, finding
+              people is the way out. With friends who simply have not shared,
+              the member is already where they should be and the wait is
+              somebody else's to end — a button here would imply otherwise.
+            */
+            action={
+              list.length === 0 ? (
+                <Button title="Find people" onPress={() => router.push('/people')} />
+              ) : undefined
             }
           />
         ) : (

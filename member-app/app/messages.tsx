@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Card, Empty, Loading, Row, Txt, Badge } from '../src/ui';
@@ -14,7 +14,7 @@ import { useChatThreads } from '../src/api/queries';
 export default function MessagesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { data, isLoading } = useChatThreads();
+  const { data, isLoading, refetch, isRefetching } = useChatThreads();
 
   if (isLoading) return <Loading label="Loading messages" />;
   const threads = data?.threads ?? [];
@@ -22,7 +22,11 @@ export default function MessagesScreen() {
   return (
     <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Messages" />
-      <ScrollView contentContainerClassName="gap-2 px-4 pb-32">
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#79716b" />
+        }
+        contentContainerClassName="gap-2 px-4 pb-32">
         {threads.length === 0 ? (
           <Empty
             title="No trainers yet"

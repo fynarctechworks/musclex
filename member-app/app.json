@@ -18,7 +18,7 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "MuscleX keeps recording your route while the app is in the background, so a run does not stop when your screen locks.",
         "NSCameraUsageDescription": "MuscleX uses the camera to scan another member's code so you can add them.",
         "NSPhotoLibraryUsageDescription": "MuscleX lets you add progress photos from your library. They are private to you.",
-        "NSContactsUsageDescription": "MuscleX checks which of your contacts already use MuscleX. Your contacts are never uploaded \u2014 only a scrambled version is checked.",
+        "NSContactsUsageDescription": "MuscleX checks which of your contacts already use MuscleX. Your contacts are never uploaded — only a scrambled version is checked.",
         "UIBackgroundModes": [
           "location"
         ],
@@ -27,9 +27,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
@@ -77,6 +76,15 @@
           "locationAlwaysAndWhenInUsePermission": "MuscleX keeps recording your route while the app is in the background, so a run does not stop when your screen locks.",
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-logo.png",
+          "imageWidth": 260,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
         }
       ]
     ],

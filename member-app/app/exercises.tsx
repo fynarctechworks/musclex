@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Image, Pressable, RefreshControl, ScrollView, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Empty, Label, ListCard, Loading, Row, Txt } from '../src/ui';
@@ -23,7 +23,7 @@ export default function ExercisesScreen() {
   /** Selected head within `muscle` (e.g. lower_chest). null = every head. */
   const [head, setHead] = useState<string | null>(null);
 
-  const { data, isLoading } = useExercises(query, muscle);
+  const { data, isLoading, refetch, isRefetching } = useExercises(query, muscle);
   const items = data?.exercises ?? [];
 
   /**
@@ -94,6 +94,9 @@ export default function ExercisesScreen() {
       ) : null}
 
       <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#79716b" />
+        }
         contentContainerClassName="px-4 pb-28 gap-4"
         keyboardShouldPersistTaps="handled"
       >

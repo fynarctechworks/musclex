@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Image, Pressable, ScrollView, Share, TextInput, View } from 'react-native';
+import { Image, Pressable, RefreshControl, ScrollView, Share, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Card, Empty, Icon, Label, Loading, Row, Txt, type IconName } from '../src/ui';
+import { Button, Card, Empty, Icon, Label, Row, Txt, type IconName } from '../src/ui';
 import { PLACEHOLDER } from '../src/ui/Field';
 import { Confirm, Notice } from '../src/ui/Notice';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
+import { SkeletonList } from '../src/ui/Skeleton';
 import {
   useDeleteRoutine,
   useImportRoutine,
@@ -45,7 +46,7 @@ const SHARE_BASE =
 export default function RoutinesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { data, isLoading } = useRoutines();
+  const { data, isLoading, refetch, isRefetching } = useRoutines();
   const share = useShareRoutine();
   const del = useDeleteRoutine();
   const importRoutine = useImportRoutine();
@@ -60,7 +61,6 @@ export default function RoutinesScreen() {
     body?: string;
   } | null>(null);
 
-  if (isLoading) return <Loading label="Loading routines" />;
   const routines = data?.routines ?? [];
 
   async function onShare(id: string, name: string) {
@@ -106,6 +106,9 @@ export default function RoutinesScreen() {
     <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="My routines" />
       <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#79716b" />
+        }
         contentContainerClassName="gap-3 px-4"
         // Clears the pinned bar so the last card can always be scrolled out
         // from under it.
@@ -115,7 +118,9 @@ export default function RoutinesScreen() {
         keyboardShouldPersistTaps="handled">
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
 
-        {routines.length === 0 ? (
+        {isLoading ? (
+          <SkeletonList count={3} label="Loading routines" />
+        ) : routines.length === 0 ? (
           <>
             <Empty
               title="No routines yet"

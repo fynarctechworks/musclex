@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Notice } from '../src/ui/Notice';
 import { useSession } from '../src/session';
 import { digits, otpConfigured, requestOtp, type TenantChoice } from '../src/api/auth';
+import { LogoMark } from '../src/ui/Logo';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -96,14 +97,25 @@ export default function SignInScreen() {
         contentContainerClassName="px-4 gap-5 flex-grow justify-center"
         contentContainerStyle={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }}
         keyboardShouldPersistTaps="handled">
-        <View className="gap-1">
-          <Row className="justify-start gap-1">
-            <Txt variant="display">MUSCLE</Txt>
-            <Txt variant="display" tone="accent">
-              X
-            </Txt>
-          </Row>
-          <Txt variant="body" tone="t2">
+        {/*
+          ── Brand ────────────────────────────────────────────────────────
+          Centred, with real room around it, matching staff-app's front door
+          so the two apps read as one product. The mark carries the only red
+          on the screen; the primary button takes its colour from the design
+          system, not from here.
+
+          Spacing is `style` rather than gap-* classes deliberately. staff-app
+          documented that gap-5/pb-9 silently render as NO spacing on device
+          while other classes on the same element apply — explicit values are
+          unambiguous, and this is the screen where a collapsed header would
+          be most visible.
+        */}
+        <View className="items-center" style={{ gap: 20, paddingBottom: 12 }}>
+          {/* The mark alone. It IS the wordmark's logo — setting MUSCLEX in
+              type underneath it said the same name twice, once as a drawing
+              and once as text. */}
+          <LogoMark height={52} />
+          <Txt variant="body" tone="t2" className="text-center">
             {step === 'phone'
               ? 'Enter your mobile number to get started.'
               : step === 'code'

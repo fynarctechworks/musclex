@@ -74,11 +74,14 @@ export default function TrainScreen() {
       hint: 'What your trainer set',
       href: '/plan',
     },
+    // `/scan` is the FRIEND-code scanner and lands on somebody's profile —
+    // pointing check-in at it sent members to a social screen while they stood
+    // at the desk. The code the desk scans is `/check-in`.
     who.can.attendance && {
       icon: 'scan',
       label: 'Check in',
-      hint: 'Scan at the front desk',
-      href: '/scan',
+      hint: 'Show your code at the front desk',
+      href: '/check-in',
     },
   ].filter(Boolean) as LinkEntry[];
 

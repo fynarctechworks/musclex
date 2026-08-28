@@ -101,21 +101,51 @@ function SectionHead({
  * of nouns. Done state carries an icon as well as the fill, because colour must
  * never be the only indicator.
  */
-function Mark({ label, icon, done }: { label: string; icon: IconName; done: boolean }) {
-  return (
-    <View
-      accessibilityRole="text"
-      accessibilityLabel={`${label}: ${done ? 'done' : 'not yet'}`}
-      className={
-        done
-          ? 'border-success/30 bg-success/10 flex-1 items-center gap-1 rounded-md border py-2.5'
-          : 'border-border bg-secondary flex-1 items-center gap-1 rounded-md border py-2.5'
-      }>
+function Mark({
+  label,
+  icon,
+  done,
+  onPress,
+}: {
+  label: string;
+  icon: IconName;
+  done: boolean;
+  /** Given, the mark becomes the way to DO the thing it reports. */
+  onPress?: () => void;
+}) {
+  const className = done
+    ? 'border-success/30 bg-success/10 flex-1 items-center gap-1 rounded-md border py-2.5'
+    : 'border-border bg-secondary flex-1 items-center gap-1 rounded-md border py-2.5';
+  const face = (
+    <>
       <Icon name={done ? 'check' : icon} size={16} tone={done ? 'good' : 't4'} decorative />
       <Txt variant="caption" tone={done ? 'good' : 't3'} className="font-medium">
         {label}
       </Txt>
-    </View>
+    </>
+  );
+
+  // Once it is done there is nothing left to do, so it goes back to being a
+  // read-only mark rather than a button that re-opens a finished errand.
+  if (!onPress || done)
+    return (
+      <View
+        accessibilityRole="text"
+        accessibilityLabel={`${label}: ${done ? 'done' : 'not yet'}`}
+        className={className}>
+        {face}
+      </View>
+    );
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: not yet`}
+      accessibilityHint="Opens your check-in code"
+      className={`${className} active:opacity-70`}>
+      {face}
+    </Pressable>
   );
 }
 
@@ -398,7 +428,15 @@ export default function TodayScreen() {
             </Row>
 
             <View className="flex-row gap-2">
-              <Mark label="Check in" icon="scan" done={!!t.checkedIn} />
+              {/* The only check-in entry point a member passes on the way in:
+                  Today is where the app opens, and this mark was reporting the
+                  state while offering no way to change it. */}
+              <Mark
+                label="Check in"
+                icon="scan"
+                done={!!t.checkedIn}
+                onPress={who.can.attendance ? () => router.push('/check-in') : undefined}
+              />
               <Mark label="Workout" icon="gym" done={!!t.workoutLogged} />
               <Mark label="Meal" icon="nutrition" done={!!t.mealLogged} />
             </View>

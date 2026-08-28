@@ -1,4 +1,4 @@
-import { ScrollView, View } from 'react-native';
+import { RefreshControl, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
@@ -8,7 +8,7 @@ import { useVisits, useVisitSummary } from '../src/api/queries';
 /** Every check-in, newest first. The proof behind the streak. */
 export default function VisitsScreen() {
   const insets = useSafeAreaInsets();
-  const { data, isLoading } = useVisits();
+  const { data, isLoading, refetch, isRefetching } = useVisits();
   const { data: summary } = useVisitSummary();
 
   if (isLoading) return <Loading label="Loading visits" />;
@@ -17,7 +17,11 @@ export default function VisitsScreen() {
   return (
     <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Visits" />
-      <ScrollView contentContainerClassName="gap-3 px-4 pb-32">
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#79716b" />
+        }
+        contentContainerClassName="gap-3 px-4 pb-32">
         <Card>
           <Row style={{ alignItems: 'flex-end' }}>
             <View>

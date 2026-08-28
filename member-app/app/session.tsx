@@ -11,6 +11,11 @@ import { toPayload, totalDuration, totalVolume, type WorkingSet } from '../src/f
 import { useUnits } from '../src/lib/use-units';
 import { backOrHome } from '../src/lib/nav';
 import { RestTimer } from '../src/features/RestTimer';
+import {
+  REST_CHOICES,
+  readRestSeconds,
+  writeRestSeconds,
+} from '../src/lib/rest-preference';
 import { ExercisePicker } from '../src/features/ExercisePicker';
 import type { WorkoutLogResult } from '../src/api/types';
 import { Icon } from '../src/ui/Icon';
@@ -33,7 +38,6 @@ import { Icon } from '../src/ui/Icon';
  * entire workout through a dead zone and have it land intact later.
  */
 
-const REST_SECONDS = 90;
 
 interface Block {
   id: string;
@@ -72,6 +76,13 @@ export default function SessionScreen() {
   const [seeded, setSeeded] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [restAt, setRestAt] = useState<number | null>(null);
+  /*
+    Rest was a module constant applied to everyone. Ninety seconds is a fair
+    default and a poor rule — it is short for a heavy triple and long for
+    accessory work, which is why +30s and Skip existed in the first place.
+    Seeded from the saved preference so a member sets it once.
+  */
+  const [restSeconds, setRestSeconds] = useState(() => readRestSeconds());
   const [startedAt] = useState(() => Date.now());
 
   // A session clock that actually ticks. Derived from the start timestamp
@@ -371,6 +382,47 @@ export default function SessionScreen() {
             ? `${payload.length} ${payload.length === 1 ? 'set' : 'sets'} · ${effortLabel}`
             : 'Tick a set as you finish it'}
         </Txt>
+
+        {/*
+          Rest length, set where it is felt rather than buried in settings.
+
+          It sits in the header instead of on the timer itself because changing
+          it mid-countdown would move the finish line under the member — the
+          timer keeps +30s and Skip for THIS rest; this sets the default for
+          the next one.
+        */}
+        <Row className="mt-2 justify-start gap-1.5">
+          <Txt variant="caption" tone="t4" className="mr-0.5">
+            Rest
+          </Txt>
+          {REST_CHOICES.map((secs) => {
+            const active = restSeconds === secs;
+            return (
+              <Pressable
+                key={secs}
+                onPress={() => {
+                  setRestSeconds(secs);
+                  writeRestSeconds(secs);
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={`Rest ${secs} seconds`}
+                hitSlop={6}
+                className={
+                  active
+                    ? 'border-primary bg-primary/10 rounded-full border px-2.5 py-1'
+                    : 'border-border bg-secondary rounded-full border px-2.5 py-1'
+                }>
+                <Txt
+                  variant="caption"
+                  tone={active ? 'accent' : 't3'}
+                  className={active ? 'font-semibold' : ''}>
+                  {secs < 60 ? `${secs}s` : `${secs / 60}m`}
+                </Txt>
+              </Pressable>
+            );
+          })}
+        </Row>
       </View>
 
       <ScrollView
@@ -441,7 +493,7 @@ export default function SessionScreen() {
       </View>
 
       {/* Lifted clear of the action bar; at the default offset the two overlap. */}
-      <RestTimer startedAt={restAt} seconds={REST_SECONDS} bottomOffset={72 + insets.bottom} />
+      <RestTimer startedAt={restAt} seconds={restSeconds} bottomOffset={72 + insets.bottom} />
 
       {/*
         Discarding is destructive and cannot be undone by pressing back, so it

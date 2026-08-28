@@ -23,6 +23,7 @@ import { restoreSession } from '../src/api/auth';
 import { api } from '../src/api/endpoints';
 import { flush } from '../src/offline/outbox';
 import { warmStore } from '../src/offline/store';
+import { hydrate } from '../src/lib/kv';
 import { SessionProvider, useSession } from '../src/session';
 import { Loading } from '../src/ui';
 
@@ -31,6 +32,7 @@ import { Loading } from '../src/ui';
 // is simply never called. Importing it does nothing else — no permission is
 // requested and no tracking starts until a recording asks for it.
 import '../src/lib/background-location';
+import { SplashGate } from '../src/ui/SplashGate';
 
 /**
  * A logged set must never be lost to a slow network, so mutations never retry
@@ -117,6 +119,10 @@ export default function RootLayout() {
     // Open the outbox store now, so the first write is never the one that waits
     // for it — that write is often the one made with no signal.
     warmStore();
+    // Load saved drafts and preferences into their synchronous cache before the
+    // first screen mounts. Reads are sync because a comment box has to seed its
+    // text on the FIRST render, not a tick later; this is what fills it.
+    void hydrate();
     restoreSession()
       .then(setAuthed)
       .catch(() => setAuthed(false))
@@ -152,17 +158,25 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="dark" />
-        <View className="bg-background flex-1">
-          {booted && fontsReady ? (
-            <SessionProvider initialAuthed={authed}>
-              <Gate>
-                <Slot />
-              </Gate>
-            </SessionProvider>
-          ) : (
-            <Loading label="Starting" />
-          )}
-        </View>
+        {/*
+          The splash holds until the app is genuinely ready, then hands over.
+
+          This used to render a "Starting" spinner while booting, so a launch
+          went branded native splash -> grey spinner -> app. SplashGate draws
+          the same mark on the same white the native splash used, so there is
+          nothing to see at the handover.
+        */}
+        <SplashGate ready={booted && fontsReady}>
+          <View className="bg-background flex-1">
+            {booted && fontsReady ? (
+              <SessionProvider initialAuthed={authed}>
+                <Gate>
+                  <Slot />
+                </Gate>
+              </SessionProvider>
+            ) : null}
+          </View>
+        </SplashGate>
         {/*
           Every portal-backed overlay renders into this host: dialog,
           alert-dialog, select and tooltip. Without it those components fail
