@@ -215,8 +215,6 @@ export default function RecordScreen() {
   const chosen = sports.find((s) => s.key === sport);
   const gpsSport = chosen?.gps ?? true;
 
-  if (saving) return <Loading label="Saving your activity" />;
-
   const s = state;
   const distanceKm = s ? s.distanceM / 1000 : 0;
   const pace = s ? pacePerKm(s.distanceM, s.movingMs) : null;
@@ -232,6 +230,12 @@ export default function RecordScreen() {
       : ''),
     [s],
   );
+
+  // Every hook above this line. Finish flips `saving`, and a hook that sat
+  // below an early return would be skipped on exactly that render — React
+  // counts them, and a short count is a hard crash ("rendered fewer hooks
+  // than expected"), not a warning.
+  if (saving) return <Loading label="Saving your activity" />;
 
   return (
     <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
