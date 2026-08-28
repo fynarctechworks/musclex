@@ -129,6 +129,7 @@ const SCREENS: [string, () => any][] = [
   ['settings/profile', () => require('../settings/profile').default],
   ['onboarding', () => require('../onboarding').default],
   ['classes', () => require('../classes').default],
+  ['check-in', () => require('../check-in').default],
   ['gyms', () => require('../gyms').default],
   ['explore', () => require('../explore/index').default],
   ['heatmap', () => require('../heatmap').default],
