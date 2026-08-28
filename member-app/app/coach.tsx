@@ -2,12 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Loading, Txt } from '../src/ui';
+import { PLACEHOLDER } from '../src/ui/Field';
 import { cn } from '@/lib/utils';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { useAskCoach, useCoach } from '../src/api/queries';
 
-/** Placeholder ink — ink-4. RN takes a colour value, not a class. */
-const PLACEHOLDER = '#a6a09b';
 
 /** A chat bubble. Mine is the filled one, so its text takes the inverse ink. */
 const BUBBLE = 'max-w-[86%] rounded-lg border p-3';

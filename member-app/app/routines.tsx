@@ -3,6 +3,7 @@ import { Image, Pressable, ScrollView, Share, TextInput, View } from 'react-nati
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Icon, Label, Loading, Row, Txt, type IconName } from '../src/ui';
+import { PLACEHOLDER } from '../src/ui/Field';
 import { Confirm, Notice } from '../src/ui/Notice';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import {
@@ -35,8 +36,6 @@ import {
 const SHARE_BASE =
   (process.env.EXPO_PUBLIC_PAY_BASE_URL ?? 'https://app.musclex.infynarc.com') + '/r';
 
-/** Placeholder ink — ink-4. RN takes a colour, not a class. */
-const PLACEHOLDER = '#a6a09b';
 
 export default function RoutinesScreen() {
   const insets = useSafeAreaInsets();

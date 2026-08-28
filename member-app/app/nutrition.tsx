@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Label, Loading, Meter, Row, Txt } from '../src/ui';
+import { chart } from '../src/ui/chart-colors';
 import { Input } from '@/components/ui/input';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { Notice } from '../src/ui/Notice';
@@ -134,7 +135,7 @@ export default function NutritionScreen() {
                 : `${goal.kcal - Math.round(totals.kcal)} left`}
             </Txt>
           </Row>
-          <Meter value={totals.kcal} max={goal.kcal} tint="#c10007" />
+          <Meter value={totals.kcal} max={goal.kcal} tint={chart.accent} />
           {/* Say whose target this is. Without a gym there is nowhere to store a
               personal one yet, so the bar is drawn against a general default —
               and a default presented as "your goal" is the app inventing a
@@ -184,9 +185,9 @@ export default function NutritionScreen() {
           ) : null}
 
           <Row className="items-start gap-4">
-            <Macro label="Protein" value={totals.proteinG} goal={goal.proteinG} tint="#2563eb" />
-            <Macro label="Carbs" value={totals.carbsG} goal={goal.carbsG} tint="#b45309" />
-            <Macro label="Fat" value={totals.fatG} goal={goal.fatG} tint="#7c3aed" />
+            <Macro label="Protein" value={totals.proteinG} goal={goal.proteinG} tint={chart.protein} />
+            <Macro label="Carbs" value={totals.carbsG} goal={goal.carbsG} tint={chart.carbs} />
+            <Macro label="Fat" value={totals.fatG} goal={goal.fatG} tint={chart.fat} />
           </Row>
           </Card>
         </View>
@@ -211,7 +212,7 @@ export default function NutritionScreen() {
                 onPress={() => water.mutate(250)}
               />
             </Row>
-            <Meter value={data.waterMl} max={goal.waterMl} tint="#0276b3" />
+            <Meter value={data.waterMl} max={goal.waterMl} tint={chart.water} />
           </Card>
         </View>
 

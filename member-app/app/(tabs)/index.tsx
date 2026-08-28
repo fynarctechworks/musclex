@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Card, Empty, Label, Loading, Meter, Row, Txt } from '../../src/ui';
 import { InfoBullet, InfoDot, InfoNote } from '../../src/ui/InfoTip';
-import { levelColor, levelLabel } from '../../src/ui/chart-colors';
+import { chart, levelColor, levelLabel } from '../../src/ui/chart-colors';
 import { whenOf } from '../../src/lib/datetime';
 import {
   useGoals,
@@ -535,7 +535,7 @@ export default function TodayScreen() {
               <Meter
                 value={n?.kcal ?? 0}
                 max={n?.kcalGoal ?? 2000}
-                tint="#b45309"
+                tint={chart.carbs}
               />
             </View>
             <View className="flex-1">
@@ -545,7 +545,7 @@ export default function TodayScreen() {
                   of {((n?.waterGoal ?? 2500) / 1000).toFixed(1)}L
                 </Txt>
               </View>
-              <Meter value={n?.waterMl ?? 0} max={n?.waterGoal ?? 2500} tint="#0276b3" />
+              <Meter value={n?.waterMl ?? 0} max={n?.waterGoal ?? 2500} tint={chart.water} />
             </View>
           </View>
           <View className="flex-row gap-2">

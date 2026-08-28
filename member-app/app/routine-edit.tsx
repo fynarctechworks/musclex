@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Button, Card, Empty, Icon, Loading, Row, Txt, type IconName } from '../src/ui';
+import { PLACEHOLDER } from '../src/ui/Field';
 import { Notice } from '../src/ui/Notice';
 import { ScreenHeader } from '../src/ui/ScreenHeader';
 import { cn } from '@/lib/utils';
@@ -57,8 +58,6 @@ type Row = {
 
 const blankSet = (): SetTarget => ({ reps: '', kg: '', secs: '' });
 
-/** Placeholder ink — ink-4. RN takes a colour value, not a class. */
-const PLACEHOLDER = '#a6a09b';
 
 /** The set-row grid. Shared by the header and every row so they cannot drift. */
 const COL = { num: { width: 44 }, act: { width: 34 } } as const;
