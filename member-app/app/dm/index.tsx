@@ -1,7 +1,7 @@
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Card, Empty, Label, Loading, Row, Txt, Badge } from '../../src/ui';
+import { Button, Card, Empty, Label, Loading, Row, Txt, Badge } from '../../src/ui';
 import { Chip } from '../../src/ui/Chip';
 import { ScreenHeader } from '../../src/ui/ScreenHeader';
 import { whenOf } from '../../src/lib/datetime';
@@ -27,7 +27,7 @@ const PRIVACY = [
 export default function InboxScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { data, isLoading } = useConversations();
+  const { data, isLoading, refetch, isRefetching } = useConversations();
   const privacy = useSetMessagePrivacy();
 
   if (isLoading) return <Loading label="Loading messages" />;
@@ -38,6 +38,9 @@ export default function InboxScreen() {
     <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Messages" />
       <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#79716b" />
+        }
         contentContainerClassName="gap-3 px-4 pb-32"
       >
         <Card>
@@ -61,6 +64,10 @@ export default function InboxScreen() {
           <Empty
             title="No messages"
             body="Start one from someone's activity in your feed."
+            // It named the feed as the way in without being a way in.
+            action={
+              <Button title="Open your feed" onPress={() => router.push('/feed')} />
+            }
           />
         ) : (
           conversations.map((c) => (

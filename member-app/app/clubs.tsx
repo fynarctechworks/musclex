@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Label, Loading, Row, Txt } from '../src/ui';
@@ -21,7 +21,7 @@ import type { Club } from '../src/api/types';
 export default function ClubsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { data: mine, isLoading } = useMyClubs();
+  const { data: mine, isLoading, refetch, isRefetching } = useMyClubs();
   const { data: found } = useDiscoverClubs();
   const create = useCreateClub();
 
@@ -39,6 +39,9 @@ export default function ClubsScreen() {
     <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Clubs" />
       <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#79716b" />
+        }
         contentContainerClassName="gap-3 px-4 pb-32"
       >
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}

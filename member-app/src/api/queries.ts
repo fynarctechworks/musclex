@@ -136,7 +136,12 @@ export function useExercises(
   muscle: string | null = null,
   favoritesOnly = false,
   equipment: string | null = null,
-): { data: { exercises: ExerciseListItem[] } | undefined; isLoading: boolean } {
+): {
+  data: { exercises: ExerciseListItem[] } | undefined;
+  isLoading: boolean;
+  refetch: () => void;
+  isRefetching: boolean;
+} {
   const who = useHasGym();
   const gym = useQuery({
     queryKey: ['exercises', query, muscle ?? '', favoritesOnly, equipment ?? ''] as const,
@@ -163,6 +168,10 @@ export function useExercises(
   const filtered = muscle ? rows.filter((e) => e.muscle_group === muscle) : rows;
   return {
     isLoading: who.loading || personal.isLoading,
+    // Only one of the two queries is ever enabled, so refreshing delegates to
+    // whichever branch this member is actually on.
+    refetch: personal.refetch,
+    isRefetching: personal.isRefetching,
     data: personal.data
       ? {
           exercises: filtered.map((e): ExerciseListItem => ({
@@ -1226,6 +1235,8 @@ export function useRoutines(): {
   data: { routines: Routine[] } | undefined;
   isLoading: boolean;
   isError: boolean;
+  refetch: () => void;
+  isRefetching: boolean;
 } {
   const who = useHasGym();
   const gym = useQuery({
@@ -1243,6 +1254,10 @@ export function useRoutines(): {
   return {
     isLoading: who.loading || personal.isLoading,
     isError: personal.isError,
+    // Only one branch is ever enabled, so refresh follows whichever this
+    // member is on.
+    refetch: personal.refetch,
+    isRefetching: personal.isRefetching,
     data: personal.data
       ? {
           routines: personal.data.routines.map((r): Routine => ({

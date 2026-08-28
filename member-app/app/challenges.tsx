@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Label, Loading, Meter, Row, Txt } from '../src/ui';
@@ -32,7 +32,7 @@ function defaultWindow() {
 export default function ChallengesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { data, isLoading } = useGroupChallenges();
+  const { data, isLoading, refetch, isRefetching } = useGroupChallenges();
   const create = useCreateGroupChallenge();
 
   const [making, setMaking] = useState(false);
@@ -48,6 +48,9 @@ export default function ChallengesScreen() {
     <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Challenges" />
       <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#79716b" />
+        }
         contentContainerClassName="gap-3 px-4 pb-32"
       >
         {notice ? <Notice {...notice} onDismiss={() => setNotice(null)} /> : null}
