@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Notice } from '../src/ui/Notice';
 import { useSession } from '../src/session';
 import { digits, otpConfigured, requestOtp, type TenantChoice } from '../src/api/auth';
+import { LogoMark, Wordmark } from '../src/ui/Logo';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -97,12 +98,10 @@ export default function SignInScreen() {
         contentContainerStyle={{ paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }}
         keyboardShouldPersistTaps="handled">
         <View className="gap-1">
-          <Row className="justify-start gap-1">
-            <Txt variant="display">MUSCLE</Txt>
-            <Txt variant="display" tone="accent">
-              X
-            </Txt>
-          </Row>
+          {/* The mark above the wordmark: this is the one screen with room for
+              both, and the first thing anybody sees of the product. */}
+          <LogoMark height={40} />
+          <Wordmark />
           <Txt variant="body" tone="t2">
             {step === 'phone'
               ? 'Enter your mobile number to get started.'
