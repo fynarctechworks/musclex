@@ -170,3 +170,54 @@ in this repo's RNTL, or the assertion reads the pre-press tree.
   (`routine-edit`) was a deliberate swap to `accessibilityElementsHidden` on a
   thumbnail whose name renders beside it
 - Every colour class used resolves to a token defined in `global.css`
+
+---
+
+## Correction — the "theme.ts is retired" claim was wrong
+
+Recorded here because the section above states it and the section above was
+mistaken.
+
+I audited with `grep "ui/theme"`, which matches `'../../src/ui/theme'` but
+**not** `'./theme'`. `src/ui/Gallery.tsx` uses the second form, so it never
+appeared, and the You tab links to it at `/gallery`. Both design-system rows are
+`__DEV__`-guarded and stripped from release builds — so no member could ever have
+reached it — but the claim was still false and the file was still live.
+
+The palette section was the worse half. It documented token NAMES — `bg`,
+`surface2`, `t1`, `lineStrong` — from a module no screen imports any more, so
+anyone reading the reference would reach for something that does not exist.
+Swatches now name the class you would actually write (`bg-background`,
+`bg-card`, `ink-4`), and a test pins that they do.
+
+Two more sections iterated the old objects to document themselves; spacing and
+radius now list the steps this app really uses, with a note that Tailwind's full
+scale is larger and printing all of it would document the framework rather than
+the design. The raw type-ramp table is gone — it existed only to print
+`theme.type`.
+
+**The correct audit**, using `grep -E "from ['\"][^'\"]*theme['\"]"`:
+`src/ui/theme.ts` has exactly three importers — `(tabs)/gym.tsx`, `me.tsx`,
+`progress.tsx` — all `href: null`. Also checked for `require()` of it: none.
+
+**Lesson worth keeping:** a grep proving absence is only as good as its pattern,
+and a relative-path import will slip past a path-prefixed match every time.
+
+### Also added
+
+Tests for the FILTER chip (`src/ui/Chip.tsx`), which fourteen screens use and
+nothing covered. It matters more now: `settings/goals` and `settings/profile`
+each hand-rolled that pill with their own `accessibilityRole` and
+`accessibilityState`, so folding them onto the shared component moved that
+semantics into one place where losing it would hit both at once.
+
+⚠️ **Three more RNTL quirks**, each verified rather than assumed:
+- a Pressable marked `accessible` hides its children from label queries — walk
+  the tree instead
+- the value returned by the **first** `render()` in a file has an empty tree,
+  while `screen` is populated; always walk `screen.toJSON()`
+- an explicit `cleanup()` **mid-test** leaves the harness such that the *next*
+  test's first render does not populate, which reads as a failure in whichever
+  case happens to run after it
+
+**350 tests green.**
