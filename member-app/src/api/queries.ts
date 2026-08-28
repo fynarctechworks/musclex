@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query';
 import { api } from './endpoints';
 import { write, flush, pendingCount } from '../offline/outbox';
+import { anyRefetching, refetchAll } from '../lib/refetch-all';
 import type {
   ActivityInput,
   BodyMetricInput,
@@ -374,6 +375,8 @@ export function useNutrition(): {
   data: NutritionToday | undefined;
   isLoading: boolean;
   isError: boolean;
+  refetch: () => void;
+  isRefetching: boolean;
 } {
   const who = useHasGym();
   const gym = useQuery({
@@ -396,6 +399,17 @@ export function useNutrition(): {
   return {
     isLoading: who.loading || personal.isLoading,
     isError: personal.isError,
+    /*
+      BOTH queries, unlike the other merged hooks on this page.
+
+      An independent member's nutrition is assembled from two calls — the meals
+      and the water — and the screen shows them side by side. Refetching only
+      the meals would redraw the food totals while leaving the water bar on a
+      number that could be minutes old, which is worse than not refreshing at
+      all because it looks current.
+    */
+    refetch: refetchAll(personal.refetch, water.refetch),
+    isRefetching: anyRefetching(personal.isRefetching, water.isRefetching),
     data: personal.data
       ? {
           date: new Date().toISOString().slice(0, 10),

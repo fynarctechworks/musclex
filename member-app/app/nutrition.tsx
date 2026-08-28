@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Modal, Pressable, RefreshControl, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Card, Empty, Label, Loading, Meter, Row, Txt } from '../src/ui';
 import { chart } from '../src/ui/chart-colors';
@@ -49,7 +49,7 @@ function Macro({
 export default function NutritionScreen() {
   const who = useWho();
   const insets = useSafeAreaInsets();
-  const { data, isLoading } = useNutrition();
+  const { data, isLoading, refetch, isRefetching } = useNutrition();
   const water = useLogWater();
   const meal = useLogMeal();
 
@@ -95,7 +95,11 @@ export default function NutritionScreen() {
   return (
     <View className="bg-background flex-1" style={{ paddingTop: insets.top }}>
       <ScreenHeader title="Nutrition" />
-      <ScrollView contentContainerClassName="px-4 pb-28 gap-5">
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#79716b" />
+        }
+        contentContainerClassName="px-4 pb-28 gap-5">
         {notice ? (
           <Notice {...notice} onDismiss={() => setNotice(null)} />
         ) : null}
