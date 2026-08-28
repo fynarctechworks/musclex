@@ -5,7 +5,7 @@ import { Button, Card, Chip, Empty, Label, Loading, Meter, Row, Txt } from './in
 import { Icon, type IconName } from './Icon';
 import { InfoDot, InfoNote, InfoBullet } from './InfoTip';
 import { Notice, Confirm } from './Notice';
-import { color, radius, space, type } from './theme';
+import { chart } from './chart-colors';
 
 /**
  * ────────────────────────────────────────────────────────────────
@@ -28,31 +28,61 @@ import { color, radius, space, type } from './theme';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <View style={{ gap: space.md, paddingVertical: space.xl }}>
-      <Txt variant="label" tone="t3">{title}</Txt>
+    <View className="gap-3 py-6">
+      <Txt variant="label" tone="t3">
+        {title}
+      </Txt>
       {children}
     </View>
   );
 }
 
+/**
+ * One colour, named by the CLASS you would actually write rather than by a
+ * token object that no longer exists. A reference that names something
+ * uncallable is worse than no reference.
+ */
 function Swatch({ name, value }: { name: string; value: string }) {
   return (
-    <View style={{ alignItems: 'center', gap: space.xs, width: 84 }}>
+    <View className="w-[84px] items-center gap-1">
+      {/* The swatch IS the colour, so the fill stays inline. */}
       <View
-        style={{
-          width: 56,
-          height: 56,
-          borderRadius: radius.md,
-          backgroundColor: value,
-          borderWidth: 1,
-          borderColor: color.line,
-        }}
+        className="border-border h-14 w-14 rounded-md border"
+        style={{ backgroundColor: value }}
       />
-      <Txt variant="caption" tone="t3" numberOfLines={1}>{name}</Txt>
-      <Txt variant="caption" tone="t4" numberOfLines={1}>{value}</Txt>
+      <Txt variant="caption" tone="t3" numberOfLines={1}>
+        {name}
+      </Txt>
+      <Txt variant="caption" tone="t4" numberOfLines={1}>
+        {value}
+      </Txt>
     </View>
   );
 }
+
+/**
+ * The spacing and radius steps this app actually uses, as the CLASS you would
+ * write. Tailwind's full scale is far larger; listing all of it would document
+ * the framework rather than the design.
+ */
+const SPACING: [string, number][] = [
+  ['gap-1', 4],
+  ['gap-2', 8],
+  ['gap-3', 12],
+  ['gap-4', 16],
+  ['gap-6', 24],
+  ['gap-8', 32],
+  ['gap-12', 48],
+];
+
+/** Derived from --radius 0.875rem, exactly as the preset derives them. */
+const RADII: [string, number][] = [
+  ['rounded-sm', 8],
+  ['rounded-md', 11],
+  ['rounded-lg', 14],
+  ['rounded-xl', 20],
+  ['rounded-full', 999],
+];
 
 const ICONS: IconName[] = [
   'today', 'progress', 'gym', 'community', 'me', 'scan', 'streak', 'target',
@@ -65,56 +95,58 @@ export function Gallery() {
   const [tipOpen, setTipOpen] = useState(false);
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: color.bg }}
-      contentContainerStyle={{ padding: space.lg, paddingBottom: space['3xl'] }}
-    >
+    <ScrollView className="bg-background flex-1" contentContainerClassName="p-4 pb-12">
       {/*
         Palette first, because it is the thing most often needed and the
         thing a screenshot of a component cannot give you.
       */}
       <Section title="Palette — surfaces">
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
-          <Swatch name="bg" value={color.bg} />
-          <Swatch name="surface" value={color.surface} />
-          <Swatch name="surface2" value={color.surface2} />
-          <Swatch name="line" value={color.line} />
-          <Swatch name="lineStrong" value={color.lineStrong} />
+        <View className="flex-row flex-wrap gap-3">
+          <Swatch name="bg-background" value="#fafaf9" />
+          <Swatch name="bg-card" value="#ffffff" />
+          <Swatch name="bg-secondary" value="#f4f4f5" />
+          <Swatch name="bg-muted" value="#f5f5f4" />
+          <Swatch name="border-border" value="#e7e5e4" />
         </View>
       </Section>
 
       <Section title="Palette — ink ladder">
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
-          <Swatch name="t1 17.4:1" value={color.t1} />
-          <Swatch name="t2 7.8:1" value={color.t2} />
-          <Swatch name="t3 4.6:1" value={color.t3} />
-          <Swatch name="t4 3.1:1" value={color.t4} />
+        <View className="flex-row flex-wrap gap-3">
+          <Swatch name="foreground (t1)" value="#0c0a09" />
+          <Swatch name="ink-2 (t2)" value="#44403b" />
+          <Swatch name="muted-fg (t3)" value="#79716b" />
+          <Swatch name="ink-4 (t4)" value="#a6a09b" />
         </View>
         <InfoNote>
           <Txt variant="small" tone="t2">
-            t4 is decorative and disabled ONLY — it clears the 3:1 non-text
+            ink-4 is decorative and disabled ONLY — it clears the 3:1 non-text
             threshold and must never carry information. If a label matters
-            enough to read, it is t3.
+            enough to read, it is muted-foreground.
           </Txt>
         </InfoNote>
       </Section>
 
       <Section title="Palette — accent & semantic">
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.md }}>
-          <Swatch name="accent" value={color.accent} />
-          <Swatch name="accentText" value={color.accentText} />
-          <Swatch name="good" value={color.good} />
-          <Swatch name="warn" value={color.warn} />
-          <Swatch name="protein" value={color.protein} />
-          <Swatch name="carbs" value={color.carbs} />
-          <Swatch name="fat" value={color.fat} />
-          <Swatch name="water" value={color.water} />
+        <View className="flex-row flex-wrap gap-3">
+          <Swatch name="primary" value={chart.accent} />
+          <Swatch name="success" value={chart.good} />
+          <Swatch name="warning" value={chart.warn} />
+          <Swatch name="protein" value={chart.protein} />
+          <Swatch name="carbs" value={chart.carbs} />
+          <Swatch name="fat" value={chart.fat} />
+          <Swatch name="water" value={chart.water} />
         </View>
         <InfoNote>
           <Txt variant="small" tone="t2">
             One saturated accent carries actions and nothing else. The semantic
             hues are darkened until they pass 4.5:1 as TEXT on the page
             background — not merely as fills.
+          </Txt>
+          <Txt variant="small" tone="t2">
+            These are the only values a chart may use directly: SVG fill and
+            stroke are node props, so no class reaches them. Everything else on
+            this page is a className. src/global.css is the source of truth;
+            chart-colors.ts mirrors it.
           </Txt>
         </InfoNote>
       </Section>
@@ -140,22 +172,22 @@ export function Gallery() {
       </Section>
 
       <Section title="Cards">
-        <Card style={{ padding: space.lg }}>
+        <Card>
           <Txt variant="bodyStrong">Default</Txt>
           <Txt variant="small" tone="t2">A white surface on the grey canvas.</Txt>
         </Card>
-        <Card tone="accent" style={{ padding: space.lg }}>
+        <Card tone="accent">
           <Txt variant="bodyStrong" tone="accent">Accent</Txt>
           <Txt variant="small" tone="t2">Used sparingly — it is the loudest thing on a screen.</Txt>
         </Card>
-        <Card tone="good" style={{ padding: space.lg }}>
+        <Card tone="good">
           <Txt variant="bodyStrong" tone="good">Good</Txt>
           <Txt variant="small" tone="t2">Streak kept, goal met, session done.</Txt>
         </Card>
       </Section>
 
       <Section title="Chips">
-        <Row style={{ gap: space.sm, flexWrap: 'wrap' }}>
+        <Row className="flex-wrap gap-2">
           <Chip label="Push" on={chipOn} />
           <Chip label="Pull" />
           <Chip label="Legs" />
@@ -164,9 +196,9 @@ export function Gallery() {
       </Section>
 
       <Section title="Meter">
-        <Meter value={7} max={10} tint={color.good} />
+        <Meter value={7} max={10} tint={chart.good} />
         <Txt variant="caption" tone="t3">7 of 10 sessions</Txt>
-        <Meter value={2100} max={2600} tint={color.protein} />
+        <Meter value={2100} max={2600} tint={chart.protein} />
         <Txt variant="caption" tone="t3">2,100 of 2,600 kcal</Txt>
       </Section>
 
@@ -191,7 +223,7 @@ export function Gallery() {
       </Section>
 
       <Section title="Info tips">
-        <Row style={{ gap: space.sm }}>
+        <Row className="gap-2">
           <Txt variant="body">One-rep max</Txt>
           {/* Controlled: the dot toggles, the caller decides what to reveal. */}
           <InfoDot
@@ -217,9 +249,9 @@ export function Gallery() {
       </Section>
 
       <Section title="Icons">
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.lg }}>
+        <View className="flex-row flex-wrap gap-4">
           {ICONS.map((n) => (
-            <View key={n} style={{ alignItems: 'center', gap: space.xs, width: 64 }}>
+            <View key={n} className="w-16 items-center gap-1">
               <Icon name={n} size={22} tone="t2" decorative />
               <Txt variant="caption" tone="t4" numberOfLines={1}>{n}</Txt>
             </View>
@@ -227,42 +259,37 @@ export function Gallery() {
         </View>
       </Section>
 
-      <Section title="Spacing & radius">
-        <View style={{ gap: space.sm }}>
-          {(['xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl'] as const).map((k) => (
-            <Row key={k} style={{ gap: space.md }}>
-              <Txt variant="caption" tone="t3" style={{ width: 40 }}>{k}</Txt>
-              <View style={{ height: 8, width: space[k], backgroundColor: color.t4, borderRadius: 2 }} />
-              <Txt variant="caption" tone="t4">{space[k]}pt</Txt>
+      <Section title="Spacing — Tailwind's scale">
+        <View className="gap-2">
+          {SPACING.map(([cls, px]) => (
+            <Row key={cls} className="gap-3">
+              <Txt variant="caption" tone="t3" className="w-14">
+                {cls}
+              </Txt>
+              {/* The bar's width IS the value being documented. */}
+              <View className="bg-ink-4 h-2 rounded-sm" style={{ width: px }} />
+              <Txt variant="caption" tone="t4">
+                {px}pt
+              </Txt>
             </Row>
           ))}
         </View>
-        <Row style={{ gap: space.md, flexWrap: 'wrap' }}>
-          {(['sm', 'md', 'lg', 'xl', 'pill'] as const).map((k) => (
-            <View key={k} style={{ alignItems: 'center', gap: space.xs }}>
+      </Section>
+
+      <Section title="Radius">
+        <Row className="flex-wrap gap-3">
+          {RADII.map(([cls, px]) => (
+            <View key={cls} className="items-center gap-1">
               <View
-                style={{
-                  width: 56, height: 40,
-                  borderRadius: radius[k],
-                  backgroundColor: color.surface2,
-                  borderWidth: 1, borderColor: color.line,
-                }}
+                className="border-border bg-secondary h-10 w-14 border"
+                style={{ borderRadius: px }}
               />
-              <Txt variant="caption" tone="t4">{k}</Txt>
+              <Txt variant="caption" tone="t4">
+                {cls}
+              </Txt>
             </View>
           ))}
         </Row>
-      </Section>
-
-      <Section title="Type ramp — raw values">
-        {(Object.keys(type) as Array<keyof typeof type>).map((k) => (
-          <Row key={k}>
-            <Txt variant="small" tone="t2">{k}</Txt>
-            <Txt variant="caption" tone="t4">
-              {String(type[k].fontSize)}pt / {String(type[k].fontWeight)}
-            </Txt>
-          </Row>
-        ))}
       </Section>
     </ScrollView>
   );

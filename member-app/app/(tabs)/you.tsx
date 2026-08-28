@@ -51,8 +51,8 @@ export default function YouScreen() {
   // route behind it can reach a member's phone.
   const developer: LinkEntry[] = __DEV__
     ? [
-        { icon: 'info', label: 'Design system', hint: 'Current: theme.ts tokens', href: '/gallery' },
-        { icon: 'star', label: 'Design system (preset)', hint: 'Target: shadcn bKsI1x32', href: '/design-system' },
+        { icon: 'info', label: 'Design system', hint: "This app's own components", href: '/gallery' },
+        { icon: 'star', label: 'RNR primitives', hint: 'The raw shadcn/RNR set', href: '/design-system' },
       ]
     : [];
 

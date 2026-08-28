@@ -37,18 +37,33 @@ describe('design system gallery', () => {
       'Info tips',
       'Empty & loading',
       'Icons',
-      'Spacing & radius',
-      'Type ramp — raw values',
+      'Spacing — Tailwind\'s scale',
+      'Radius',
     ]) {
       expect(screen.getByText(title)).toBeTruthy();
     }
   });
 
-  it('shows the real token values, not hardcoded copies', async () => {
+  it('shows the tokens the app actually renders with', async () => {
     await render(<Gallery />);
-    // Pulled from theme.ts at render time — if a token changes, this changes.
-    expect(screen.getByText('#E10600')).toBeTruthy(); // accent
-    expect(screen.getByText('#F5F5F7')).toBeTruthy(); // canvas
+    // The accent comes from chart-colors at render time, so a token change
+    // shows up here. The canvas is written out, because a className has no
+    // value to read back — see the note on Swatch.
+    expect(screen.getByText('#c10007')).toBeTruthy(); // --color-primary
+    expect(screen.getByText('#fafaf9')).toBeTruthy(); // --color-background
+  });
+
+  /*
+    Guards the one thing that made the old palette section actively misleading:
+    it documented token NAMES (bg, surface2, t1) from a module no screen imports
+    any more, so a developer reading it would reach for something that does not
+    exist. The names must be the classes you would really write.
+  */
+  it('names classes, not the retired theme tokens', async () => {
+    await render(<Gallery />);
+    expect(screen.getByText('bg-background')).toBeTruthy();
+    expect(screen.getByText('bg-card')).toBeTruthy();
+    expect(screen.queryByText('surface2')).toBeNull();
   });
 });
 
