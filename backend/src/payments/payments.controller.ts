@@ -28,6 +28,7 @@ import { StripeService } from './stripe.service';
 import { PaymentLinksService } from './payment-links.service';
 import { CreatePaymentLinkDto } from './dto/create-payment-link.dto';
 import { IsString, MaxLength } from 'class-validator';
+import { PublicRoute } from '../common/decorators/public-route.decorator';
 
 export class VerifyStripePaymentDto {
   @IsString()
@@ -169,7 +170,7 @@ export class PaymentsController {
    * Verifies HMAC-SHA256 signature before processing.
    */
   @Post('webhooks/razorpay')
-  @UseGuards() // Override class-level guards — no JWT required
+  @PublicRoute() // HMAC-signature authenticated; see PublicRoute docs
   async razorpayWebhook(
     @Headers('x-razorpay-signature') signature: string,
     @Headers('x-razorpay-event-id') eventId: string,
@@ -226,7 +227,7 @@ export class PaymentsController {
    * tolerance) before processing.
    */
   @Post('webhooks/stripe')
-  @UseGuards() // Override class-level guards — no JWT required
+  @PublicRoute() // HMAC-signature authenticated; see PublicRoute docs
   async stripeWebhook(
     @Headers('stripe-signature') signature: string,
     @Req() req: Request,

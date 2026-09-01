@@ -6,7 +6,9 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { IS_PUBLIC_ROUTE } from '../decorators/public-route.decorator';
 import { PermissionsMap, UserRoleSummary } from '../decorators/current-user.decorator';
 import { DEFAULT_ROLE_PERMISSIONS } from './default-permissions';
 import { RbacService } from '../../auth/rbac.service';
@@ -25,6 +27,7 @@ export class JwtAuthGuard implements CanActivate {
     private rbacService: RbacService,
     private prisma: PrismaService,
     private subscriptionPolicy: SubscriptionPolicyService,
+    private reflector: Reflector,
   ) {
     this.supabase = createClient(
       this.configService.get<string>('SUPABASE_URL', ''),
@@ -38,6 +41,16 @@ export class JwtAuthGuard implements CanActivate {
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    // Routes explicitly marked @PublicRoute() authenticate by another means
+    // (gateway webhooks verify an HMAC over the raw body). Only an explicit
+    // marker exempts a route — never a bare `@UseGuards()`, which Nest merges
+    // with class-level guards rather than clearing them.
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_ROUTE, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) return true;
+
     const request = context.switchToHttp().getRequest();
     const authHeader = request.headers.authorization;
 
