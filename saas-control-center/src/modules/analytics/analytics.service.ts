@@ -103,7 +103,7 @@ export class AnalyticsService {
           m.month_start,
           COUNT(t.id)::int as signups
         FROM months m
-        LEFT JOIN tenants t ON
+        LEFT JOIN scc.tenants t ON
           t.created_at >= m.month_start
           AND t.created_at < m.month_start + '1 month'::interval
         GROUP BY m.month_start
