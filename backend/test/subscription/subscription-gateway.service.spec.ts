@@ -18,6 +18,9 @@ describe('SubscriptionService.verifyAndRenew (gateway guards)', () => {
       {} as any, // config
       {} as any, // eventEmitter
       razorpay,
+      // No coupon in these fixtures: resolve() returns null so pricing is
+      // unchanged, and consume() is never reached.
+      { resolve: jest.fn().mockResolvedValue(null), consume: jest.fn() } as any,
     );
 
   const base = {
