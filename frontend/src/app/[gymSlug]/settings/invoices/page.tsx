@@ -361,10 +361,22 @@ export default function InvoiceSettingsPage() {
               const isActive = activeTemplate === template.id;
               const Icon = TEMPLATE_ICONS[template.id] || FileText;
               return (
-                <button
+                // Not a <button>: it contains the Preview button, and a button
+                // inside a button is invalid HTML that trips React hydration.
+                // role/tabIndex/onKeyDown keep it keyboard-operable.
+                <div
                   key={template.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={isActive}
                   onClick={() => setSelectedTemplate(template.id)}
-                  className={`group text-left rounded-lg border transition-all duration-fast overflow-hidden bg-card ${
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedTemplate(template.id);
+                    }
+                  }}
+                  className={`group cursor-pointer text-left rounded-lg border transition-all duration-fast overflow-hidden bg-card ${
                     isActive
                       ? "border-primary shadow-level-3 ring-2 ring-primary/20"
                       : "border-border hover:border-primary/40 hover:shadow-level-2"
@@ -415,7 +427,7 @@ export default function InvoiceSettingsPage() {
                       )}
                     </div>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>

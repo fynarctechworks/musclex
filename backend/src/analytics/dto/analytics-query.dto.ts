@@ -121,6 +121,19 @@ export class CampaignAnalyticsQueryDto {
   @IsString()
   campaign_id?: string;
 
+  /**
+   * Accepted for parity with the other analytics queries — the Reports page
+   * sends the active branch on every analytics call, and `forbidNonWhitelisted`
+   * rejected the whole request without this, 400'ing the campaign panel.
+   *
+   * Deliberately NOT used as a filter: campaign_analytics has no branch_id
+   * (campaigns are gym-wide, not per-branch), so filtering on it would be
+   * meaningless. The query is already tenant-scoped via `this.tenant.client`.
+   */
+  @IsOptional()
+  @IsString()
+  branch_id?: string;
+
   @IsOptional()
   @IsDateString()
   start_date?: string;
