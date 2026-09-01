@@ -225,11 +225,75 @@ export class SubscriptionController {
   @Roles('owner', 'brand_owner')
   createOrder(
     @CurrentUser() user: JwtPayload,
-    @Body() body: { plan?: string; billing_cycle?: 'monthly' | 'annual' },
+    @Body()
+    body: {
+      plan?: string;
+      billing_cycle?: 'monthly' | 'annual';
+      coupon_code?: string;
+    },
   ) {
     return this.subscription.createRenewalOrder(user.studio_id, {
       plan: body.plan,
       billing_cycle: body.billing_cycle,
+      coupon_code: body.coupon_code,
+    });
+  }
+
+  /**
+   * Validate a platform coupon (SCC → Discounts) against a plan and cycle, and
+   * return the resulting price breakdown. Preview only — no order is created
+   * and no usage is consumed. The authoritative discount is recomputed
+   * server-side in create-order, so this cannot be used to fix a price.
+   */
+  @Post('validate-coupon')
+  @Roles('owner', 'brand_owner')
+  validateCoupon(
+    @CurrentUser() user: JwtPayload,
+    @Body()
+    body: {
+      code: string;
+      plan?: string;
+      billing_cycle?: 'monthly' | 'annual';
+    },
+  ) {
+    return this.subscription.previewCoupon(user.studio_id, {
+      code: body.code,
+      plan: body.plan,
+      billing_cycle: body.billing_cycle,
+    });
+  }
+
+  /**
+   * Redeem a coupon that covers the FULL amount — activates the subscription
+   * with no gateway payment. The service re-resolves the coupon and refuses
+   * unless its own pricing makes the total zero, so this cannot be used to
+   * skip a partial payment.
+   */
+  @Post('redeem-coupon')
+  @Roles('owner', 'brand_owner')
+  redeemCoupon(
+    @CurrentUser() user: JwtPayload,
+    @Body()
+    body: {
+      code: string;
+      plan?: string;
+      billing_cycle?: 'monthly' | 'annual';
+      billing_name?: string;
+      billing_email?: string;
+      billing_address?: string;
+      tax_id?: string;
+    },
+  ) {
+    return this.subscription.redeemFullDiscountCoupon(user.studio_id, user.user_id, {
+      code: body.code,
+      plan: body.plan,
+      billing_cycle: body.billing_cycle,
+      billing_info: {
+        billing_name: body.billing_name,
+        billing_email: body.billing_email,
+        billing_address: body.billing_address,
+        tax_id: body.tax_id,
+      },
     });
   }
 

@@ -8,6 +8,7 @@ import { SubscriptionService } from './subscription.service';
 import { SubscriptionCron } from './subscription.cron';
 import { CronLockService } from '../common/services/cron-lock.service';
 import { RazorpayService } from '../payments/razorpay.service';
+import { SubscriptionCouponService } from './subscription-coupon.service';
 
 /**
  * Global subscription lifecycle module.
@@ -35,6 +36,7 @@ import { RazorpayService } from '../payments/razorpay.service';
     SubscriptionCron,
     CronLockService,
     RazorpayService,
+    SubscriptionCouponService,
   ],
   exports: [
     SubscriptionPolicyService,

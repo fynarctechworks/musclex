@@ -116,6 +116,9 @@ function buildService(studioOverrides: Record<string, unknown> = {}) {
     config as any,
     eventEmitter as any,
     razorpay as any,
+    // No coupon in these fixtures: resolve() returns null so pricing is
+    // unchanged, and consume() is never reached.
+    { resolve: jest.fn().mockResolvedValue(null), consume: jest.fn() } as any,
   );
 
   return { svc, pub, policy, gateway, queue, razorpay, eventEmitter, studioRow };

@@ -63,7 +63,11 @@ export const subscriptionApi = {
     }>('/subscription/renew', body),
 
   /** Create a Razorpay order for an online renewal / plan switch. */
-  createOrder: (body: { plan?: string; billing_cycle?: 'monthly' | 'annual' }) =>
+  createOrder: (body: {
+    plan?: string;
+    billing_cycle?: 'monthly' | 'annual';
+    coupon_code?: string;
+  }) =>
     apiClient.post<{
       order_id: string;
       key_id: string;
@@ -72,7 +76,59 @@ export const subscriptionApi = {
       plan: string;
       billing_cycle: 'monthly' | 'annual';
       plan_display_name: string;
+      list_price?: number;
+      coupon_code?: string | null;
+      coupon_name?: string | null;
+      discount_amount?: number;
     }>('/subscription/create-order', body),
+
+  /**
+   * Validate a platform coupon (created in the SaaS Control Center) and get the
+   * resulting breakdown. Preview only — the charged amount is always recomputed
+   * server-side when the order is created.
+   */
+  validateCoupon: (body: {
+    code: string;
+    plan?: string;
+    billing_cycle?: 'monthly' | 'annual';
+  }) =>
+    apiClient.post<{
+      valid: boolean;
+      coupon_code: string | null;
+      coupon_name: string | null;
+      discount_amount: number;
+      /** Nothing left to pay — activate via redeemCoupon, not Razorpay. */
+      covers_full_amount: boolean;
+      list_price: number;
+      subtotal: number;
+      gst_percent: number;
+      gst_label: string;
+      gst_amount: number;
+      total: number;
+    }>('/subscription/validate-coupon', body),
+
+  /**
+   * Redeem a coupon that covers the full amount — activates the subscription
+   * with no gateway payment. The server re-resolves the coupon and refuses
+   * unless the total is genuinely zero.
+   */
+  redeemCoupon: (body: {
+    code: string;
+    plan?: string;
+    billing_cycle?: 'monthly' | 'annual';
+    billing_name?: string;
+    billing_email?: string;
+    billing_address?: string;
+    tax_id?: string;
+  }) =>
+    apiClient.post<{
+      invoice_id: string;
+      invoice_number: string;
+      period_start: string;
+      period_end: string;
+      plan_changed: boolean;
+      amount: number;
+    }>('/subscription/redeem-coupon', body),
 
   /** Verify the Razorpay Checkout handshake; records the renewal server-side. */
   verifyPayment: (body: {
@@ -202,13 +258,7 @@ export const subscriptionApi = {
     }>('/subscription/change-plan/scheduled'),
 };
 
-export type PaymentMethod =
-  | 'upi'
-  | 'card'
-  | 'netbanking'
-  | 'bank_transfer'
-  | 'cash'
-  | 'razorpay';
+export type PaymentMethod = 'razorpay';
 
 /**
  * Platform-subscription payments are GATEWAY-ONLY. This is a remote SaaS

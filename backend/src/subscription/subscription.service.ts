@@ -11,6 +11,7 @@ import { PublicPrismaService } from '../prisma/public-prisma.service';
 import { SubscriptionPolicyService } from '../common/services/subscription-policy.service';
 import { SubscriptionGateway } from './subscription.gateway';
 import { RazorpayService } from '../payments/razorpay.service';
+import { SubscriptionCouponService } from './subscription-coupon.service';
 import { PLAN_CONFIGS } from '../common/plan-configs';
 import {
   classifyPlanChange,
@@ -47,6 +48,7 @@ export class SubscriptionService {
     private readonly config: ConfigService,
     private readonly eventEmitter: EventEmitter2,
     private readonly razorpay: RazorpayService,
+    private readonly coupons: SubscriptionCouponService,
   ) {}
 
   // ────────────────────────────────────────────────────────────
@@ -61,7 +63,7 @@ export class SubscriptionService {
    */
   async createRenewalOrder(
     studioId: string,
-    opts: { plan?: string; billing_cycle?: 'monthly' | 'annual' },
+    opts: { plan?: string; billing_cycle?: 'monthly' | 'annual'; coupon_code?: string },
   ) {
     const studio = await this.pub.studio.findUnique({
       where: { id: studioId },
@@ -88,10 +90,22 @@ export class SubscriptionService {
     const planInfo = await this.resolvePlanPricing(targetPlan);
     if (!planInfo) throw new BadRequestException(`Unknown plan "${targetPlan}".`);
 
-    const subtotal =
+    const listPrice =
       targetCycle === 'annual' ? planInfo.annual_price : planInfo.monthly_price;
-    if (subtotal <= 0) {
+    if (listPrice <= 0) {
       throw new BadRequestException(`Plan "${targetPlan}" is free — no payment required.`);
+    }
+
+    // Coupon is resolved and applied SERVER-SIDE: the discount comes from
+    // scc.discounts, never from the client, so the charged amount cannot be
+    // forged by editing the request. Applied to the pre-GST subtotal so tax is
+    // computed on what the customer actually pays.
+    const coupon = await this.coupons.resolve(opts.coupon_code, targetPlan, listPrice);
+    const subtotal = +(listPrice - (coupon?.discount_amount ?? 0)).toFixed(2);
+    if (subtotal <= 0) {
+      throw new BadRequestException(
+        'This coupon covers the full amount — no payment is required. Contact support to apply it.',
+      );
     }
 
     // GST is added on top (exclusive) at the platform rate configured in the SCC.
@@ -110,6 +124,9 @@ export class SubscriptionService {
         studio_id: studioId,
         plan: targetPlan,
         billing_cycle: targetCycle,
+        // Carried on the order so verify() can credit usage against the same
+        // coupon without trusting anything the client sends back.
+        ...(coupon ? { coupon_id: coupon.id, coupon_code: coupon.code } : {}),
       },
     });
 
@@ -122,11 +139,152 @@ export class SubscriptionService {
       billing_cycle: targetCycle,
       plan_display_name: planInfo.display_name,
       // Breakdown so the client can render a GST summary.
+      list_price: listPrice,
+      coupon_code: coupon?.code ?? null,
+      coupon_name: coupon?.name ?? null,
+      discount_amount: coupon?.discount_amount ?? 0,
       subtotal,
       gst_percent: gst.percent,
       gst_label: gst.label,
       gst_amount: gst.amount,
       total,
+    };
+  }
+
+  /**
+   * Redeem a coupon that covers the ENTIRE amount — activates the subscription
+   * with no gateway involved.
+   *
+   * Security: the coupon is re-resolved from `scc.discounts` here, and the
+   * renewal is granted ONLY if the server's own arithmetic makes the payable
+   * total zero. A client cannot reach this path with a partial coupon, and
+   * cannot influence the discount — it sends a code, nothing more. Usage is
+   * consumed exactly once, before the grant, so a replay cannot mint free
+   * periods beyond `max_uses`.
+   */
+  async redeemFullDiscountCoupon(
+    studioId: string,
+    actorId: string,
+    opts: {
+      code: string;
+      plan?: string;
+      billing_cycle?: 'monthly' | 'annual';
+      billing_info?: {
+        billing_name?: string;
+        billing_email?: string;
+        billing_address?: string;
+        tax_id?: string;
+      };
+    },
+  ) {
+    const studio = await this.pub.studio.findUnique({
+      where: { id: studioId },
+      select: { subscription_plan: true, billing_cycle: true },
+    });
+    if (!studio) throw new NotFoundException('Studio not found');
+
+    const pending =
+      opts.plan || opts.billing_cycle
+        ? null
+        : await this.getRenewalDefaultChange(studioId);
+    const targetPlan = opts.plan ?? pending?.target_plan ?? studio.subscription_plan;
+    const targetCycle = (opts.billing_cycle ??
+      pending?.target_cycle ??
+      studio.billing_cycle) as 'monthly' | 'annual';
+
+    const planInfo = await this.resolvePlanPricing(targetPlan);
+    if (!planInfo) throw new BadRequestException(`Unknown plan "${targetPlan}".`);
+
+    const listPrice =
+      targetCycle === 'annual' ? planInfo.annual_price : planInfo.monthly_price;
+    if (listPrice <= 0) {
+      throw new BadRequestException(`Plan "${targetPlan}" is free — no payment required.`);
+    }
+
+    // Authoritative re-resolution. Throws if the code is invalid/expired/
+    // exhausted or restricted to a different plan.
+    const coupon = await this.coupons.resolve(opts.code, targetPlan, listPrice);
+    if (!coupon) throw new BadRequestException('A coupon code is required.');
+
+    // The whole point of this path: it exists ONLY for coupons that leave
+    // nothing to pay. Anything else must go through Razorpay Checkout.
+    if (coupon.discount_amount + 0.005 < listPrice) {
+      const remaining = +(listPrice - coupon.discount_amount).toFixed(2);
+      throw new BadRequestException(
+        `This coupon does not cover the full amount — ₹${remaining} remains payable. Complete the payment through Checkout instead.`,
+      );
+    }
+
+    // Consume BEFORE granting: the update is guarded by `used_count < max_uses`,
+    // so two concurrent redemptions cannot both pass.
+    await this.coupons.consume(coupon.id);
+
+    this.logger.log(
+      `Full-discount activation: studio=${studioId} plan=${targetPlan}/${targetCycle} coupon=${coupon.code} (₹${coupon.discount_amount} off ₹${listPrice})`,
+    );
+
+    return this.renew({
+      studio_id: studioId,
+      actor_id: actorId,
+      actor_type: 'user',
+      // Trusted because THIS method proved the coupon covers the total using
+      // server-side pricing — no gateway payment is owed.
+      gateway_verified: true,
+      plan: opts.plan,
+      billing_cycle: opts.billing_cycle,
+      currency: 'INR',
+      payment_method: 'coupon',
+      payment_reference: `COUPON-${coupon.code}-${Date.now()}`,
+      discount_amount: coupon.discount_amount,
+      discount_code: coupon.code,
+      billing_info: opts.billing_info,
+    });
+  }
+
+  /**
+   * Validate a platform coupon and return the resulting breakdown. Preview
+   * only — no order, no usage consumed. `createRenewalOrder` re-resolves the
+   * coupon independently, so this response can never set the charged price.
+   */
+  async previewCoupon(
+    studioId: string,
+    opts: { code: string; plan?: string; billing_cycle?: 'monthly' | 'annual' },
+  ) {
+    const studio = await this.pub.studio.findUnique({
+      where: { id: studioId },
+      select: { subscription_plan: true, billing_cycle: true },
+    });
+    if (!studio) throw new NotFoundException('Studio not found');
+
+    const targetPlan = opts.plan ?? studio.subscription_plan;
+    const targetCycle = (opts.billing_cycle ?? studio.billing_cycle) as
+      | 'monthly'
+      | 'annual';
+
+    const planInfo = await this.resolvePlanPricing(targetPlan);
+    if (!planInfo) throw new BadRequestException(`Unknown plan "${targetPlan}".`);
+
+    const listPrice =
+      targetCycle === 'annual' ? planInfo.annual_price : planInfo.monthly_price;
+
+    const coupon = await this.coupons.resolve(opts.code, targetPlan, listPrice);
+    const subtotal = +(listPrice - (coupon?.discount_amount ?? 0)).toFixed(2);
+    const gst = await this.computeGst(subtotal);
+
+    return {
+      valid: true,
+      coupon_code: coupon?.code ?? null,
+      coupon_name: coupon?.name ?? null,
+      discount_amount: coupon?.discount_amount ?? 0,
+      // True when nothing is left to pay — the client then activates via
+      // POST /subscription/redeem-coupon instead of opening Razorpay.
+      covers_full_amount: subtotal <= 0,
+      list_price: listPrice,
+      subtotal,
+      gst_percent: gst.percent,
+      gst_label: gst.label,
+      gst_amount: gst.amount,
+      total: +(subtotal + gst.amount).toFixed(2),
     };
   }
 
@@ -248,6 +406,12 @@ export class SubscriptionService {
     // flow through renew() (which would grant a whole new period).
     if (notes.kind === 'plan_change') {
       return this.applyVerifiedPlanChange(params, notes, order);
+    }
+
+    // Credit the coupon only once the payment is confirmed paid. Best-effort —
+    // never fails an already-captured payment.
+    if (notes.coupon_id) {
+      await this.coupons.consume(notes.coupon_id);
     }
 
     return this.renew({
@@ -382,6 +546,10 @@ export class SubscriptionService {
     'bank_transfer',
     'cash',
     'razorpay',
+    // 100%-off platform coupon — no gateway involved. Only ever set by
+    // redeemFullDiscountCoupon(), which proves the discount covers the whole
+    // total server-side before calling renew().
+    'coupon',
   ] as const;
 
   async renew(params: {
@@ -404,6 +572,14 @@ export class SubscriptionService {
     currency?: string;
     payment_reference?: string; // razorpay_payment_id / manual UTR
     payment_method?: string;
+    /**
+     * Rupees off the pre-GST subtotal, from a verified platform coupon. Set
+     * ONLY by server-side paths that resolved the coupon themselves
+     * (redeemFullDiscountCoupon). Never accepted from client input — it
+     * directly reduces the recorded amount.
+     */
+    discount_amount?: number;
+    discount_code?: string;
     /**
      * Optional billing info update applied BEFORE the invoice is created so the
      * invoice + receipt email use the freshest values the user just typed in.
@@ -473,15 +649,20 @@ export class SubscriptionService {
       throw new BadRequestException(`Unknown plan "${targetPlan}".`);
     }
 
-    const subtotal =
+    const listPrice =
       targetCycle === 'annual'
         ? planInfo.annual_price
         : planInfo.monthly_price;
-    if (subtotal <= 0) {
+    if (listPrice <= 0) {
       throw new BadRequestException(
         `Plan "${targetPlan}" is free — no payment required.`,
       );
     }
+
+    // A verified platform coupon reduces the taxable subtotal. Clamped to the
+    // list price so a discount can never produce a negative charge.
+    const discount = Math.min(Math.max(params.discount_amount ?? 0, 0), listPrice);
+    const subtotal = +(listPrice - discount).toFixed(2);
 
     // The recorded amount is the GST-inclusive TOTAL — the same figure the
     // Razorpay order charges and the invoice PDF splits back into
@@ -514,6 +695,14 @@ export class SubscriptionService {
           subtotal,
           gst_percent: gst.percent,
           gst_amount: gst.amount,
+          // Coupon audit trail — what the list price was and what came off it.
+          ...(discount > 0
+            ? {
+                list_price: listPrice,
+                discount_amount: discount,
+                discount_code: params.discount_code ?? null,
+              }
+            : {}),
         },
       });
 

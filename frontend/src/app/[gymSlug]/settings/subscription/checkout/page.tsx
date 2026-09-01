@@ -117,6 +117,65 @@ export default function SubscriptionCheckoutPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
+  // ── Coupon (platform codes created in the SaaS Control Center) ──
+  // The applied discount here is display-only: create-order re-resolves the
+  // code server-side, so the charged amount never comes from this state.
+  const [couponInput, setCouponInput] = useState("");
+  const [couponError, setCouponError] = useState("");
+  const [checkingCoupon, setCheckingCoupon] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    name: string | null;
+    discount_amount: number;
+    covers_full_amount: boolean;
+    subtotal: number;
+    gst_amount: number;
+    gst_label: string;
+    gst_percent: number;
+    total: number;
+  } | null>(null);
+
+  const applyCoupon = async () => {
+    const code = couponInput.trim();
+    if (!code) return;
+    setCheckingCoupon(true);
+    setCouponError("");
+    try {
+      const r = await subscriptionApi.validateCoupon({
+        code,
+        plan: planParam ?? undefined,
+        billing_cycle: cycleParam,
+      });
+      setAppliedCoupon({
+        code: r.coupon_code ?? code.toUpperCase(),
+        name: r.coupon_name,
+        discount_amount: r.discount_amount,
+        covers_full_amount: r.covers_full_amount,
+        subtotal: r.subtotal,
+        gst_amount: r.gst_amount,
+        gst_label: r.gst_label,
+        gst_percent: r.gst_percent,
+        total: r.total,
+      });
+    } catch (err) {
+      setAppliedCoupon(null);
+      setCouponError(
+        err instanceof Error ? err.message : "Could not apply this coupon.",
+      );
+    } finally {
+      setCheckingCoupon(false);
+    }
+  };
+
+  const clearCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponError("");
+  };
+
+  /** Nothing left to pay — the CTA activates directly instead of paying. */
+  const isFreeActivation = !isProrated && !!appliedCoupon?.covers_full_amount;
+
   // Hydrate billing fields once account loads. We DON'T overwrite a user's
   // in-flight edits if the query refetches later — only seed on first load.
   const [hydrated, setHydrated] = useState(false);
@@ -247,6 +306,43 @@ export default function SubscriptionCheckoutPage() {
     }
   };
 
+  // Coupon covers the whole amount — activate directly, no gateway. The server
+  // re-resolves the coupon and refuses unless the total is genuinely zero, so
+  // this path cannot be used to skip a partial payment.
+  const handleFreeActivation = async () => {
+    try {
+      const result = await subscriptionApi.redeemCoupon({
+        code: appliedCoupon!.code,
+        plan: planParam,
+        billing_cycle: cycle,
+        billing_name: billingName.trim() || undefined,
+        billing_email: billingEmail.trim() || undefined,
+        tax_id: taxId.trim() || undefined,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["subscription"] }),
+        queryClient.invalidateQueries({ queryKey: ["account-overview"] }),
+        queryClient.invalidateQueries({ queryKey: ["settings"] }),
+        queryClient.invalidateQueries({ queryKey: ["auth", "me"] }),
+        refresh(),
+      ]);
+      toast.success(
+        `Subscription activated with coupon ${appliedCoupon!.code}. Invoice ${result.invoice_number}.`,
+      );
+      router.push(
+        gymPath(
+          `/settings/subscription?invoice=${encodeURIComponent(result.invoice_id)}`,
+        ),
+      );
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : "Could not activate with this coupon.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // Razorpay: create order → open Checkout → verify (records the renewal).
   const handleRazorpay = async () => {
     try {
@@ -263,6 +359,7 @@ export default function SubscriptionCheckoutPage() {
       const order = await subscriptionApi.createOrder({
         plan: planParam,
         billing_cycle: cycle,
+        coupon_code: appliedCoupon?.code,
       });
 
       await new Promise<void>((resolve, reject) => {
@@ -339,6 +436,13 @@ export default function SubscriptionCheckoutPage() {
     setErrors(next);
     if (Object.keys(next).length) return;
     setSubmitting(true);
+    // A coupon covering the whole amount activates directly — opening Razorpay
+    // for a ₹0 order would fail. Proration still goes through the gateway;
+    // coupons don't apply to mid-cycle upgrades.
+    if (!isProrated && appliedCoupon?.covers_full_amount) {
+      void handleFreeActivation();
+      return;
+    }
     void (isProrated ? handleRazorpayChange() : handleRazorpay());
   }
 
@@ -683,20 +787,106 @@ export default function SubscriptionCheckoutPage() {
                       {format(new Date(preview.period_end), "d MMM yyyy")}
                     </span>
                   </div>
-                  {(preview.gst_amount ?? 0) > 0 && (
+                  {/* ── Coupon (SCC platform codes) ── */}
+                  <div className="border-t border-border pt-3">
+                    {appliedCoupon ? (
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-xs font-medium">
+                            Coupon {appliedCoupon.code} applied
+                          </div>
+                          {appliedCoupon.name && (
+                            <div className="truncate text-[11px] text-muted-foreground">
+                              {appliedCoupon.name}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={clearCoupon}
+                          className="shrink-0 text-[11px] text-muted-foreground underline hover:text-foreground"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <Label
+                          htmlFor="coupon-code"
+                          className="text-xs text-muted-foreground"
+                        >
+                          Have a coupon?
+                        </Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="coupon-code"
+                            value={couponInput}
+                            onChange={(e) => {
+                              setCouponInput(e.target.value.toUpperCase());
+                              if (couponError) setCouponError("");
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                applyCoupon();
+                              }
+                            }}
+                            placeholder="Enter code"
+                            className="h-9 flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-9"
+                            disabled={!couponInput.trim() || checkingCoupon}
+                            onClick={applyCoupon}
+                          >
+                            {checkingCoupon ? "Checking…" : "Apply"}
+                          </Button>
+                        </div>
+                        {couponError && (
+                          <p className="text-[11px] text-error">{couponError}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {((preview.gst_amount ?? 0) > 0 || appliedCoupon) && (
                     <>
                       <div className="flex items-center justify-between border-t border-border pt-3">
                         <span className="text-muted-foreground">Subtotal</span>
                         <span>
-                          ₹{(preview.subtotal ?? 0).toLocaleString("en-IN")}
+                          {/* Pre-discount list price, so the discount line below
+                              reads as a subtraction from it. */}
+                          ₹
+                          {(appliedCoupon
+                            ? appliedCoupon.subtotal + appliedCoupon.discount_amount
+                            : (preview.subtotal ?? 0)
+                          ).toLocaleString("en-IN")}
                         </span>
                       </div>
+                      {appliedCoupon && (
+                        <div className="flex items-center justify-between text-success">
+                          <span>Discount ({appliedCoupon.code})</span>
+                          <span>
+                            −₹
+                            {appliedCoupon.discount_amount.toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">
-                          {preview.gst_label ?? "GST"} ({preview.gst_percent ?? 0}%)
+                          {(appliedCoupon?.gst_label ?? preview.gst_label ?? "GST")} (
+                          {appliedCoupon?.gst_percent ?? preview.gst_percent ?? 0}%)
                         </span>
                         <span>
-                          ₹{(preview.gst_amount ?? 0).toLocaleString("en-IN")}
+                          ₹
+                          {(
+                            appliedCoupon?.gst_amount ??
+                            preview.gst_amount ??
+                            0
+                          ).toLocaleString("en-IN")}
                         </span>
                       </div>
                     </>
@@ -704,7 +894,10 @@ export default function SubscriptionCheckoutPage() {
                   <div className="border-t border-border pt-3 mt-3 flex items-center justify-between text-base">
                     <span className="font-semibold">Amount due</span>
                     <span className="text-2xl font-semibold text-primary">
-                      ₹{preview.amount.toLocaleString("en-IN")}
+                      ₹
+                      {(appliedCoupon?.total ?? preview.amount).toLocaleString(
+                        "en-IN",
+                      )}
                     </span>
                   </div>
                   {preview.days_lost_to_continuity > 0 && (
@@ -729,11 +922,13 @@ export default function SubscriptionCheckoutPage() {
                   {submitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Opening Razorpay…
+                      {isFreeActivation ? "Activating…" : "Opening Razorpay…"}
                     </>
                   ) : (
                     <>
-                      Pay with Razorpay
+                      {isFreeActivation
+                        ? "Activate subscription"
+                        : "Pay with Razorpay"}
                       <ArrowRight className="ml-1.5 h-4 w-4" />
                     </>
                   )}
