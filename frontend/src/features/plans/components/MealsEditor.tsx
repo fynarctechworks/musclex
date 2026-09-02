@@ -45,7 +45,7 @@ function nextKey(): string {
   return `meal-draft-${draftSeq}`;
 }
 
-export function emptyMealDraft(position: number): MealDraft {
+function emptyMealDraft(position: number): MealDraft {
   return {
     key: nextKey(),
     meal_type: 'breakfast',
@@ -70,7 +70,7 @@ function itemsToText(items: DietMealItem[] | null | undefined): string {
 }
 
 /** Parse "food — quantity" lines (em-dash, " - ", or ":" separators). */
-export function parseItemsText(text: string): DietMealItem[] {
+function parseItemsText(text: string): DietMealItem[] {
   return text
     .split('\n')
     .map((line) => line.trim())

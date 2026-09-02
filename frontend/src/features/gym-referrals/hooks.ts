@@ -70,14 +70,6 @@ export function useAdminReferralRules(campaignId?: string) {
   });
 }
 
-export function useAdminReferralRule(id: string) {
-  return useQuery({
-    queryKey: gymReferralKeys.rule(id),
-    queryFn:  () => gymReferralsAdminApi.getRule(id),
-    enabled:  !!id,
-  });
-}
-
 export function useAdminCampaigns() {
   return useQuery({
     queryKey: gymReferralKeys.campaigns(),
@@ -187,14 +179,6 @@ export const gymReferralAdminKeys = {
   dailyTrend: (r?: unknown) => [...gymReferralKeys.all, 'daily-trend', r] as const,
 };
 
-export function useAdminOverview() {
-  return useQuery({
-    queryKey: gymReferralAdminKeys.overview(),
-    queryFn:  () => gymReferralsAdminApi.overview(),
-    staleTime: 30_000,
-  });
-}
-
 export function useFraudQueue(params?: {
   severity?: string;
   review_status?: string;
@@ -225,138 +209,11 @@ export function useReviewSignal() {
   });
 }
 
-export function useReferralLifecycle(referralId: string | null) {
-  return useQuery({
-    queryKey: gymReferralAdminKeys.lifecycle(referralId ?? ''),
-    queryFn:  () => gymReferralsAdminApi.getLifecycle(referralId!),
-    enabled:  !!referralId,
-  });
-}
-
-export function useForceTransition() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ referralId, ...body }: {
-      referralId: string;
-      to_status: string;
-      reason: string;
-    }) => gymReferralsAdminApi.forceTransition(referralId, body),
-    onSuccess: (_d, vars) => {
-      toast.success(`Transition forced → ${vars.to_status}`);
-      qc.invalidateQueries({ queryKey: gymReferralKeys.list() });
-      qc.invalidateQueries({ queryKey: gymReferralAdminKeys.lifecycle(vars.referralId) });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
-
-export function useRevokeReward() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ rewardLogId, reason }: { rewardLogId: string; reason: string }) =>
-      gymReferralsAdminApi.revokeReward(rewardLogId, reason),
-    onSuccess: () => {
-      toast.success('Reward revoked');
-      qc.invalidateQueries({ queryKey: gymReferralKeys.logs() });
-      qc.invalidateQueries({ queryKey: gymReferralAdminKeys.overview() });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
-
 export function useWallet(studioId: string | null) {
   return useQuery({
     queryKey: gymReferralAdminKeys.wallet(studioId ?? ''),
     queryFn:  () => gymReferralsAdminApi.getWallet(studioId!),
     enabled:  !!studioId,
     staleTime: 15_000,
-  });
-}
-
-export function useFreezeWallet() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ studioId, reason }: { studioId: string; reason: string }) =>
-      gymReferralsAdminApi.freezeWallet(studioId, reason),
-    onSuccess: (_d, vars) => {
-      toast.success('Wallet frozen');
-      qc.invalidateQueries({ queryKey: gymReferralAdminKeys.wallet(vars.studioId) });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
-
-export function useUnfreezeWallet() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (studioId: string) => gymReferralsAdminApi.unfreezeWallet(studioId),
-    onSuccess: (_d, sid) => {
-      toast.success('Wallet unfrozen');
-      qc.invalidateQueries({ queryKey: gymReferralAdminKeys.wallet(sid) });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
-
-export function useManualWalletAdjustment() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: gymReferralsAdminApi.manualAdjustment,
-    onSuccess: (_d, vars) => {
-      toast.success('Wallet adjusted');
-      qc.invalidateQueries({ queryKey: gymReferralAdminKeys.wallet(vars.studio_id) });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
-
-// ── Phase 4: Analytics ──
-
-export function useAnalyticsFunnel(range?: { from?: string; to?: string }) {
-  return useQuery({
-    queryKey: gymReferralAdminKeys.funnel(range),
-    queryFn:  () => gymReferralsAdminApi.analyticsFunnel(range),
-    staleTime: 60_000,
-  });
-}
-
-export function useAnalyticsTopReferrers(params?: { from?: string; to?: string; limit?: number }) {
-  return useQuery({
-    queryKey: gymReferralAdminKeys.topReferrers(params),
-    queryFn:  () => gymReferralsAdminApi.analyticsTopReferrers(params),
-    staleTime: 60_000,
-  });
-}
-
-export function useAttributedRevenue(range?: { from?: string; to?: string }) {
-  return useQuery({
-    queryKey: gymReferralAdminKeys.attributedRevenue(range),
-    queryFn:  () => gymReferralsAdminApi.analyticsAttributedRevenue(range),
-    staleTime: 60_000,
-  });
-}
-
-export function useTimeToReward(range?: { from?: string; to?: string }) {
-  return useQuery({
-    queryKey: gymReferralAdminKeys.timeToReward(range),
-    queryFn:  () => gymReferralsAdminApi.analyticsTimeToReward(range),
-    staleTime: 60_000,
-  });
-}
-
-export function useWalletAggregates() {
-  return useQuery({
-    queryKey: gymReferralAdminKeys.walletAggregates(),
-    queryFn:  () => gymReferralsAdminApi.analyticsWalletAggregates(),
-    staleTime: 60_000,
-  });
-}
-
-export function useDailyTrend(range: { from: string; to: string } | null) {
-  return useQuery({
-    queryKey: gymReferralAdminKeys.dailyTrend(range),
-    queryFn:  () => gymReferralsAdminApi.analyticsDailyTrend(range!),
-    enabled:  !!range,
-    staleTime: 60_000,
   });
 }

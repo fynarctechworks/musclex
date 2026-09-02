@@ -32,14 +32,6 @@ export function useMemberReferralDashboard(memberId: string | null) {
   });
 }
 
-export function useMemberLeaderboard(limit = 10) {
-  return useQuery({
-    queryKey: memberReferralKeys.leaderboard(),
-    queryFn:  () => memberReferralsApi.leaderboard(limit),
-    staleTime: 60_000,
-  });
-}
-
 /** Generate (or fetch) a member's referral code. Idempotent. */
 export function useEnsureMemberCode() {
   const qc = useQueryClient();
@@ -109,34 +101,6 @@ export function useSetProgramStatus() {
     onSuccess: () => {
       toast.success('Program status updated');
       qc.invalidateQueries({ queryKey: memberReferralKeys.programs() });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
-
-export function useMemberReferralFraudQueue(params?: {
-  severity?: string;
-  limit?: number;
-  offset?: number;
-}) {
-  return useQuery({
-    queryKey: memberReferralKeys.fraudQueue(params),
-    queryFn:  () => memberReferralsAdminApi.fraudQueue(params),
-    staleTime: 15_000,
-  });
-}
-
-export function useReviewMemberSignal() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ signalId, ...body }: {
-      signalId: string;
-      decision: 'reviewed_ok' | 'confirmed_fraud';
-      notes?: string;
-    }) => memberReferralsAdminApi.reviewSignal(signalId, body),
-    onSuccess: () => {
-      toast.success('Signal reviewed');
-      qc.invalidateQueries({ queryKey: memberReferralKeys.fraudQueue() });
     },
     onError: (e: Error) => toast.error(e.message),
   });

@@ -133,7 +133,7 @@ export interface CheckoutVerifyResponse {
 // Error handling
 // ---------------------------------------------------------------------------
 
-export class PublicApiError extends Error {
+class PublicApiError extends Error {
   constructor(
     message: string,
     public readonly status: number

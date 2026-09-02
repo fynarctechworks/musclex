@@ -1,6 +1,12 @@
 # Routine schedules and the missed-day prompt — proposal
 
-**Status: awaiting approval. No schema has been changed and no migration written.**
+**Status: SHIPPED 2026-09-02.** The schema objects below were applied to all
+studio schemas via `backend/prisma/migrations/20260902_member_routine_schedule/`.
+Approved by the project owner; see `docs/AUDIT_2026-09-02.md` for why it became
+urgent (the missing columns were 500-ing `/api/v1/members`).
+
+> Historical note: the plan text below was written before implementation, so it
+> reads as a proposal. The schema section is what actually shipped.
 
 This is a HARD STOP item under CLAUDE.md (#1 schema/migrations, and the
 tenant-model set). Written so the shape can be corrected before anything

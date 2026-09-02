@@ -255,6 +255,3 @@ export function humanizeReason(code: string | null | undefined): string {
   if (known) return known.title;
   return code.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
-
-/** All known reason codes — useful for telemetry / dashboards. */
-export const KNOWN_DENIAL_REASONS = Object.keys(CATALOG);

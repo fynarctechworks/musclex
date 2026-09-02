@@ -165,14 +165,3 @@ export function useActions({ branchId, enabled = true }: UseActionsArgs = {}) {
       resolve.mutate({ id, payload }),
   };
 }
-
-export function useActionReceipts(limit = 25) {
-  return useQuery<ActionReceipt[]>({
-    queryKey: queryKeys.dashboard.actionReceipts(limit),
-    queryFn: () =>
-      apiClient.get("/dashboard/action-receipts", {
-        params: { limit, since_days: 7 },
-      }),
-    staleTime: 30_000,
-  });
-}

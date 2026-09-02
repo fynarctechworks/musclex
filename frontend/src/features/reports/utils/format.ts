@@ -14,11 +14,6 @@ export const formatNumber = (v: number | null | undefined): string => {
   return numberFmt.format(Number(v));
 };
 
-export const formatCompact = (v: number | null | undefined): string => {
-  if (v === null || v === undefined || Number.isNaN(Number(v))) return '0';
-  return compactFmt.format(Number(v));
-};
-
 /** Indian Rupee formatting consistent with PRD (₹ prefix, grouped). */
 export const formatCurrency = (v: number | null | undefined): string => {
   if (v === null || v === undefined || Number.isNaN(Number(v))) return '₹0';
@@ -45,9 +40,6 @@ export const formatDate = (
     return iso;
   }
 };
-
-export const formatShortDate = (iso: string | null | undefined): string =>
-  formatDate(iso, 'MMM d');
 
 /** Title-case a snake_case enum-ish label. */
 export const formatLabel = (s: string | null | undefined): string => {

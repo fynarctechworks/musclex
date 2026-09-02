@@ -280,7 +280,7 @@ export function diagnoseCameraError(err: unknown): CameraDiagnosis {
  */
 export type CameraPermissionState = 'unsupported' | 'prompt' | 'granted' | 'denied';
 
-export function useCameraPermissionState(): CameraPermissionState {
+function useCameraPermissionState(): CameraPermissionState {
   const [state, setState] = useState<CameraPermissionState>('unsupported');
 
   useEffect(() => {

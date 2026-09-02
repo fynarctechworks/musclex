@@ -21,6 +21,8 @@ It is a **monorepo of four apps** sharing one Supabase Postgres database:
 | `saas-control-center/` (+ `/frontend`) | Internal super-admin control center (SCC) | NestJS + Next.js 16 |
 
 Supporting: `docs/`, `design.md` (the design language), `scripts/`, `tasks/`.
+Superseded one-off reports and plans live in `docs/_archive/` — historical
+record only, not current truth.
 
 ## The prime directive
 Do what the current task asks — no unrequested scope. If you notice other

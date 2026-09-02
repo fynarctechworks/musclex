@@ -73,17 +73,17 @@ export async function enqueueExpense(
   return entry;
 }
 
-export async function listQueued(): Promise<QueuedExpense[]> {
+async function listQueued(): Promise<QueuedExpense[]> {
   const db = await getDb();
   return (await db.getAll(STORE)) as QueuedExpense[];
 }
 
-export async function removeQueued(idempotencyKey: string) {
+async function removeQueued(idempotencyKey: string) {
   const db = await getDb();
   await db.delete(STORE, idempotencyKey);
 }
 
-export async function updateQueuedFailure(
+async function updateQueuedFailure(
   idempotencyKey: string,
   error: string,
 ) {
@@ -106,7 +106,7 @@ export interface DrainResult {
  * Skips entries whose attempt count exceeds `maxAttempts` so we don't spin
  * forever on a poisoned payload.
  */
-export async function drainQueue(maxAttempts = 5): Promise<DrainResult> {
+async function drainQueue(maxAttempts = 5): Promise<DrainResult> {
   const queued = await listQueued();
   let flushed = 0;
   let failed = 0;

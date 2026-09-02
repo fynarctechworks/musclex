@@ -31,7 +31,7 @@ function nextKey(): string {
   return `ex-draft-${draftSeq}`;
 }
 
-export function emptyExerciseDraft(position: number): ExerciseDraft {
+function emptyExerciseDraft(position: number): ExerciseDraft {
   return {
     key: nextKey(),
     exercise_id: '',

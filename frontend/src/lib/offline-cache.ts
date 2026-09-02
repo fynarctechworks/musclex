@@ -57,15 +57,6 @@ export async function offlineSet<T>(key: string, data: T): Promise<void> {
   }
 }
 
-export async function offlineDelete(key: string): Promise<void> {
-  try {
-    const db = await getDb();
-    await db.delete(STORE, key);
-  } catch {
-    // ignore
-  }
-}
-
 export const OfflineCacheKeys = {
   pulse: (branchId?: string) => `pulse:${branchId ?? "all"}`,
   actions: (branchId?: string) => `actions:${branchId ?? "all"}`,

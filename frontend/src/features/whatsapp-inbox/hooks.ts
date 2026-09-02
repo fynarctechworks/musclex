@@ -5,7 +5,7 @@ import { whatsappInboxApi } from './api';
 // Local query keys — the shared queryKeys registry doesn't cover the inbox,
 // and its root ('whatsapp-inbox') is intentionally NOT in the branch-switch
 // preserve set, so switching branches drops the cache like other tenant data.
-export const whatsappInboxKeys = {
+const whatsappInboxKeys = {
   all: ['whatsapp-inbox'] as const,
   conversations: (limit?: number) => [...whatsappInboxKeys.all, 'conversations', limit] as const,
   thread: (phone: string) => [...whatsappInboxKeys.all, 'thread', phone] as const,

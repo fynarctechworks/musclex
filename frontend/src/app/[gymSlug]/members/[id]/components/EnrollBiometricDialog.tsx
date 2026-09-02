@@ -332,12 +332,3 @@ export function EnrollBiometricDialog({
     </Dialog>
   );
 }
-
-/**
- * Convenience hook so call sites don't need to pass branch through props.
- */
-export function useDefaultBranchId(): string {
-  const user = useAuthStore((s) => s.user);
-  const activeBranchId = useAuthStore((s) => s.activeBranchId);
-  return activeBranchId || (user?.branch_ids?.[0] ?? "");
-}

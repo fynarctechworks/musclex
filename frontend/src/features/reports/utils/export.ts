@@ -57,7 +57,7 @@ const sanitizeFilename = (name: string) =>
 
 // ── CSV ───────────────────────────────────────────────────
 
-export function exportCsv<T>(opts: ExportOptions<T>): void {
+function exportCsv<T>(opts: ExportOptions<T>): void {
   const headers = opts.columns.map((c) => escapeCsv(c.label)).join(',');
   const dataRows = opts.rows.map((row) =>
     opts.columns.map((c) => escapeCsv(cellValue(row, c))).join(','),
@@ -79,7 +79,7 @@ export function exportCsv<T>(opts: ExportOptions<T>): void {
 
 // ── Excel (HTML-based .xls — opens in Excel/Numbers/Sheets) ──
 
-export function exportExcel<T>(opts: ExportOptions<T>): void {
+function exportExcel<T>(opts: ExportOptions<T>): void {
   const rowsHtml = opts.rows
     .map(
       (row) =>
@@ -134,7 +134,7 @@ export function exportExcel<T>(opts: ExportOptions<T>): void {
 
 // ── Print ─────────────────────────────────────────────────
 
-export function printReport<T>(opts: ExportOptions<T>): void {
+function printReport<T>(opts: ExportOptions<T>): void {
   const w = window.open('', '_blank', 'width=1024,height=768');
   if (!w) return;
 

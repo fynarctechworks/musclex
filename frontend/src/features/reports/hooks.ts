@@ -20,15 +20,6 @@ export function useAnalyticsDashboard(filters?: AnalyticsFilters) {
   });
 }
 
-// ── Daily Metrics ─────────────────────────────────────────
-
-export function useDailyMetrics(filters?: AnalyticsFilters) {
-  return useQuery({
-    queryKey: queryKeys.analytics.dailyMetrics(filters),
-    queryFn: () => analyticsApi.dailyMetrics(filters),
-  });
-}
-
 export function useDailyMetricsTrend(filters?: AnalyticsFilters) {
   return useQuery({
     queryKey: queryKeys.analytics.trend(filters),
@@ -60,15 +51,6 @@ export function useClassAnalytics(filters?: ClassFilters) {
   return useQuery({
     queryKey: queryKeys.analytics.classes(filters),
     queryFn: () => analyticsApi.classes(filters),
-  });
-}
-
-// ── Member Behavior ───────────────────────────────────────
-
-export function useMemberBehavior(filters?: MemberBehaviorFilters) {
-  return useQuery({
-    queryKey: queryKeys.analytics.memberBehavior(filters),
-    queryFn: () => analyticsApi.memberBehavior(filters),
   });
 }
 

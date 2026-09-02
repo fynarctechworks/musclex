@@ -53,7 +53,7 @@ function endOfDay(d: Date): Date {
  * Compute the [from, to] range for a given preset.
  * Custom presets fall back to "today" until the user picks dates explicitly.
  */
-export function rangeForPreset(preset: DateRangePreset): DateRange {
+function rangeForPreset(preset: DateRangePreset): DateRange {
   const now = new Date();
   if (preset === "today") {
     return { from: startOfDay(now), to: endOfDay(now), preset };
