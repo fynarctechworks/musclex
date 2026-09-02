@@ -1309,10 +1309,19 @@ export class AuthService {
     }
     const emailSent = await this.sendVerificationEmail(email, pending.full_name, verificationUrl);
     if (!emailSent) {
+      // Neither delivered inline nor accepted by the queue — the user will
+      // never receive this. Say so instead of reporting success: a silent
+      // `sent: true` here is what let a blocked signup look healthy.
       this.logger.error(`Resent verification email could not be delivered to ${email}`);
+      throw new InternalServerErrorException(
+        'We could not send the verification email right now. Please try again shortly, or contact support if it keeps failing.',
+      );
     }
 
     // The token/link is intentionally never returned to the client.
+    // NOTE: when the queue accepts the job, `sent` means "accepted for
+    // delivery", not "in the inbox" — the provider may still reject it.
+    // EmailProcessor.onFailed() logs those.
     return { sent: true };
   }
 

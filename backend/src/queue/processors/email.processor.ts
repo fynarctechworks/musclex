@@ -20,6 +20,16 @@ export class EmailProcessor extends WorkerHost {
 
   @OnWorkerEvent('failed')
   onFailed(job: Job, err: Error) {
+    // ALWAYS log. reportJobFailure() is a no-op without SENTRY_DSN, which is
+    // how a provider rejection (e.g. Resend refusing an unverified sender)
+    // could fail every retry and leave no trace at all — the API still
+    // returned 201 and the UI still said "email sent".
+    const attempts = job?.attemptsMade ?? 0;
+    const max = job?.opts?.attempts ?? 1;
+    const to = (job?.data as EmailJobData | undefined)?.to ?? 'unknown';
+    this.logger.error(
+      `Email job ${job?.id ?? '?'} FAILED (attempt ${attempts}/${max}) to=${to}: ${err?.message}`,
+    );
     reportJobFailure(QUEUE_NAMES.EMAIL, job, err);
   }
 

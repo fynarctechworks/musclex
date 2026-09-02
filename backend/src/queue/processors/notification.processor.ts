@@ -20,6 +20,11 @@ export class NotificationProcessor extends WorkerHost {
 
   @OnWorkerEvent('failed')
   onFailed(job: Job, err: Error) {
+    // ALWAYS log: reportJobFailure() is a no-op without SENTRY_DSN, so a
+    // failing job would otherwise leave no trace anywhere.
+    this.logger.error(
+      `Job ${job?.id ?? '?'} FAILED (attempt ${job?.attemptsMade ?? 0}/${job?.opts?.attempts ?? 1}): ${err?.message}`,
+    );
     reportJobFailure(QUEUE_NAMES.NOTIFICATION, job, err);
   }
 
